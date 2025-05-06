@@ -129,7 +129,11 @@ async function startGauntlet(channel, delay) {
   );
 
   gauntletMessage = await channel.send({
-    embeds: [{ title: '🏁 The Ugly Gauntlet Has Begun!', description: `Click to enter. You have ${delay} minutes.\n🧟 Entrants so far: 0`, color: 0x6e40c9 }],
+    embeds: [{
+      title: '🏁 The Ugly Gauntlet Has Begun!',
+      description: `Click to enter. You have ${delay} minutes.\n🧟 Entrants so far: 0`,
+      color: 0x6e40c9
+    }],
     components: [joinButton]
   });
 
@@ -165,10 +169,17 @@ async function runGauntlet(channel) {
         ? specialEliminations[Math.floor(Math.random() * specialEliminations.length)]
         : eliminationEvents[Math.floor(Math.random() * eliminationEvents.length)];
 
-      eliminationDescriptions.push(`❌ <@${player.id}> ${reason}`);
       if (useSpecial) {
-        const gif = specialEliminationGifs[Math.floor(Math.random() * specialEliminationGifs.length)];
-        await channel.send(gif);
+        const style = Math.floor(Math.random() * 3);
+        if (style === 0) {
+          eliminationDescriptions.push(`━━━━━━━━━━ 👁‍🗨 THE MALFORMED STRIKE 👁‍🗨 ━━━━━━━━━━\n❌ <@${player.id}> ${reason}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+        } else if (style === 1) {
+          eliminationDescriptions.push(`⚠️💀⚠️ SPECIAL FATE ⚠️💀⚠️\n❌ <@${player.id}> ${reason}\n🩸🧟‍♂️😈👁🔥👣🪦🧠👃`);
+        } else {
+          eliminationDescriptions.push(`**💥 Cursed Spotlight: <@${player.id}> 💥**\n_${reason}_`);
+        }
+      } else {
+        eliminationDescriptions.push(`❌ <@${player.id}> ${reason}`);
       }
     }
 
@@ -207,4 +218,3 @@ async function runGauntlet(channel) {
 }
 
 client.login(process.env.DISCORD_TOKEN);
-
