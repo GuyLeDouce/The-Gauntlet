@@ -18,118 +18,51 @@ let gauntletChannel = null;
 let gauntletMessage = null;
 
 const trialNames = [
-  "Trial of the Screaming Mire",
-  "The Eldritch Scramble",
-  "Trial of the Shattered Bones",
-  "The Maw's Hunger",
-  "Dance of the Ugly Reflection",
-  "Trial of the Crooked Path",
-  "Storm of the Severed Sky",
-  "Gauntlet of Broken Dreams",
-  "The Echoing Crawl",
+  "Trial of the Screaming Mire", "The Eldritch Scramble", "Trial of the Shattered Bones",
+  "The Maw's Hunger", "Dance of the Ugly Reflection", "Trial of the Crooked Path",
+  "Storm of the Severed Sky", "Gauntlet of Broken Dreams", "The Echoing Crawl",
   "The Wretched Spiral"
 ];
 
 const eliminationEvents = [
   "was dragged into the swamp by unseen claws.",
-  "took one wrong step and fell into the Abyss of Nonsense.",
-  "thought they could outdrink a bog spirit. They couldn't.",
-  "burst into flames after trying to light a fart. The Malformed are cruel.",
-  "stepped on a cursed LEGO brick and vanished into a scream.",
-  "mocked the wrong shadow and paid the price.",
-  "was eaten by a paper-mâché hydra. Cheap, but effective.",
-  "got lost looking for loot and never returned.",
-  "was judged too handsome and instantly vaporized.",
-  "mispronounced the ritual chant and exploded in glitter.",
-  "ran headfirst into a wall and kept going into the void.",
-  "slipped on a banana peel and fell into the lava of despair.",
   "tried to pet a malformed dog. It bit back... with ten mouths.",
-  "told a yo mama joke at the wrong time.",
-  "thought it was a good idea to nap mid-Gauntlet.",
-  "turned into a rubber duck and floated away.",
-  "challenged a ghost to a dance battle. Lost. Badly.",
-  "was yeeted off the platform by a sentient fart cloud.",
+  "got yeeted off the platform by a sentient fart cloud.",
+  "exploded after lighting a fart too close to a rune circle.",
+  "was judged too handsome and instantly vaporized.",
   "spoke in rhymes one too many times.",
-  "mistook a mimic for a vending machine.",
-  "was eliminated by a very aggressive pigeon.",
-  "got bored and left. The Gauntlet didn’t take it well.",
-  "was betrayed by their imaginary friend.",
-  "fell victim to a cursed burrito.",
-  "tried to summon help, but summoned debt collectors instead.",
-  "was turned into abstract art.",
-  "overthought everything and got stuck in a logic loop.",
   "was too ugly. Even for the Malformed.",
-  "used Comic Sans in a ritual.",
-  "was pulled into a mirror dimension by their own reflection.",
+  "turned into a rubber duck and floated away.",
   "got tangled in the Lore Scrolls and suffocated.",
-  "ignored the tutorial. Always read the tutorial.",
-  "tapped out trying to spell 'Malformation'.",
-  "tried to bluff the RNG. It called.",
-  "turned on caps lock and got smote.",
-  "disrespected the Eldritch Mods.",
-  "became one with the loading screen.",
-  "tripped on a cursed TikTok trend.",
-  "got flashbanged by nostalgia.",
-  "joined the wrong Discord.",
-  "accidentally said Beetlejuice three times.",
-  "tried to rage quit but forgot to leave.",
-  "sniffed a suspicious potion.",
-  "bragged about their RNG luck. Oops.",
-  "drew a red card. From a black deck.",
-  "challenged fate to a coin flip and lost the coin.",
-  "glitched out of existence.",
-  "was mistaken for a chicken nugget by a monster.",
-  "got stuck in the lobby.",
-  "failed a basic vibe check.",
-  "took an arrow... to everything."
+  "joined the wrong Discord and disappeared forever."
 ];
 
 const specialEliminations = [
   "was sacrificed to the ancient hairball under the couch.",
-  "tried to hug an Ugly Dog. It turned out to be a mop with teeth.",
-  "was sucked into a vortex of cursed pomade and never looked fabulous again.",
-  "tried to flex in front of the Mirror of Misfortune and imploded.",
-  "rolled a natural 1 while trying to summon $CHARM and summoned their ex instead.",
-  "was found guilty of being TOO Ugly and banished to the Backrooms of Beauty.",
-  "attempted to bribe The Gauntlet with expired gas station sushi.",
-  "was outed as an undercover Handsome and disqualified on sight.",
-  "forgot to say GM and was hexed by the community.",
-  "clicked the wrong 'Mint' and bought 500 Ugly Rugs instead.",
-  "was devoured by an NFT with a 'Fire Skin' and eternal drip.",
-  "tried to out-ugly the Malformed... and succeeded. Universe collapsed.",
-  "said 'at least I'm not that Ugly' — fate heard. Fate delivered."
-];
-
-const specialEliminationGifs = [
-  "https://tenor.com/view/ugly-funny-creepy-weird-face-gif-25676355",
-  "https://tenor.com/view/creepy-smile-funny-ugly-gif-15111072",
-  "https://tenor.com/view/grotesque-weird-disturbing-creature-gif-18296387",
-  "https://tenor.com/view/disgusted-shocked-ew-gif-16531384",
-  "https://tenor.com/view/nightmare-creature-monster-scary-horror-gif-24809230"
+  "rolled a 1 and summoned their ex instead.",
+  "flexed too hard and imploded with style.",
+  "said ‘GM’ too late and was banished to Shadow Realm.",
+  "was cursed by a malformed meme and vaporized in shame.",
+  "drew a red card. From a black deck. Gone.",
+  "used Comic Sans in a summoning circle.",
+  "forgot to use dark mode and burned alive.",
+  "glitched into another chain. Nobody followed.",
+  "was outed as an undercover Handsome and disqualified."
 ];
 
 const revivalEvents = [
   "was too ugly to stay dead and clawed their way back!",
   "emerged from the swamp, covered in mud and vengeance.",
-  "was coughed back up by The Malformed. Gross.",
-  "respawned after glitching through the floor.",
   "refused to die and bribed fate with $CHARM.",
   "sacrificed a toe and was reborn in pixelated agony.",
-  "rolled a nat 20 on a resurrection check!",
-  "got spit out by a mimic. Again.",
-  "was reassembled by cursed IKEA instructions.",
-  "screamed so loud they reversed their own death.",
-  "used a backup soul they had in storage.",
   "got patched in a hotfix and returned.",
-  "woke up and realized it was just a bad dream.",
-  "got a revive from an ancient Ugly Dog bark.",
-  "respawned thanks to a bug in the Gauntlet matrix.",
-  "found a secret cheat code in the Malformed manual.",
-  "used their Uno Reverse card at the perfect time.",
-  "was pulled back by the chants of the audience.",
   "possessed their own corpse. Classic.",
-  "returned... but something’s definitely wrong now."
+  "used their Uno Reverse card at the perfect time.",
+  "was pulled back by the chants of the community.",
+  "glitched through the floor, then glitched back.",
+  "got spit out by a mimic. Again."
 ];
+
 
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
@@ -147,7 +80,7 @@ client.on(Events.InteractionCreate, async interaction => {
         const embed = gauntletMessage.embeds[0];
         const updatedEmbed = {
           ...embed.data,
-          description: embed.description.replace(/🧟 Entrants so far: \\d+/, `🧟 Entrants so far: ${gauntletEntrants.length}`)
+          description: embed.description.replace(/🧟 Entrants so far: \d+/, `🧟 Entrants so far: ${gauntletEntrants.length}`)
         };
         await gauntletMessage.edit({ embeds: [updatedEmbed] });
       }
