@@ -113,7 +113,7 @@ client.on('messageCreate', async message => {
     gauntletActive = true;
     gauntletChannel = message.channel;
     await message.channel.send('🧪 **Trial Mode Activated:** 20 mock players have entered The Gauntlet! Running simulation now...');
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise(r => setTimeout(r, 10000));
     runGauntlet(message.channel);
   }
 });
