@@ -108,61 +108,32 @@ const specialEliminationGifs = [
   "https://media.giphy.com/media/ZyoU6jbPzHv5u/giphy.gif"
 ];
 
+const revivalEvents = [
+  "was too ugly to stay dead and clawed their way back!",
+  "emerged from the swamp, covered in mud and vengeance.",
+  "was coughed back up by The Malformed. Gross.",
+  "respawned after glitching through the floor.",
+  "refused to die and bribed fate with $CHARM.",
+  "sacrificed a toe and was reborn in pixelated agony.",
+  "rolled a nat 20 on a resurrection check!",
+  "got spit out by a mimic. Again.",
+  "was reassembled by cursed IKEA instructions.",
+  "screamed so loud they reversed their own death.",
+  "used a backup soul they had in storage.",
+  "got patched in a hotfix and returned.",
+  "woke up and realized it was just a bad dream.",
+  "got a revive from an ancient Ugly Dog bark.",
+  "respawned thanks to a bug in the Gauntlet matrix.",
+  "found a secret cheat code in the Malformed manual.",
+  "used their Uno Reverse card at the perfect time.",
+  "was pulled back by the chants of the audience.",
+  "possessed their own corpse. Classic.",
+  "returned... but something’s definitely wrong now."
+];
+
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
 });
-
-async function startGauntlet(channel, customDelay = 10) {
-  if (gauntletActive) return;
-  gauntletEntrants = [];
-  gauntletActive = true;
-  gauntletChannel = channel;
-
-  const joinButton = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('join_gauntlet')
-      .setLabel('Join the Ugly Gauntlet')
-      .setStyle(ButtonStyle.Primary)
-  );
-
-  gauntletMessage = await channel.send({
-    embeds: [
-      {
-        title: '🏁 The Ugly Gauntlet Has Begun!',
-        description: `Click the button below to enter and test your fate…\nYou have ${customDelay} minutes to join.\n\n🧟 Entrants so far: 0`,
-        color: 0x6e40c9
-      }
-    ],
-    components: [joinButton]
-  });
-
-  const countdownMessages = [
-    `⏳ Only ${Math.ceil(customDelay * 2 / 3)} minutes left to join the Gauntlet!`,
-    `⚠️ Just ${Math.ceil(customDelay / 3)} minutes remaining... The Malformed begin to stir...`,
-    `🩸 Final minute to enter... blood will spill soon.`
-  ];
-
-  const thirds = [
-    customDelay * 60 * 1000 * 1 / 3,
-    customDelay * 60 * 1000 * 2 / 3,
-    customDelay * 60 * 1000 * 5 / 6,
-  ];
-
-  thirds.forEach((time, i) => {
-    setTimeout(() => {
-      if (gauntletActive) channel.send(countdownMessages[i]);
-    }, time);
-  });
-
-  joinTimeout = setTimeout(() => {
-    if (gauntletEntrants.length < 1) {
-      channel.send("Not enough entrants joined the Gauntlet. Next round will begin when summoned again.");
-      gauntletActive = false;
-      return;
-    }
-    runGauntlet(channel);
-  }, customDelay * 60 * 1000);
-}
 
 client.on(Events.InteractionCreate, async interaction => {
   if (!interaction.isButton()) return;
@@ -176,7 +147,7 @@ client.on(Events.InteractionCreate, async interaction => {
         const embed = gauntletMessage.embeds[0];
         const updatedEmbed = {
           ...embed.data,
-          description: embed.description.replace(/🧟 Entrants so far: \d+/, `🧟 Entrants so far: ${gauntletEntrants.length}`)
+          description: embed.description.replace(/🧟 Entrants so far: \\d+/, `🧟 Entrants so far: ${gauntletEntrants.length}`)
         };
         await gauntletMessage.edit({ embeds: [updatedEmbed] });
       }
@@ -188,45 +159,59 @@ client.on(Events.InteractionCreate, async interaction => {
 
 client.on('messageCreate', async message => {
   if (message.author.bot) return;
-
   const content = message.content.trim();
 
+  if (content === '!gauntlet') startGauntlet(message.channel, 10);
   if (content.startsWith('!gauntlet ')) {
-    const args = content.split(' ');
-    const delay = parseInt(args[1], 10);
-    await startGauntlet(message.channel, !isNaN(delay) ? delay : 10);
+    const delay = parseInt(content.split(' ')[1], 10);
+    startGauntlet(message.channel, isNaN(delay) ? 10 : delay);
   }
-
-  if (content === '!gauntlet') {
-    await startGauntlet(message.channel, 10);
-  }
-
   if (content === '!startg') {
-    if (!gauntletActive) {
-      return message.channel.send('No Gauntlet is currently running. Use !gauntlet to begin one.');
+    if (gauntletActive) {
+      clearTimeout(joinTimeout);
+      runGauntlet(message.channel);
+    } else {
+      message.channel.send('No Gauntlet is currently running. Use !gauntlet to begin one.');
     }
-    clearTimeout(joinTimeout);
-    runGauntlet(gauntletChannel || message.channel);
   }
-
   if (content === '!gauntlettrial') {
     if (gauntletActive) return message.channel.send('A Gauntlet is already running.');
-    gauntletEntrants = [];
-    for (let i = 1; i <= 20; i++) {
-      gauntletEntrants.push({ id: `MockUser${i}`, username: `MockPlayer${i}` });
-    }
+    gauntletEntrants = Array.from({ length: 20 }, (_, i) => ({ id: `MockUser${i + 1}`, username: `MockPlayer${i + 1}` }));
     gauntletActive = true;
     gauntletChannel = message.channel;
     await message.channel.send('🧪 **Trial Mode Activated:** 20 mock players have entered The Gauntlet! Running simulation now...');
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(r => setTimeout(r, 1000));
     runGauntlet(message.channel);
   }
 });
 
+async function startGauntlet(channel, delay) {
+  if (gauntletActive) return;
+  gauntletEntrants = [];
+  gauntletActive = true;
+  gauntletChannel = channel;
+
+  const joinButton = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('join_gauntlet').setLabel('Join the Ugly Gauntlet').setStyle(ButtonStyle.Primary)
+  );
+
+  gauntletMessage = await channel.send({
+    embeds: [{ title: '🏁 The Ugly Gauntlet Has Begun!', description: `Click to enter. You have ${delay} minutes.\n🧟 Entrants so far: 0`, color: 0x6e40c9 }],
+    components: [joinButton]
+  });
+
+  joinTimeout = setTimeout(() => {
+    if (gauntletEntrants.length < 1) {
+      channel.send('Not enough entrants joined. Try again later.');
+      gauntletActive = false;
+    } else {
+      runGauntlet(channel);
+    }
+  }, delay * 60 * 1000);
+}
+
 async function runGauntlet(channel) {
   gauntletActive = false;
-  if (gauntletEntrants.length < 1) return;
-
   let remaining = [...gauntletEntrants];
   let roundCounter = 1;
 
@@ -235,26 +220,30 @@ async function runGauntlet(channel) {
     const eliminated = [];
 
     const trial = trialNames[Math.floor(Math.random() * trialNames.length)];
+    let eliminationDescriptions = [];
 
     for (let i = 0; i < eliminations; i++) {
       const index = Math.floor(Math.random() * remaining.length);
-      eliminated.push(remaining.splice(index, 1)[0]);
-    }
+      const player = remaining.splice(index, 1)[0];
+      eliminated.push(player);
 
-    let eliminationDescriptions = [];
-
-    for (const player of eliminated) {
       const useSpecial = Math.random() < 0.15;
       const reason = useSpecial
         ? specialEliminations[Math.floor(Math.random() * specialEliminations.length)]
         : eliminationEvents[Math.floor(Math.random() * eliminationEvents.length)];
 
       eliminationDescriptions.push(`❌ <@${player.id}> ${reason}`);
-
       if (useSpecial) {
         const gif = specialEliminationGifs[Math.floor(Math.random() * specialEliminationGifs.length)];
-        eliminationDescriptions.push(gif);
+        await channel.send(gif);
       }
+    }
+
+    if (eliminated.length && Math.random() < 0.15) {
+      const revived = eliminated.splice(Math.floor(Math.random() * eliminated.length), 1)[0];
+      remaining.push(revived);
+      const reviveMsg = revivalEvents[Math.floor(Math.random() * revivalEvents.length)];
+      eliminationDescriptions.push(`💫 <@${revived.id}> ${reviveMsg}`);
     }
 
     if (remaining.length > 3) {
@@ -262,33 +251,25 @@ async function runGauntlet(channel) {
     }
 
     await channel.send({
-      embeds: [
-        {
-          title: `⚔️ Round ${roundCounter} — ${trial}`,
-          description: eliminationDescriptions.join('\n'),
-          color: 0x8b0000
-        }
-      ]
+      embeds: [{
+        title: `⚔️ Round ${roundCounter} — ${trial}`,
+        description: eliminationDescriptions.join('\n'),
+        color: 0x8b0000
+      }]
     });
 
     roundCounter++;
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    await new Promise(r => setTimeout(r, 5000));
   }
 
   const [first, second, third] = remaining;
 
   await channel.send({
-    embeds: [
-      {
-        title: "🏆 Champions of the Ugly Gauntlet!",
-        description:
-          `**1st Place:** <@${first.id}> — **50 $CHARM**\n*The Gauntlet bows before your unmatched ugliness!*\n\n` +
-          `**2nd Place:** <@${second.id}> — **25 $CHARM**\n*The shadows nearly yielded to your might.*\n\n` +
-          `**3rd Place:** <@${third.id}> — **10 $CHARM**\n*You clawed your way through calamity and horror.*\n\n` +
-          `The Gauntlet has spoken. Well fought, Champions!`,
-        color: 0xdaa520
-      }
-    ]
+    embeds: [{
+      title: '🏆 Champions of the Ugly Gauntlet!',
+      description: `**1st Place:** <@${first.id}> — **50 $CHARM**\n**2nd Place:** <@${second.id}> — **25 $CHARM**\n**3rd Place:** <@${third.id}> — **10 $CHARM**\n\nThe Gauntlet has spoken. Well fought, Champions!`,
+      color: 0xdaa520
+    }]
   });
 }
 
