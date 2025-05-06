@@ -158,10 +158,14 @@ client.on('messageCreate', async message => {
 
   const content = message.content.trim();
 
-  if (content.startsWith('!gauntlet')) {
+  if (content.startsWith('!gauntlet ')) {
     const args = content.split(' ');
     const delay = parseInt(args[1], 10);
     await startGauntlet(message.channel, !isNaN(delay) ? delay : 10);
+  }
+
+  if (content === '!gauntlet') {
+    await startGauntlet(message.channel, 10);
   }
 
   if (content === '!startg') {
@@ -221,13 +225,6 @@ async function runGauntlet(channel) {
   await channel.send(
     `🏆 **Champions of the Ugly Gauntlet!** 🏆\n\n**1st Place:** <@${first.id}> — **50 $CHARM**\n*The Gauntlet bows before your unmatched ugliness! Legends will be whispered of your monstrous cunning and luck. You wear your scars with pride—a true master of The Malformed.*\n\n**2nd Place:** <@${second.id}> — **25 $CHARM**\n*The shadows nearly yielded to your might. Though not the last one standing, your twisted journey left a trail of chaos and envy. The Malformed will remember your valiant deeds!*\n\n**3rd Place:** <@${third.id}> — **10 $CHARM**\n*You clawed your way through calamity and horror, stumbling but never crumbling. The echo of your fight lingers in every corner of The Malformed—Ugly, proud, and almost victorious.*\n\nThe Gauntlet has spoken. Your triumph (and scars) will echo through the halls of The Malformed until the next round. Well fought, Champions!`
   );
-}
-
-function shuffle(array) {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
-  }
 }
 
 client.login(process.env.DISCORD_TOKEN);
