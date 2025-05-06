@@ -102,7 +102,13 @@ async function startGauntlet(channel, customDelay = 10) {
   );
 
   gauntletMessage = await channel.send({
-    content: `🏁 **The Ugly Gauntlet has begun!** 🏁\nClick below to enter and test your fate…\nYou have ${customDelay} minutes to join.\n\n🧟 Entrants so far: 0`,
+    embeds: [
+      {
+        title: '🏁 The Ugly Gauntlet Has Begun!',
+        description: `Click the button below to enter and test your fate…\nYou have ${customDelay} minutes to join.\n\n🧟 Entrants so far: 0`,
+        color: 0x6e40c9
+      }
+    ],
     components: [joinButton]
   });
 
@@ -143,9 +149,12 @@ client.on(Events.InteractionCreate, async interaction => {
       await interaction.reply({ content: 'You have joined the Ugly Gauntlet! Prepare yourself…', flags: 64 });
 
       if (gauntletMessage && gauntletMessage.editable) {
-        const originalContent = gauntletMessage.content;
-        const newContent = originalContent.replace(/🧟 Entrants so far: \d+/, `🧟 Entrants so far: ${gauntletEntrants.length}`);
-        gauntletMessage.edit({ content: newContent });
+        const embed = gauntletMessage.embeds[0];
+        const updatedEmbed = {
+          ...embed.data,
+          description: embed.description.replace(/🧟 Entrants so far: \d+/, `🧟 Entrants so far: ${gauntletEntrants.length}`)
+        };
+        await gauntletMessage.edit({ embeds: [updatedEmbed] });
       }
     } else {
       await interaction.reply({ content: 'You have already joined this round!', flags: 64 });
