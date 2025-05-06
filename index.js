@@ -30,60 +30,6 @@ const trialNames = [
   "The Wretched Spiral"
 ];
 
-const eliminationEvents = [
-  "was dragged into the swamp by unseen claws.",
-  "took one wrong step and fell into the Abyss of Nonsense.",
-  "thought they could outdrink a bog spirit. They couldn't.",
-  "burst into flames after trying to light a fart. The Malformed are cruel.",
-  "stepped on a cursed LEGO brick and vanished into a scream.",
-  "mocked the wrong shadow and paid the price.",
-  "was eaten by a paper-mâché hydra. Cheap, but effective.",
-  "got lost looking for loot and never returned.",
-  "was judged too handsome and instantly vaporized.",
-  "mispronounced the ritual chant and exploded in glitter.",
-  "ran headfirst into a wall and kept going into the void.",
-  "slipped on a banana peel and fell into the lava of despair.",
-  "tried to pet a malformed dog. It bit back... with ten mouths.",
-  "told a yo mama joke at the wrong time.",
-  "thought it was a good idea to nap mid-Gauntlet.",
-  "turned into a rubber duck and floated away.",
-  "challenged a ghost to a dance battle. Lost. Badly.",
-  "was yeeted off the platform by a sentient fart cloud.",
-  "spoke in rhymes one too many times.",
-  "mistook a mimic for a vending machine.",
-  "was eliminated by a very aggressive pigeon.",
-  "got bored and left. The Gauntlet didn’t take it well.",
-  "was betrayed by their imaginary friend.",
-  "fell victim to a cursed burrito.",
-  "tried to summon help, but summoned debt collectors instead.",
-  "was turned into abstract art.",
-  "overthought everything and got stuck in a logic loop.",
-  "was too ugly. Even for the Malformed.",
-  "used Comic Sans in a ritual.",
-  "was pulled into a mirror dimension by their own reflection.",
-  "got tangled in the Lore Scrolls and suffocated.",
-  "ignored the tutorial. Always read the tutorial.",
-  "tapped out trying to spell 'Malformation'.",
-  "tried to bluff the RNG. It called.",
-  "turned on caps lock and got smote.",
-  "disrespected the Eldritch Mods.",
-  "became one with the loading screen.",
-  "tripped on a cursed TikTok trend.",
-  "got flashbanged by nostalgia.",
-  "joined the wrong Discord.",
-  "accidentally said Beetlejuice three times.",
-  "tried to rage quit but forgot to leave.",
-  "sniffed a suspicious potion.",
-  "bragged about their RNG luck. Oops.",
-  "drew a red card. From a black deck.",
-  "challenged fate to a coin flip and lost the coin.",
-  "glitched out of existence.",
-  "was mistaken for a chicken nugget by a monster.",
-  "got stuck in the lobby.",
-  "failed a basic vibe check.",
-  "took an arrow... to everything."
-];
-
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
 });
@@ -158,14 +104,10 @@ client.on('messageCreate', async message => {
 
   const content = message.content.trim();
 
-  if (content.startsWith('!gauntlet ')) {
+  if (content.startsWith('!gauntlet')) {
     const args = content.split(' ');
     const delay = parseInt(args[1], 10);
     await startGauntlet(message.channel, !isNaN(delay) ? delay : 10);
-  }
-
-  if (content === '!gauntlet') {
-    await startGauntlet(message.channel, 10);
   }
 
   if (content === '!startg') {
@@ -188,7 +130,62 @@ client.on('messageCreate', async message => {
     await new Promise(resolve => setTimeout(resolve, 1000));
     runGauntlet(message.channel);
   }
+  }
 });
+
+const eliminationEvents = [
+  "was dragged into the swamp by unseen claws.",
+  "took one wrong step and fell into the Abyss of Nonsense.",
+  "thought they could outdrink a bog spirit. They couldn't.",
+  "burst into flames after trying to light a fart. The Malformed are cruel.",
+  "stepped on a cursed LEGO brick and vanished into a scream.",
+  "mocked the wrong shadow and paid the price.",
+  "was eaten by a paper-mâché hydra. Cheap, but effective.",
+  "got lost looking for loot and never returned.",
+  "was judged too handsome and instantly vaporized.",
+  "mispronounced the ritual chant and exploded in glitter.",
+  "ran headfirst into a wall and kept going into the void.",
+  "slipped on a banana peel and fell into the lava of despair.",
+  "tried to pet a malformed dog. It bit back... with ten mouths.",
+  "told a yo mama joke at the wrong time.",
+  "thought it was a good idea to nap mid-Gauntlet.",
+  "turned into a rubber duck and floated away.",
+  "challenged a ghost to a dance battle. Lost. Badly.",
+  "was yeeted off the platform by a sentient fart cloud.",
+  "spoke in rhymes one too many times.",
+  "mistook a mimic for a vending machine.",
+  "was eliminated by a very aggressive pigeon.",
+  "got bored and left. The Gauntlet didn’t take it well.",
+  "was betrayed by their imaginary friend.",
+  "fell victim to a cursed burrito.",
+  "tried to summon help, but summoned debt collectors instead.",
+  "was turned into abstract art.",
+  "overthought everything and got stuck in a logic loop.",
+  "was too ugly. Even for the Malformed.",
+  "used Comic Sans in a ritual.",
+  "was pulled into a mirror dimension by their own reflection.",
+  "got tangled in the Lore Scrolls and suffocated.",
+  "ignored the tutorial. Always read the tutorial.",
+  "tapped out trying to spell 'Malformation'.",
+  "tried to bluff the RNG. It called.",
+  "turned on caps lock and got smote.",
+  "disrespected the Eldritch Mods.",
+  "became one with the loading screen.",
+  "tripped on a cursed TikTok trend.",
+  "got flashbanged by nostalgia.",
+  "joined the wrong Discord.",
+  "accidentally said Beetlejuice three times.",
+  "tried to rage quit but forgot to leave.",
+  "sniffed a suspicious potion.",
+  "bragged about their RNG luck. Oops.",
+  "drew a red card. From a black deck.",
+  "challenged fate to a coin flip and lost the coin.",
+  "glitched out of existence.",
+  "was mistaken for a chicken nugget by a monster.",
+  "got stuck in the lobby.",
+  "failed a basic vibe check.",
+  "took an arrow... to everything."
+];
 
 async function runGauntlet(channel) {
   gauntletActive = false;
@@ -201,7 +198,15 @@ async function runGauntlet(channel) {
     const eliminated = [];
 
     const trial = trialNames[Math.floor(Math.random() * trialNames.length)];
-    await channel.send(`⚔️ **${trial} begins...**`);
+    await channel.send({
+      embeds: [
+        {
+          title: `⚔️ Round ${11 - remaining.length} — ${trial}`,
+          description: `The Malformed stir as the Gauntlet grinds forward...`,
+          color: 0x8b0000
+        }
+      ]
+    });
 
     for (let i = 0; i < eliminations; i++) {
       const index = Math.floor(Math.random() * remaining.length);
@@ -223,8 +228,26 @@ async function runGauntlet(channel) {
   const [first, second, third] = remaining;
 
   await channel.send(
-    `🏆 **Champions of the Ugly Gauntlet!** 🏆\n\n**1st Place:** <@${first.id}> — **50 $CHARM**\n*The Gauntlet bows before your unmatched ugliness! Legends will be whispered of your monstrous cunning and luck. You wear your scars with pride—a true master of The Malformed.*\n\n**2nd Place:** <@${second.id}> — **25 $CHARM**\n*The shadows nearly yielded to your might. Though not the last one standing, your twisted journey left a trail of chaos and envy. The Malformed will remember your valiant deeds!*\n\n**3rd Place:** <@${third.id}> — **10 $CHARM**\n*You clawed your way through calamity and horror, stumbling but never crumbling. The echo of your fight lingers in every corner of The Malformed—Ugly, proud, and almost victorious.*\n\nThe Gauntlet has spoken. Your triumph (and scars) will echo through the halls of The Malformed until the next round. Well fought, Champions!`
+    `🏆 **Champions of the Ugly Gauntlet!** 🏆
+
+**1st Place:** <@${first.id}> — **50 $CHARM**
+*The Gauntlet bows before your unmatched ugliness! Legends will be whispered of your monstrous cunning and luck. You wear your scars with pride—a true master of The Malformed.*
+
+**2nd Place:** <@${second.id}> — **25 $CHARM**
+*The shadows nearly yielded to your might. Though not the last one standing, your twisted journey left a trail of chaos and envy. The Malformed will remember your valiant deeds!*
+
+**3rd Place:** <@${third.id}> — **10 $CHARM**
+*You clawed your way through calamity and horror, stumbling but never crumbling. The echo of your fight lingers in every corner of The Malformed—Ugly, proud, and almost victorious.*
+
+The Gauntlet has spoken. Your triumph (and scars) will echo through the halls of The Malformed until the next round. Well fought, Champions!`
   );
+}
+
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
 }
 
 client.login(process.env.DISCORD_TOKEN);
