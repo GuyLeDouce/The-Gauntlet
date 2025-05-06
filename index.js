@@ -15,7 +15,7 @@ let gauntletEntrants = [];
 let gauntletActive = false;
 let joinTimeout = null;
 let gauntletChannel = null;
-let countdownMessages = [];
+let gauntletMessage = null;
 
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
@@ -34,13 +34,12 @@ async function startGauntlet(channel, customDelay = 10) {
       .setStyle(ButtonStyle.Primary)
   );
 
-  await channel.send({
-    content: `🏁 **The Ugly Gauntlet has begun!** 🏁\nClick below to enter and test your fate…\nYou have ${customDelay} minutes to join.`,
+  gauntletMessage = await channel.send({
+    content: `🏁 **The Ugly Gauntlet has begun!** 🏁\nClick below to enter and test your fate…\nYou have ${customDelay} minutes to join.\n\n🧟 Entrants so far: 0`,
     components: [joinButton]
   });
 
-  // Countdown notifications
-  countdownMessages = [
+  const countdownMessages = [
     `⏳ Only ${Math.ceil(customDelay * 2 / 3)} minutes left to join the Gauntlet!`,
     `⚠️ Just ${Math.ceil(customDelay / 3)} minutes remaining... The Malformed begin to stir...`,
     `🩸 Final minute to enter... blood will spill soon.`
@@ -75,6 +74,12 @@ client.on(Events.InteractionCreate, async interaction => {
     if (!gauntletEntrants.find(e => e.id === interaction.user.id)) {
       gauntletEntrants.push({ id: interaction.user.id, username: interaction.user.username });
       await interaction.reply({ content: 'You have joined the Ugly Gauntlet! Prepare yourself…', flags: 64 });
+
+      if (gauntletMessage && gauntletMessage.editable) {
+        const originalContent = gauntletMessage.content;
+        const newContent = originalContent.replace(/🧟 Entrants so far: \d+/, `🧟 Entrants so far: ${gauntletEntrants.length}`);
+        gauntletMessage.edit({ content: newContent });
+      }
     } else {
       await interaction.reply({ content: 'You have already joined this round!', flags: 64 });
     }
@@ -175,7 +180,11 @@ async function runGauntlet(channel) {
       await channel.send(`❌ <@${player.id}> ${reason}`);
     }
 
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    if (remaining.length > 3) {
+      await channel.send(`👣 **${remaining.length} players remain. The Gauntlet continues...**`);
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 5000));
   }
 
   const [first, second, third] = remaining;
