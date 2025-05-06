@@ -84,6 +84,30 @@ const eliminationEvents = [
   "took an arrow... to everything."
 ];
 
+const specialEliminations = [
+  "was sacrificed to the ancient hairball under the couch.",
+  "tried to hug an Ugly Dog. It turned out to be a mop with teeth.",
+  "was sucked into a vortex of cursed pomade and never looked fabulous again.",
+  "tried to flex in front of the Mirror of Misfortune and imploded.",
+  "rolled a natural 1 while trying to summon $CHARM and summoned their ex instead.",
+  "was found guilty of being TOO Ugly and banished to the Backrooms of Beauty.",
+  "attempted to bribe The Gauntlet with expired gas station sushi.",
+  "was outed as an undercover Handsome and disqualified on sight.",
+  "forgot to say GM and was hexed by the community.",
+  "clicked the wrong 'Mint' and bought 500 Ugly Rugs instead.",
+  "was devoured by an NFT with a 'Fire Skin' and eternal drip.",
+  "tried to out-ugly the Malformed... and succeeded. Universe collapsed.",
+  "said 'at least I'm not that Ugly' — fate heard. Fate delivered."
+];
+
+const specialEliminationGifs = [
+  "https://media.giphy.com/media/3o6ZsY8F5u4WJf8zVu/giphy.gif",
+  "https://media.giphy.com/media/3oEduSbSGpGaRX2Vri/giphy.gif",
+  "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif",
+  "https://media.giphy.com/media/xT9IgIc0lryrxvqVGM/giphy.gif",
+  "https://media.giphy.com/media/ZyoU6jbPzHv5u/giphy.gif"
+];
+
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
 });
@@ -212,29 +236,40 @@ async function runGauntlet(channel) {
 
     const trial = trialNames[Math.floor(Math.random() * trialNames.length)];
 
-    await channel.send({
-      embeds: [
-        {
-          title: `⚔️ Round ${roundCounter} — ${trial}`,
-          description: "The Malformed stir as the Gauntlet grinds forward...",
-          color: 0x8b0000
-        }
-      ]
-    });
-
     for (let i = 0; i < eliminations; i++) {
       const index = Math.floor(Math.random() * remaining.length);
       eliminated.push(remaining.splice(index, 1)[0]);
     }
 
+    let eliminationDescriptions = [];
+
     for (const player of eliminated) {
-      const reason = eliminationEvents[Math.floor(Math.random() * eliminationEvents.length)];
-      await channel.send(`❌ <@${player.id}> ${reason}`);
+      const useSpecial = Math.random() < 0.15;
+      const reason = useSpecial
+        ? specialEliminations[Math.floor(Math.random() * specialEliminations.length)]
+        : eliminationEvents[Math.floor(Math.random() * eliminationEvents.length)];
+
+      eliminationDescriptions.push(`❌ <@${player.id}> ${reason}`);
+
+      if (useSpecial) {
+        const gif = specialEliminationGifs[Math.floor(Math.random() * specialEliminationGifs.length)];
+        eliminationDescriptions.push(gif);
+      }
     }
 
     if (remaining.length > 3) {
-      await channel.send(`👣 **${remaining.length} players remain. The Gauntlet continues...**`);
+      eliminationDescriptions.push(`\n👣 **${remaining.length} players remain. The Gauntlet continues...**`);
     }
+
+    await channel.send({
+      embeds: [
+        {
+          title: `⚔️ Round ${roundCounter} — ${trial}`,
+          description: eliminationDescriptions.join('\n'),
+          color: 0x8b0000
+        }
+      ]
+    });
 
     roundCounter++;
     await new Promise(resolve => setTimeout(resolve, 5000));
@@ -242,9 +277,20 @@ async function runGauntlet(channel) {
 
   const [first, second, third] = remaining;
 
-  await channel.send(
-    `🏆 **Champions of the Ugly Gauntlet!** 🏆\n\n**1st Place:** <@${first.id}> — **50 $CHARM**\n*The Gauntlet bows before your unmatched ugliness! Legends will be whispered of your monstrous cunning and luck. You wear your scars with pride—a true master of The Malformed.*\n\n**2nd Place:** <@${second.id}> — **25 $CHARM**\n*The shadows nearly yielded to your might. Though not the last one standing, your twisted journey left a trail of chaos and envy. The Malformed will remember your valiant deeds!*\n\n**3rd Place:** <@${third.id}> — **10 $CHARM**\n*You clawed your way through calamity and horror, stumbling but never crumbling. The echo of your fight lingers in every corner of The Malformed—Ugly, proud, and almost victorious.*\n\nThe Gauntlet has spoken. Your triumph (and scars) will echo through the halls of The Malformed until the next round. Well fought, Champions!`
-  );
+  await channel.send({
+    embeds: [
+      {
+        title: "🏆 Champions of the Ugly Gauntlet!",
+        description:
+          `**1st Place:** <@${first.id}> — **50 $CHARM**\n*The Gauntlet bows before your unmatched ugliness!*\n\n` +
+          `**2nd Place:** <@${second.id}> — **25 $CHARM**\n*The shadows nearly yielded to your might.*\n\n` +
+          `**3rd Place:** <@${third.id}> — **10 $CHARM**\n*You clawed your way through calamity and horror.*\n\n` +
+          `The Gauntlet has spoken. Well fought, Champions!`,
+        color: 0xdaa520
+      }
+    ]
+  });
 }
 
 client.login(process.env.DISCORD_TOKEN);
+
