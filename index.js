@@ -3,7 +3,7 @@ const { Client, GatewayIntentBits, Partials, ActionRowBuilder, ButtonBuilder, Bu
 const cron = require('node-cron');
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers],
   partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 });
 
@@ -62,9 +62,9 @@ client.on(Events.InteractionCreate, async interaction => {
   if (interaction.customId === 'join_gauntlet' && gauntletActive) {
     if (!gauntletEntrants.find(e => e.id === interaction.user.id)) {
       gauntletEntrants.push({ id: interaction.user.id, username: interaction.user.username });
-      await interaction.reply({ content: 'You have joined the Ugly Gauntlet! Prepare yourself…', ephemeral: true });
+      await interaction.reply({ content: 'You have joined the Ugly Gauntlet! Prepare yourself…', flags: 64 });
     } else {
-      await interaction.reply({ content: 'You have already joined this round!', ephemeral: true });
+      await interaction.reply({ content: 'You have already joined this round!', flags: 64 });
     }
   }
 });
@@ -73,6 +73,13 @@ client.on('messageCreate', async message => {
   if (message.author.bot) return;
 
   const content = message.content.trim();
+  const allowedRoles = ['Admin', 'Mod'];
+  const member = message.member;
+  const hasPermission = member?.roles.cache.some(role => allowedRoles.includes(role.name));
+
+  if ((content.startsWith('!gauntlet') || content === '!startg') && !hasPermission) {
+    return message.reply("🚫 You don't have permission to control the Gauntlet. Only Admins and Mods may invoke The Malformed.");
+  }
 
   if (content.startsWith('!gauntlet')) {
     const args = content.split(' ');
@@ -100,10 +107,26 @@ async function runGauntlet(channel) {
   }
 
   shuffle(roundEntrants);
+
+  if (roundEntrants.length < 3) {
+    return channel.send("❌ Not enough survivors to declare Champions. The Malformed retreat... for now.");
+  }
+
   const [first, second, third] = roundEntrants;
 
   await channel.send(
-    `🏆 **Champions of the Ugly Gauntlet!** 🏆\n\n**1st Place:** <@${first.id}> — **50 $CHARM**\n*The Gauntlet bows before your unmatched ugliness! Legends will be whispered of your monstrous cunning and luck. You wear your scars with pride—a true master of The Malformed.*\n\n**2nd Place:** <@${second.id}> — **25 $CHARM**\n*The shadows nearly yielded to your might. Though not the last one standing, your twisted journey left a trail of chaos and envy. The Malformed will remember your valiant deeds!*\n\n**3rd Place:** <@${third.id}> — **10 $CHARM**\n*You clawed your way through calamity and horror, stumbling but never crumbling. The echo of your fight lingers in every corner of The Malformed—Ugly, proud, and almost victorious.*\n\nThe Gauntlet has spoken. Your triumph (and scars) will echo through the halls of The Malformed until the next round. Well fought, Champions!`
+    `🏆 **Champions of the Ugly Gauntlet!** 🏆
+
+**1st Place:** <@${first.id}> — **50 $CHARM**
+*The Gauntlet bows before your unmatched ugliness! Legends will be whispered of your monstrous cunning and luck. You wear your scars with pride—a true master of The Malformed.*
+
+**2nd Place:** <@${second.id}> — **25 $CHARM**
+*The shadows nearly yielded to your might. Though not the last one standing, your twisted journey left a trail of chaos and envy. The Malformed will remember your valiant deeds!*
+
+**3rd Place:** <@${third.id}> — **10 $CHARM**
+*You clawed your way through calamity and horror, stumbling but never crumbling. The echo of your fight lingers in every corner of The Malformed—Ugly, proud, and almost victorious.*
+
+The Gauntlet has spoken. Your triumph (and scars) will echo through the halls of The Malformed until the next round. Well fought, Champions!`
   );
 
   setTimeout(() => startGauntlet(), 5 * 60 * 1000);
