@@ -1,4 +1,4 @@
-# Set up Ugly Gauntlet Bot (from scratch)
+// Set up Ugly Gauntlet Bot (from scratch)
 
 # Create project folder and move into it
 mkdir The-Gauntlet
