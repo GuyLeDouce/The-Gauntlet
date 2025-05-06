@@ -15,6 +15,7 @@ let gauntletEntrants = [];
 let gauntletActive = false;
 let joinTimeout = null;
 let gauntletChannel = null;
+let countdownMessages = [];
 
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
@@ -36,6 +37,25 @@ async function startGauntlet(channel, customDelay = 10) {
   await channel.send({
     content: `🏁 **The Ugly Gauntlet has begun!** 🏁\nClick below to enter and test your fate…\nYou have ${customDelay} minutes to join.`,
     components: [joinButton]
+  });
+
+  // Countdown notifications
+  countdownMessages = [
+    `⏳ Only ${Math.ceil(customDelay * 2 / 3)} minutes left to join the Gauntlet!`,
+    `⚠️ Just ${Math.ceil(customDelay / 3)} minutes remaining... The Malformed begin to stir...`,
+    `🩸 Final minute to enter... blood will spill soon.`
+  ];
+
+  const thirds = [
+    customDelay * 60 * 1000 * 1 / 3,
+    customDelay * 60 * 1000 * 2 / 3,
+    customDelay * 60 * 1000 * 5 / 6,
+  ];
+
+  thirds.forEach((time, i) => {
+    setTimeout(() => {
+      if (gauntletActive) channel.send(countdownMessages[i]);
+    }, time);
   });
 
   joinTimeout = setTimeout(() => {
@@ -81,37 +101,87 @@ client.on('messageCreate', async message => {
   }
 });
 
+const eliminationEvents = [
+  "was dragged into the swamp by unseen claws.",
+  "took one wrong step and fell into the Abyss of Nonsense.",
+  "thought they could outdrink a bog spirit. They couldn't.",
+  "burst into flames after trying to light a fart. The Malformed are cruel.",
+  "stepped on a cursed LEGO brick and vanished into a scream.",
+  "mocked the wrong shadow and paid the price.",
+  "was eaten by a paper-mâché hydra. Cheap, but effective.",
+  "got lost looking for loot and never returned.",
+  "was judged too handsome and instantly vaporized.",
+  "mispronounced the ritual chant and exploded in glitter.",
+  "ran headfirst into a wall and kept going into the void.",
+  "slipped on a banana peel and fell into the lava of despair.",
+  "tried to pet a malformed dog. It bit back... with ten mouths.",
+  "told a yo mama joke at the wrong time.",
+  "thought it was a good idea to nap mid-Gauntlet.",
+  "turned into a rubber duck and floated away.",
+  "challenged a ghost to a dance battle. Lost. Badly.",
+  "was yeeted off the platform by a sentient fart cloud.",
+  "spoke in rhymes one too many times.",
+  "mistook a mimic for a vending machine.",
+  "was eliminated by a very aggressive pigeon.",
+  "got bored and left. The Gauntlet didn’t take it well.",
+  "was betrayed by their imaginary friend.",
+  "fell victim to a cursed burrito.",
+  "tried to summon help, but summoned debt collectors instead.",
+  "was turned into abstract art.",
+  "overthought everything and got stuck in a logic loop.",
+  "was too ugly. Even for the Malformed.",
+  "used Comic Sans in a ritual.",
+  "was pulled into a mirror dimension by their own reflection.",
+  "got tangled in the Lore Scrolls and suffocated.",
+  "ignored the tutorial. Always read the tutorial.",
+  "tapped out trying to spell 'Malformation'.",
+  "tried to bluff the RNG. It called.",
+  "turned on caps lock and got smote.",
+  "disrespected the Eldritch Mods.",
+  "became one with the loading screen.",
+  "tripped on a cursed TikTok trend.",
+  "got flashbanged by nostalgia.",
+  "joined the wrong Discord.",
+  "accidentally said Beetlejuice three times.",
+  "tried to rage quit but forgot to leave.",
+  "sniffed a suspicious potion.",
+  "bragged about their RNG luck. Oops.",
+  "drew a red card. From a black deck.",
+  "challenged fate to a coin flip and lost the coin.",
+  "glitched out of existence.",
+  "was mistaken for a chicken nugget by a monster.",
+  "got stuck in the lobby.",
+  "failed a basic vibe check.",
+  "took an arrow... to everything."
+];
+
 async function runGauntlet(channel) {
   gauntletActive = false;
   if (gauntletEntrants.length < 1) return;
 
-  let roundEntrants = [...gauntletEntrants];
-  while (roundEntrants.length > 3) {
-    const elimIndex = Math.floor(Math.random() * roundEntrants.length);
-    roundEntrants.splice(elimIndex, 1);
+  let remaining = [...gauntletEntrants];
+
+  while (remaining.length > 3) {
+    const eliminations = Math.min(2, remaining.length - 3);
+    const eliminated = [];
+
+    for (let i = 0; i < eliminations; i++) {
+      const index = Math.floor(Math.random() * remaining.length);
+      eliminated.push(remaining.splice(index, 1)[0]);
+    }
+
+    for (const player of eliminated) {
+      const reason = eliminationEvents[Math.floor(Math.random() * eliminationEvents.length)];
+      await channel.send(`❌ <@${player.id}> ${reason}`);
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 2000));
   }
 
-  shuffle(roundEntrants);
-
-  if (roundEntrants.length < 3) {
-    return channel.send("❌ Not enough survivors to declare Champions. The Malformed retreat... for now.");
-  }
-
-  const [first, second, third] = roundEntrants;
+  const [first, second, third] = remaining;
 
   await channel.send(
-    `🏆 **Champions of the Ugly Gauntlet!** 🏆
-
-**1st Place:** <@${first.id}> — **50 $CHARM**
-*The Gauntlet bows before your unmatched ugliness! Legends will be whispered of your monstrous cunning and luck. You wear your scars with pride—a true master of The Malformed.*
-
-**2nd Place:** <@${second.id}> — **25 $CHARM**
-*The shadows nearly yielded to your might. Though not the last one standing, your twisted journey left a trail of chaos and envy. The Malformed will remember your valiant deeds!*
-
-**3rd Place:** <@${third.id}> — **10 $CHARM**
-*You clawed your way through calamity and horror, stumbling but never crumbling. The echo of your fight lingers in every corner of The Malformed—Ugly, proud, and almost victorious.*
-
-The Gauntlet has spoken. Your triumph (and scars) will echo through the halls of The Malformed until the next round. Well fought, Champions!`
+    `🏆 **Champions of the Ugly Gauntlet!** 🏆\n\n**1st Place:** <@${first.id}> — **50 $CHARM**\n*The Gauntlet bows before your unmatched ugliness! Legends will be whispered of your monstrous cunning and luck. You wear your scars with pride—a true master of The Malformed.*\n\n**2nd Place:** <@${second.id}> — **25 $CHARM**\n*The shadows nearly yielded to your might. Though not the last one standing, your twisted journey left a trail of chaos and envy. The Malformed will remember your valiant deeds!*\n\n**3rd Place:** <@${third.id}> — **10 $CHARM**\n*You clawed your way through calamity and horror, stumbling but never crumbling. The echo of your fight lingers in every corner of The Malformed—Ugly, proud, and almost victorious.*\n\nThe Gauntlet has spoken. Your triumph (and scars) will echo through the halls of The Malformed until the next round. Well fought, Champions!`
   );
 }
 
