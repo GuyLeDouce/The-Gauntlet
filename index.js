@@ -117,6 +117,18 @@ client.on('messageCreate', async message => {
     clearTimeout(joinTimeout);
     runGauntlet(gauntletChannel || message.channel);
   }
+
+  if (content === '!gauntlettrial') {
+    if (gauntletActive) return message.channel.send('A Gauntlet is already running.');
+    gauntletEntrants = [];
+    for (let i = 1; i <= 20; i++) {
+      gauntletEntrants.push({ id: `MockUser${i}`, username: `MockPlayer${i}` });
+    }
+    gauntletActive = true;
+    gauntletChannel = message.channel;
+    await message.channel.send('🧪 **Trial Mode Activated:** 20 mock players have entered The Gauntlet! Running simulation now...');
+    runGauntlet(message.channel);
+  }
 });
 
 const eliminationEvents = [
@@ -206,7 +218,18 @@ async function runGauntlet(channel) {
   const [first, second, third] = remaining;
 
   await channel.send(
-    `🏆 **Champions of the Ugly Gauntlet!** 🏆\n\n**1st Place:** <@${first.id}> — **50 $CHARM**\n*The Gauntlet bows before your unmatched ugliness! Legends will be whispered of your monstrous cunning and luck. You wear your scars with pride—a true master of The Malformed.*\n\n**2nd Place:** <@${second.id}> — **25 $CHARM**\n*The shadows nearly yielded to your might. Though not the last one standing, your twisted journey left a trail of chaos and envy. The Malformed will remember your valiant deeds!*\n\n**3rd Place:** <@${third.id}> — **10 $CHARM**\n*You clawed your way through calamity and horror, stumbling but never crumbling. The echo of your fight lingers in every corner of The Malformed—Ugly, proud, and almost victorious.*\n\nThe Gauntlet has spoken. Your triumph (and scars) will echo through the halls of The Malformed until the next round. Well fought, Champions!`
+    `🏆 **Champions of the Ugly Gauntlet!** 🏆
+
+**1st Place:** <@${first.id}> — **50 $CHARM**
+*The Gauntlet bows before your unmatched ugliness! Legends will be whispered of your monstrous cunning and luck. You wear your scars with pride—a true master of The Malformed.*
+
+**2nd Place:** <@${second.id}> — **25 $CHARM**
+*The shadows nearly yielded to your might. Though not the last one standing, your twisted journey left a trail of chaos and envy. The Malformed will remember your valiant deeds!*
+
+**3rd Place:** <@${third.id}> — **10 $CHARM**
+*You clawed your way through calamity and horror, stumbling but never crumbling. The echo of your fight lingers in every corner of The Malformed—Ugly, proud, and almost victorious.*
+
+The Gauntlet has spoken. Your triumph (and scars) will echo through the halls of The Malformed until the next round. Well fought, Champions!`
   );
 }
 
