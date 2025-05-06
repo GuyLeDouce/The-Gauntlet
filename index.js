@@ -101,11 +101,11 @@ const specialEliminations = [
 ];
 
 const specialEliminationGifs = [
-  "https://media.giphy.com/media/3o6ZsY8F5u4WJf8zVu/giphy.gif",
-  "https://media.giphy.com/media/3oEduSbSGpGaRX2Vri/giphy.gif",
-  "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif",
-  "https://media.giphy.com/media/xT9IgIc0lryrxvqVGM/giphy.gif",
-  "https://media.giphy.com/media/ZyoU6jbPzHv5u/giphy.gif"
+  "https://tenor.com/view/ugly-funny-creepy-weird-face-gif-25676355",
+  "https://tenor.com/view/creepy-smile-funny-ugly-gif-15111072",
+  "https://tenor.com/view/grotesque-weird-disturbing-creature-gif-18296387",
+  "https://tenor.com/view/disgusted-shocked-ew-gif-16531384",
+  "https://tenor.com/view/nightmare-creature-monster-scary-horror-gif-24809230"
 ];
 
 const revivalEvents = [
