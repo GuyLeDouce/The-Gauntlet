@@ -73,13 +73,6 @@ client.on('messageCreate', async message => {
   if (message.author.bot) return;
 
   const content = message.content.trim();
-  const allowedRoles = ['Admin', 'Mod'];
-  const member = message.member;
-  const hasPermission = member?.roles.cache.some(role => allowedRoles.includes(role.name));
-
-  if ((content.startsWith('!gauntlet') || content === '!startg') && !hasPermission) {
-    return message.reply("🚫 You don't have permission to control the Gauntlet. Only Admins and Mods may invoke The Malformed.");
-  }
 
   if (content.startsWith('!gauntlet')) {
     const args = content.split(' ');
@@ -140,3 +133,4 @@ function shuffle(array) {
 }
 
 client.login(process.env.DISCORD_TOKEN);
+
