@@ -14,15 +14,8 @@ let gauntletChannel = null;
 
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
-  scheduleGauntlet();
+  // Removed automatic call to startGauntlet
 });
-
-function scheduleGauntlet() {
-  cron.schedule('0 19 * * *', async () => {
-    await startGauntlet();
-  });
-  startGauntlet();
-}
 
 async function startGauntlet(customDelay = 10) {
   if (gauntletActive) return;
@@ -48,7 +41,7 @@ async function startGauntlet(customDelay = 10) {
 
   joinTimeout = setTimeout(() => {
     if (gauntletEntrants.length < 1) {
-      channel.send("Not enough entrants joined the Gauntlet. Next round will start in 24 hours.");
+      channel.send("Not enough entrants joined the Gauntlet. Next round will begin when summoned again.");
       gauntletActive = false;
       return;
     }
@@ -122,7 +115,7 @@ async function runGauntlet(channel) {
 The Gauntlet has spoken. Your triumph (and scars) will echo through the halls of The Malformed until the next round. Well fought, Champions!`
   );
 
-  setTimeout(() => startGauntlet(), 5 * 60 * 1000);
+  // No auto-restart
 }
 
 function shuffle(array) {
@@ -133,4 +126,3 @@ function shuffle(array) {
 }
 
 client.login(process.env.DISCORD_TOKEN);
-
