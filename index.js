@@ -1,9 +1,13 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, Partials, ActionRowBuilder, ButtonBuilder, ButtonStyle, Events } = require('discord.js');
-const cron = require('node-cron');
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers],
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers,
+  ],
   partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 });
 
@@ -14,17 +18,12 @@ let gauntletChannel = null;
 
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
-  // Removed automatic call to startGauntlet
 });
 
-async function startGauntlet(customDelay = 10) {
+async function startGauntlet(channel, customDelay = 10) {
   if (gauntletActive) return;
   gauntletEntrants = [];
   gauntletActive = true;
-
-  const channel = await client.channels.fetch(process.env.GAUNTLET_CHANNEL_ID);
-  if (!channel) return console.log('Gauntlet channel not found!');
-
   gauntletChannel = channel;
 
   const joinButton = new ActionRowBuilder().addComponents(
@@ -70,7 +69,7 @@ client.on('messageCreate', async message => {
   if (content.startsWith('!gauntlet')) {
     const args = content.split(' ');
     const delay = parseInt(args[1], 10);
-    await startGauntlet(!isNaN(delay) ? delay : 10);
+    await startGauntlet(message.channel, !isNaN(delay) ? delay : 10);
   }
 
   if (content === '!startg') {
@@ -114,8 +113,6 @@ async function runGauntlet(channel) {
 
 The Gauntlet has spoken. Your triumph (and scars) will echo through the halls of The Malformed until the next round. Well fought, Champions!`
   );
-
-  // No auto-restart
 }
 
 function shuffle(array) {
