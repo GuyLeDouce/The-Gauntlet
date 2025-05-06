@@ -17,6 +17,19 @@ let joinTimeout = null;
 let gauntletChannel = null;
 let gauntletMessage = null;
 
+const trialNames = [
+  "Trial of the Screaming Mire",
+  "The Eldritch Scramble",
+  "Trial of the Shattered Bones",
+  "The Maw's Hunger",
+  "Dance of the Ugly Reflection",
+  "Trial of the Crooked Path",
+  "Storm of the Severed Sky",
+  "Gauntlet of Broken Dreams",
+  "The Echoing Crawl",
+  "The Wretched Spiral"
+];
+
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
 });
@@ -169,6 +182,9 @@ async function runGauntlet(channel) {
   while (remaining.length > 3) {
     const eliminations = Math.min(2, remaining.length - 3);
     const eliminated = [];
+
+    const trial = trialNames[Math.floor(Math.random() * trialNames.length)];
+    await channel.send(`⚔️ **${trial} begins...**`);
 
     for (let i = 0; i < eliminations; i++) {
       const index = Math.floor(Math.random() * remaining.length);
