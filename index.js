@@ -127,7 +127,9 @@ client.on('messageCreate', async message => {
     gauntletActive = true;
     gauntletChannel = message.channel;
     await message.channel.send('🧪 **Trial Mode Activated:** 20 mock players have entered The Gauntlet! Running simulation now...');
+    await new Promise(resolve => setTimeout(resolve, 1000));
     runGauntlet(message.channel);
+  }
   }
 });
 
@@ -241,3 +243,4 @@ function shuffle(array) {
 }
 
 client.login(process.env.DISCORD_TOKEN);
+
