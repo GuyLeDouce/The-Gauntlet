@@ -1,25 +1,3 @@
-// Set up Ugly Gauntlet Bot (from scratch)
-
-# Create project folder and move into it
-mkdir The-Gauntlet
-cd The-Gauntlet
-
-# Initialize a new Node.js project
-npm init -y
-
-# Install required dependencies
-npm install discord.js dotenv node-cron
-
-# Create .env file to store sensitive info (do NOT share this file)
-echo "DISCORD_TOKEN=your-discord-bot-token-here" > .env
-echo "GAUNTLET_CHANNEL_ID=your-channel-id-here" >> .env
-
-# Create .gitignore to exclude node_modules and .env from commits
-echo "node_modules/" > .gitignore
-echo ".env" >> .gitignore
-
-# Create the main bot file
-echo "// index.js
 require('dotenv').config();
 const { Client, GatewayIntentBits, Partials, ActionRowBuilder, ButtonBuilder, ButtonStyle, Events } = require('discord.js');
 const cron = require('node-cron');
@@ -91,19 +69,27 @@ async function runGauntlet(channel) {
   if (gauntletEntrants.length < 1) return;
 
   let roundEntrants = [...gauntletEntrants];
-  let eliminated = [];
-
   while (roundEntrants.length > 3) {
     const elimIndex = Math.floor(Math.random() * roundEntrants.length);
-    const elim = roundEntrants.splice(elimIndex, 1)[0];
-    eliminated.push(elim);
+    roundEntrants.splice(elimIndex, 1);
   }
 
   shuffle(roundEntrants);
   const [first, second, third] = roundEntrants;
 
   await channel.send(
-    `🏆 **Champions of the Ugly Gauntlet!** 🏆\n\n**1st Place:** <@${first.id}> — **50 $CHARM**\n*The Gauntlet bows before your unmatched ugliness! Legends will be whispered of your monstrous cunning and luck. You wear your scars with pride—a true master of The Malformed.*\n\n**2nd Place:** <@${second.id}> — **25 $CHARM**\n*The shadows nearly yielded to your might. Though not the last one standing, your twisted journey left a trail of chaos and envy. The Malformed will remember your valiant deeds!*\n\n**3rd Place:** <@${third.id}> — **10 $CHARM**\n*You clawed your way through calamity and horror, stumbling but never crumbling. The echo of your fight lingers in every corner of The Malformed—Ugly, proud, and almost victorious.*\n\nThe Gauntlet has spoken. Your triumph (and scars) will echo through the halls of The Malformed until the next round. Well fought, Champions!`
+    `🏆 **Champions of the Ugly Gauntlet!** 🏆
+
+**1st Place:** <@${first.id}> — **50 $CHARM**
+*The Gauntlet bows before your unmatched ugliness! Legends will be whispered of your monstrous cunning and luck. You wear your scars with pride—a true master of The Malformed.*
+
+**2nd Place:** <@${second.id}> — **25 $CHARM**
+*The shadows nearly yielded to your might. Though not the last one standing, your twisted journey left a trail of chaos and envy. The Malformed will remember your valiant deeds!*
+
+**3rd Place:** <@${third.id}> — **10 $CHARM**
+*You clawed your way through calamity and horror, stumbling but never crumbling. The echo of your fight lingers in every corner of The Malformed—Ugly, proud, and almost victorious.*
+
+The Gauntlet has spoken. Your triumph (and scars) will echo through the halls of The Malformed until the next round. Well fought, Champions!`
   );
 
   setTimeout(() => startGauntlet(), 5 * 60 * 1000);
@@ -116,4 +102,4 @@ function shuffle(array) {
   }
 }
 
-client.login(process.env.DISCORD_TOKEN);" > index.js
+client.login(process.env.DISCORD_TOKEN);
