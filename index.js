@@ -118,13 +118,6 @@ client.on('messageCreate', async message => {
   }
 });
 
-if (Math.random() < 0.15) {
-  const tokenId = Math.floor(Math.random() * 530) + 1;
-  const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}`;
-  await channel.send(`👁 A malformed vision flickers into view...\n${nftImage}`);
-}
-
-
 async function startGauntlet(channel, delay) {
   if (gauntletActive) return;
   gauntletEntrants = [];
@@ -190,6 +183,7 @@ async function runGauntlet(channel) {
       }
     }
 
+    // REVIVAL CHANCE
     if (eliminated.length && Math.random() < 0.15) {
       const revived = eliminated.splice(Math.floor(Math.random() * eliminated.length), 1)[0];
       remaining.push(revived);
@@ -201,6 +195,7 @@ async function runGauntlet(channel) {
       eliminationDescriptions.push(`\n👣 **${remaining.length} players remain. The Gauntlet continues...**`);
     }
 
+    // SEND ROUND EMBED
     await channel.send({
       embeds: [{
         title: `⚔️ Round ${roundCounter} — ${trial}`,
@@ -209,8 +204,15 @@ async function runGauntlet(channel) {
       }]
     });
 
+    // 15% CHANCE TO DROP A RANDOM CHARM NFT
+    if (Math.random() < 0.15) {
+      const tokenId = Math.floor(Math.random() * 400) + 1;
+      const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}`;
+      await channel.send(`👁 A malformed vision flickers into view...\n${nftImage}`);
+    }
+
     roundCounter++;
-    await new Promise(r => setTimeout(r, 5000));
+    await new Promise(r => setTimeout(r, 10000)); // 10 second delay
   }
 
   const [first, second, third] = remaining;
@@ -223,5 +225,6 @@ async function runGauntlet(channel) {
     }]
   });
 }
+
 
 client.login(process.env.DISCORD_TOKEN);
