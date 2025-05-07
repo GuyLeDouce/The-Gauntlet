@@ -118,6 +118,13 @@ client.on('messageCreate', async message => {
   }
 });
 
+if (Math.random() < 0.15) {
+  const tokenId = Math.floor(Math.random() * 530) + 1;
+  const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}`;
+  await channel.send(`👁 A malformed vision flickers into view...\n${nftImage}`);
+}
+
+
 async function startGauntlet(channel, delay) {
   if (gauntletActive) return;
   gauntletEntrants = [];
