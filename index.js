@@ -108,6 +108,15 @@ client.on('messageCreate', async message => {
   if (content.startsWith('!gauntlet ')) {
     const delay = parseInt(content.split(' ')[1], 10);
     startGauntlet(message.channel, isNaN(delay) ? 10 : delay);
+    if (content === '!gauntlettrial') {
+  if (gauntletActive) return message.channel.send('A Gauntlet is already running.');
+  gauntletEntrants = Array.from({ length: 20 }, (_, i) => ({ id: `MockUser${i + 1}`, username: `MockPlayer${i + 1}` }));
+  gauntletActive = true;
+  gauntletChannel = message.channel;
+  await message.channel.send('🧪 **Trial Mode Activated:** 20 mock players have entered The Gauntlet! Running simulation now...');
+  await new Promise(r => setTimeout(r, 10000));
+  runGauntlet(message.channel);
+}
   }
   if (content === '!startg') {
     if (gauntletActive) {
