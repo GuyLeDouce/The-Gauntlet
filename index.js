@@ -196,13 +196,19 @@ async function runGauntlet(channel) {
     }
 
     // SEND ROUND EMBED
-    await channel.send({
-      embeds: [{
-        title: `⚔️ Round ${roundCounter} — ${trial}`,
-        description: eliminationDescriptions.join('\n'),
-        color: 0x8b0000
-      }]
-    });
+    const tokenId = Math.floor(Math.random() * 530) + 1;
+const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}`;
+
+await channel.send({
+  embeds: [{
+    title: `⚔️ Round ${roundCounter} — ${trial}`,
+    description: eliminationDescriptions.join('\n'),
+    color: 0x8b0000,
+    image: {
+      url: nftImage
+    }
+  }]
+});
 
     // 15% CHANCE TO DROP A RANDOM CHARM NFT
     if (Math.random() < 0.15) {
