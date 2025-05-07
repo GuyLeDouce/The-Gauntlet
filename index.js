@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Partials, ActionRowBuilder, ButtonBuilder, ButtonStyle, Events } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, ActionRowBuilder, ButtonBuilder, ButtonStyle, Events, EmbedBuilder } = require('discord.js');
 
 const client = new Client({
   intents: [
@@ -16,6 +16,8 @@ let gauntletActive = false;
 let joinTimeout = null;
 let gauntletChannel = null;
 let gauntletMessage = null;
+let bossPlayerId = null;
+const charmWinners = {};
 
 const trialNames = [
   "Trial of the Screaming Mire", "The Eldritch Scramble", "Trial of the Shattered Bones",
@@ -63,6 +65,13 @@ const revivalEvents = [
   "got spit out by a mimic. Again."
 ];
 
+const loreDrops = [
+  "A malformed eye opens in the sky... watching.",
+  "The Book of Rot flips itself to a cursed page.",
+  "He who danced with shadows shall not see dawn.",
+  "A whisper echoes: 'Not all who fall... are forgotten.'",
+  "Something ancient stirs beneath the floorboards."
+];
 
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
@@ -70,17 +79,15 @@ client.once('ready', () => {
 
 client.on(Events.InteractionCreate, async interaction => {
   if (!interaction.isButton()) return;
-
   if (interaction.customId === 'join_gauntlet' && gauntletActive) {
     if (!gauntletEntrants.find(e => e.id === interaction.user.id)) {
       gauntletEntrants.push({ id: interaction.user.id, username: interaction.user.username });
       await interaction.reply({ content: 'You have joined the Ugly Gauntlet! Prepare yourself…', flags: 64 });
-
       if (gauntletMessage && gauntletMessage.editable) {
         const embed = gauntletMessage.embeds[0];
         const updatedEmbed = {
           ...embed.data,
-          description: embed.description.replace(/🧟 Entrants so far: \d+/, `🧟 Entrants so far: ${gauntletEntrants.length}`)
+          description: embed.description.replace(/\d+/, gauntletEntrants.length)
         };
         await gauntletMessage.edit({ embeds: [updatedEmbed] });
       }
@@ -93,7 +100,6 @@ client.on(Events.InteractionCreate, async interaction => {
 client.on('messageCreate', async message => {
   if (message.author.bot) return;
   const content = message.content.trim();
-
   if (content === '!gauntlet') startGauntlet(message.channel, 10);
   if (content.startsWith('!gauntlet ')) {
     const delay = parseInt(content.split(' ')[1], 10);
@@ -106,15 +112,6 @@ client.on('messageCreate', async message => {
     } else {
       message.channel.send('No Gauntlet is currently running. Use !gauntlet to begin one.');
     }
-  }
-  if (content === '!gauntlettrial') {
-    if (gauntletActive) return message.channel.send('A Gauntlet is already running.');
-    gauntletEntrants = Array.from({ length: 20 }, (_, i) => ({ id: `MockUser${i + 1}`, username: `MockPlayer${i + 1}` }));
-    gauntletActive = true;
-    gauntletChannel = message.channel;
-    await message.channel.send('🧪 **Trial Mode Activated:** 20 mock players have entered The Gauntlet! Running simulation now...');
-    await new Promise(r => setTimeout(r, 10000));
-    runGauntlet(message.channel);
   }
 });
 
@@ -137,6 +134,11 @@ async function startGauntlet(channel, delay) {
     components: [joinButton]
   });
 
+  if (delay >= 3) {
+    setTimeout(() => channel.send(`⏳ **${Math.round(delay / 2)} minutes** left to join The Gauntlet...`), (delay / 3) * 60000);
+    setTimeout(() => channel.send(`⚠️ **Final minute** to enter The Gauntlet...`), (2 * delay / 3) * 60000);
+  }
+
   joinTimeout = setTimeout(() => {
     if (gauntletEntrants.length < 1) {
       channel.send('Not enough entrants joined. Try again later.');
@@ -144,93 +146,114 @@ async function startGauntlet(channel, delay) {
     } else {
       runGauntlet(channel);
     }
-  }, delay * 60 * 1000);
+  }, delay * 60000);
 }
-
 async function runGauntlet(channel) {
-  gauntletActive = false;
   let remaining = [...gauntletEntrants];
   let roundCounter = 1;
+  gauntletActive = false;
+  bossPlayerId = null;
+  Object.keys(charmWinners).forEach(key => delete charmWinners[key]);
 
   while (remaining.length > 3) {
-    const eliminations = Math.min(2, remaining.length - 3);
-    const eliminated = [];
-
     const trial = trialNames[Math.floor(Math.random() * trialNames.length)];
-    let eliminationDescriptions = [];
+    const tokenId = Math.floor(Math.random() * 530) + 1;
+    const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}`;
 
+    const embed = new EmbedBuilder().setTitle(`⚔️ Round ${roundCounter} — ${trial}`).setImage(nftImage).setColor(0x8b0000);
+    let desc = [];
+
+    if (Math.random() < 0.2) desc.push(`📜 *${loreDrops[Math.floor(Math.random() * loreDrops.length)]}*`);
+
+    if (!bossPlayerId && Math.random() < 0.2 && remaining.length > 4) {
+      const boss = remaining[Math.floor(Math.random() * remaining.length)];
+      bossPlayerId = boss.id;
+      charmWinners[boss.id] = (charmWinners[boss.id] || 0);
+      desc.push(`👑 <@${boss.id}> has been chosen as the **Malformed Champion**! If they survive this round: **+10 $CHARM**.`);
+    }
+
+    let mutation = null;
+    if (Math.random() < 0.1) {
+      mutation = Math.random() < 0.5 ? 'DOUBLE_ELIM' : 'EVERYONE_CURSED';
+      desc.push(`⚠️ **Mutation Detected: ${mutation === 'DOUBLE_ELIM' ? 'Double Elimination' : 'Cursed Chaos'}**`);
+    }
+
+    const eliminations = mutation === 'DOUBLE_ELIM' ? Math.min(2, remaining.length - 3) : 1;
+    const eliminated = [];
     for (let i = 0; i < eliminations; i++) {
       const index = Math.floor(Math.random() * remaining.length);
       const player = remaining.splice(index, 1)[0];
       eliminated.push(player);
-
-      const useSpecial = Math.random() < 0.15;
-      const reason = useSpecial
-        ? specialEliminations[Math.floor(Math.random() * specialEliminations.length)]
-        : eliminationEvents[Math.floor(Math.random() * eliminationEvents.length)];
-
-      if (useSpecial) {
-        const style = Math.floor(Math.random() * 3);
-        if (style === 0) {
-          eliminationDescriptions.push(`━━━━━━━━━━ 👁‍🗨 THE MALFORMED STRIKE 👁‍🗨 ━━━━━━━━━━\n❌ <@${player.id}> ${reason}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-        } else if (style === 1) {
-          eliminationDescriptions.push(`⚠️💀⚠️ SPECIAL FATE ⚠️💀⚠️\n❌ <@${player.id}> ${reason}\n🩸🧟‍♂️😈👁🔥👣🪦🧠👃`);
-        } else {
-          eliminationDescriptions.push(`**💥 Cursed Spotlight: <@${player.id}> 💥**\n_${reason}_`);
-        }
-      } else {
-        eliminationDescriptions.push(`❌ <@${player.id}> ${reason}`);
-      }
+      const reason = (Math.random() < 0.15 ? specialEliminations : eliminationEvents)[Math.floor(Math.random() * 10)];
+      desc.push(`❌ <@${player.id}> ${reason}`);
     }
 
-    // REVIVAL CHANCE
+    if (bossPlayerId && !eliminated.find(e => e.id === bossPlayerId)) {
+      desc.push(`🎉 <@${bossPlayerId}> survived as Boss! +10 $CHARM`);
+      charmWinners[bossPlayerId] += 10;
+      bossPlayerId = null;
+    }
+
     if (eliminated.length && Math.random() < 0.15) {
       const revived = eliminated.splice(Math.floor(Math.random() * eliminated.length), 1)[0];
       remaining.push(revived);
       const reviveMsg = revivalEvents[Math.floor(Math.random() * revivalEvents.length)];
-      eliminationDescriptions.push(`💫 <@${revived.id}> ${reviveMsg}`);
+      desc.push(`💫 <@${revived.id}> ${reviveMsg}`);
     }
 
-    if (remaining.length > 3) {
-      eliminationDescriptions.push(`\n👣 **${remaining.length} players remain. The Gauntlet continues...**`);
+    if (Math.random() < 0.15 && remaining.length > 3) {
+      const target = remaining[Math.floor(Math.random() * remaining.length)];
+      const isBless = Math.random() < 0.5;
+      desc.push(`${isBless ? '🌟' : '💀'} <@${target.id}> has been ${isBless ? '**Blessed**' : '**Cursed**'} for the next round.`);
     }
 
-    // SEND ROUND EMBED
-    const tokenId = Math.floor(Math.random() * 530) + 1;
-const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}`;
+    if (Math.random() < 0.1) desc.push('🗳 React with 💀 to curse, 💫 to bless, or 👁 to watch.');
 
-await channel.send({
-  embeds: [{
-    title: `⚔️ Round ${roundCounter} — ${trial}`,
-    description: eliminationDescriptions.join('\n'),
-    color: 0x8b0000,
-    image: {
-      url: nftImage
-    }
-  }]
-});
+    desc.push(`\n👣 **${remaining.length} players remain. The Gauntlet continues...**`);
+    embed.setDescription(desc.join('\n'));
+    await channel.send({ embeds: [embed] });
 
-    // 15% CHANCE TO DROP A RANDOM CHARM NFT
     if (Math.random() < 0.15) {
-      const tokenId = Math.floor(Math.random() * 400) + 1;
-      const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}`;
-      await channel.send(`👁 A malformed vision flickers into view...\n${nftImage}`);
+      const bonusToken = Math.floor(Math.random() * 400) + 1;
+      const bonusUrl = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${bonusToken}`;
+      await channel.send({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle('👁 A malformed vision flickers into view...')
+            .setImage(bonusUrl)
+            .setDescription('🧿 **If you own this Ugly, speak up now and you’ll earn 10 $CHARM from the team!**')
+            .setColor(0x6e40c9)
+        ]
+      });
     }
 
     roundCounter++;
-    await new Promise(r => setTimeout(r, 10000)); // 10 second delay
+    await new Promise(r => setTimeout(r, 10000));
   }
 
   const [first, second, third] = remaining;
+  charmWinners[first.id] = (charmWinners[first.id] || 0) + 50;
+  charmWinners[second.id] = (charmWinners[second.id] || 0) + 25;
+  charmWinners[third.id] = (charmWinners[third.id] || 0) + 10;
 
   await channel.send({
-    embeds: [{
-      title: '🏆 Champions of the Ugly Gauntlet!',
-      description: `**1st Place:** <@${first.id}> — **50 $CHARM**\n**2nd Place:** <@${second.id}> — **25 $CHARM**\n**3rd Place:** <@${third.id}> — **10 $CHARM**\n\nThe Gauntlet has spoken. Well fought, Champions!`,
-      color: 0xdaa520
-    }]
+    embeds: [
+      new EmbedBuilder()
+        .setTitle('🏆 Champions of the Ugly Gauntlet!')
+        .setDescription(`**1st Place:** <@${first.id}> — **50 $CHARM**\n**2nd Place:** <@${second.id}> — **25 $CHARM**\n**3rd Place:** <@${third.id}> — **10 $CHARM**\n\nThe Gauntlet has spoken. Well fought, Champions!`)
+        .setColor(0xdaa520)
+    ]
+  });
+
+  const summaryLines = Object.entries(charmWinners)
+    .map(([id, amount]) => `• <@${id}> — ${amount} $CHARM`);
+
+  await channel.send({
+    embeds: [
+      new EmbedBuilder()
+        .setTitle('📊 $CHARM Earnings Summary')
+        .setDescription(summaryLines.join('\n'))
+        .setColor(0x00cc99)
+    ]
   });
 }
-
-
-client.login(process.env.DISCORD_TOKEN);
