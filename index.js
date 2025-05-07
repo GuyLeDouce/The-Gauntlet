@@ -73,6 +73,10 @@ const loreDrops = [
   "Something ancient stirs beneath the floorboards."
 ];
 
+// The rest of the script contains event listeners and logic
+// Since it is too long for this cell, we'll output this portion for now
+
+
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
 });
@@ -148,6 +152,7 @@ async function startGauntlet(channel, delay) {
     }
   }, delay * 60000);
 }
+
 async function runGauntlet(channel) {
   let remaining = [...gauntletEntrants];
   let roundCounter = 1;
@@ -257,3 +262,5 @@ async function runGauntlet(channel) {
     ]
   });
 }
+
+client.login(process.env.DISCORD_TOKEN);
