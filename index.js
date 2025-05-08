@@ -236,7 +236,7 @@ async function runGauntlet(channel) {
     mutationDefenseClicks = new Set();
 
     // ✋ Survival Button
-    if (Math.random() < 0.5) {
+    if (Math.random() < 0.1) {
   const survivalRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('survival_click').setLabel('Grab the Rope!').setStyle(ButtonStyle.Danger)
   );
@@ -259,7 +259,7 @@ async function runGauntlet(channel) {
 }
 
     // 🛡️ Reaction Trap
-if (Math.random() < 0.4) {
+if (Math.random() < 0.1) {
   const trapMsg = await channel.send('🪨 A boulder is falling! React with 🛡️ in 10 seconds!');
   await trapMsg.react('🛡️');
   await new Promise(r => setTimeout(r, 10000));
@@ -273,7 +273,7 @@ if (Math.random() < 0.4) {
 }
 
     // 🧬 Mutation Defense Button
- if (Math.random() < 0.3) {
+ if (Math.random() < 0.2) {
   mutationDefenseClicks = new Set();
   const mutateRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('resist_mutation').setLabel('Resist Mutation').setStyle(ButtonStyle.Danger)
@@ -303,8 +303,8 @@ if (Math.random() < 0.4) {
   }
 }
 
-    // 🔮 Random Boons & Curses (40% chance)
-    if (Math.random() < 0.4 && remaining.length > 2) {
+    // 🔮 Random Boons & Curses (15% chance)
+    if (Math.random() < 0.15 && remaining.length > 2) {
       const shuffled = remaining.sort(() => 0.5 - Math.random());
       const affectedPlayers = shuffled.slice(0, Math.floor(Math.random() * 2) + 1);
       const fateLines = [];
@@ -330,7 +330,7 @@ if (Math.random() < 0.4) {
     }
 
     // 🎲 Fate Button
-if (Math.random() < 0.5) {
+if (Math.random() < 0.1) {
   const fateRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('roll_fate').setLabel('🎲 Tempt Fate').setStyle(ButtonStyle.Primary)
   );
