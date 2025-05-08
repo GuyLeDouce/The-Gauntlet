@@ -62,6 +62,10 @@ const revivalEvents = [
   "glitched through the floor, then glitched back.",
   "got spit out by a mimic. Again."
 ];
+const playerCommands = {}; // Tracks who has used a command
+const tauntTargets = {};   // Stores taunt targets
+const dodgeAttempts = {};  // Tracks dodge attempts
+const hideAttempts = {};   // Tracks hide attempts
 
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
@@ -115,6 +119,48 @@ client.on('messageCreate', async message => {
     runGauntlet(message.channel);
   }
 });
+client.on('messageCreate', async (message) => {
+  if (!gauntletActive || message.author.bot) return;
+  const userId = message.author.id;
+
+  // Ignore if already used a command
+  if (playerCommands[userId]) {
+    message.reply("🛑 You’ve already used your command for this Gauntlet.");
+    return;
+  }
+
+  const command = message.content.toLowerCase();
+
+  if (command === '!dodge') {
+    playerCommands[userId] = true;
+    if (Math.random() < 0.10) {
+      dodgeAttempts[userId] = true;
+      message.reply("🌀 You prepare to dodge fate...");
+    } else {
+      message.reply("😬 You braced... but nothing happened.");
+    }
+  }
+
+  if (command === '!taunt') {
+    playerCommands[userId] = true;
+    const alive = gauntletEntrants.filter(p => p !== userId);
+    if (alive.length > 0) {
+      const target = alive[Math.floor(Math.random() * alive.length)];
+      tauntTargets[target] = true;
+      message.reply(`🔥 You mocked your enemies... and now **<@${target}>** is marked!`);
+    }
+  }
+
+  if (command === '!hide') {
+    playerCommands[userId] = true;
+    if (Math.random() < 0.10) {
+      hideAttempts[userId] = true;
+      message.reply("👻 You vanish into the shadows...");
+    } else {
+      message.reply("😶 You tried to hide, but the shadows rejected you.");
+    }
+  }
+});
 
 async function startGauntlet(channel, delay) {
   if (gauntletActive) return;
@@ -157,7 +203,20 @@ async function runGauntlet(channel) {
     let eliminationDescriptions = [];
 
     for (let i = 0; i < eliminations; i++) {
-      const index = Math.floor(Math.random() * remaining.length);
+      let player;
+if (i === 0 && cursedPlayerId) {
+  // Try to eliminate the cursed player first if they're still in
+  const cursed = remaining.find(p => p.id === cursedPlayerId);
+  if (cursed) {
+    player = cursed;
+    remaining = remaining.filter(p => p.id !== cursedPlayerId);
+  } else {
+    player = remaining.splice(Math.floor(Math.random() * remaining.length), 1)[0];
+  }
+} else {
+  player = remaining.splice(Math.floor(Math.random() * remaining.length), 1)[0];
+}
+
       const player = remaining.splice(index, 1)[0];
       eliminated.push(player);
 
@@ -179,6 +238,45 @@ async function runGauntlet(channel) {
         eliminationDescriptions.push(`❌ <@${player.id}> ${reason}`);
       }
     }
+while (remaining.length > 3) {
+// 🗳️ AUDIENCE POLL (runs if at least 3 players remain)
+if (remaining.length >= 3) {
+  const pollPlayers = remaining.slice(0, 3);
+  const pollMsg = await channel.send({
+    embeds: [
+      {
+        title: "👁️ AUDIENCE POLL",
+        description:
+          `The malformed crowd stirs...\nWho deserves the next curse?\n\n✅ = <@${pollPlayers[0].id}>\n🔥 = <@${pollPlayers[1].id}>\n💀 = <@${pollPlayers[2].id}>`,
+        color: 0x880808
+      }
+    ]
+  });
+
+  await pollMsg.react('✅');
+  await pollMsg.react('🔥');
+  await pollMsg.react('💀');
+
+  await new Promise(resolve => setTimeout(resolve, 15000)); // Wait 15s
+
+  const reactions = pollMsg.reactions.cache;
+  const voteCounts = {
+    [pollPlayers[0].id]: reactions.get('✅')?.count - 1 || 0,
+    [pollPlayers[1].id]: reactions.get('🔥')?.count - 1 || 0,
+    [pollPlayers[2].id]: reactions.get('💀')?.count - 1 || 0,
+  };
+
+  const maxVotes = Math.max(...Object.values(voteCounts));
+  const cursedIds = Object.entries(voteCounts)
+    .filter(([_, count]) => count === maxVotes)
+    .map(([id]) => id);
+
+  const cursedPlayerId = cursedIds[Math.floor(Math.random() * cursedIds.length)];
+
+  await channel.send(`😨 The crowd has spoken... <@${cursedPlayerId}> is marked by the malformed gaze.`);
+
+  // Optional: Store cursedPlayerId to use as forced elimination, or flavor
+}
 
     // Rare revival logic
     if (eliminated.length && Math.random() < 0.15) {
