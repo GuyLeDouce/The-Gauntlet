@@ -236,62 +236,72 @@ async function runGauntlet(channel) {
     mutationDefenseClicks = new Set();
 
     // ✋ Survival Button
-    const survivalRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('survival_click').setLabel('Grab the Rope!').setStyle(ButtonStyle.Danger)
-    );
-    const survivalMsg = await channel.send({
-      content: '⏳ A trap is triggered! First 3 to click are protected...',
-      components: [survivalRow]
-    });
+    if (Math.random() < 0.5) {
+  const survivalRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('survival_click').setLabel('Grab the Rope!').setStyle(ButtonStyle.Danger)
+  );
+  const survivalMsg = await channel.send({
+    content: '⏳ A trap is triggered! First 3 to click are protected...',
+    components: [survivalRow]
+  });
 
-    const survivalCollector = survivalMsg.createMessageComponentCollector({ time: 10000 });
-    let saved = 0;
-    survivalCollector.on('collect', i => {
-      if (saved < 3 && remaining.find(p => p.id === i.user.id)) {
-        roundImmunity[i.user.id] = true;
-        saved++;
-        i.reply({ content: '🪢 You are protected!', ephemeral: true });
-      } else {
-        i.reply({ content: '⛔ You were too late.', ephemeral: true });
-      }
-    });
+  const survivalCollector = survivalMsg.createMessageComponentCollector({ time: 10000 });
+  let saved = 0;
+  survivalCollector.on('collect', i => {
+    if (saved < 3 && remaining.find(p => p.id === i.user.id)) {
+      roundImmunity[i.user.id] = true;
+      saved++;
+      i.reply({ content: '🪢 You are protected!', ephemeral: true });
+    } else {
+      i.reply({ content: '⛔ You were too late.', ephemeral: true });
+    }
+  });
+}
 
     // 🛡️ Reaction Trap
-    const trapMsg = await channel.send('🪨 A boulder is falling! React with 🛡️ in 10 seconds!');
-    await trapMsg.react('🛡️');
-    await new Promise(r => setTimeout(r, 10000));
-    const trapReact = trapMsg.reactions.cache.get('🛡️');
-    const reactors = trapReact ? await trapReact.users.fetch() : new Map();
-    reactors.forEach(user => {
-      if (!user.bot && remaining.find(p => p.id === user.id)) {
-        roundImmunity[user.id] = true;
-      }
-    });
+if (Math.random() < 0.4) {
+  const trapMsg = await channel.send('🪨 A boulder is falling! React with 🛡️ in 10 seconds!');
+  await trapMsg.react('🛡️');
+  await new Promise(r => setTimeout(r, 10000));
+  const trapReact = trapMsg.reactions.cache.get('🛡️');
+  const reactors = trapReact ? await trapReact.users.fetch() : new Map();
+  reactors.forEach(user => {
+    if (!user.bot && remaining.find(p => p.id === user.id)) {
+      roundImmunity[user.id] = true;
+    }
+  });
+}
 
     // 🧬 Mutation Defense Button
-    const mutateRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('resist_mutation').setLabel('Resist Mutation').setStyle(ButtonStyle.Danger)
-    );
-    const mutateMsg = await channel.send({
-      embeds: [{
-        title: "🧬 Mutation Threat Detected!",
-        description: "Click below to resist mutation. If 3 or more resist, it is suppressed.",
-        color: 0xff4500
-      }],
-      components: [mutateRow]
-    });
-    const mutateCollector = mutateMsg.createMessageComponentCollector({ time: 15000 });
-    mutateCollector.on('collect', interaction => {
-      mutationDefenseClicks.add(interaction.user.id);
-      interaction.reply({ content: 'Your resistance is noted...', ephemeral: true });
-    });
-    await new Promise(r => setTimeout(r, 15000));
-    const mutationSuppressed = mutationDefenseClicks.size >= 3;
-    if (mutationSuppressed) {
-      await channel.send('🧬 Enough resistance! The mutation has been suppressed.');
-    } else {
-      await channel.send('💥 Not enough resistance. The mutation begins...');
-    }
+ if (Math.random() < 0.3) {
+  mutationDefenseClicks = new Set();
+  const mutateRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('resist_mutation').setLabel('Resist Mutation').setStyle(ButtonStyle.Danger)
+  );
+  const mutateMsg = await channel.send({
+    embeds: [{
+      title: "🧬 Mutation Threat Detected!",
+      description: "Click below to resist mutation. If 3 or more resist, it is suppressed.",
+      color: 0xff4500
+    }],
+    components: [mutateRow]
+  });
+
+  const mutateCollector = mutateMsg.createMessageComponentCollector({ time: 15000 });
+  mutateCollector.on('collect', interaction => {
+    mutationDefenseClicks.add(interaction.user.id);
+    interaction.reply({ content: 'Your resistance is noted...', ephemeral: true });
+  });
+
+  await new Promise(r => setTimeout(r, 15000));
+  const mutationSuppressed = mutationDefenseClicks.size >= 3;
+  if (mutationSuppressed) {
+    await channel.send('🧬 Enough resistance! The mutation has been suppressed.');
+  } else {
+    await channel.send('💥 Not enough resistance. The mutation begins...');
+    // You could trigger special effects here
+  }
+}
 
     // 🔮 Random Boons & Curses (40% chance)
     if (Math.random() < 0.4 && remaining.length > 2) {
@@ -320,32 +330,36 @@ async function runGauntlet(channel) {
     }
 
     // 🎲 Fate Button
-    const fateRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('roll_fate').setLabel('🎲 Tempt Fate').setStyle(ButtonStyle.Primary)
-    );
-    const fateMsg = await channel.send({
-      content: '🎲 Do you dare tempt the malformed fate?',
-      components: [fateRow]
-    });
-    const fateCollector = fateMsg.createMessageComponentCollector({ time: 15000 });
-    fateCollector.on('collect', i => {
-      if (fateRolls[i.user.id]) {
-        return i.reply({ content: '🛑 You already rolled this game.', ephemeral: true });
-      }
-      const rng = Math.random();
-      let result = '';
-      if (rng < 0.33) {
-        roundImmunity[i.user.id] = true;
-        result = '🕊️ You were blessed with temporary protection.';
-      } else if (rng < 0.66) {
-        activeCurses[i.user.id] = true;
-        result = '👿 You were cursed! Beware the next round...';
-      } else {
-        result = '🌫️ Nothing happens.';
-      }
-      fateRolls[i.user.id] = true;
-      i.reply({ content: result, ephemeral: true });
-    });
+if (Math.random() < 0.5) {
+  const fateRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('roll_fate').setLabel('🎲 Tempt Fate').setStyle(ButtonStyle.Primary)
+  );
+  const fateMsg = await channel.send({
+    content: '🎲 Do you dare tempt the malformed fate?',
+    components: [fateRow]
+  });
+
+  const fateCollector = fateMsg.createMessageComponentCollector({ time: 15000 });
+  fateCollector.on('collect', i => {
+    if (fateRolls[i.user.id]) {
+      return i.reply({ content: '🛑 You already rolled this game.', ephemeral: true });
+    }
+    const rng = Math.random();
+    let result = '';
+    if (rng < 0.33) {
+      roundImmunity[i.user.id] = true;
+      result = '🕊️ You were blessed with temporary protection.';
+    } else if (rng < 0.66) {
+      activeCurses[i.user.id] = true;
+      result = '👿 You were cursed! Beware the next round...';
+    } else {
+      result = '🌫️ Nothing happens.';
+    }
+    fateRolls[i.user.id] = true;
+    i.reply({ content: result, ephemeral: true });
+  });
+}
+
 
     // 🗳️ Audience Vote (40% chance)
     let cursedPlayerId = null;
