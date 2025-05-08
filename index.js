@@ -180,7 +180,7 @@ async function runGauntlet(channel) {
       }
     }
 
-    // REVIVAL CHANCE
+    // Revival logic
     if (eliminated.length && Math.random() < 0.15) {
       const revived = eliminated.splice(Math.floor(Math.random() * eliminated.length), 1)[0];
       remaining.push(revived);
@@ -192,28 +192,20 @@ async function runGauntlet(channel) {
       eliminationDescriptions.push(`\n👣 **${remaining.length} players remain. The Gauntlet continues...**`);
     }
 
-    // SEND ROUND EMBED
+    // Add a random Charm of the Ugly NFT (Token 1–530)
     const tokenId = Math.floor(Math.random() * 530) + 1;
-const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}`;
+    const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}`;
 
-await channel.send({
-  embeds: [{
-    title: `⚔️ Round ${roundCounter} — ${trial}`,
-    description: eliminationDescriptions.join('\n'),
-    color: 0x8b0000,
-    image: {
-      url: nftImage
-    }
-  }]
-});
-
-
-    // 15% CHANCE TO DROP A RANDOM CHARM NFT
-    if (Math.random() < 0.15) {
-      const tokenId = Math.floor(Math.random() * 400) + 1;
-      const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}`;
-      await channel.send(`👁 A malformed vision flickers into view...\n${nftImage}`);
-    }
+    await channel.send({
+      embeds: [{
+        title: `⚔️ Round ${roundCounter} — ${trial}`,
+        description: eliminationDescriptions.join('\n'),
+        color: 0x8b0000,
+        image: {
+          url: nftImage
+        }
+      }]
+    });
 
     roundCounter++;
     await new Promise(r => setTimeout(r, 10000)); // 10 second delay
