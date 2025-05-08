@@ -127,8 +127,19 @@ client.on('messageCreate', async message => {
   }
 });
 client.on('messageCreate', async (message) => {
-  if (!gauntletActive || message.author.bot) return;
+  if (message.author.bot) return;
   const userId = message.author.id;
+  const command = message.content.toLowerCase().trim(); // ✅ This line is essential
+
+  if (!gauntletActive) return;
+
+  if (command === '!revive') {
+    // your revive logic...
+  }
+
+  // other commands like !dodge, !taunt, !hide
+});
+
 
   // Ignore if already used a command
   if (playerCommands[userId]) {
