@@ -181,14 +181,32 @@ async function startGauntlet(channel, delay) {
     components: [joinButton]
   });
 
-  joinTimeout = setTimeout(() => {
-    if (gauntletEntrants.length < 1) {
-      channel.send('Not enough entrants joined. Try again later.');
-      gauntletActive = false;
-    } else {
-      runGauntlet(channel);
-    }
-  }, delay * 60 * 1000);
+  const totalMs = delay * 60 * 1000;
+
+joinTimeout = setTimeout(() => {
+  if (gauntletEntrants.length < 1) {
+    channel.send('Not enough entrants joined. Try again later.');
+    gauntletActive = false;
+  } else {
+    runGauntlet(channel);
+  }
+}, totalMs);
+
+// ⏳ Countdown warnings every 1/3 of the time
+const intervalMs = totalMs / 3;
+
+setTimeout(() => {
+  channel.send(`⏳ One third of the time has passed. **${Math.round((delay * 2) / 3)} minutes left** to join the Gauntlet...`);
+}, intervalMs);
+
+setTimeout(() => {
+  channel.send(`⚠️ Two thirds of the countdown are gone. Only **${Math.round(delay / 3)} minutes** remain to join!`);
+}, intervalMs * 2);
+
+setTimeout(() => {
+  channel.send(`🕰️ Final moment! The Gauntlet will begin **any second now...**`);
+}, intervalMs * 3 - 5000); // 5 seconds before start
+
 }
 async function runGauntlet(channel) {
   gauntletActive = false;
