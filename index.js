@@ -16,6 +16,8 @@ let gauntletActive = false;
 let joinTimeout = null;
 let gauntletChannel = null;
 let gauntletMessage = null;
+let activeBoons = {};
+let activeCurses = {};
 
 const trialNames = [
   "Trial of the Screaming Mire", "The Eldritch Scramble", "Trial of the Shattered Bones",
@@ -212,30 +214,45 @@ async function runGauntlet(channel) {
   gauntletActive = false;
   let remaining = [...gauntletEntrants];
   let roundCounter = 1;
+  activeBoons = {};
+  activeCurses = {};
+
+  // 🦍 Choose the Ugly Boss
+  const boss = remaining[Math.floor(Math.random() * remaining.length)];
+  await channel.send(`👹 A foul stench rises... <@${boss.id}> has been chosen as the **UGLY BOSS**! If they make it to the podium, they earn **double $CHARM**...`);
 
   while (remaining.length > 3) {
     const eliminations = Math.min(2, remaining.length - 3);
     const eliminated = [];
 
-    // 🗳️ AUDIENCE POLL (runs if at least 3 players remain)
+    // 🔮 Random Boons & Curses — 20% chance per player
+    for (const player of remaining) {
+      const fate = Math.random();
+      if (fate < 0.2) {
+        activeCurses[player.id] = true;
+        await channel.send(`👿 The Malformed whisper... <@${player.id}> has been **cursed** this round.`);
+      } else if (fate < 0.4) {
+        activeBoons[player.id] = true;
+        await channel.send(`🕊️ A strange glow surrounds <@${player.id}> — they’ve been **blessed** by the Gauntlet!`);
+      }
+    }
+
+    // 🗳️ AUDIENCE POLL (40% chance)
     let cursedPlayerId = null;
-    if (remaining.length >= 3 && Math.random() < 0.25) {
+    if (remaining.length >= 3 && Math.random() < 0.4) {
       const pollPlayers = remaining.slice(0, 3);
       const pollMsg = await channel.send({
-        embeds: [
-          {
-            title: "👁️ AUDIENCE POLL",
-            description:
-              `The malformed crowd stirs...\nWho deserves the next curse?\n\n✅ = <@${pollPlayers[0].id}>\n🔥 = <@${pollPlayers[1].id}>\n💀 = <@${pollPlayers[2].id}>`,
-            color: 0x880808
-          }
-        ]
+        embeds: [{
+          title: "👁️ AUDIENCE POLL",
+          description:
+            `The malformed crowd stirs...\nWho deserves the next curse?\n\n✅ = <@${pollPlayers[0].id}>\n🔥 = <@${pollPlayers[1].id}>\n💀 = <@${pollPlayers[2].id}>`,
+          color: 0x880808
+        }]
       });
 
       await pollMsg.react('✅');
       await pollMsg.react('🔥');
       await pollMsg.react('💀');
-
       await new Promise(resolve => setTimeout(resolve, 15000));
 
       const reactions = pollMsg.reactions.cache;
@@ -251,7 +268,6 @@ async function runGauntlet(channel) {
         .map(([id]) => id);
 
       cursedPlayerId = cursedIds[Math.floor(Math.random() * cursedIds.length)];
-
       await channel.send(`😨 The crowd has spoken... <@${cursedPlayerId}> is marked by the malformed gaze.`);
     }
 
@@ -260,18 +276,42 @@ async function runGauntlet(channel) {
 
     for (let i = 0; i < eliminations; i++) {
       let player;
+      let isForced = false;
 
-      // Prioritize cursed player for the first elimination
       if (i === 0 && cursedPlayerId) {
         const cursed = remaining.find(p => p.id === cursedPlayerId);
         if (cursed) {
           player = cursed;
           remaining = remaining.filter(p => p.id !== cursedPlayerId);
-        } else {
-          player = remaining.splice(Math.floor(Math.random() * remaining.length), 1)[0];
+          isForced = true;
         }
-      } else {
+      }
+
+      if (!player) {
         player = remaining.splice(Math.floor(Math.random() * remaining.length), 1)[0];
+      }
+
+      // 🛡️ Boon Protection
+      if (activeBoons[player.id]) {
+        eliminationDescriptions.push(`✨ <@${player.id}> was protected by a boon and dodged elimination!`);
+        delete activeBoons[player.id];
+        remaining.push(player);
+        continue;
+      }
+
+      // 💀 Curse Force Elimination
+      if (activeCurses[player.id]) {
+        eliminationDescriptions.push(`💀 <@${player.id}> succumbed to their curse! No escape this time.`);
+        delete activeCurses[player.id];
+        eliminated.push(player);
+        continue;
+      }
+
+      // 👹 Boss Defense
+      if (player.id === boss.id && Math.random() < 0.5) {
+        eliminationDescriptions.push(`🛑 <@${player.id}> is the Boss — and shrugged off the attack with monstrous defiance!`);
+        remaining.push(player);
+        continue;
       }
 
       eliminated.push(player);
@@ -295,7 +335,7 @@ async function runGauntlet(channel) {
       }
     }
 
-    // Rare revival logic
+    // 🌱 Rare Revival
     if (eliminated.length && Math.random() < 0.15) {
       const revived = eliminated.splice(Math.floor(Math.random() * eliminated.length), 1)[0];
       remaining.push(revived);
@@ -303,11 +343,14 @@ async function runGauntlet(channel) {
       eliminationDescriptions.push(`💫 <@${revived.id}> ${reviveMsg}`);
     }
 
+    // Reset Boons/Curses each round
+    activeBoons = {};
+    activeCurses = {};
+
     if (remaining.length > 3) {
       eliminationDescriptions.push(`\n👣 **${remaining.length} players remain. The Gauntlet continues...**`);
     }
 
-    // Embed with random NFT image
     const tokenId = Math.floor(Math.random() * 530) + 1;
     const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}`;
 
@@ -323,18 +366,28 @@ async function runGauntlet(channel) {
     });
 
     roundCounter++;
-    await new Promise(r => setTimeout(r, 10000)); // 10 second delay
+    await new Promise(r => setTimeout(r, 10000));
   }
 
   const [first, second, third] = remaining;
 
+  let resultMessage = `**1st Place:** <@${first.id}> — **50 $CHARM**\n**2nd Place:** <@${second.id}> — **25 $CHARM**\n**3rd Place:** <@${third.id}> — **10 $CHARM**`;
+
+  if ([first.id, second.id, third.id].includes(boss.id)) {
+    await channel.send(`👑 The **Ugly Boss** <@${boss.id}> survived to the end. Their reward is **doubled**!`);
+    if (first.id === boss.id) resultMessage = resultMessage.replace("50 $CHARM", "100 $CHARM");
+    if (second.id === boss.id) resultMessage = resultMessage.replace("25 $CHARM", "50 $CHARM");
+    if (third.id === boss.id) resultMessage = resultMessage.replace("10 $CHARM", "20 $CHARM");
+  }
+
   await channel.send({
     embeds: [{
       title: '🏆 Champions of the Ugly Gauntlet!',
-      description: `**1st Place:** <@${first.id}> — **50 $CHARM**\n**2nd Place:** <@${second.id}> — **25 $CHARM**\n**3rd Place:** <@${third.id}> — **10 $CHARM**\n\nThe Gauntlet has spoken. Well fought, Champions!`,
+      description: resultMessage + `\n\nThe Gauntlet has spoken. Well fought, Champions!`,
       color: 0xdaa520
     }]
   });
 }
+
 
 client.login(process.env.DISCORD_TOKEN);
