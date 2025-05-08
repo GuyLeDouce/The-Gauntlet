@@ -199,25 +199,63 @@ async function runGauntlet(channel) {
     const eliminations = Math.min(2, remaining.length - 3);
     const eliminated = [];
 
+    // 🗳️ AUDIENCE POLL (runs if at least 3 players remain)
+    let cursedPlayerId = null;
+    if (remaining.length >= 3) {
+      const pollPlayers = remaining.slice(0, 3);
+      const pollMsg = await channel.send({
+        embeds: [
+          {
+            title: "👁️ AUDIENCE POLL",
+            description:
+              `The malformed crowd stirs...\nWho deserves the next curse?\n\n✅ = <@${pollPlayers[0].id}>\n🔥 = <@${pollPlayers[1].id}>\n💀 = <@${pollPlayers[2].id}>`,
+            color: 0x880808
+          }
+        ]
+      });
+
+      await pollMsg.react('✅');
+      await pollMsg.react('🔥');
+      await pollMsg.react('💀');
+
+      await new Promise(resolve => setTimeout(resolve, 15000));
+
+      const reactions = pollMsg.reactions.cache;
+      const voteCounts = {
+        [pollPlayers[0].id]: reactions.get('✅')?.count - 1 || 0,
+        [pollPlayers[1].id]: reactions.get('🔥')?.count - 1 || 0,
+        [pollPlayers[2].id]: reactions.get('💀')?.count - 1 || 0,
+      };
+
+      const maxVotes = Math.max(...Object.values(voteCounts));
+      const cursedIds = Object.entries(voteCounts)
+        .filter(([_, count]) => count === maxVotes)
+        .map(([id]) => id);
+
+      cursedPlayerId = cursedIds[Math.floor(Math.random() * cursedIds.length)];
+
+      await channel.send(`😨 The crowd has spoken... <@${cursedPlayerId}> is marked by the malformed gaze.`);
+    }
+
     const trial = trialNames[Math.floor(Math.random() * trialNames.length)];
     let eliminationDescriptions = [];
 
     for (let i = 0; i < eliminations; i++) {
       let player;
-if (i === 0 && cursedPlayerId) {
-  // Try to eliminate the cursed player first if they're still in
-  const cursed = remaining.find(p => p.id === cursedPlayerId);
-  if (cursed) {
-    player = cursed;
-    remaining = remaining.filter(p => p.id !== cursedPlayerId);
-  } else {
-    player = remaining.splice(Math.floor(Math.random() * remaining.length), 1)[0];
-  }
-} else {
-  player = remaining.splice(Math.floor(Math.random() * remaining.length), 1)[0];
-}
 
-      const player = remaining.splice(index, 1)[0];
+      // Prioritize cursed player for the first elimination
+      if (i === 0 && cursedPlayerId) {
+        const cursed = remaining.find(p => p.id === cursedPlayerId);
+        if (cursed) {
+          player = cursed;
+          remaining = remaining.filter(p => p.id !== cursedPlayerId);
+        } else {
+          player = remaining.splice(Math.floor(Math.random() * remaining.length), 1)[0];
+        }
+      } else {
+        player = remaining.splice(Math.floor(Math.random() * remaining.length), 1)[0];
+      }
+
       eliminated.push(player);
 
       const useSpecial = Math.random() < 0.15;
@@ -238,45 +276,6 @@ if (i === 0 && cursedPlayerId) {
         eliminationDescriptions.push(`❌ <@${player.id}> ${reason}`);
       }
     }
-while (remaining.length > 3) {
-// 🗳️ AUDIENCE POLL (runs if at least 3 players remain)
-if (remaining.length >= 3) {
-  const pollPlayers = remaining.slice(0, 3);
-  const pollMsg = await channel.send({
-    embeds: [
-      {
-        title: "👁️ AUDIENCE POLL",
-        description:
-          `The malformed crowd stirs...\nWho deserves the next curse?\n\n✅ = <@${pollPlayers[0].id}>\n🔥 = <@${pollPlayers[1].id}>\n💀 = <@${pollPlayers[2].id}>`,
-        color: 0x880808
-      }
-    ]
-  });
-
-  await pollMsg.react('✅');
-  await pollMsg.react('🔥');
-  await pollMsg.react('💀');
-
-  await new Promise(resolve => setTimeout(resolve, 15000)); // Wait 15s
-
-  const reactions = pollMsg.reactions.cache;
-  const voteCounts = {
-    [pollPlayers[0].id]: reactions.get('✅')?.count - 1 || 0,
-    [pollPlayers[1].id]: reactions.get('🔥')?.count - 1 || 0,
-    [pollPlayers[2].id]: reactions.get('💀')?.count - 1 || 0,
-  };
-
-  const maxVotes = Math.max(...Object.values(voteCounts));
-  const cursedIds = Object.entries(voteCounts)
-    .filter(([_, count]) => count === maxVotes)
-    .map(([id]) => id);
-
-  const cursedPlayerId = cursedIds[Math.floor(Math.random() * cursedIds.length)];
-
-  await channel.send(`😨 The crowd has spoken... <@${cursedPlayerId}> is marked by the malformed gaze.`);
-
-  // Optional: Store cursedPlayerId to use as forced elimination, or flavor
-}
 
     // Rare revival logic
     if (eliminated.length && Math.random() < 0.15) {
