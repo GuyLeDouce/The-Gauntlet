@@ -1,185 +1,217 @@
-const { Client, GatewayIntentBits } = require('discord.js');
-const fetch = require('node-fetch');
-const fs = require('fs');
-
-const DISCORD_TOKEN = process.env.DISCORD_BOT_TOKEN;
-const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY;
-
-// NFT Contracts
-const UGLY_CONTRACT = '0x9492505633d74451bdf3079c09ccc979588bc309';
-const MONSTER_CONTRACT = '0x1cD7fe72D64f6159775643ACEdc7D860dFB80348';
+require('dotenv').config();
+const { Client, GatewayIntentBits, Partials, ActionRowBuilder, ButtonBuilder, ButtonStyle, Events } = require('discord.js');
 
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
-  ]
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers,
+  ],
+  partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 });
 
-let walletLinks = {};
-if (fs.existsSync('walletLinks.json')) {
-  walletLinks = JSON.parse(fs.readFileSync('walletLinks.json'));
+let gauntletEntrants = [];
+let gauntletActive = false;
+let joinTimeout = null;
+let gauntletChannel = null;
+let gauntletMessage = null;
+
+const trialNames = [
+  "Trial of the Screaming Mire", "The Eldritch Scramble", "Trial of the Shattered Bones",
+  "The Maw's Hunger", "Dance of the Ugly Reflection", "Trial of the Crooked Path",
+  "Storm of the Severed Sky", "Gauntlet of Broken Dreams", "The Echoing Crawl",
+  "The Wretched Spiral"
+];
+
+const eliminationEvents = [
+  "was dragged into the swamp by unseen claws.",
+  "tried to pet a malformed dog. It bit back... with ten mouths.",
+  "got yeeted off the platform by a sentient fart cloud.",
+  "exploded after lighting a fart too close to a rune circle.",
+  "was judged too handsome and instantly vaporized.",
+  "spoke in rhymes one too many times.",
+  "was too ugly. Even for the Malformed.",
+  "turned into a rubber duck and floated away.",
+  "got tangled in the Lore Scrolls and suffocated.",
+  "joined the wrong Discord and disappeared forever."
+];
+
+const specialEliminations = [
+  "was sacrificed to the ancient hairball under the couch.",
+  "rolled a 1 and summoned their ex instead.",
+  "flexed too hard and imploded with style.",
+  "said ‘GM’ too late and was banished to Shadow Realm.",
+  "was cursed by a malformed meme and vaporized in shame.",
+  "drew a red card. From a black deck. Gone.",
+  "used Comic Sans in a summoning circle.",
+  "forgot to use dark mode and burned alive.",
+  "glitched into another chain. Nobody followed.",
+  "was outed as an undercover Handsome and disqualified."
+];
+
+const revivalEvents = [
+  "was too ugly to stay dead and clawed their way back!",
+  "emerged from the swamp, covered in mud and vengeance.",
+  "refused to die and bribed fate with $CHARM.",
+  "sacrificed a toe and was reborn in pixelated agony.",
+  "got patched in a hotfix and returned.",
+  "possessed their own corpse. Classic.",
+  "used their Uno Reverse card at the perfect time.",
+  "was pulled back by the chants of the community.",
+  "glitched through the floor, then glitched back.",
+  "got spit out by a mimic. Again."
+];
+client.once('ready', () => {
+  console.log(`Logged in as ${client.user.tag}`);
+});
+
+client.on(Events.InteractionCreate, async interaction => {
+  if (!interaction.isButton()) return;
+
+  if (interaction.customId === 'join_gauntlet' && gauntletActive) {
+    if (!gauntletEntrants.find(e => e.id === interaction.user.id)) {
+      gauntletEntrants.push({ id: interaction.user.id, username: interaction.user.username });
+      await interaction.reply({ content: 'You have joined the Ugly Gauntlet! Prepare yourself…', flags: 64 });
+
+      if (gauntletMessage && gauntletMessage.editable) {
+        const embed = gauntletMessage.embeds[0];
+        const updatedEmbed = {
+          ...embed.data,
+          description: embed.description.replace(/🧟 Entrants so far: \d+/, `🧟 Entrants so far: ${gauntletEntrants.length}`)
+        };
+        await gauntletMessage.edit({ embeds: [updatedEmbed] });
+      }
+    } else {
+      await interaction.reply({ content: 'You have already joined this round!', flags: 64 });
+    }
+  }
+});
+
+client.on('messageCreate', async message => {
+  if (message.author.bot) return;
+  const content = message.content.trim();
+
+  if (content === '!gauntlet') startGauntlet(message.channel, 10);
+  if (content.startsWith('!gauntlet ')) {
+    const delay = parseInt(content.split(' ')[1], 10);
+    startGauntlet(message.channel, isNaN(delay) ? 10 : delay);
+  }
+  if (content === '!startg') {
+    if (gauntletActive) {
+      clearTimeout(joinTimeout);
+      runGauntlet(message.channel);
+    } else {
+      message.channel.send('No Gauntlet is currently running. Use !gauntlet to begin one.');
+    }
+  }
+  if (content === '!gauntlettrial') {
+    if (gauntletActive) return message.channel.send('A Gauntlet is already running.');
+    gauntletEntrants = Array.from({ length: 20 }, (_, i) => ({ id: `MockUser${i + 1}`, username: `MockPlayer${i + 1}` }));
+    gauntletActive = true;
+    gauntletChannel = message.channel;
+    await message.channel.send('🧪 **Trial Mode Activated:** 20 mock players have entered The Gauntlet! Running simulation now...');
+    await new Promise(r => setTimeout(r, 1000));
+    runGauntlet(message.channel);
+  }
+});
+async function startGauntlet(channel, delay) {
+  if (gauntletActive) return;
+  gauntletEntrants = [];
+  gauntletActive = true;
+  gauntletChannel = channel;
+
+  const joinButton = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('join_gauntlet').setLabel('Join the Ugly Gauntlet').setStyle(ButtonStyle.Primary)
+  );
+
+  gauntletMessage = await channel.send({
+    embeds: [{
+      title: '🏁 The Ugly Gauntlet Has Begun!',
+      description: `Click to enter. You have ${delay} minutes.\n🧟 Entrants so far: 0`,
+      color: 0x6e40c9
+    }],
+    components: [joinButton]
+  });
+
+  joinTimeout = setTimeout(() => {
+    if (gauntletEntrants.length < 1) {
+      channel.send('Not enough entrants joined. Try again later.');
+      gauntletActive = false;
+    } else {
+      runGauntlet(channel);
+    }
+  }, delay * 60 * 1000);
 }
 
-client.on('ready', () => {
-  console.log(✅ Logged in as ${client.user.tag});
-});
+async function runGauntlet(channel) {
+  gauntletActive = false;
+  let remaining = [...gauntletEntrants];
+  let roundCounter = 1;
 
-client.on('messageCreate', async (message) => {
-  if (!message.content.startsWith('!') || message.author.bot) return;
+  while (remaining.length > 3) {
+    const eliminations = Math.min(2, remaining.length - 3);
+    const eliminated = [];
 
-  const args = message.content.slice(1).trim().split(/ +/);
-  const command = args.shift().toLowerCase();
+    const trial = trialNames[Math.floor(Math.random() * trialNames.length)];
+    let eliminationDescriptions = [];
 
-  // !linkwallet
-  if (command === 'linkwallet') {
-    const address = args[0];
-    if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
-      return message.reply('❌ Please enter a valid Ethereum wallet address.');
+    for (let i = 0; i < eliminations; i++) {
+      const index = Math.floor(Math.random() * remaining.length);
+      const player = remaining.splice(index, 1)[0];
+      eliminated.push(player);
+
+      const useSpecial = Math.random() < 0.15;
+      const reason = useSpecial
+        ? specialEliminations[Math.floor(Math.random() * specialEliminations.length)]
+        : eliminationEvents[Math.floor(Math.random() * eliminationEvents.length)];
+
+      if (useSpecial) {
+        const style = Math.floor(Math.random() * 3);
+        if (style === 0) {
+          eliminationDescriptions.push(`━━━━━━━━━━ 👁‍🗨 THE MALFORMED STRIKE 👁‍🗨 ━━━━━━━━━━\n❌ <@${player.id}> ${reason}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+        } else if (style === 1) {
+          eliminationDescriptions.push(`⚠️💀⚠️ SPECIAL FATE ⚠️💀⚠️\n❌ <@${player.id}> ${reason}\n🩸🧟‍♂️😈👁🔥👣🪦🧠👃`);
+        } else {
+          eliminationDescriptions.push(`**💥 Cursed Spotlight: <@${player.id}> 💥**\n_${reason}_`);
+        }
+      } else {
+        eliminationDescriptions.push(`❌ <@${player.id}> ${reason}`);
+      }
     }
 
-    walletLinks[message.author.id] = address;
-    fs.writeFileSync('walletLinks.json', JSON.stringify(walletLinks, null, 2));
-
-    try {
-      await message.delete(); // delete original message for privacy
-    } catch (err) {
-      console.warn(⚠️ Could not delete message from ${message.author.tag}:, err.message);
+    if (eliminated.length && Math.random() < 0.15) {
+      const revived = eliminated.splice(Math.floor(Math.random() * eliminated.length), 1)[0];
+      remaining.push(revived);
+      const reviveMsg = revivalEvents[Math.floor(Math.random() * revivalEvents.length)];
+      eliminationDescriptions.push(`💫 <@${revived.id}> ${reviveMsg}`);
     }
 
-    return message.channel.send({
-      content: '✅ Wallet linked.',
-      allowedMentions: { repliedUser: false }
+    if (remaining.length > 3) {
+      eliminationDescriptions.push(`\n👣 **${remaining.length} players remain. The Gauntlet continues...**`);
+    }
+
+    await channel.send({
+      embeds: [{
+        title: `⚔️ Round ${roundCounter} — ${trial}`,
+        description: eliminationDescriptions.join('\n'),
+        color: 0x8b0000
+      }]
     });
+
+    roundCounter++;
+    await new Promise(r => setTimeout(r, 5000));
   }
 
-  // !ugly
-  if (command === 'ugly') {
-    const wallet = walletLinks[message.author.id];
-    if (!wallet) {
-      return message.reply('❌ Please link your wallet first using !linkwallet 0x...');
-    }
+  const [first, second, third] = remaining;
 
-    const url = https://api.etherscan.io/api?module=account&action=tokennfttx&address=${wallet}&contractaddress=${UGLY_CONTRACT}&page=1&offset=100&sort=asc&apikey=${ETHERSCAN_API_KEY};
+  await channel.send({
+    embeds: [{
+      title: '🏆 Champions of the Ugly Gauntlet!',
+      description: `**1st Place:** <@${first.id}> — **50 $CHARM**\n**2nd Place:** <@${second.id}> — **25 $CHARM**\n**3rd Place:** <@${third.id}> — **10 $CHARM**\n\nThe Gauntlet has spoken. Well fought, Champions!`,
+      color: 0xdaa520
+    }]
+  });
+}
 
-    try {
-      const res = await fetch(url);
-      const data = await res.json();
-
-      const owned = new Set();
-      for (const tx of data.result) {
-        if (tx.to.toLowerCase() === wallet.toLowerCase()) {
-          owned.add(tx.tokenID);
-        } else if (tx.from.toLowerCase() === wallet.toLowerCase()) {
-          owned.delete(tx.tokenID);
-        }
-      }
-
-      if (owned.size === 0) return message.reply('😢 You don’t own any Charm of the Ugly NFTs.');
-
-      const tokenArray = Array.from(owned);
-      const randomToken = tokenArray[Math.floor(Math.random() * tokenArray.length)];
-      const imgUrl = https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${randomToken};
-
-      return message.reply({
-        content: Token ID: ${randomToken},
-        files: [{
-          attachment: imgUrl,
-          name: ugly-${randomToken}.jpg
-        }]
-      });
-
-    } catch (err) {
-      console.error(err);
-      return message.reply('⚠️ Error fetching your Uglies. Please try again later.');
-    }
-  }
-
-  // !myuglys
-  if (command === 'myuglys') {
-    const wallet = walletLinks[message.author.id];
-    if (!wallet) {
-      return message.reply('❌ Please link your wallet first using !linkwallet 0x...');
-    }
-
-    const url = https://api.etherscan.io/api?module=account&action=tokennfttx&address=${wallet}&contractaddress=${UGLY_CONTRACT}&page=1&offset=100&sort=asc&apikey=${ETHERSCAN_API_KEY};
-
-    try {
-      const res = await fetch(url);
-      const data = await res.json();
-
-      const owned = new Set();
-      for (const tx of data.result) {
-        if (tx.to.toLowerCase() === wallet.toLowerCase()) {
-          owned.add(tx.tokenID);
-        } else if (tx.from.toLowerCase() === wallet.toLowerCase()) {
-          owned.delete(tx.tokenID);
-        }
-      }
-
-      const tokenArray = Array.from(owned);
-      if (tokenArray.length === 0) {
-        return message.reply('😢 You don’t currently own any Charm of the Ugly NFTs.');
-      }
-
-      const limitedTokens = tokenArray.slice(0, 10);
-      const files = limitedTokens.map((tokenId) => ({
-        attachment: https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId},
-        name: ugly-${tokenId}.jpg
-      }));
-
-      const listedIds = limitedTokens.map(id => Token ID: ${id}).join('\n');
-
-      return message.reply({ content: listedIds, files });
-
-    } catch (err) {
-      console.error(err);
-      return message.reply('⚠️ Error fetching your Uglies. Please try again later.');
-    }
-  }
-
-  // !monster
-  if (command === 'monster') {
-    const wallet = walletLinks[message.author.id];
-    if (!wallet) {
-      return message.reply('❌ Please link your wallet first using !linkwallet 0x...');
-    }
-
-    const url = https://api.etherscan.io/api?module=account&action=tokennfttx&address=${wallet}&contractaddress=${MONSTER_CONTRACT}&page=1&offset=100&sort=asc&apikey=${ETHERSCAN_API_KEY};
-
-    try {
-      const res = await fetch(url);
-      const data = await res.json();
-
-      const owned = new Set();
-      for (const tx of data.result) {
-        if (tx.to.toLowerCase() === wallet.toLowerCase()) {
-          owned.add(tx.tokenID);
-        } else if (tx.from.toLowerCase() === wallet.toLowerCase()) {
-          owned.delete(tx.tokenID);
-        }
-      }
-
-      if (owned.size === 0) return message.reply('😢 You don’t own any Ugly Monster NFTs.');
-
-      const tokenArray = Array.from(owned);
-      const randomToken = tokenArray[Math.floor(Math.random() * tokenArray.length)];
-      const imgUrl = https://ipfs.io/ipfs/bafybeicydaui66527mumvml5ushq5ngloqklh6rh7hv3oki2ieo6q25ns4/${randomToken}.webp;
-
-      return message.reply({
-        content: Token ID: ${randomToken},
-        files: [{
-          attachment: imgUrl,
-          name: monster-${randomToken}.webp
-        }]
-      });
-
-    } catch (err) {
-      console.error(err);
-      return message.reply('⚠️ Error fetching your Monsters. Please try again later.');
-    }
-  }
-});
-
-client.login(DISCORD_TOKEN);
+client.login(process.env.DISCORD_TOKEN);
