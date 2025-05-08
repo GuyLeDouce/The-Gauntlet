@@ -62,10 +62,10 @@ const revivalEvents = [
   "glitched through the floor, then glitched back.",
   "got spit out by a mimic. Again."
 ];
+
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
 });
-
 client.on(Events.InteractionCreate, async interaction => {
   if (!interaction.isButton()) return;
 
@@ -115,6 +115,7 @@ client.on('messageCreate', async message => {
     runGauntlet(message.channel);
   }
 });
+
 async function startGauntlet(channel, delay) {
   if (gauntletActive) return;
   gauntletEntrants = [];
@@ -143,7 +144,6 @@ async function startGauntlet(channel, delay) {
     }
   }, delay * 60 * 1000);
 }
-
 async function runGauntlet(channel) {
   gauntletActive = false;
   let remaining = [...gauntletEntrants];
@@ -180,7 +180,7 @@ async function runGauntlet(channel) {
       }
     }
 
-    // Revival logic
+    // Rare revival logic
     if (eliminated.length && Math.random() < 0.15) {
       const revived = eliminated.splice(Math.floor(Math.random() * eliminated.length), 1)[0];
       remaining.push(revived);
@@ -192,58 +192,23 @@ async function runGauntlet(channel) {
       eliminationDescriptions.push(`\n👣 **${remaining.length} players remain. The Gauntlet continues...**`);
     }
 
-    // Add a random Charm of the Ugly NFT (Token 1–530)
+    // Embed with random NFT image
     const tokenId = Math.floor(Math.random() * 530) + 1;
-const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}`;
-
-await channel.send({
-  embeds: [{
-    title: `⚔️ Round ${roundCounter} — ${trial}`,
-    description: eliminationDescriptions.join('\n'),
-    color: 0x8b0000,
-    image: {
-      url: nftImage
-    }
-  }]
-});
-
-    roundCounter++;
-    await new Promise(r => setTimeout(r, 10000)); // 10 second delay
-  }
-
-  const [first, second, third] = remaining;
-
-  await channel.send({
-    embeds: [{
-      title: '🏆 Champions of the Ugly Gauntlet!',
-      description: `**1st Place:** <@${first.id}> — **50 $CHARM**\n**2nd Place:** <@${second.id}> — **25 $CHARM**\n**3rd Place:** <@${third.id}> — **10 $CHARM**\n\nThe Gauntlet has spoken. Well fought, Champions!`,
-      color: 0xdaa520
-    }]
-  });
-}
-
-
-    if (eliminated.length && Math.random() < 0.15) {
-      const revived = eliminated.splice(Math.floor(Math.random() * eliminated.length), 1)[0];
-      remaining.push(revived);
-      const reviveMsg = revivalEvents[Math.floor(Math.random() * revivalEvents.length)];
-      eliminationDescriptions.push(`💫 <@${revived.id}> ${reviveMsg}`);
-    }
-
-    if (remaining.length > 3) {
-      eliminationDescriptions.push(`\n👣 **${remaining.length} players remain. The Gauntlet continues...**`);
-    }
+    const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}`;
 
     await channel.send({
       embeds: [{
         title: `⚔️ Round ${roundCounter} — ${trial}`,
         description: eliminationDescriptions.join('\n'),
-        color: 0x8b0000
+        color: 0x8b0000,
+        image: {
+          url: nftImage
+        }
       }]
     });
 
     roundCounter++;
-    await new Promise(r => setTimeout(r, 10000));
+    await new Promise(r => setTimeout(r, 10000)); // 10 second delay
   }
 
   const [first, second, third] = remaining;
