@@ -18,6 +18,9 @@ let gauntletChannel = null;
 let gauntletMessage = null;
 let activeBoons = {};
 let activeCurses = {};
+let roundImmunity = {};
+let fateRolls = {};
+let mutationDefenseClicks = new Set();
 
 const trialNames = [
   "Trial of the Screaming Mire", "The Eldritch Scramble", "Trial of the Shattered Bones",
@@ -220,6 +223,70 @@ async function runGauntlet(channel) {
   // 🦍 Choose the Ugly Boss
   const boss = remaining[Math.floor(Math.random() * remaining.length)];
   await channel.send(`👹 A foul stench rises... <@${boss.id}> has been chosen as the **UGLY BOSS**! If they make it to the podium, they earn **double $CHARM**...`);
+// ✋ Survival button (3 max)
+const survivalRow = new ActionRowBuilder().addComponents(
+  new ButtonBuilder().setCustomId('survival_click').setLabel('Grab the Rope!').setStyle(ButtonStyle.Danger)
+);
+const survivalMsg = await channel.send({
+  content: '⏳ A trap is triggered! First 3 to click are protected...',
+  components: [survivalRow]
+});
+const trapMsg = await channel.send('🪨 A boulder is falling! React with 🛡️ in 10 seconds!');
+await trapMsg.react('🛡️');
+await new Promise(r => setTimeout(r, 10000));
+
+const trapReact = trapMsg.reactions.cache.get('🛡️');
+const reactors = trapReact ? await trapReact.users.fetch() : new Map();
+
+reactors.forEach(user => {
+  if (!user.bot && remaining.find(p => p.id === user.id)) {
+    roundImmunity[user.id] = true;
+  }
+});
+
+const survivalCollector = survivalMsg.createMessageComponentCollector({ time: 10000 });
+let saved = 0;
+
+survivalCollector.on('collect', i => {
+  if (saved < 3 && remaining.find(p => p.id === i.user.id)) {
+    roundImmunity[i.user.id] = true;
+    saved++;
+    i.reply({ content: '🪢 You are protected!', ephemeral: true });
+  } else {
+    i.reply({ content: '⛔ You were too late.', ephemeral: true });
+  }
+});
+mutationDefenseClicks = new Set();
+
+const mutateRow = new ActionRowBuilder().addComponents(
+  new ButtonBuilder().setCustomId('resist_mutation').setLabel('Resist Mutation').setStyle(ButtonStyle.Danger)
+);
+
+const mutateMsg = await channel.send({
+  embeds: [{
+    title: "🧬 Mutation Threat Detected!",
+    description: "Click below to resist mutation. If 3 or more resist, it is suppressed.",
+    color: 0xff4500
+  }],
+  components: [mutateRow]
+});
+
+const mutateCollector = mutateMsg.createMessageComponentCollector({ time: 15000 });
+
+mutateCollector.on('collect', interaction => {
+  mutationDefenseClicks.add(interaction.user.id);
+  interaction.reply({ content: 'Your resistance is noted...', ephemeral: true });
+});
+
+await new Promise(r => setTimeout(r, 15000));
+
+const mutationSuppressed = mutationDefenseClicks.size >= 3;
+if (mutationSuppressed) {
+  await channel.send('🧬 Enough resistance! The mutation has been suppressed.');
+} else {
+  await channel.send('💥 Not enough resistance. The mutation begins...');
+  // Insert mutation logic here
+}
 
   while (remaining.length > 3) {
     const eliminations = Math.min(2, remaining.length - 3);
@@ -253,38 +320,40 @@ if (Math.random() < 0.4 && remaining.length > 2) {
 }
 
     // 🗳️ AUDIENCE POLL (40% chance)
-    let cursedPlayerId = null;
-    if (remaining.length >= 3 && Math.random() < 0.4) {
-      const pollPlayers = remaining.slice(0, 3);
-      const pollMsg = await channel.send({
-        embeds: [{
-          title: "👁️ AUDIENCE POLL",
-          description:
-            `The malformed crowd stirs...\nWho deserves the next curse?\n\n✅ = <@${pollPlayers[0].id}>\n🔥 = <@${pollPlayers[1].id}>\n💀 = <@${pollPlayers[2].id}>`,
-          color: 0x880808
-        }]
-      });
+    const pollPlayers = remaining.slice(0, 3);
+const voteRow = new ActionRowBuilder().addComponents(
+  ...pollPlayers.map((p) =>
+    new ButtonBuilder()
+      .setCustomId(`vote_${p.id}`)
+      .setLabel(`Curse ${p.username}`)
+      .setStyle(ButtonStyle.Secondary)
+  )
+);
 
-      await pollMsg.react('✅');
-      await pollMsg.react('🔥');
-      await pollMsg.react('💀');
-      await new Promise(resolve => setTimeout(resolve, 15000));
+const voteMsg = await channel.send({
+  embeds: [{
+    title: '👁️ Audience Vote',
+    description: `The malformed crowd stirs... Choose who to curse.`,
+    color: 0x880808
+  }],
+  components: [voteRow]
+});
 
-      const reactions = pollMsg.reactions.cache;
-      const voteCounts = {
-        [pollPlayers[0].id]: reactions.get('✅')?.count - 1 || 0,
-        [pollPlayers[1].id]: reactions.get('🔥')?.count - 1 || 0,
-        [pollPlayers[2].id]: reactions.get('💀')?.count - 1 || 0,
-      };
+const voteCounts = {};
+const voteCollector = voteMsg.createMessageComponentCollector({ time: 15000 });
 
-      const maxVotes = Math.max(...Object.values(voteCounts));
-      const cursedIds = Object.entries(voteCounts)
-        .filter(([_, count]) => count === maxVotes)
-        .map(([id]) => id);
+voteCollector.on('collect', interaction => {
+  const targetId = interaction.customId.split('_')[1];
+  voteCounts[targetId] = (voteCounts[targetId] || 0) + 1;
+  interaction.reply({ content: 'Vote registered!', ephemeral: true });
+});
 
-      cursedPlayerId = cursedIds[Math.floor(Math.random() * cursedIds.length)];
-      await channel.send(`😨 The crowd has spoken... <@${cursedPlayerId}> is marked by the malformed gaze.`);
-    }
+await new Promise(r => setTimeout(r, 15000));
+
+const max = Math.max(...Object.values(voteCounts));
+const cursedIds = Object.entries(voteCounts).filter(([_, v]) => v === max).map(([id]) => id);
+const cursedPlayerId = cursedIds[Math.floor(Math.random() * cursedIds.length)];
+await channel.send(`😨 The audience cursed <@${cursedPlayerId}>!`);
 
     const trial = trialNames[Math.floor(Math.random() * trialNames.length)];
     let eliminationDescriptions = [];
@@ -328,6 +397,49 @@ if (Math.random() < 0.4 && remaining.length > 2) {
         remaining.push(player);
         continue;
       }
+const fateRow = new ActionRowBuilder().addComponents(
+  new ButtonBuilder().setCustomId('roll_fate').setLabel('🎲 Tempt Fate').setStyle(ButtonStyle.Primary)
+);
+const fateMsg = await channel.send({
+  content: '🎲 Do you dare tempt the malformed fate?',
+  components: [fateRow]
+});
+const fateCollector = fateMsg.createMessageComponentCollector({ time: 15000 });
+
+fateCollector.on('collect', i => {
+  if (fateRolls[i.user.id]) {
+    return i.reply({ content: '🛑 You already rolled this game.', ephemeral: true });
+  }
+
+  const rng = Math.random();
+  let result = '';
+  if (rng < 0.33) {
+    roundImmunity[i.user.id] = true;
+    result = '🕊️ You were blessed with temporary protection.';
+  } else if (rng < 0.66) {
+    activeCurses[i.user.id] = true;
+    result = '👿 You were cursed! Beware the next round...';
+  } else {
+    result = '🌫️ Nothing happens.';
+  }
+
+  fateRolls[i.user.id] = true;
+  i.reply({ content: result, ephemeral: true });
+});
+if (roundImmunity[player.id]) {
+  eliminationDescriptions.push(`🛡️ <@${player.id}> avoided elimination with quick reflexes!`);
+  continue;
+}
+
+if (activeBoons[player.id]) {
+  eliminationDescriptions.push(`✨ <@${player.id}> was protected by a boon and dodged elimination!`);
+  continue;
+}
+
+if (activeCurses[player.id]) {
+  eliminationDescriptions.push(`💀 <@${player.id}> succumbed to their curse!`);
+  // proceed with elimination
+}
 
       eliminated.push(player);
 
