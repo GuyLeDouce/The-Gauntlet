@@ -129,65 +129,70 @@ client.on('messageCreate', async message => {
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
   const userId = message.author.id;
-  const command = message.content.toLowerCase().trim(); // ✅ This line is essential
+  const command = message.content.toLowerCase().trim();
 
-  if (!gauntletActive) return;
-
-  if (command === '!revive') {
-    // your revive logic...
+  // ✅ GAUNTLET START COMMANDS
+  if (command === '!gauntlet') return startGauntlet(message.channel, 10);
+  if (command.startsWith('!gauntlet ')) {
+    const delay = parseInt(command.split(' ')[1], 10);
+    return startGauntlet(message.channel, isNaN(delay) ? 10 : delay);
   }
-
-  // other commands like !dodge, !taunt, !hide
-});
-
-
-  // Ignore if already used a command
-  if (playerCommands[userId]) {
-    message.reply("🛑 You’ve already used your command for this Gauntlet.");
+  if (command === '!startg') {
+    if (gauntletActive) {
+      clearTimeout(joinTimeout);
+      runGauntlet(message.channel);
+    } else {
+      message.channel.send('No Gauntlet is currently running. Use !gauntlet to begin one.');
+    }
     return;
   }
-if (command === '!revive') {
-  if (!gauntletActive) return message.reply("⚠️ The Gauntlet isn't running right now.");
-  const isEliminated = eliminatedPlayers.find(p => p.id === userId);
-  const isAlive = remaining.find(p => p.id === userId);
-
-  if (!isEliminated) {
-    return message.reply("👻 You haven’t been eliminated... yet.");
+  if (command === '!gauntlettrial') {
+    if (gauntletActive) return message.channel.send('A Gauntlet is already running.');
+    gauntletEntrants = Array.from({ length: 20 }, (_, i) => ({ id: `MockUser${i + 1}`, username: `MockPlayer${i + 1}` }));
+    gauntletActive = true;
+    gauntletChannel = message.channel;
+    await message.channel.send('🧪 **Trial Mode Activated:** 20 mock players have entered The Gauntlet! Running simulation now...');
+    await new Promise(r => setTimeout(r, 1000));
+    return runGauntlet(message.channel);
   }
 
-  if (isAlive) {
-    return message.reply("🧟 You're already back in the game!");
-  }
+  // ✅ SKIP IF GAME NOT ACTIVE
+  if (!gauntletActive) return;
 
-  if (Math.random() < 0.02) { // 2% chance
-    remaining.push(isEliminated);
-    const reviveMsg = revivalEvents[Math.floor(Math.random() * revivalEvents.length)];
-    message.channel.send(`💫 <@${userId}> defied all odds!\n${reviveMsg}`);
-  } else {
-    const fails = [
-      "🪦 You wiggle in the dirt… but you're still dead.",
-      "😵 You whispered to the void. It blocked you.",
-      "👁️ The malformed forces laughed and turned away.",
-      "🔮 Your bones creaked… then cracked. Nope.",
-      "☠️ You reached out… and got ghosted."
-    ];
-    const failMsg = fails[Math.floor(Math.random() * fails.length)];
-    message.reply(failMsg);
-  }
-}
-
-  client.on('messageCreate', async (message) => {
-  if (!gauntletActive || message.author.bot) return;
-  const userId = message.author.id;
-  const command = message.content.toLowerCase().trim(); // ✅ Fix here
-
+  // ✅ !REVIVE COMMAND
   if (command === '!revive') {
-    // revive logic...
+    const isEliminated = eliminatedPlayers.find(p => p.id === userId);
+    const isAlive = gauntletEntrants.find(p => p.id === userId) && !remaining.find(p => p.id === userId);
+
+    if (!isEliminated) {
+      return message.reply("👻 You haven’t been eliminated... yet.");
+    }
+    if (!isAlive) {
+      return message.reply("🧟 You're already back in the game!");
+    }
+
+    if (Math.random() < 0.02) {
+      remaining.push(isEliminated);
+      const reviveMsg = revivalEvents[Math.floor(Math.random() * revivalEvents.length)];
+      message.channel.send(`💫 <@${userId}> defied all odds!\n${reviveMsg}`);
+    } else {
+      const fails = [
+        "🪦 You wiggle in the dirt… but you're still dead.",
+        "😵 You whispered to the void. It blocked you.",
+        "👁️ The malformed forces laughed and turned away.",
+        "🔮 Your bones creaked… then cracked. Nope.",
+        "☠️ You reached out… and got ghosted."
+      ];
+      const failMsg = fails[Math.floor(Math.random() * fails.length)];
+      message.reply(failMsg);
+    }
+    return;
   }
 
-  // other commands...
-});
-
+  // ✅ INTERACTIVE COMMANDS (1-time use)
+  if (playerCommands[userId]) {
+    return message.reply("🛑 You’ve already used your command for this Gauntlet.");
+  }
 
   if (command === '!dodge') {
     playerCommands[userId] = true;
@@ -201,11 +206,11 @@ if (command === '!revive') {
 
   if (command === '!taunt') {
     playerCommands[userId] = true;
-    const alive = gauntletEntrants.filter(p => p !== userId);
+    const alive = gauntletEntrants.filter(p => p.id !== userId);
     if (alive.length > 0) {
       const target = alive[Math.floor(Math.random() * alive.length)];
-      tauntTargets[target] = true;
-      message.reply(`🔥 You mocked your enemies... and now **<@${target}>** is marked!`);
+      tauntTargets[target.id] = true;
+      message.reply(`🔥 You mocked your enemies... and now **<@${target.id}>** is marked!`);
     }
   }
 
