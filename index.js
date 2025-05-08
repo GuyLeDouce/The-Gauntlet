@@ -201,7 +201,7 @@ async function runGauntlet(channel) {
 
     // 🗳️ AUDIENCE POLL (runs if at least 3 players remain)
     let cursedPlayerId = null;
-    if (remaining.length >= 3) {
+    if (remaining.length >= 3 && Math.random() < 0.25) {
       const pollPlayers = remaining.slice(0, 3);
       const pollMsg = await channel.send({
         embeds: [
