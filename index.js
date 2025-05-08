@@ -165,7 +165,18 @@ if (command === '!revive') {
   }
 }
 
-  const command = message.content.toLowerCase();
+  client.on('messageCreate', async (message) => {
+  if (!gauntletActive || message.author.bot) return;
+  const userId = message.author.id;
+  const command = message.content.toLowerCase().trim(); // ✅ Fix here
+
+  if (command === '!revive') {
+    // revive logic...
+  }
+
+  // other commands...
+});
+
 
   if (command === '!dodge') {
     playerCommands[userId] = true;
