@@ -22,6 +22,7 @@ let activeCurses = {};
 let roundImmunity = {};
 let fateRolls = {};
 let mutationDefenseClicks = new Set();
+let eliminatedPlayers = []; // Tracks eliminated players for revive attempts
 
 const trialNames = [
   "Trial of the Screaming Mire", "The Eldritch Scramble", "Trial of the Shattered Bones",
@@ -134,6 +135,35 @@ client.on('messageCreate', async (message) => {
     message.reply("🛑 You’ve already used your command for this Gauntlet.");
     return;
   }
+if (command === '!revive') {
+  if (!gauntletActive) return message.reply("⚠️ The Gauntlet isn't running right now.");
+  const isEliminated = eliminatedPlayers.find(p => p.id === userId);
+  const isAlive = remaining.find(p => p.id === userId);
+
+  if (!isEliminated) {
+    return message.reply("👻 You haven’t been eliminated... yet.");
+  }
+
+  if (isAlive) {
+    return message.reply("🧟 You're already back in the game!");
+  }
+
+  if (Math.random() < 0.02) { // 2% chance
+    remaining.push(isEliminated);
+    const reviveMsg = revivalEvents[Math.floor(Math.random() * revivalEvents.length)];
+    message.channel.send(`💫 <@${userId}> defied all odds!\n${reviveMsg}`);
+  } else {
+    const fails = [
+      "🪦 You wiggle in the dirt… but you're still dead.",
+      "😵 You whispered to the void. It blocked you.",
+      "👁️ The malformed forces laughed and turned away.",
+      "🔮 Your bones creaked… then cracked. Nope.",
+      "☠️ You reached out… and got ghosted."
+    ];
+    const failMsg = fails[Math.floor(Math.random() * fails.length)];
+    message.reply(failMsg);
+  }
+}
 
   const command = message.content.toLowerCase();
 
@@ -290,9 +320,13 @@ if (Math.random() < 0.1) {
 
   const mutateCollector = mutateMsg.createMessageComponentCollector({ time: 15000 });
   mutateCollector.on('collect', interaction => {
-    mutationDefenseClicks.add(interaction.user.id);
-    interaction.reply({ content: 'Your resistance is noted...', ephemeral: true });
-  });
+  if (!remaining.find(p => p.id === interaction.user.id)) {
+    return interaction.reply({ content: '🛑 Only players still in the game can resist mutation.', ephemeral: true });
+  }
+
+  mutationDefenseClicks.add(interaction.user.id);
+  interaction.reply({ content: '🧬 Your resistance is noted...', ephemeral: true });
+});
 
   await new Promise(r => setTimeout(r, 15000));
   const mutationSuppressed = mutationDefenseClicks.size >= 3;
@@ -342,9 +376,13 @@ if (Math.random() < 0.1) {
 
   const fateCollector = fateMsg.createMessageComponentCollector({ time: 15000 });
   fateCollector.on('collect', i => {
-    if (fateRolls[i.user.id]) {
-      return i.reply({ content: '🛑 You already rolled this game.', ephemeral: true });
-    }
+  if (!remaining.find(p => p.id === i.user.id)) {
+    return i.reply({ content: '🛑 Only players still in the game can roll for fate.', ephemeral: true });
+  }
+
+  if (fateRolls[i.user.id]) {
+    return i.reply({ content: '🛑 You already rolled this game.', ephemeral: true });
+  }
     const rng = Math.random();
     let result = '';
     if (rng < 0.33) {
@@ -387,16 +425,16 @@ if (Math.random() < 0.1) {
       const voteCounts = {};
       const voteCollector = voteMsg.createMessageComponentCollector({ time: 15000 });
 
-      voteCollector.on('collect', interaction => {
-        
-        const targetId = interaction.customId.split('_')[1];
-        voteCounts[targetId] = (voteCounts[targetId] || 0) + 1;
-        interaction.reply({ content: 'Vote registered!', ephemeral: true });
-        if (!remaining.find(p => p.id === interaction.user.id)) {
-  return interaction.reply({ content: '🛑 Only players still in the game can vote!', ephemeral: true });
-}
+voteCollector.on('collect', interaction => {
+  if (!remaining.find(p => p.id === interaction.user.id)) {
+    return interaction.reply({ content: '🛑 Only players still in the game can vote!', ephemeral: true });
+  }
 
-      });
+  const targetId = interaction.customId.split('_')[1];
+  voteCounts[targetId] = (voteCounts[targetId] || 0) + 1;
+  interaction.reply({ content: 'Vote registered!', ephemeral: true });
+});
+
 
       await new Promise(r => setTimeout(r, 15000));
 
@@ -443,6 +481,8 @@ if (Math.random() < 0.1) {
       }
 
       eliminated.push(player);
+eliminatedPlayers.push(player);
+
 
       const useSpecial = Math.random() < 0.15;
       const reason = useSpecial
@@ -463,11 +503,14 @@ if (Math.random() < 0.1) {
       }
     }
     if (eliminated.length && Math.random() < 0.15) {
-      const revived = eliminated.splice(Math.floor(Math.random() * eliminated.length), 1)[0];
-      remaining.push(revived);
-      const reviveMsg = revivalEvents[Math.floor(Math.random() * revivalEvents.length)];
-      eliminationDescriptions.push(`💫 <@${revived.id}> ${reviveMsg}`);
-    }
+  const reviveIndex = Math.floor(Math.random() * eliminated.length);
+  const revived = eliminated.splice(reviveIndex, 1)[0];
+  if (revived) {
+    remaining.push(revived);
+    const reviveMsg = revivalEvents[Math.floor(Math.random() * revivalEvents.length)];
+    eliminationDescriptions.push(`💫 <@${revived.id}> ${reviveMsg}`);
+  }
+}
 
     if (remaining.length > 3) {
       eliminationDescriptions.push(`\n👣 **${remaining.length} players remain. The Gauntlet continues...**`);
