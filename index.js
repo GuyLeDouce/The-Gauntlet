@@ -200,7 +200,7 @@ async function runGauntlet(channel) {
     });
 
     roundCounter++;
-    await new Promise(r => setTimeout(r, 5000));
+    await new Promise(r => setTimeout(r, 10000));
   }
 
   const [first, second, third] = remaining;
