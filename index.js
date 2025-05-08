@@ -388,9 +388,14 @@ if (Math.random() < 0.1) {
       const voteCollector = voteMsg.createMessageComponentCollector({ time: 15000 });
 
       voteCollector.on('collect', interaction => {
+        
         const targetId = interaction.customId.split('_')[1];
         voteCounts[targetId] = (voteCounts[targetId] || 0) + 1;
         interaction.reply({ content: 'Vote registered!', ephemeral: true });
+        if (!remaining.find(p => p.id === interaction.user.id)) {
+  return interaction.reply({ content: '🛑 Only players still in the game can vote!', ephemeral: true });
+}
+
       });
 
       await new Promise(r => setTimeout(r, 15000));
