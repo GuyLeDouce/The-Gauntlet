@@ -11,6 +11,7 @@ const client = new Client({
   partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 });
 
+
 let gauntletEntrants = [];
 let gauntletActive = false;
 let joinTimeout = null;
