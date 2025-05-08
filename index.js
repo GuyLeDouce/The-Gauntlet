@@ -194,18 +194,18 @@ async function runGauntlet(channel) {
 
     // Add a random Charm of the Ugly NFT (Token 1–530)
     const tokenId = Math.floor(Math.random() * 530) + 1;
-    const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}`;
+const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}`;
 
-    await channel.send({
-      embeds: [{
-        title: `⚔️ Round ${roundCounter} — ${trial}`,
-        description: eliminationDescriptions.join('\n'),
-        color: 0x8b0000,
-        image: {
-          url: nftImage
-        }
-      }]
-    });
+await channel.send({
+  embeds: [{
+    title: `⚔️ Round ${roundCounter} — ${trial}`,
+    description: eliminationDescriptions.join('\n'),
+    color: 0x8b0000,
+    image: {
+      url: nftImage
+    }
+  }]
+});
 
     roundCounter++;
     await new Promise(r => setTimeout(r, 10000)); // 10 second delay
