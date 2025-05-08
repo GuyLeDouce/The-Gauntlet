@@ -225,17 +225,32 @@ async function runGauntlet(channel) {
     const eliminations = Math.min(2, remaining.length - 3);
     const eliminated = [];
 
-    // 🔮 Random Boons & Curses — 20% chance per player
-    for (const player of remaining) {
-      const fate = Math.random();
-      if (fate < 0.2) {
-        activeCurses[player.id] = true;
-        await channel.send(`👿 The Malformed whisper... <@${player.id}> has been **cursed** this round.`);
-      } else if (fate < 0.4) {
-        activeBoons[player.id] = true;
-        await channel.send(`🕊️ A strange glow surrounds <@${player.id}> — they’ve been **blessed** by the Gauntlet!`);
-      }
+    // 🔮 One-time Boon/Curse round (40% chance)
+if (Math.random() < 0.4 && remaining.length > 2) {
+  const shuffled = remaining.sort(() => 0.5 - Math.random());
+  const affectedPlayers = shuffled.slice(0, Math.floor(Math.random() * 2) + 1); // 1 or 2 players
+
+  const fateLines = [];
+
+  for (const player of affectedPlayers) {
+    const fate = Math.random();
+    if (fate < 0.5) {
+      activeCurses[player.id] = true;
+      fateLines.push(`👿 <@${player.id}> has been **cursed** by the malformed forces.`);
+    } else {
+      activeBoons[player.id] = true;
+      fateLines.push(`🕊️ <@${player.id}> has been **blessed** with a strange protection.`);
     }
+  }
+
+  await channel.send({
+    embeds: [{
+      title: "🔮 Twisted Fates Unfold...",
+      description: fateLines.join('\n'),
+      color: 0x6a0dad
+    }]
+  });
+}
 
     // 🗳️ AUDIENCE POLL (40% chance)
     let cursedPlayerId = null;
