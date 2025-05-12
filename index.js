@@ -23,6 +23,9 @@ let roundImmunity = {};
 let fateRolls = {};
 let mutationDefenseClicks = new Set();
 let eliminatedPlayers = []; // Tracks eliminated players for revive attempts
+let remaining = []; // Global: players still alive in the Gauntlet
+remaining = [...gauntletEntrants]; // Reassign the global variable
+
 
 const trialNames = [
   "Trial of the Screaming Mire", "The Eldritch Scramble", "Trial of the Shattered Bones",
@@ -161,33 +164,37 @@ client.on('messageCreate', async (message) => {
 
   // ✅ !REVIVE COMMAND
   if (command === '!revive') {
-    const isEliminated = eliminatedPlayers.find(p => p.id === userId);
-    const isAlive = gauntletEntrants.find(p => p.id === userId) && !remaining.find(p => p.id === userId);
+  if (!gauntletActive) return message.reply("⚠️ The Gauntlet isn't running right now.");
 
-    if (!isEliminated) {
-      return message.reply("👻 You haven’t been eliminated... yet.");
-    }
-    if (!isAlive) {
-      return message.reply("🧟 You're already back in the game!");
-    }
+  const alreadyAlive = remaining.find(p => p.id === userId);
+  if (alreadyAlive) return message.reply("🧟 You're already back in the game!");
 
-    if (Math.random() < 0.02) {
-      remaining.push(isEliminated);
-      const reviveMsg = revivalEvents[Math.floor(Math.random() * revivalEvents.length)];
-      message.channel.send(`💫 <@${userId}> defied all odds!\n${reviveMsg}`);
-    } else {
-      const fails = [
-        "🪦 You wiggle in the dirt… but you're still dead.",
-        "😵 You whispered to the void. It blocked you.",
-        "👁️ The malformed forces laughed and turned away.",
-        "🔮 Your bones creaked… then cracked. Nope.",
-        "☠️ You reached out… and got ghosted."
-      ];
-      const failMsg = fails[Math.floor(Math.random() * fails.length)];
-      message.reply(failMsg);
-    }
-    return;
+  const wasEliminated = eliminatedPlayers.find(p => p.id === userId);
+  if (!wasEliminated) return message.reply("👻 You haven’t been eliminated... yet.");
+
+  // Optional: one attempt per game (per user)
+  if (wasEliminated.attemptedRevive) {
+    return message.reply("🔁 You've already tried to revive this game. The malformed don’t give second chances...");
   }
+
+  wasEliminated.attemptedRevive = true; // Mark as attempted
+
+  if (Math.random() < 0.02) {
+    remaining.push(wasEliminated);
+    const reviveMsg = revivalEvents[Math.floor(Math.random() * revivalEvents.length)];
+    await message.channel.send(`💫 <@${userId}> defied all odds!\n${reviveMsg}`);
+  } else {
+    const fails = [
+      "🪦 You wiggle in the dirt… but you're still dead.",
+      "😵 You whispered to the void. It blocked you.",
+      "👁️ The malformed forces laughed and turned away.",
+      "🔮 Your bones creaked… then cracked. Nope.",
+      "☠️ You reached out… and got ghosted."
+    ];
+    const failMsg = fails[Math.floor(Math.random() * fails.length)];
+    await message.reply(failMsg);
+  }
+}
 
   // ✅ INTERACTIVE COMMANDS (1-time use)
   if (playerCommands[userId]) {
@@ -507,8 +514,8 @@ voteCollector.on('collect', interaction => {
         continue;
       }
 
-      eliminated.push(player);
-eliminatedPlayers.push(player);
+     eliminated.push(player);
+eliminatedPlayers.push(player); // ✅ This is essential
 
 
       const useSpecial = Math.random() < 0.15;
