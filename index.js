@@ -198,37 +198,37 @@ client.on('messageCreate', async (message) => {
 
   // ✅ !REVIVE COMMAND
   if (command === '!revive') {
-  if (!gauntletActive) return message.reply("⚠️ The Gauntlet isn't running right now.");
+  if (!gauntletActive) return message.channel.send(`⚠️ <@${userId}> tried to rise... but the Gauntlet isn't even running.`);
 
   const alreadyAlive = remaining.find(p => p.id === userId);
-  if (alreadyAlive) return message.reply("🧟 You're already back in the game!");
+  if (alreadyAlive) return message.channel.send(`🧟 <@${userId}> You're already among the living. Go cause some chaos.`);
 
   const wasEliminated = eliminatedPlayers.find(p => p.id === userId);
-  if (!wasEliminated) return message.reply("👻 You haven’t been eliminated... yet.");
+  if (!wasEliminated) return message.channel.send(`👻 <@${userId}> You haven’t even been eliminated yet. Chill.`);
 
-  // Optional: one attempt per game (per user)
   if (wasEliminated.attemptedRevive) {
-    return message.reply("🔁 You've already tried to revive this game. The malformed don’t give second chances...");
+    return message.channel.send(`🔁 <@${userId}> already tried to cheat death. The malformed forces laugh at your desperation.`);
   }
 
-  wasEliminated.attemptedRevive = true; // Mark as attempted
+  wasEliminated.attemptedRevive = true;
 
-  if (Math.random() < 0.02) {
+  if (Math.random() < 0.01) { // 1% chance
     remaining.push(wasEliminated);
     const reviveMsg = revivalEvents[Math.floor(Math.random() * revivalEvents.length)];
-    await message.channel.send(`💫 <@${userId}> defied all odds!\n${reviveMsg}`);
+    return message.channel.send(`💫 <@${userId}> defied all odds!\n${reviveMsg}`);
   } else {
-    const fails = [
+    const failMsgs = [
       "🪦 You wiggle in the dirt… but you're still dead.",
       "😵 You whispered to the void. It blocked you.",
       "👁️ The malformed forces laughed and turned away.",
       "🔮 Your bones creaked… then cracked. Nope.",
       "☠️ You reached out… and got ghosted."
     ];
-    const failMsg = fails[Math.floor(Math.random() * fails.length)];
-    await message.reply(failMsg);
+    const failMsg = failMsgs[Math.floor(Math.random() * failMsgs.length)];
+    return message.channel.send(`${failMsg} <@${userId}> remains very, very dead.`);
   }
 }
+
 
   // ✅ INTERACTIVE COMMANDS (1-time use)
   if (playerCommands[userId]) {
