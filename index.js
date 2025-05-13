@@ -628,5 +628,7 @@ await channel.send({
   }]
 });
 
+}
+
 
 client.login(process.env.DISCORD_TOKEN);
