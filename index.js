@@ -11,6 +11,40 @@ const client = new Client({
   partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 });
 
+const axios = require('axios');
+
+async function sendCharmToUser(discordUserId, amount) {
+  const DRIP_API_TOKEN = process.env.DRIP_API_TOKEN;
+  const DRIP_ACCOUNT_ID = '676d81ee502cd15c9c983d81';
+  const CURRENCY_ID = '1047256251320520705';
+
+  const headers = {
+    Authorization: `Bearer ${DRIP_API_TOKEN}`,
+    'Content-Type': 'application/json'
+  };
+
+  const data = {
+    recipient: {
+      id: discordUserId,
+      id_type: "discord_id"
+    },
+    amount: amount,
+    reason: "Victory in The Gauntlet",
+    currency_id: CURRENCY_ID
+  };
+
+  try {
+    const response = await axios.post(
+      `https://api.drip.re/v2/${DRIP_ACCOUNT_ID}/send`,
+      data,
+      { headers }
+    );
+    console.log(`✅ Sent ${amount} $CHARM to ${discordUserId}`);
+  } catch (error) {
+    console.error(`❌ Error sending $CHARM to ${discordUserId}:`, error.response?.data || error.message);
+  }
+}
+
 
 let gauntletEntrants = [];
 let gauntletActive = false;
@@ -567,23 +601,32 @@ eliminatedPlayers.push(player); // ✅ This is essential
   }
 
   const [first, second, third] = remaining;
-  let resultMessage = `**1st Place:** <@${first.id}> — **50 $CHARM**\n**2nd Place:** <@${second.id}> — **25 $CHARM**\n**3rd Place:** <@${third.id}> — **10 $CHARM**`;
 
-  if ([first.id, second.id, third.id].includes(boss.id)) {
-    await channel.send(`👑 The **Ugly Boss** <@${boss.id}> survived to the end. Their reward is **doubled**!`);
-    if (first.id === boss.id) resultMessage = resultMessage.replace("50 $CHARM", "100 $CHARM");
-    if (second.id === boss.id) resultMessage = resultMessage.replace("25 $CHARM", "50 $CHARM");
-    if (third.id === boss.id) resultMessage = resultMessage.replace("10 $CHARM", "20 $CHARM");
-  }
+let firstReward = 50;
+let secondReward = 25;
+let thirdReward = 10;
 
-  await channel.send({
-    embeds: [{
-      title: '🏆 Champions of the Ugly Gauntlet!',
-      description: resultMessage + `\n\nThe Gauntlet has spoken. Well fought, Champions!`,
-      color: 0xdaa520
-    }]
-  });
+if (first.id === boss.id) firstReward *= 2;
+if (second.id === boss.id) secondReward *= 2;
+if (third.id === boss.id) thirdReward *= 2;
+
+await sendCharmToUser(first.id, firstReward);
+await sendCharmToUser(second.id, secondReward);
+await sendCharmToUser(third.id, thirdReward);
+
+let resultMessage = `**1st Place:** <@${first.id}> — **${firstReward} $CHARM**\n**2nd Place:** <@${second.id}> — **${secondReward} $CHARM**\n**3rd Place:** <@${third.id}> — **${thirdReward} $CHARM**`;
+
+if ([first.id, second.id, third.id].includes(boss.id)) {
+  await channel.send(`👑 The **Ugly Boss** <@${boss.id}> survived to the end. Their reward is **doubled**!`);
 }
+
+await channel.send({
+  embeds: [{
+    title: '🏆 Champions of the Ugly Gauntlet!',
+    description: resultMessage + `\n\nThe Gauntlet has spoken. Well fought, Champions!`,
+    color: 0xdaa520
+  }]
+});
 
 
 client.login(process.env.DISCORD_TOKEN);
