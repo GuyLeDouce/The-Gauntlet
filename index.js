@@ -77,6 +77,10 @@ let fateRolls = {};
 let mutationDefenseClicks = new Set();
 let eliminatedPlayers = [];
 let remaining = [];
+let rematchClicks = 0;
+let rematchLimitResetTime = Date.now();
+let rematchesThisHour = 0;
+let lastGameEntrantCount = 0;
 
 const trialNames = [
   "Trial of the Screaming Mire", "The Eldritch Scramble", "Trial of the Shattered Bones",
@@ -170,7 +174,6 @@ async function startGauntlet(channel, delay) {
       .setLabel('Join the Ugly Gauntlet')
       .setStyle(ButtonStyle.Primary)
   );
-
   gauntletMessage = await channel.send({
     embeds: [{
       title: '🏁 The Ugly Gauntlet Has Begun!',
@@ -646,6 +649,65 @@ await channel.send({
     ].join('\n'),
     color: 0xdaa520
   }]
+});
+// 🔁 Rematch Prompt
+lastGameEntrantCount = gauntletEntrants.length;
+
+// Limit resets every hour
+if (Date.now() - rematchLimitResetTime > 60 * 60 * 1000) {
+  rematchesThisHour = 0;
+  rematchLimitResetTime = Date.now();
+}
+
+// Abort if we're at the limit
+if (rematchesThisHour >= 3) {
+  await channel.send(`🚫 Max of 3 rematches reached for this hour. The Gauntlet rests... for now.`);
+  return;
+}
+
+rematchClicks = 0;
+const neededClicks = lastGameEntrantCount + 1;
+
+const rematchRow = new ActionRowBuilder().addComponents(
+  new ButtonBuilder()
+    .setCustomId('rematch_gauntlet')
+    .setLabel(`🔁 Rematch? (${neededClicks} clicks required)`)
+    .setStyle(ButtonStyle.Primary)
+);
+
+const rematchMsg = await channel.send({
+  content: `The blood is still warm... **${neededClicks} souls** must choose to rematch or the ritual ends.`,
+  components: [rematchRow]
+});
+
+const rematchCollector = rematchMsg.createMessageComponentCollector({ time: 30000 });
+const rematchVoters = new Set();
+
+rematchCollector.on('collect', async (interaction) => {
+  if (rematchVoters.has(interaction.user.id)) {
+    await interaction.reply({ content: '⛔ You’ve already voted for a rematch.', ephemeral: true });
+    return;
+  }
+
+  rematchVoters.add(interaction.user.id);
+  rematchClicks++;
+
+  await interaction.reply({ content: '🩸 Your vote for the rematch is cast...', ephemeral: true });
+
+  // If threshold met
+  if (rematchClicks >= neededClicks) {
+    rematchesThisHour++;
+
+    await channel.send(`🔁 The Gauntlet begins again — summoned by ${rematchClicks} brave (or foolish) souls!`);
+    setTimeout(() => startGauntlet(channel, 3), 2000);
+    rematchCollector.stop(); // stop collecting more votes
+  }
+});
+
+rematchCollector.on('end', async () => {
+  if (rematchClicks < neededClicks) {
+    await channel.send(`☠️ Not enough votes for a rematch. The Gauntlet sleeps... for now.`);
+  }
 });
 
 // Close runGauntlet
