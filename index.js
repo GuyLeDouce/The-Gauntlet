@@ -157,6 +157,7 @@ client.on('messageCreate', async message => {
     if (gauntletActive) return message.channel.send('A Gauntlet is already running.');
     gauntletEntrants = Array.from({ length: 20 }, (_, i) => ({ id: `MockUser${i + 1}`, username: `MockPlayer${i + 1}` }));
     gauntletActive = true;
+    eliminatedPlayers = [];
     gauntletChannel = message.channel;
     await message.channel.send('🧪 **Trial Mode Activated:** 20 mock players have entered The Gauntlet! Running simulation now...');
     await new Promise(r => setTimeout(r, 1000));
@@ -314,7 +315,7 @@ setTimeout(() => {
 }
 async function runGauntlet(channel) {
   gauntletActive = false;
-  let remaining = [...gauntletEntrants];
+  remaining = [...gauntletEntrants]; // ✅ Just reassign the global variable
   let roundCounter = 1;
   activeBoons = {};
   activeCurses = {};
