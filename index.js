@@ -617,8 +617,13 @@ client.on('messageCreate', async message => {
       color: 0xdaa520
     }]
   });
-}
+// CLOSE runGauntlet function
+} // <== this closes runGauntlet
+
+// Bot ready confirmation
 client.once('ready', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
+
+// LOGIN the bot
 client.login(process.env.DISCORD_TOKEN);
