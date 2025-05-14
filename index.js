@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Partials, ActionRowBuilder, ButtonBuilder, ButtonStyle, Events, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, ActionRowBuilder, ButtonBuilder, ButtonStyle, Events } = require('discord.js');
 const axios = require('axios');
 
 const client = new Client({
@@ -44,6 +44,7 @@ async function sendCharmToUser(discordUserId, amount) {
     });
   }
 }
+
 let gauntletEntrants = [];
 let gauntletActive = false;
 let joinTimeout = null;
@@ -56,8 +57,6 @@ let fateRolls = {};
 let mutationDefenseClicks = new Set();
 let eliminatedPlayers = [];
 let remaining = [];
-let roundCounter = 1;
-
 const trialNames = [
   "Trial of the Screaming Mire", "The Eldritch Scramble", "Trial of the Shattered Bones",
   "The Maw's Hunger", "Dance of the Ugly Reflection", "Trial of the Crooked Path",
@@ -76,30 +75,54 @@ const eliminationEvents = [
   "turned into a rubber duck and floated away.",
   "got tangled in the Lore Scrolls and suffocated.",
   "joined the wrong Discord and disappeared forever.",
+  "ate the wrong mushroom and became sentient wallpaper.",
+  "was outed as a snitch by a talking tree stump.",
   "laughed at the wrong joke and got obliterated by cringe.",
+  "tripped over an imaginary rock and fell into the void.",
   "asked too many questions and got ‘moderated’ permanently.",
-  "got ratio’d by the spirits and faded into irrelevance.",
-  "told the Gauntlet it was 'just a game' — oops.",
+  "accidentally summoned their own shadow. It won the duel.",
+  "walked into a mirror and never came out.",
+  "misspelled ‘Gauntlet’ and angered the elder code.",
+  "took a selfie during the ritual. The flash was fatal.",
   "opened a cursed loot box and got nothing... including their soul.",
-  "forgot the safe word during a summoning.",
+  "accepted a hug from a mimic in disguise.",
+  "mistook a cursed portal for a snack machine.",
+  "entered the wrong emote combo and exploded.",
+  "got ratio’d by the spirits and faded into irrelevance.",
+  "failed a basic charisma check and self-destructed.",
+  "accidentally said 'GM' in lowercase.",
+  "disrespected a cursed pebble and paid the price.",
+  "caught a stray insult from the lorekeeper.",
+  "used Comic Sans in their summon chant.",
+  "sipped mystery juice and phased out of the timeline.",
+  "chose the ‘mystery option’ and was never seen again.",
   "got banned by the council of malformed ethics.",
+  "told the swamp it smelled funny. It responded.",
+  "lost a staring contest with a cursed toad.",
   "rolled a nat 1 on existing.",
   "clicked the red button labeled ‘Do Not Click’.",
-  "got lost trying to find the rules page."
+  "tried to flex in a funhouse mirror and broke reality.",
+  "attempted to cheat death. Death took it personally.",
+  "was lured by a whisper that sounded like free Wi-Fi.",
+  "told the Gauntlet it was 'just a game' — oops.",
+  "got memed into another dimension.",
+  "got lost trying to find the rules page.",
+  "forgot the safe word during a summoning.",
+  "mislabeled an artifact as ‘mid’. The artifact retaliated."
 ];
+
 const specialEliminations = [
   "was sacrificed to the ancient hairball under the couch.",
   "rolled a 1 and summoned their ex instead.",
   "flexed too hard and imploded with style.",
   "said ‘GM’ too late and was banished to Shadow Realm.",
   "was cursed by a malformed meme and vaporized in shame.",
+  "drew a red card. From a black deck. Gone.",
   "used Comic Sans in a summoning circle.",
   "forgot to use dark mode and burned alive.",
   "glitched into another chain. Nobody followed.",
-  "was outed as an undercover Handsome and disqualified.",
-  "spoke Latin backwards and collapsed into soup."
+  "was outed as an undercover Handsome and disqualified."
 ];
-
 const revivalEvents = [
   "was too ugly to stay dead and clawed their way back!",
   "emerged from the swamp, covered in mud and vengeance.",
@@ -111,21 +134,38 @@ const revivalEvents = [
   "was pulled back by the chants of the community.",
   "glitched through the floor, then glitched back.",
   "got spit out by a mimic. Again.",
+  "won a staring contest with a void spirit.",
   "bit a curse in half and screamed themselves awake.",
-  "burned their death certificate in a candle made of shame.",
-  "screamed so loud the timeline flinched.",
   "slapped a demon and respawned out of spite.",
+  "rummaged through their own grave and found a reroll token.",
+  "was rejected by the afterlife due to poor posture.",
+  "ate a cursed berry. It worked. Kind of.",
+  "screamed so loud the timeline flinched.",
+  "burned their death certificate in a candle made of shame.",
+  "sneezed in the wrong realm and got bounced back.",
+  "glitched into a tutorial level and found the backdoor.",
+  "woke up in a cold sweat and decided it was all a dream.",
+  "swam through the River of Regret and came out dry.",
+  "hacked the leaderboard and gave themselves a second life.",
+  "bribed the shadow judge with a half-eaten chicken nugget.",
+  "found a continue screen hidden in the clouds.",
+  "convinced death to take a lunch break.",
+  "got revived by a lonely necromancer for company.",
+  "discovered an ancient scroll marked ‘Just Kidding’.",
+  "fell upward and landed in the present.",
+  "bought a ‘Return from Death’ DLC and installed it mid-game.",
+  "played a revival song on a bone flute they found in their ribcage.",
   "left their respawn settings on ‘Always’."
 ];
 
-const playerCommands = {};
-const tauntTargets = {};
-const dodgeAttempts = {};
-const hideAttempts = {};
+const playerCommands = {}; // Tracks who has used a command
+const tauntTargets = {};   // Stores taunt targets
+const dodgeAttempts = {};  // Tracks dodge attempts
+const hideAttempts = {};   // Stores hide attempts
+
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
 });
-
 client.on(Events.InteractionCreate, async interaction => {
   if (!interaction.isButton()) return;
 
@@ -147,30 +187,19 @@ client.on(Events.InteractionCreate, async interaction => {
     }
   }
 });
-client.on('messageCreate', async (message) => {
+client.on('messageCreate', async message => {
   if (message.author.bot) return;
-
-  const content = message.content.trim().toLowerCase();
+  const content = message.content.trim();
   const userId = message.author.id;
 
-  if (content === '!testreward') {
-    const allowedUsers = ['your_discord_id_here']; // Replace with your actual Discord ID
-    if (!allowedUsers.includes(userId)) {
-      return message.reply("⛔ You are not authorized to use this test command.");
-    }
-
-    const testAmount = 5;
-    await sendCharmToUser(userId, testAmount);
-    return message.channel.send(`🧪 Sent ${testAmount} $CHARM to <@${userId}>`);
-  }
-
-  // GAUNTLET LAUNCH COMMANDS
+  // Start Gauntlet command
   if (content === '!gauntlet') return startGauntlet(message.channel, 10);
   if (content.startsWith('!gauntlet ')) {
     const delay = parseInt(content.split(' ')[1], 10);
     return startGauntlet(message.channel, isNaN(delay) ? 10 : delay);
   }
 
+  // Force start
   if (content === '!startg') {
     if (gauntletActive) {
       clearTimeout(joinTimeout);
@@ -181,6 +210,7 @@ client.on('messageCreate', async (message) => {
     return;
   }
 
+  // Trial mode
   if (content === '!gauntlettrial') {
     if (gauntletActive) return message.channel.send('A Gauntlet is already running.');
     gauntletEntrants = Array.from({ length: 20 }, (_, i) => ({ id: `MockUser${i + 1}`, username: `MockPlayer${i + 1}` }));
@@ -192,16 +222,23 @@ client.on('messageCreate', async (message) => {
     runGauntlet(message.channel);
     return;
   }
-});
-// Additional message listener for in-game commands
-client.on('messageCreate', async (message) => {
-  if (message.author.bot || !gauntletActive) return;
 
-  const userId = message.author.id;
-  const command = message.content.toLowerCase().trim();
+  // Test reward
+  if (content === '!testreward') {
+    const allowedUsers = ['your_discord_id_here']; // Replace with your user ID
+    if (!allowedUsers.includes(userId)) {
+      return message.reply("⛔ You are not authorized to use this test command.");
+    }
+    const testAmount = 5;
+    await sendCharmToUser(userId, testAmount);
+    await message.channel.send(`🧪 Sending ${testAmount} $CHARM to <@${userId}>...`);
+    return;
+  }
+  // Don't allow commands if Gauntlet isn't active
+  if (!gauntletActive) return;
 
-  // !REVIVE Command
-  if (command === '!revive') {
+  // Revive command
+  if (content === '!revive') {
     const alreadyAlive = remaining.find(p => p.id === userId);
     if (alreadyAlive) return message.channel.send(`🧟 <@${userId}> You're already among the living. Go cause some chaos.`);
 
@@ -230,13 +267,12 @@ client.on('messageCreate', async (message) => {
       return message.channel.send(`${failMsg} <@${userId}> remains very, very dead.`);
     }
   }
-
-  // Interactive Commands (one-time use per round)
+  // One-time interaction commands
   if (playerCommands[userId]) {
     return message.reply("🛑 You’ve already used your command for this Gauntlet.");
   }
 
-  if (command === '!dodge') {
+  if (content === '!dodge') {
     playerCommands[userId] = true;
     if (Math.random() < 0.10) {
       dodgeAttempts[userId] = true;
@@ -246,7 +282,7 @@ client.on('messageCreate', async (message) => {
     }
   }
 
-  if (command === '!taunt') {
+  if (content === '!taunt') {
     playerCommands[userId] = true;
     const alive = gauntletEntrants.filter(p => p.id !== userId);
     if (alive.length > 0) {
@@ -256,7 +292,7 @@ client.on('messageCreate', async (message) => {
     }
   }
 
-  if (command === '!hide') {
+  if (content === '!hide') {
     playerCommands[userId] = true;
     if (Math.random() < 0.10) {
       hideAttempts[userId] = true;
@@ -265,30 +301,11 @@ client.on('messageCreate', async (message) => {
       message.reply("😶 You tried to hide, but the shadows rejected you.");
     }
   }
+
 });
-// Test reward command (for bot dev/owner only)
-client.on('messageCreate', async (message) => {
-  if (message.author.bot) return;
-
-  const userId = message.author.id;
-  const command = message.content.toLowerCase().trim();
-
-  if (command === '!testreward') {
-    const allowedUsers = ['YOUR_DISCORD_ID_HERE']; // Replace with your Discord ID
-    if (!allowedUsers.includes(userId)) {
-      return message.reply("⛔ You are not authorized to use this test command.");
-    }
-
-    const testAmount = 5;
-    await sendCharmToUser(userId, testAmount);
-    return message.channel.send(`🧪 Sent ${testAmount} $CHARM to <@${userId}> for testing.`);
-  }
-});
-
-// Bot ready message
+// Finalize game and login
 client.once('ready', () => {
-  console.log(`✅ The Gauntlet bot is online as ${client.user.tag}`);
+  console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
-// Start the bot
 client.login(process.env.DISCORD_TOKEN);
