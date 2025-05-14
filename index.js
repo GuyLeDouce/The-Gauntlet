@@ -187,6 +187,9 @@ client.on(Events.InteractionCreate, async interaction => {
     }
   }
 });
+async function startGauntlet(channel, delay) {
+  // your existing logic
+}
 client.on('messageCreate', async message => {
   if (message.author.bot) return;
   const content = message.content.trim();
