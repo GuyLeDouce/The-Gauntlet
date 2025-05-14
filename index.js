@@ -196,11 +196,23 @@ client.on('messageCreate', async message => {
   const userId = message.author.id;
 
   // Start Gauntlet command
-  if (content === '!gauntlet') return startGauntlet(message.channel, 10);
-  if (content.startsWith('!gauntlet ')) {
-    const delay = parseInt(content.split(' ')[1], 10);
+ client.on('messageCreate', async message => {
+  if (message.author.bot) return;
+  const content = message.content.trim();
+  const command = content.toLowerCase();
+
+  if (command === '!gauntlet') {
+    return startGauntlet(message.channel, 10);
+  }
+
+  if (command.startsWith('!gauntlet ')) {
+    const delay = parseInt(command.split(' ')[1], 10);
     return startGauntlet(message.channel, isNaN(delay) ? 10 : delay);
   }
+
+  // ... rest of your logic
+});
+
 
   // Force start
   if (content === '!startg') {
