@@ -463,7 +463,18 @@ let cursedPlayerId = null;
 if (Math.random() < 0.4 && remaining.length >= 3) {
   const pollPlayers = remaining.slice(0, 3);
 
-  // Discussion timing BEFORE the vote buttons
+  const playerList = pollPlayers.map(p => `- <@${p.id}>`).join('\n');
+
+  // Step 1: Show who is up for vote
+  await channel.send({
+    embeds: [{
+      title: '👁️ Audience Vote Incoming...',
+      description: `The malformed crowd stirs...\n\nThe following players are up for a curse:\n\n${playerList}`,
+      color: 0xff6666
+    }]
+  });
+
+  // Step 2: 1-minute discussion phase
   await channel.send(`🗣️ Discuss who you want to vote out… you have **1 minute**!`);
   await new Promise(r => setTimeout(r, 20000));
   await channel.send(`⏳ 40 seconds remaining...`);
@@ -471,7 +482,7 @@ if (Math.random() < 0.4 && remaining.length >= 3) {
   await channel.send(`⚠️ Final 20 seconds to plot your curse!`);
   await new Promise(r => setTimeout(r, 20000));
 
-  // Vote buttons now show AFTER discussion
+  // Step 3: Vote buttons
   const voteRow = new ActionRowBuilder().addComponents(
     ...pollPlayers.map((p) =>
       new ButtonBuilder()
@@ -483,8 +494,8 @@ if (Math.random() < 0.4 && remaining.length >= 3) {
 
   const voteMsg = await channel.send({
     embeds: [{
-      title: '👁️ Audience Vote',
-      description: `The malformed crowd stirs... Choose who to curse.`,
+      title: '🗳️ Cast Your Curse',
+      description: 'Click a button below to curse one of the nominated players.',
       color: 0x880808
     }],
     components: [voteRow]
