@@ -120,10 +120,6 @@ const tauntTargets = {};   // Stores taunt targets
 const dodgeAttempts = {};  // Tracks dodge attempts
 const hideAttempts = {};   // Tracks hide attempts
 
-client.once('ready', () => {
-  console.log(`✅ Logged in as ${client.user.tag}`);
-});
-
 client.on(Events.InteractionCreate, async interaction => {
   if (!interaction.isButton()) return;
 
@@ -535,3 +531,6 @@ async function runGauntlet(channel) {
     }]
   });
 }
+client.once('ready', () => {
+  console.log(`✅ Logged in as ${client.user.tag}`);
+});
