@@ -30,18 +30,23 @@ async function sendCharmToUser(discordUserId, amount) {
     },
     amount: amount,
     reason: "Victory in The Gauntlet",
-    currency_id: CURRENCY_ID
+    currency_id: CURRENCY_ID,
+    account_id: DRIP_ACCOUNT_ID // ✅ Moved here
   };
 
   try {
     const response = await axios.post(
-      `https://api.drip.re/v2/${DRIP_ACCOUNT_ID}/send`,
+      `https://api.drip.re/v2/send`, // ✅ Correct URL
       data,
       { headers }
     );
     console.log(`✅ Sent ${amount} $CHARM to ${discordUserId}`);
   } catch (error) {
-    console.error(`❌ Error sending $CHARM to ${discordUserId}:`, error.response?.data || error.message);
+    console.error(`❌ Error sending $CHARM to ${discordUserId}:`, {
+      message: error.message,
+      data: error.response?.data,
+      status: error.response?.status
+    });
   }
 }
 
