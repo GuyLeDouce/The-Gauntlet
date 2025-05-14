@@ -1,7 +1,17 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Partials, ActionRowBuilder, ButtonBuilder, ButtonStyle, Events } = require('discord.js');
+const {
+  Client,
+  GatewayIntentBits,
+  Partials,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  Events,
+  EmbedBuilder
+} = require('discord.js');
 const axios = require('axios');
 
+// Discord client setup
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -12,7 +22,7 @@ const client = new Client({
   partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 });
 
-// ✅ Send CHARM to a Discord user
+// DRIP send function
 async function sendCharmToUser(discordUserId, amount) {
   const DRIP_API_TOKEN = process.env.DRIP_API_TOKEN;
   const DRIP_ACCOUNT_ID = '676d81ee502cd15c9c983d81';
@@ -24,10 +34,7 @@ async function sendCharmToUser(discordUserId, amount) {
   };
 
   const data = {
-    recipient: {
-      id: discordUserId,
-      id_type: "discord_id"
-    },
+    recipient: { id: discordUserId, id_type: "discord_id" },
     amount: amount,
     reason: "Victory in The Gauntlet",
     currency_id: CURRENCY_ID,
@@ -46,7 +53,7 @@ async function sendCharmToUser(discordUserId, amount) {
   }
 }
 
-// ✅ Gauntlet game state
+// === Gauntlet game state ===
 let gauntletEntrants = [];
 let gauntletActive = false;
 let joinTimeout = null;
@@ -59,6 +66,7 @@ let fateRolls = {};
 let mutationDefenseClicks = new Set();
 let eliminatedPlayers = [];
 let remaining = [];
+
 const trialNames = [
   "Trial of the Screaming Mire", "The Eldritch Scramble", "Trial of the Shattered Bones",
   "The Maw's Hunger", "Dance of the Ugly Reflection", "Trial of the Crooked Path",
@@ -115,11 +123,10 @@ const revivalEvents = [
   "played a revival song on a bone flute they found in their ribcage."
 ];
 
-const playerCommands = {}; // Tracks who has used a command
-const tauntTargets = {};   // Stores taunt targets
-const dodgeAttempts = {};  // Tracks dodge attempts
-const hideAttempts = {};   // Tracks hide attempts
-
+const playerCommands = {};
+const tauntTargets = {};
+const dodgeAttempts = {};
+const hideAttempts = {};
 client.on(Events.InteractionCreate, async interaction => {
   if (!interaction.isButton()) return;
 
@@ -132,7 +139,7 @@ client.on(Events.InteractionCreate, async interaction => {
         const embed = gauntletMessage.embeds[0];
         const updatedEmbed = {
           ...embed.data,
-          description: embed.description.replace(/🧟 Entrants so far: \d+/, `🧟 Entrants so far: ${gauntletEntrants.length}`)
+          description: embed.description.replace(/🧟 Entrants so far: \\d+/, `🧟 Entrants so far: ${gauntletEntrants.length}`)
         };
         await gauntletMessage.edit({ embeds: [updatedEmbed] });
       }
@@ -141,6 +148,7 @@ client.on(Events.InteractionCreate, async interaction => {
     }
   }
 });
+
 async function startGauntlet(channel, delay) {
   if (gauntletActive) return;
   gauntletEntrants = [];
@@ -174,7 +182,6 @@ async function startGauntlet(channel, delay) {
     }
   }, totalMs);
 
-  // ⏳ Countdown warnings every 1/3 of the time
   const intervalMs = totalMs / 3;
 
   setTimeout(() => {
@@ -189,24 +196,12 @@ async function startGauntlet(channel, delay) {
     channel.send(`🕰️ Final moment! The Gauntlet will begin **any second now...**`);
   }, intervalMs * 3 - 5000);
 }
-
-client.on('messageCreate', async message => {
-async function runGauntlet(channel) {
-  gauntletActive = false;
-  remaining = [...gauntletEntrants];
-  let roundCounter = 1;
-  activeBoons = {};
-  activeCurses = {};
-  roundImmunity = {};
-  fateRolls = {};
-  mutationDefenseClicks = new Set();
-
 client.on('messageCreate', async message => {
   if (message.author.bot) return;
+
   const content = message.content.trim().toLowerCase();
   const userId = message.author.id;
 
-  // Start gauntlet
   if (content === '!gauntlet') return startGauntlet(message.channel, 10);
   if (content.startsWith('!gauntlet ')) {
     const delay = parseInt(content.split(' ')[1], 10);
@@ -234,7 +229,7 @@ client.on('messageCreate', async message => {
   }
 
   if (content === '!testreward') {
-    const allowedUsers = ['your_discord_id_here']; // Replace
+    const allowedUsers = ['your_discord_id_here']; // Replace this with your actual Discord ID
     if (!allowedUsers.includes(userId)) {
       return message.reply("⛔ You are not authorized to use this test command.");
     }
@@ -243,7 +238,6 @@ client.on('messageCreate', async message => {
     return;
   }
 
-  // Commands below only if Gauntlet is active
   if (!gauntletActive) return;
 
   if (content === '!revive') {
@@ -305,9 +299,16 @@ client.on('messageCreate', async message => {
     }
   }
 });
-   
+async function runGauntlet(channel) {
+  gauntletActive = false;
+  remaining = [...gauntletEntrants];
+  let roundCounter = 1;
+  activeBoons = {};
+  activeCurses = {};
+  roundImmunity = {};
+  fateRolls = {};
+  mutationDefenseClicks = new Set();
 
-  // 🦍 Choose the Ugly Boss
   const boss = remaining[Math.floor(Math.random() * remaining.length)];
   await channel.send(`👹 A foul stench rises... <@${boss.id}> has been chosen as the **UGLY BOSS**! If they make it to the podium, they earn **double $CHARM**...`);
 
@@ -356,7 +357,7 @@ client.on('messageCreate', async message => {
       });
     }
 
-    // 🧬 Mutation Defense Button
+    // 🧬 Mutation Defense
     if (Math.random() < 0.2) {
       mutationDefenseClicks = new Set();
       const mutateRow = new ActionRowBuilder().addComponents(
@@ -383,12 +384,11 @@ client.on('messageCreate', async message => {
 
       await new Promise(r => setTimeout(r, 15000));
       const mutationSuppressed = mutationDefenseClicks.size >= 3;
-      if (mutationSuppressed) {
-        await channel.send('🧬 Enough resistance! The mutation has been suppressed.');
-      } else {
-        await channel.send('💥 Not enough resistance. The mutation begins...');
-      }
+      await channel.send(mutationSuppressed
+        ? '🧬 Enough resistance! The mutation has been suppressed.'
+        : '💥 Not enough resistance. The mutation begins...');
     }
+
     // 🔮 Random Boons & Curses (15% chance)
     if (Math.random() < 0.15 && remaining.length > 2) {
       const shuffled = remaining.sort(() => 0.5 - Math.random());
@@ -409,12 +409,11 @@ client.on('messageCreate', async message => {
       await channel.send({
         embeds: [{
           title: "🔮 Twisted Fates Unfold...",
-          description: fateLines.join('\n'),
+          description: fateLines.join('\\n'),
           color: 0x6a0dad
         }]
       });
     }
-
     // 🎲 Fate Button
     if (Math.random() < 0.1) {
       const fateRow = new ActionRowBuilder().addComponents(
@@ -451,17 +450,13 @@ client.on('messageCreate', async message => {
       });
     }
 
-    // 🗳️ Audience Vote (with 1-minute discussion phase)
+    // 🗳️ Audience Vote
     let cursedPlayerId = null;
     if (Math.random() < 0.4 && remaining.length >= 3) {
       const pollPlayers = remaining.slice(0, 3);
 
       await channel.send(`🗣️ Discuss who you want to vote out… you have **1 minute**!`);
-      await new Promise(r => setTimeout(r, 20000));
-      await channel.send(`⏳ 40 seconds remaining...`);
-      await new Promise(r => setTimeout(r, 20000));
-      await channel.send(`⚠️ Final 20 seconds to plot your curse!`);
-      await new Promise(r => setTimeout(r, 20000));
+      await new Promise(r => setTimeout(r, 60000));
 
       const voteRow = new ActionRowBuilder().addComponents(
         ...pollPlayers.map((p) =>
@@ -501,11 +496,14 @@ client.on('messageCreate', async message => {
       cursedPlayerId = cursedIds[Math.floor(Math.random() * cursedIds.length)];
       await channel.send(`😨 The audience cursed <@${cursedPlayerId}>!`);
     }
+
+    // Perform eliminations
     const trial = trialNames[Math.floor(Math.random() * trialNames.length)];
     let eliminationDescriptions = [];
 
     for (let i = 0; i < eliminations; i++) {
-      let player;
+      let player = null;
+
       if (i === 0 && cursedPlayerId) {
         const cursed = remaining.find(p => p.id === cursedPlayerId);
         if (cursed) {
@@ -513,11 +511,11 @@ client.on('messageCreate', async message => {
           remaining = remaining.filter(p => p.id !== cursedPlayerId);
         }
       }
+
       if (!player) {
         player = remaining.splice(Math.floor(Math.random() * remaining.length), 1)[0];
       }
 
-      // 🛡️ Immunity
       if (roundImmunity[player.id]) {
         eliminationDescriptions.push(`🛡️ <@${player.id}> avoided elimination with quick reflexes!`);
         continue;
@@ -539,7 +537,7 @@ client.on('messageCreate', async message => {
       }
 
       eliminated.push(player);
-      eliminatedPlayers.push(player); // Track eliminated for revive logic
+      eliminatedPlayers.push(player);
 
       const useSpecial = Math.random() < 0.15;
       const reason = useSpecial
@@ -576,12 +574,12 @@ client.on('messageCreate', async message => {
     }
 
     const tokenId = Math.floor(Math.random() * 530) + 1;
-    const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}`;
+    const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}.jpg`;
 
     await channel.send({
       embeds: [{
         title: `⚔️ Round ${roundCounter} — ${trial}`,
-        description: eliminationDescriptions.join('\n'),
+        description: eliminationDescriptions.join('\\n'),
         color: 0x8b0000,
         image: { url: nftImage }
       }]
@@ -589,9 +587,9 @@ client.on('messageCreate', async message => {
 
     roundCounter++;
     await new Promise(r => setTimeout(r, 10000));
-  } // end of while loop
-  const [first, second, third] = remaining;
+  }
 
+  const [first, second, third] = remaining;
   let firstReward = 50;
   let secondReward = 25;
   let thirdReward = 10;
@@ -604,7 +602,7 @@ client.on('messageCreate', async message => {
   await sendCharmToUser(second.id, secondReward);
   await sendCharmToUser(third.id, thirdReward);
 
-  let resultMessage = `**1st Place:** <@${first.id}> — **${firstReward} $CHARM**\n**2nd Place:** <@${second.id}> — **${secondReward} $CHARM**\n**3rd Place:** <@${third.id}> — **${thirdReward} $CHARM**`;
+  let resultMessage = `**1st Place:** <@${first.id}> — **${firstReward} $CHARM**\\n**2nd Place:** <@${second.id}> — **${secondReward} $CHARM**\\n**3rd Place:** <@${third.id}> — **${thirdReward} $CHARM**`;
 
   if ([first.id, second.id, third.id].includes(boss.id)) {
     await channel.send(`👑 The **Ugly Boss** <@${boss.id}> survived to the end. Their reward is **doubled**!`);
@@ -613,17 +611,16 @@ client.on('messageCreate', async message => {
   await channel.send({
     embeds: [{
       title: '🏆 Champions of the Ugly Gauntlet!',
-      description: resultMessage + `\n\nThe Gauntlet has spoken. Well fought, Champions!`,
+      description: resultMessage + `\\n\\nThe Gauntlet has spoken. Well fought, Champions!`,
       color: 0xdaa520
     }]
   });
-// CLOSE runGauntlet function
-} // <== this closes runGauntlet
+}
 
-// Bot ready confirmation
+// Ready event
 client.once('ready', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
-// LOGIN the bot
+// Login
 client.login(process.env.DISCORD_TOKEN);
