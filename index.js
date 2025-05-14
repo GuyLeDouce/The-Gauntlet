@@ -189,6 +189,8 @@ async function startGauntlet(channel, delay) {
     channel.send(`🕰️ Final moment! The Gauntlet will begin **any second now...**`);
   }, intervalMs * 3 - 5000);
 }
+
+client.on('messageCreate', async message => {
 async function runGauntlet(channel) {
   gauntletActive = false;
   remaining = [...gauntletEntrants];
