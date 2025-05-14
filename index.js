@@ -615,29 +615,29 @@ if (Math.random() < 0.4 && remaining.length >= 3) {
   if (second.id === boss.id) secondReward *= 2;
   if (third.id === boss.id) thirdReward *= 2;
 
-  await sendCharmToUser(first.id, 50, channel);
-  await sendCharmToUser(second.id, 25, channel);
-  await sendCharmToUser(third.id, 10, channel);
+  await sendCharmToUser(first.id, firstReward, channel);
+await sendCharmToUser(second.id, secondReward, channel);
+await sendCharmToUser(third.id, thirdReward, channel);
 
+if ([first.id, second.id, third.id].includes(boss.id)) {
+  await channel.send(`👑 The **Ugly Boss** <@${boss.id}> survived to the end. Their reward is **doubled**!`);
+}
 
-  let resultMessage = [
-  `**1st Place:** <@${first.id}> — **${firstReward} $CHARM**`,
-  `**2nd Place:** <@${second.id}> — **${secondReward} $CHARM**`,
-  `**3rd Place:** <@${third.id}> — **${thirdReward} $CHARM**`,
-  ``,
-  `The Gauntlet has spoken. Well fought, Champions!`
+await channel.send({
+  embeds: [{
+    title: '🏆 Champions of the Ugly Gauntlet!',
+    description: [
+      `**1st Place:** <@${first.id}> — **${firstReward} $CHARM**`,
+      `**2nd Place:** <@${second.id}> — **${secondReward} $CHARM**`,
+      `**3rd Place:** <@${third.id}> — **${thirdReward} $CHARM**`,
+      ``,
+      `The Gauntlet has spoken. Well fought, Champions!`
+    ].join('\n'),
+    color: 0xdaa520
+  }]
+});
 
-  if ([first.id, second.id, third.id].includes(boss.id)) {
-    await channel.send(`👑 The **Ugly Boss** <@${boss.id}> survived to the end. Their reward is **doubled**!`);
-  }
-
-  await channel.send({
-    embeds: [{
-      title: '🏆 Champions of the Ugly Gauntlet!',
-      description: resultMessage + `\\n\\nThe Gauntlet has spoken. Well fought, Champions!`,
-      color: 0xdaa520
-    }]
-  });
+// Close runGauntlet
 }
 
 // Ready event
