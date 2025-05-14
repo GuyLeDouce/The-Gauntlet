@@ -141,27 +141,6 @@ client.on(Events.InteractionCreate, async interaction => {
     }
   }
 });
-client.on(Events.InteractionCreate, async interaction => {
-  if (!interaction.isButton()) return;
-
-  if (interaction.customId === 'join_gauntlet' && gauntletActive) {
-    if (!gauntletEntrants.find(e => e.id === interaction.user.id)) {
-      gauntletEntrants.push({ id: interaction.user.id, username: interaction.user.username });
-      await interaction.reply({ content: 'You have joined the Ugly Gauntlet! Prepare yourself…', flags: 64 });
-
-      if (gauntletMessage && gauntletMessage.editable) {
-        const embed = gauntletMessage.embeds[0];
-        const updatedEmbed = {
-          ...embed.data,
-          description: embed.description.replace(/🧟 Entrants so far: \d+/, `🧟 Entrants so far: ${gauntletEntrants.length}`)
-        };
-        await gauntletMessage.edit({ embeds: [updatedEmbed] });
-      }
-    } else {
-      await interaction.reply({ content: 'You have already joined this round!', flags: 64 });
-    }
-  }
-});
 async function startGauntlet(channel, delay) {
   if (gauntletActive) return;
   gauntletEntrants = [];
@@ -219,6 +198,112 @@ async function runGauntlet(channel) {
   roundImmunity = {};
   fateRolls = {};
   mutationDefenseClicks = new Set();
+
+client.on('messageCreate', async message => {
+  if (message.author.bot) return;
+  const content = message.content.trim().toLowerCase();
+  const userId = message.author.id;
+
+  // Start gauntlet
+  if (content === '!gauntlet') return startGauntlet(message.channel, 10);
+  if (content.startsWith('!gauntlet ')) {
+    const delay = parseInt(content.split(' ')[1], 10);
+    return startGauntlet(message.channel, isNaN(delay) ? 10 : delay);
+  }
+
+  if (content === '!startg') {
+    if (gauntletActive) {
+      clearTimeout(joinTimeout);
+      runGauntlet(message.channel);
+    } else {
+      message.channel.send('No Gauntlet is currently running. Use !gauntlet to begin one.');
+    }
+    return;
+  }
+
+  if (content === '!gauntlettrial') {
+    if (gauntletActive) return message.channel.send('A Gauntlet is already running.');
+    gauntletEntrants = Array.from({ length: 20 }, (_, i) => ({ id: `MockUser${i + 1}`, username: `MockPlayer${i + 1}` }));
+    gauntletActive = true;
+    eliminatedPlayers = [];
+    gauntletChannel = message.channel;
+    await message.channel.send('🧪 Trial Mode Activated — 20 mock players have entered. Starting...');
+    return runGauntlet(message.channel);
+  }
+
+  if (content === '!testreward') {
+    const allowedUsers = ['your_discord_id_here']; // Replace
+    if (!allowedUsers.includes(userId)) {
+      return message.reply("⛔ You are not authorized to use this test command.");
+    }
+    await sendCharmToUser(userId, 5);
+    await message.channel.send(`🧪 Sent 5 $CHARM to <@${userId}>`);
+    return;
+  }
+
+  // Commands below only if Gauntlet is active
+  if (!gauntletActive) return;
+
+  if (content === '!revive') {
+    const alreadyAlive = remaining.find(p => p.id === userId);
+    if (alreadyAlive) return message.channel.send(`🧟 <@${userId}> You're already among the living.`);
+
+    const wasEliminated = eliminatedPlayers.find(p => p.id === userId);
+    if (!wasEliminated) return message.channel.send(`👻 <@${userId}> You haven’t been eliminated yet.`);
+
+    if (wasEliminated.attemptedRevive) {
+      return message.channel.send(`🔁 <@${userId}> already tried to cheat death. Fate isn’t amused.`);
+    }
+
+    wasEliminated.attemptedRevive = true;
+
+    if (Math.random() < 0.02) {
+      remaining.push(wasEliminated);
+      const reviveMsg = revivalEvents[Math.floor(Math.random() * revivalEvents.length)];
+      return message.channel.send(`💫 <@${userId}> defied all odds!\n${reviveMsg}`);
+    } else {
+      const failMsg = [
+        "🪦 You wiggle in the dirt… but you're still dead.",
+        "👁 The malformed forces laugh and turn away.",
+        "☠️ You reached out… and got ghosted."
+      ][Math.floor(Math.random() * 3)];
+      return message.channel.send(`${failMsg} <@${userId}> remains dead.`);
+    }
+  }
+
+  if (playerCommands[userId]) return;
+
+  if (content === '!dodge') {
+    playerCommands[userId] = true;
+    if (Math.random() < 0.10) {
+      dodgeAttempts[userId] = true;
+      message.reply("🌀 You prepare to dodge fate...");
+    } else {
+      message.reply("😬 You braced... but nothing happened.");
+    }
+  }
+
+  if (content === '!taunt') {
+    playerCommands[userId] = true;
+    const alive = gauntletEntrants.filter(p => p.id !== userId);
+    if (alive.length > 0) {
+      const target = alive[Math.floor(Math.random() * alive.length)];
+      tauntTargets[target.id] = true;
+      message.reply(`🔥 You mocked your enemies... **<@${target.id}>** is marked!`);
+    }
+  }
+
+  if (content === '!hide') {
+    playerCommands[userId] = true;
+    if (Math.random() < 0.10) {
+      hideAttempts[userId] = true;
+      message.reply("👻 You vanish into the shadows...");
+    } else {
+      message.reply("😶 You tried to hide, but the shadows rejected you.");
+    }
+  }
+});
+   
 
   // 🦍 Choose the Ugly Boss
   const boss = remaining[Math.floor(Math.random() * remaining.length)];
