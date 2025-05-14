@@ -149,6 +149,18 @@ client.on('messageCreate', async message => {
   if (content.startsWith('!gauntlet ')) {
     const delay = parseInt(content.split(' ')[1], 10);
     startGauntlet(message.channel, isNaN(delay) ? 10 : delay);
+if (command === '!testreward') {
+  const allowedUsers = ['your_discord_id_here']; // Replace with your user ID
+  if (!allowedUsers.includes(userId)) {
+    return message.reply("⛔ You are not authorized to use this test command.");
+  }
+
+  const testAmount = 5;
+  await sendCharmToUser(userId, testAmount);
+  await message.channel.send(`🧪 Sending ${testAmount} $CHARM to <@${userId}>...`);
+  return;
+}
+
   }
   if (content === '!startg') {
     if (gauntletActive) {
