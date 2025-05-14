@@ -114,18 +114,6 @@ const revivalEvents = [
   "got revived by a lonely necromancer for company.",
   "played a revival song on a bone flute they found in their ribcage."
 ];
-let gauntletEntrants = [];
-let gauntletActive = false;
-let joinTimeout = null;
-let gauntletChannel = null;
-let gauntletMessage = null;
-let activeBoons = {};
-let activeCurses = {};
-let roundImmunity = {};
-let fateRolls = {};
-let mutationDefenseClicks = new Set();
-let eliminatedPlayers = [];
-let remaining = [];
 
 const playerCommands = {}; // Tracks who has used a command
 const tauntTargets = {};   // Stores taunt targets
