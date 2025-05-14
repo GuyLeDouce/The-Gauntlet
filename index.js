@@ -23,10 +23,10 @@ const client = new Client({
 });
 
 // DRIP send function
-async function sendCharmToUser(discordUserId, amount) {
+async function sendCharmToUser(discordUserId, amount, channel = null) {
   const DRIP_API_TOKEN = process.env.DRIP_API_TOKEN;
-  const DRIP_ACCOUNT_ID = '676d81ee502cd15c9c983d81';
-  const CURRENCY_ID = '1047256251320520705';
+  const DRIP_ACCOUNT_ID = '676d81ee502cd15c9c983d81'; // your account ID
+  const CURRENCY_ID = '1047256251320520705'; // $CHARM currency ID
 
   const headers = {
     Authorization: `Bearer ${DRIP_API_TOKEN}`,
@@ -34,7 +34,10 @@ async function sendCharmToUser(discordUserId, amount) {
   };
 
   const data = {
-    recipient: { id: discordUserId, id_type: "discord_id" },
+    recipient: {
+      id: discordUserId,
+      id_type: "discord_id"
+    },
     amount: amount,
     reason: "Victory in The Gauntlet",
     currency_id: CURRENCY_ID,
@@ -43,13 +46,21 @@ async function sendCharmToUser(discordUserId, amount) {
 
   try {
     const response = await axios.post(`https://api.drip.re/v2/send`, data, { headers });
+
     console.log(`✅ Sent ${amount} $CHARM to ${discordUserId}`);
+    if (channel) {
+      await channel.send(`🪙 <@${discordUserId}> received **${amount} $CHARM** from the Malformed Vault.`);
+    }
   } catch (error) {
-    console.error(`❌ Error sending $CHARM to ${discordUserId}:`, {
+    console.error(`❌ Failed to send $CHARM to ${discordUserId}`, {
       message: error.message,
-      data: error.response?.data,
-      status: error.response?.status
+      status: error.response?.status,
+      data: error.response?.data
     });
+
+    if (channel) {
+      await channel.send(`⚠️ Could not send $CHARM to <@${discordUserId}>. Please contact the team.`);
+    }
   }
 }
 
@@ -136,13 +147,10 @@ client.on(Events.InteractionCreate, async interaction => {
       await interaction.reply({ content: 'You have joined the Ugly Gauntlet! Prepare yourself…', flags: 64 });
 
       if (gauntletMessage && gauntletMessage.editable) {
-        const embed = gauntletMessage.embeds[0];
-        const updatedEmbed = {
-          ...embed.data,
-          description: embed.description.replace(/🧟 Entrants so far: \\d+/, `🧟 Entrants so far: ${gauntletEntrants.length}`)
-        };
-        await gauntletMessage.edit({ embeds: [updatedEmbed] });
-      }
+  const embed = EmbedBuilder.from(gauntletMessage.embeds[0])
+    .setDescription(`Click to enter. You have ${delay} minutes.\n🧟 Entrants so far: ${gauntletEntrants.length}`);
+  await gauntletMessage.edit({ embeds: [embed] });
+}
     } else {
       await interaction.reply({ content: 'You have already joined this round!', flags: 64 });
     }
@@ -451,51 +459,60 @@ async function runGauntlet(channel) {
     }
 
     // 🗳️ Audience Vote
-    let cursedPlayerId = null;
-    if (Math.random() < 0.4 && remaining.length >= 3) {
-      const pollPlayers = remaining.slice(0, 3);
+let cursedPlayerId = null;
+if (Math.random() < 0.4 && remaining.length >= 3) {
+  const pollPlayers = remaining.slice(0, 3);
 
-      await channel.send(`🗣️ Discuss who you want to vote out… you have **1 minute**!`);
-      await new Promise(r => setTimeout(r, 60000));
+  // Discussion timing BEFORE the vote buttons
+  await channel.send(`🗣️ Discuss who you want to vote out… you have **1 minute**!`);
+  await new Promise(r => setTimeout(r, 20000));
+  await channel.send(`⏳ 40 seconds remaining...`);
+  await new Promise(r => setTimeout(r, 20000));
+  await channel.send(`⚠️ Final 20 seconds to plot your curse!`);
+  await new Promise(r => setTimeout(r, 20000));
 
-      const voteRow = new ActionRowBuilder().addComponents(
-        ...pollPlayers.map((p) =>
-          new ButtonBuilder()
-            .setCustomId(`vote_${p.id}`)
-            .setLabel(`Curse ${p.username}`)
-            .setStyle(ButtonStyle.Secondary)
-        )
-      );
+  // Vote buttons now show AFTER discussion
+  const voteRow = new ActionRowBuilder().addComponents(
+    ...pollPlayers.map((p) =>
+      new ButtonBuilder()
+        .setCustomId(`vote_${p.id}`)
+        .setLabel(`Curse ${p.username}`)
+        .setStyle(ButtonStyle.Secondary)
+    )
+  );
 
-      const voteMsg = await channel.send({
-        embeds: [{
-          title: '👁️ Audience Vote',
-          description: `The malformed crowd stirs... Choose who to curse.`,
-          color: 0x880808
-        }],
-        components: [voteRow]
-      });
+  const voteMsg = await channel.send({
+    embeds: [{
+      title: '👁️ Audience Vote',
+      description: `The malformed crowd stirs... Choose who to curse.`,
+      color: 0x880808
+    }],
+    components: [voteRow]
+  });
 
-      const voteCounts = {};
-      const voteCollector = voteMsg.createMessageComponentCollector({ time: 15000 });
+  const voteCounts = {};
+  const voteCollector = voteMsg.createMessageComponentCollector({ time: 15000 });
 
-      voteCollector.on('collect', interaction => {
-        if (!remaining.find(p => p.id === interaction.user.id)) {
-          return interaction.reply({ content: '🛑 Only players still in the game can vote!', ephemeral: true });
-        }
-
-        const targetId = interaction.customId.split('_')[1];
-        voteCounts[targetId] = (voteCounts[targetId] || 0) + 1;
-        interaction.reply({ content: 'Vote registered!', ephemeral: true });
-      });
-
-      await new Promise(r => setTimeout(r, 15000));
-
-      const max = Math.max(...Object.values(voteCounts));
-      const cursedIds = Object.entries(voteCounts).filter(([_, v]) => v === max).map(([id]) => id);
-      cursedPlayerId = cursedIds[Math.floor(Math.random() * cursedIds.length)];
-      await channel.send(`😨 The audience cursed <@${cursedPlayerId}>!`);
+  voteCollector.on('collect', interaction => {
+    if (!remaining.find(p => p.id === interaction.user.id)) {
+      return interaction.reply({ content: '🛑 Only players still in the game can vote!', ephemeral: true });
     }
+
+    const targetId = interaction.customId.split('_')[1];
+    voteCounts[targetId] = (voteCounts[targetId] || 0) + 1;
+    interaction.reply({ content: 'Vote registered!', ephemeral: true });
+  });
+
+  await new Promise(r => setTimeout(r, 15000));
+
+  const maxVotes = Math.max(...Object.values(voteCounts));
+  const cursedIds = Object.entries(voteCounts)
+    .filter(([_, count]) => count === maxVotes)
+    .map(([id]) => id);
+  cursedPlayerId = cursedIds[Math.floor(Math.random() * cursedIds.length)];
+
+  await channel.send(`😨 The audience cursed <@${cursedPlayerId}>!`);
+}
 
     // Perform eliminations
     const trial = trialNames[Math.floor(Math.random() * trialNames.length)];
@@ -579,7 +596,7 @@ async function runGauntlet(channel) {
     await channel.send({
       embeds: [{
         title: `⚔️ Round ${roundCounter} — ${trial}`,
-        description: eliminationDescriptions.join('\\n'),
+        description: eliminationDescriptions.join('\n'),
         color: 0x8b0000,
         image: { url: nftImage }
       }]
@@ -602,7 +619,12 @@ async function runGauntlet(channel) {
   await sendCharmToUser(second.id, secondReward);
   await sendCharmToUser(third.id, thirdReward);
 
-  let resultMessage = `**1st Place:** <@${first.id}> — **${firstReward} $CHARM**\\n**2nd Place:** <@${second.id}> — **${secondReward} $CHARM**\\n**3rd Place:** <@${third.id}> — **${thirdReward} $CHARM**`;
+  let resultMessage = [
+  `**1st Place:** <@${first.id}> — **${firstReward} $CHARM**`,
+  `**2nd Place:** <@${second.id}> — **${secondReward} $CHARM**`,
+  `**3rd Place:** <@${third.id}> — **${thirdReward} $CHARM**`,
+  ``,
+  `The Gauntlet has spoken. Well fought, Champions!`
 
   if ([first.id, second.id, third.id].includes(boss.id)) {
     await channel.send(`👑 The **Ugly Boss** <@${boss.id}> survived to the end. Their reward is **doubled**!`);
