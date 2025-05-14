@@ -615,9 +615,10 @@ if (Math.random() < 0.4 && remaining.length >= 3) {
   if (second.id === boss.id) secondReward *= 2;
   if (third.id === boss.id) thirdReward *= 2;
 
-  await sendCharmToUser(first.id, firstReward);
-  await sendCharmToUser(second.id, secondReward);
-  await sendCharmToUser(third.id, thirdReward);
+  await sendCharmToUser(first.id, 50, channel);
+  await sendCharmToUser(second.id, 25, channel);
+  await sendCharmToUser(third.id, 10, channel);
+
 
   let resultMessage = [
   `**1st Place:** <@${first.id}> — **${firstReward} $CHARM**`,
