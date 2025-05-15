@@ -21,7 +21,7 @@ const client = new Client({
   partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 });
 
-// === Global Game State ===
+// === Global Game State - Batch 1 ===
 let gauntletEntrants = [];
 let gauntletActive = false;
 let joinTimeout = null;
@@ -136,6 +136,8 @@ client.on('messageCreate', async message => {
     }
   }
 });
+
+// === Batch 2 ===
 client.on(Events.InteractionCreate, async interaction => {
   if (!interaction.isButton()) return;
 
@@ -216,6 +218,7 @@ async function startGauntlet(channel, delay) {
     channel.send(`🕰️ Final moment! The Gauntlet will begin **any second now...**`);
   }, totalMs - 5000);
 }
+// === Batch 3 ===
 async function runGauntlet(channel) {
   gauntletActive = false;
   remaining = [...gauntletEntrants];
@@ -280,7 +283,7 @@ async function runGauntlet(channel) {
       }
     }
 
-    // 💫 Random Resurrection
+    // 💫 Rare Resurrection
     if (eliminated.length && Math.random() < 0.15) {
       const reviveIndex = Math.floor(Math.random() * eliminated.length);
       const revived = eliminated.splice(reviveIndex, 1)[0];
@@ -308,7 +311,7 @@ async function runGauntlet(channel) {
     await new Promise(r => setTimeout(r, 10000));
   }
 
-  // 🏆 Finalists + Boss Bonus
+  // 🏆 Finalists + Rewards
   const [first, second, third] = remaining;
   let firstReward = 50;
   let secondReward = 25;
@@ -340,13 +343,12 @@ async function runGauntlet(channel) {
     }]
   });
 
-  // 🧠 Handoff to rematch system next
   await triggerRematchPrompt(channel);
 }
 async function triggerRematchPrompt(channel) {
   lastGameEntrantCount = gauntletEntrants.length;
 
-  // Reset hourly rematch cap if needed
+  // Reset rematch counter if it's been over an hour
   if (Date.now() - rematchLimitResetTime > 60 * 60 * 1000) {
     rematchesThisHour = 0;
     rematchLimitResetTime = Date.now();
@@ -388,13 +390,12 @@ async function triggerRematchPrompt(channel) {
 
     await interaction.reply({ content: '🩸 Your vote has been cast.', ephemeral: true });
 
-    // Update button with current vote count
+    // Live update the button label
     await rematchMsg.edit({
       content: `The blood is still warm... **${neededClicks} souls** must choose to rematch...`,
       components: [buildRematchButton()]
     });
 
-    // Enough votes? Auto-start next game
     if (rematchClicks >= neededClicks) {
       rematchesThisHour++;
       await channel.send(`🔁 The Gauntlet begins again — summoned by ${rematchClicks} brave souls!`);
@@ -414,14 +415,16 @@ client.on('messageCreate', async message => {
 
   const content = message.content.trim().toLowerCase();
 
-  // Start Gauntlet normally
+  // 🟢 Start Gauntlet with default delay
   if (content === '!gauntlet') return startGauntlet(message.channel, 10);
+
+  // ⏱ Start Gauntlet with custom delay (in minutes)
   if (content.startsWith('!gauntlet ')) {
     const delay = parseInt(content.split(' ')[1], 10);
     return startGauntlet(message.channel, isNaN(delay) ? 10 : delay);
   }
 
-  // Force early start
+  // 🔥 Force the game to start early
   if (content === '!startg') {
     if (gauntletActive) {
       clearTimeout(joinTimeout);
@@ -432,7 +435,7 @@ client.on('messageCreate', async message => {
     return;
   }
 
-  // Trial mode with mock players
+  // 🧪 Trial mode — 20 mock players for testing
   if (content === '!gauntlettrial') {
     if (gauntletActive) return message.channel.send('A Gauntlet is already running.');
     gauntletEntrants = Array.from({ length: 20 }, (_, i) => ({
@@ -447,6 +450,208 @@ client.on('messageCreate', async message => {
     return runGauntlet(message.channel);
   }
 });
+// 💥 Mutation Defense Event
+if (Math.random() < 0.2) {
+  mutationDefenseClicks = new Set();
+
+  const mutateRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('resist_mutation')
+      .setLabel('🧬 Resist Mutation')
+      .setStyle(ButtonStyle.Danger)
+  );
+
+  const mutateMsg = await channel.send({
+    embeds: [{
+      title: "🧬 Mutation Threat Detected!",
+      description: "Click below to resist mutation. If 3+ resist, it's suppressed.",
+      color: 0xff4500
+    }],
+    components: [mutateRow]
+  });
+
+  const mutateCollector = mutateMsg.createMessageComponentCollector({ time: 15000 });
+
+  mutateCollector.on('collect', async interaction => {
+    if (!remaining.find(p => p.id === interaction.user.id)) {
+      return interaction.reply({ content: '🛑 Only live players may resist.', ephemeral: true });
+    }
+
+    mutationDefenseClicks.add(interaction.user.id);
+    await interaction.reply({ content: '🧬 Your resistance is noted.', ephemeral: true });
+  });
+
+  await new Promise(r => setTimeout(r, 15000));
+
+  const mutationSuppressed = mutationDefenseClicks.size >= 3;
+  await channel.send(
+    mutationSuppressed
+      ? '🧬 Enough resistance! The mutation has been suppressed.'
+      : '💥 Not enough resistance. The mutation begins...'
+  );
+}
+// 🪢 Survival Rope Trap
+if (Math.random() < 0.15) {
+  const survivalRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('survival_click')
+      .setLabel('🪢 Grab the Rope!')
+      .setStyle(ButtonStyle.Success)
+  );
+
+  const trapMsg = await channel.send({
+    content: '⏳ A trap is triggered! First 3 to grab the rope will survive this round.',
+    components: [survivalRow]
+  });
+
+  const survivalCollector = trapMsg.createMessageComponentCollector({ time: 10000 });
+  let saved = 0;
+
+  survivalCollector.on('collect', async i => {
+    if (saved < 3 && remaining.find(p => p.id === i.user.id)) {
+      roundImmunity[i.user.id] = true;
+      saved++;
+      await i.reply({ content: '🛡️ You grabbed the rope and are protected!', ephemeral: true });
+    } else {
+      await i.reply({ content: '⛔ Too late — the rope has already saved 3!', ephemeral: true });
+    }
+  });
+}
+// 🔮 Random Boons & Curses (15% chance)
+if (Math.random() < 0.15 && remaining.length > 2) {
+  const shuffled = [...remaining].sort(() => 0.5 - Math.random());
+  const affectedPlayers = shuffled.slice(0, Math.floor(Math.random() * 2) + 1);
+  const fateLines = [];
+
+  for (const player of affectedPlayers) {
+    const fate = Math.random();
+    if (fate < 0.5) {
+      activeCurses[player.id] = true;
+      fateLines.push(`👿 <@${player.id}> has been **cursed** by malformed forces.`);
+    } else {
+      activeBoons[player.id] = true;
+      fateLines.push(`🕊️ <@${player.id}> has been **blessed** with strange protection.`);
+    }
+  }
+
+  await channel.send({
+    embeds: [{
+      title: "🔮 Twisted Fates Unfold...",
+      description: fateLines.join('\n'),
+      color: 0x6a0dad
+    }]
+  });
+}
+// 🗳️ Audience Vote for a Curse (40% chance)
+let cursedPlayerId = null;
+if (Math.random() < 0.4 && remaining.length >= 3) {
+  const pollPlayers = remaining.slice(0, 3);
+  const playerList = pollPlayers.map(p => `- <@${p.id}>`).join('\n');
+
+  // Step 1: Introduce who’s up
+  await channel.send({
+    embeds: [{
+      title: '👁️ Audience Vote Incoming...',
+      description: `The malformed crowd stirs...\n\nThe following players are up for a curse:\n\n${playerList}`,
+      color: 0xff6666
+    }]
+  });
+
+  // Step 2: 1-minute discussion (3x 20s)
+  await channel.send(`🗣️ Discuss who you want to curse. You have **1 minute**!`);
+  await new Promise(r => setTimeout(r, 20000));
+  await channel.send(`⏳ 40 seconds remaining...`);
+  await new Promise(r => setTimeout(r, 20000));
+  await channel.send(`⚠️ Final 20 seconds to cast shade!`);
+  await new Promise(r => setTimeout(r, 20000));
+
+  // Step 3: Voting Buttons
+  const voteRow = new ActionRowBuilder().addComponents(
+    ...pollPlayers.map((p) =>
+      new ButtonBuilder()
+        .setCustomId(`vote_${p.id}`)
+        .setLabel(`Curse ${p.username}`)
+        .setStyle(ButtonStyle.Secondary)
+    )
+  );
+
+  const voteMsg = await channel.send({
+    embeds: [{
+      title: '🗳️ Cast Your Curse',
+      description: 'Only current players may vote. Click below to select a victim.',
+      color: 0x880808
+    }],
+    components: [voteRow]
+  });
+
+  // Step 4: Vote collection
+  const voteCounts = {};
+  const voteCollector = voteMsg.createMessageComponentCollector({ time: 15000 });
+
+  voteCollector.on('collect', async interaction => {
+    if (!remaining.find(p => p.id === interaction.user.id)) {
+      return interaction.reply({ content: '⛔ Only players still in the game can vote!', ephemeral: true });
+    }
+
+    const targetId = interaction.customId.split('_')[1];
+    voteCounts[targetId] = (voteCounts[targetId] || 0) + 1;
+    await interaction.reply({ content: '✅ Vote registered!', ephemeral: true });
+  });
+
+  await new Promise(r => setTimeout(r, 15000));
+
+  // Step 5: Determine the cursed target
+  const maxVotes = Math.max(...Object.values(voteCounts), 0);
+  const cursedIds = Object.entries(voteCounts)
+    .filter(([_, count]) => count === maxVotes)
+    .map(([id]) => id);
+
+  if (cursedIds.length === 0) {
+    await channel.send(`😶 No one voted. The malformed forces lose interest...`);
+  } else {
+    cursedPlayerId = cursedIds[Math.floor(Math.random() * cursedIds.length)];
+    activeCurses[cursedPlayerId] = true;
+    await channel.send(`😨 The audience has spoken. <@${cursedPlayerId}> is **cursed**!`);
+  }
+}
+async function sendCharmToUser(discordUserId, amount, channel = null) {
+  const DRIP_API_TOKEN = process.env.DRIP_API_TOKEN;
+  const DRIP_ACCOUNT_ID = '676d81ee502cd15c9c983d81'; // 🔁 Replace if different
+  const CURRENCY_ID = '1047256251320520705'; // $CHARM ID
+
+  const headers = {
+    Authorization: `Bearer ${DRIP_API_TOKEN}`,
+    'Content-Type': 'application/json'
+  };
+
+  const data = {
+    recipient: {
+      id: discordUserId,
+      id_type: "discord_id"
+    },
+    amount: amount,
+    reason: "Victory in The Gauntlet",
+    currency_id: CURRENCY_ID,
+    account_id: DRIP_ACCOUNT_ID
+  };
+
+  try {
+    await axios.post(`https://api.drip.re/v2/send`, data, { headers });
+    console.log(`✅ Sent ${amount} $CHARM to ${discordUserId}`);
+    if (channel) {
+      await channel.send(`🪙 <@${discordUserId}> received **${amount} $CHARM** from the Malformed Vault.`);
+    }
+  } catch (error) {
+    console.error(`❌ Failed to send $CHARM to ${discordUserId}`, {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data
+    });
+    if (channel) {
+      await channel.send(`⚠️ Could not send $CHARM to <@${discordUserId}>. Please contact the team.`);
+    }
+  }
+}
 client.once('ready', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
