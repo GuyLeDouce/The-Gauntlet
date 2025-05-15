@@ -720,3 +720,4 @@ client.once('ready', () => {
 
 // Login
 client.login(process.env.DISCORD_TOKEN);
+}
