@@ -146,20 +146,20 @@ client.on(Events.InteractionCreate, async interaction => {
   if (!interaction.isButton()) return;
 
   if (interaction.customId === 'join_gauntlet' && gauntletActive) {
-    if (!gauntletEntrants.find(e => e.id === interaction.user.id)) {
-      gauntletEntrants.push({ id: interaction.user.id, username: interaction.user.username });
-      await interaction.reply({ content: 'You have joined the Ugly Gauntlet! Prepare yourself…', flags: 64 });
+  if (!gauntletEntrants.find(e => e.id === interaction.user.id)) {
+    gauntletEntrants.push({ id: interaction.user.id, username: interaction.user.username });
 
-      if (gauntletMessage && gauntletMessage.editable) {
-  const embed = EmbedBuilder.from(gauntletMessage.embeds[0])
-    .setDescription(`Click to enter. You have ${delay} minutes.\n🧟 Entrants so far: ${gauntletEntrants.length}`);
-  await gauntletMessage.edit({ embeds: [embed] });
-}
-    } else {
-      await interaction.reply({ content: 'You have already joined this round!', flags: 64 });
+    await interaction.reply({ content: 'You have joined the Ugly Gauntlet! Prepare yourself…', ephemeral: true });
+
+    if (gauntletMessage && gauntletMessage.editable) {
+      const embed = EmbedBuilder.from(gauntletMessage.embeds[0])
+        .setDescription(`Click to enter. 🧟 Entrants so far: ${gauntletEntrants.length}`);
+      await gauntletMessage.edit({ embeds: [embed] });
     }
+  } else {
+    await interaction.reply({ content: 'You have already joined this round!', ephemeral: true });
   }
-});
+}
 
 async function startGauntlet(channel, delay) {
   if (gauntletActive) return;
