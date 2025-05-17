@@ -710,6 +710,8 @@ async function triggerRematchPrompt(channel) {
 }
 // === Batch 11: Message Commands ===
 client.on('messageCreate', async message => {
+  console.log(`[MSG] ${message.author.username}: ${message.content}`);
+
   if (message.author.bot) return;
 
   const content = message.content.trim().toLowerCase();
@@ -745,10 +747,10 @@ client.on('messageCreate', async message => {
   }
 
   // ⏱ Start Gauntlet (custom delay)
-  if (content.startsWith('!gauntlet ')) {
-    const delay = parseInt(content.split(' ')[1], 10);
-    return startGauntlet(message.channel, isNaN(delay) ? 10 : delay);
-  }
+  if (content.startsWith('!gauntlet')) {
+  const delay = parseInt(content.split(' ')[1], 10);
+  return startGauntlet(message.channel, isNaN(delay) ? 10 : delay);
+}
 
   // 🧨 Force start early
   if (content === '!startg') {
