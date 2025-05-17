@@ -1,4 +1,3 @@
-// === Batch 1: Setup & Globals ===
 require('dotenv').config();
 const {
   Client,
@@ -45,8 +44,9 @@ let rematchesThisHour = 0;
 let rematchLimitResetTime = Date.now();
 let completedGames = 0;
 let isTrialMode = false;
+let previousRemaining = 0;
 
-
+// === Game Data Arrays ===
 const trialNames = [
   "Trial of the Screaming Mire", "The Eldritch Scramble", "Trial of the Shattered Bones",
   "The Maw's Hunger", "Dance of the Ugly Reflection", "Trial of the Crooked Path",
@@ -113,13 +113,16 @@ const reviveFailLines = [
 client.on(Events.InteractionCreate, async interaction => {
   if (!interaction.isButton()) return;
 
-  // Join Button Logic
+  // === Join Button Logic ===
   if (interaction.customId === 'join_gauntlet' && gauntletActive) {
     const alreadyJoined = gauntletEntrants.find(e => e.id === interaction.user.id);
     if (!alreadyJoined) {
       gauntletEntrants.push({ id: interaction.user.id, username: interaction.user.username });
 
-      await interaction.reply({ content: 'You have joined the Ugly Gauntlet! Prepare yourself…', ephemeral: true });
+      await interaction.reply({
+        content: '🧟 You have joined the Ugly Gauntlet! Prepare yourself…',
+        ephemeral: true
+      });
 
       if (gauntletMessage && gauntletMessage.editable) {
         const embed = EmbedBuilder.from(gauntletMessage.embeds[0])
@@ -127,11 +130,14 @@ client.on(Events.InteractionCreate, async interaction => {
         await gauntletMessage.edit({ embeds: [embed] });
       }
     } else {
-      await interaction.reply({ content: 'You have already joined this round!', ephemeral: true });
+      await interaction.reply({
+        content: '⚠️ You have already joined this round!',
+        ephemeral: true
+      });
     }
   }
 });
-// === Batch 3: Mass Revival Totem Event ===
+// === Batch 3: Mass Resurrection Totem Event ===
 async function massRevivalEvent(channel) {
   const eligible = [...eliminatedPlayers];
   if (eligible.length === 0) return;
@@ -171,7 +177,6 @@ async function massRevivalEvent(channel) {
       return;
     }
 
-    // List participants
     const names = [...braveFools].map(id => `<@${id}>`).join('\n');
     await channel.send({
       embeds: [new EmbedBuilder()
@@ -221,7 +226,7 @@ async function massRevivalEvent(channel) {
 // === Batch 4: Start Gauntlet & Join Countdown ===
 async function startGauntlet(channel, delay) {
   if (gauntletActive) return;
-isTrialMode = false;
+  isTrialMode = false;
 
   gauntletEntrants = [];
   gauntletActive = true;
@@ -285,10 +290,9 @@ async function runGauntlet(channel) {
   gauntletActive = false;
   remaining = [...gauntletEntrants];
   let roundCounter = 1;
-
   let audienceVoteCount = 0;
+  let previousRemaining = -1;
   const maxVotesPerGame = Math.floor(Math.random() * 2) + 2; // 2 or 3 audience votes per game
-  let previousRemaining = remaining.length;
 
   const boss = remaining[Math.floor(Math.random() * remaining.length)];
   await channel.send(`👹 A foul stench rises... <@${boss.id}> has been chosen as the **UGLY BOSS**! If they make it to the podium, they earn **double $CHARM**...`);
@@ -307,7 +311,7 @@ async function runGauntlet(channel) {
     }
     previousRemaining = remaining.length;
 
-    // === Batch 6: Mutation Defense (20% chance) ===
+    // === Mutation Defense (20% chance) ===
     if (Math.random() < 0.2) {
       const mutateRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -344,7 +348,7 @@ async function runGauntlet(channel) {
         : '💥 Not enough resistance. The mutation begins...');
     }
 
-    // === Batch 6: Survival Trap (15% chance) ===
+    // === Survival Trap (15% chance) ===
     if (Math.random() < 0.15) {
       const survivalRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -372,12 +376,12 @@ async function runGauntlet(channel) {
       });
     }
 
-    // === Batch 6: Mass Resurrection Totem (20% chance if 2+ eliminated) ===
+    // === Mass Resurrection Totem (20% chance if 2+ eliminated) ===
     if (Math.random() < 0.2 && eliminatedPlayers.length >= 2) {
       await massRevivalEvent(channel);
     }
 
-    // === Batch 7: Boons & Curses (15% chance) ===
+    // === Boons & Curses (15% chance) ===
     if (Math.random() < 0.15 && remaining.length > 2) {
       const shuffled = [...remaining].sort(() => 0.5 - Math.random());
       const affectedPlayers = shuffled.slice(0, Math.floor(Math.random() * 2) + 1);
@@ -403,7 +407,8 @@ async function runGauntlet(channel) {
       });
     }
 
-    // === Batch 8–9: Audience Curse Vote (up to 3 times per game) ===
+    // 🔜 Next batch will handle Audience Vote and Eliminations
+    // === Audience Curse Vote (2–3 times max per game) ===
     let cursedPlayerId = null;
 
     if (audienceVoteCount < maxVotesPerGame && remaining.length >= 3) {
@@ -421,7 +426,11 @@ async function runGauntlet(channel) {
       });
 
       await channel.send(`🗣️ Discuss who to curse... you have **1 minute**.`);
-      await new Promise(r => setTimeout(r, 60000));
+      await new Promise(r => setTimeout(r, 20000));
+      await channel.send(`⏳ 40 seconds remaining...`);
+      await new Promise(r => setTimeout(r, 20000));
+      await channel.send(`⚠️ Final 20 seconds to cast your suspicions.`);
+      await new Promise(r => setTimeout(r, 20000));
 
       const voteRow = new ActionRowBuilder().addComponents(
         ...pollPlayers.map((p) =>
@@ -471,13 +480,14 @@ async function runGauntlet(channel) {
       }
     }
 
-    // === Elimination Logic ===
+    // === Elimination Round ===
     const trial = trialNames[Math.floor(Math.random() * trialNames.length)];
-    const eliminationDescriptions = [];
+    let eliminationDescriptions = [];
 
     for (let i = 0; i < eliminations; i++) {
       let player;
 
+      // Force cursed player first
       if (i === 0 && cursedPlayerId) {
         player = remaining.find(p => p.id === cursedPlayerId);
         if (player) {
@@ -489,6 +499,7 @@ async function runGauntlet(channel) {
         player = remaining.splice(Math.floor(Math.random() * remaining.length), 1)[0];
       }
 
+      // Check protections
       if (roundImmunity[player.id]) {
         eliminationDescriptions.push(`🛡️ <@${player.id}> avoided elimination with quick reflexes!`);
         continue;
@@ -517,13 +528,19 @@ async function runGauntlet(channel) {
         ? specialEliminations[Math.floor(Math.random() * specialEliminations.length)]
         : eliminationEvents[Math.floor(Math.random() * eliminationEvents.length)];
 
+      const style = Math.floor(Math.random() * 3);
       if (useSpecial) {
-        eliminationDescriptions.push(`**💥 Cursed Spotlight: <@${player.id}> 💥**\n_${reason}_`);
+        if (style === 0) {
+          eliminationDescriptions.push(`━━━━━━━━━━ 👁‍🗨 THE MALFORMED STRIKE 👁‍🗨 ━━━━━━━━━━\n❌ <@${player.id}> ${reason}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+        } else if (style === 1) {
+          eliminationDescriptions.push(`⚠️💀⚠️ SPECIAL FATE ⚠️💀⚠️\n❌ <@${player.id}> ${reason}\n🩸🧟‍♂️😈👁🔥👣🪦🧠👃`);
+        } else {
+          eliminationDescriptions.push(`**💥 Cursed Spotlight: <@${player.id}> 💥**\n_${reason}_`);
+        }
       } else {
         eliminationDescriptions.push(`❌ <@${player.id}> ${reason}`);
       }
     }
-
     // 💫 Rare Resurrection (15% chance)
     if (eliminated.length && Math.random() < 0.15) {
       const reviveIndex = Math.floor(Math.random() * eliminated.length);
@@ -535,7 +552,7 @@ async function runGauntlet(channel) {
       }
     }
 
-    // 📷 Send Round Embed
+    // 🎨 Embed with Random Ugly NFT
     const tokenId = Math.floor(Math.random() * 530) + 1;
     const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}.jpg`;
 
@@ -552,9 +569,17 @@ async function runGauntlet(channel) {
     await new Promise(r => setTimeout(r, 10000));
   }
 
-  // 🎉 Endgame
+  // 🏆 Finalists + Rewards
+  if (remaining.length < 3) {
+    await channel.send('⚠️ Not enough players remain to crown a full podium. Ending game.');
+    return;
+  }
+
   const [first, second, third] = remaining;
-  let firstReward = 50, secondReward = 25, thirdReward = 10;
+  let firstReward = 50;
+  let secondReward = 25;
+  let thirdReward = 10;
+
   if (first.id === boss.id) firstReward *= 2;
   if (second.id === boss.id) secondReward *= 2;
   if (third.id === boss.id) thirdReward *= 2;
@@ -582,7 +607,6 @@ async function runGauntlet(channel) {
   });
 
   await triggerRematchPrompt(channel);
-}
 
   // 🎁 Rare Mint Incentive
   completedGames++;
@@ -625,20 +649,19 @@ async function runGauntlet(channel) {
     ];
 
     const selected = incentives[Math.floor(Math.random() * incentives.length)];
-    const tokenId = Math.floor(Math.random() * 530) + 1;
-    const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}.jpg`;
+    const incentiveImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${Math.floor(Math.random() * 530) + 1}.jpg`;
 
     await channel.send({
       embeds: [new EmbedBuilder()
         .setTitle(`🎉 RARE MINT INCENTIVE UNLOCKED!`)
         .setDescription(`**${selected.title}**\n\n${selected.desc}`)
         .setColor(0xffd700)
-        .setImage(nftImage)
+        .setImage(incentiveImage)
       ]
     });
   }
-} // ✅ This is the closing brace for runGauntlet()
-// === Batch 9: Rematch Vote Logic ===
+}
+// === Batch 6: Rematch Vote Logic ===
 async function triggerRematchPrompt(channel) {
   lastGameEntrantCount = gauntletEntrants.length;
 
@@ -703,8 +726,7 @@ async function triggerRematchPrompt(channel) {
     }
   });
 }
-  
-// === Batch 10: Message Commands ===
+// === Batch 7: Message Commands ===
 client.on('messageCreate', async message => {
   console.log(`[MSG] ${message.author.username}: ${message.content}`);
 
@@ -761,21 +783,21 @@ client.on('messageCreate', async message => {
 
   // 🧪 Trial mode (mock 20 players)
   if (content === '!gauntlettrial') {
-  if (gauntletActive) return message.channel.send('A Gauntlet is already running.');
-  isTrialMode = true; // 🔧 Flag trial mode
-  gauntletEntrants = Array.from({ length: 20 }, (_, i) => ({
-    id: `MockUser${i + 1}`,
-    username: `MockPlayer${i + 1}`
-  }));
-  remaining = [...gauntletEntrants];
-  eliminatedPlayers = [];
-  gauntletActive = true;
-  gauntletChannel = message.channel;
-  await message.channel.send('🧪 Trial Mode Activated — 20 mock players have entered. Starting...');
-  return runGauntlet(message.channel);
-}
+    if (gauntletActive) return message.channel.send('A Gauntlet is already running.');
+    isTrialMode = true;
+    gauntletEntrants = Array.from({ length: 20 }, (_, i) => ({
+      id: `MockUser${i + 1}`,
+      username: `MockPlayer${i + 1}`
+    }));
+    remaining = [...gauntletEntrants];
+    eliminatedPlayers = [];
+    gauntletActive = true;
+    gauntletChannel = message.channel;
+    await message.channel.send('🧪 Trial Mode Activated — 20 mock players have entered. Starting...');
+    return runGauntlet(message.channel);
+  }
 });
-// === Batch 11: Send DRIP $CHARM Token Rewards ===
+// === Batch 8: Send DRIP $CHARM Token Rewards ===
 async function sendCharmToUser(discordUserId, amount, channel = null) {
   const DRIP_API_TOKEN = process.env.DRIP_API_TOKEN;
   const DRIP_ACCOUNT_ID = '676d81ee502cd15c9c983d81';
@@ -814,7 +836,7 @@ async function sendCharmToUser(discordUserId, amount, channel = null) {
     }
   }
 }
-// === Batch 12: Bot Ready & Login ===
+// === Batch 9: Bot Ready & Login ===
 client.once('ready', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
