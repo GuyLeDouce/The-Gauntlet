@@ -397,78 +397,76 @@ if (Math.random() < 0.15 && remaining.length > 2) {
 let cursedPlayerId = null;
 
 if (audienceVoteCount < maxVotesPerGame && remaining.length >= 3) {
-  audienceVoteCount++;
+  await (async () => {
+    audienceVoteCount++;
 
-  const pollPlayers = remaining.slice(0, 3);
-  const playerList = pollPlayers.map(p => `- <@${p.id}>`).join('\n');
+    const pollPlayers = remaining.slice(0, 3);
+    const playerList = pollPlayers.map(p => `- <@${p.id}>`).join('\n');
 
-  // Reveal vote candidates first
-  await channel.send({
-    embeds: [{
-      title: `👁️ Audience Vote #${audienceVoteCount}`,
-      description: `Three players are up for a potential CURSE:\n\n${playerList}`,
-      color: 0xff6666
-    }]
-  });
+    await channel.send({
+      embeds: [{
+        title: `👁️ Audience Vote #${audienceVoteCount}`,
+        description: `Three players are up for a potential CURSE:\n\n${playerList}`,
+        color: 0xff6666
+      }]
+    });
 
-  // Discussion countdown
-  await channel.send(`🗣️ Discuss who to curse... you have **1 minute**.`);
-  await new Promise(r => setTimeout(r, 20000));
-  await channel.send(`⏳ 40 seconds remaining...`);
-  await new Promise(r => setTimeout(r, 20000));
-  await channel.send(`⚠️ Final 20 seconds to cast your suspicions.`);
-  await new Promise(r => setTimeout(r, 20000));
+    await channel.send(`🗣️ Discuss who to curse... you have **1 minute**.`);
+    await new Promise(r => setTimeout(r, 20000));
+    await channel.send(`⏳ 40 seconds remaining...`);
+    await new Promise(r => setTimeout(r, 20000));
+    await channel.send(`⚠️ Final 20 seconds to cast your suspicions.`);
+    await new Promise(r => setTimeout(r, 20000));
 
-  // Vote buttons
-  const voteRow = new ActionRowBuilder().addComponents(
-    ...pollPlayers.map((p) =>
-      new ButtonBuilder()
-        .setCustomId(`vote_${p.id}`)
-        .setLabel(`Curse ${p.username}`)
-        .setStyle(ButtonStyle.Secondary)
-    )
-  );
+    const voteRow = new ActionRowBuilder().addComponents(
+      ...pollPlayers.map((p) =>
+        new ButtonBuilder()
+          .setCustomId(`vote_${p.id}`)
+          .setLabel(`Curse ${p.username}`)
+          .setStyle(ButtonStyle.Secondary)
+      )
+    );
 
-  const voteMsg = await channel.send({
-    embeds: [{
-      title: '🗳️ Cast Your Curse',
-      description: 'Click a button below to vote. The player with the most votes will be cursed.',
-      color: 0x880808
-    }],
-    components: [voteRow]
-  });
+    const voteMsg = await channel.send({
+      embeds: [{
+        title: '🗳️ Cast Your Curse',
+        description: 'Click a button below to vote. The player with the most votes will be cursed.',
+        color: 0x880808
+      }],
+      components: [voteRow]
+    });
 
-  const voteCounts = {};
-  const voteCollector = voteMsg.createMessageComponentCollector({ time: 15000 });
-  const alreadyVoted = new Set();
+    const voteCounts = {};
+    const voteCollector = voteMsg.createMessageComponentCollector({ time: 15000 });
+    const alreadyVoted = new Set();
 
-  voteCollector.on('collect', interaction => {
-    if (alreadyVoted.has(interaction.user.id)) {
-      return interaction.reply({ content: '🛑 You already voted.', ephemeral: true });
+    voteCollector.on('collect', interaction => {
+      if (alreadyVoted.has(interaction.user.id)) {
+        return interaction.reply({ content: '🛑 You already voted.', ephemeral: true });
+      }
+
+      alreadyVoted.add(interaction.user.id);
+      const targetId = interaction.customId.split('_')[1];
+      voteCounts[targetId] = (voteCounts[targetId] || 0) + 1;
+      interaction.reply({ content: '✅ Your vote has been cast.', ephemeral: true });
+    });
+
+    await new Promise(r => setTimeout(r, 15000));
+
+    const maxVotes = Math.max(...Object.values(voteCounts));
+    const cursedIds = Object.entries(voteCounts)
+      .filter(([_, count]) => count === maxVotes)
+      .map(([id]) => id);
+    cursedPlayerId = cursedIds[Math.floor(Math.random() * cursedIds.length)];
+
+    if (cursedPlayerId) {
+      await channel.send(`😨 The audience has chosen... <@${cursedPlayerId}> is **cursed**!`);
+    } else {
+      await channel.send(`👻 No votes were cast. The malformed crowd stays silent.`);
     }
-
-    alreadyVoted.add(interaction.user.id);
-    const targetId = interaction.customId.split('_')[1];
-    voteCounts[targetId] = (voteCounts[targetId] || 0) + 1;
-
-    interaction.reply({ content: '✅ Your vote has been cast.', ephemeral: true });
-  });
-
-  await new Promise(r => setTimeout(r, 15000));
-
-  // Choose cursed player
-  const maxVotes = Math.max(...Object.values(voteCounts));
-  const cursedIds = Object.entries(voteCounts)
-    .filter(([_, count]) => count === maxVotes)
-    .map(([id]) => id);
-  cursedPlayerId = cursedIds[Math.floor(Math.random() * cursedIds.length)];
-
-  if (cursedPlayerId) {
-    await channel.send(`😨 The audience has chosen... <@${cursedPlayerId}> is **cursed**!`);
-  } else {
-    await channel.send(`👻 No votes were cast. The malformed crowd stays silent.`);
-  }
+  })();
 }
+
 
   const voteMsg = await channel.send({
     embeds: [{
@@ -594,7 +592,7 @@ if (audienceVoteCount < maxVotesPerGame && remaining.length >= 3) {
   if (second.id === boss.id) secondReward *= 2;
   if (third.id === boss.id) thirdReward *= 2;
 
-  await sendCharmToUser(first.id, firstReward, channel);
+    await sendCharmToUser(first.id, firstReward, channel);
   await sendCharmToUser(second.id, secondReward, channel);
   await sendCharmToUser(third.id, thirdReward, channel);
 
