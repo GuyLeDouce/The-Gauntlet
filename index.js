@@ -298,14 +298,15 @@ async function runGauntlet(channel) {
 // === Boss Vote (NEW) ===
 const bossCandidates = [...remaining].sort(() => 0.5 - Math.random()).slice(0, 5);
 
-const bossVoteRow = new ActionRowBuilder().addComponents(
-  ...bossCandidates.map((p) =>
-    new ButtonBuilder()
-      .setCustomId(`boss_vote_${p.id}`)
-      .setLabel(`Vote ${p.username}`)
-      .setStyle(ButtonStyle.Secondary)
-  )
+const voteButtons = bossCandidates.map((p) =>
+  new ButtonBuilder()
+    .setCustomId(`boss_vote_${p.id}`)
+    .setLabel(`Vote ${p.username}`)
+    .setStyle(ButtonStyle.Secondary)
 );
+
+// Wrap buttons in an ActionRow (1 row if ≤5 buttons)
+const bossVoteRow = new ActionRowBuilder().addComponents(...voteButtons);
 
 const voteCounts = {};
 const alreadyVoted = new Set();
@@ -316,8 +317,9 @@ const voteMsg = await channel.send({
     .setDescription("Vote for who you think should be this game's Ugly Boss.\nThe winner earns **double $CHARM** if they survive to the podium.\n\n🗳️ Voting ends in **15 seconds**. Choose wisely.")
     .setColor(0x9932cc)
   ],
-  components: [bossVoteRow]
+  components: [bossVoteRow] // must be an array of ActionRows
 });
+
 
 const voteCollector = voteMsg.createMessageComponentCollector({ time: 15000 });
 
