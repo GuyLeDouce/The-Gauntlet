@@ -742,16 +742,18 @@ client.on('messageCreate', async message => {
     }
   }
 
-  // 🟢 Start Gauntlet (default 10min)
-  if (content === '!gauntlet') {
-    return startGauntlet(message.channel, 10);
-  }
-
-  // ⏱ Start Gauntlet (custom delay)
-  if (content.startsWith('!gauntlet')) {
+  /// ⏱ Start Gauntlet (custom delay)
+if (content.startsWith('!gauntlet ')) {
   const delay = parseInt(content.split(' ')[1], 10);
   return startGauntlet(message.channel, isNaN(delay) ? 10 : delay);
 }
+
+// 🟢 Start Gauntlet (default 10min)
+if (content === '!gauntlet') {
+  return startGauntlet(message.channel, 10);
+}
+
+
 
   // 🧨 Force start early
   if (content === '!startg') {
