@@ -288,10 +288,10 @@ async function runGauntlet(channel) {
 
   let audienceVoteCount = 0;
   const maxVotesPerGame = Math.floor(Math.random() * 2) + 2; // 2 or 3 audience votes per game
+  let previousRemaining = remaining.length;
 
   const boss = remaining[Math.floor(Math.random() * remaining.length)];
   await channel.send(`👹 A foul stench rises... <@${boss.id}> has been chosen as the **UGLY BOSS**! If they make it to the podium, they earn **double $CHARM**...`);
-let previousRemaining = remaining.length;
 
   while (remaining.length > 3) {
     const eliminations = Math.min(2, remaining.length - 3);
@@ -300,14 +300,14 @@ let previousRemaining = remaining.length;
     activeBoons = {};
     activeCurses = {};
     mutationDefenseClicks.clear();
-    if (remaining.length === previousRemaining) {
-    await channel.send(`⚠️ No eliminations this round. Skipping to avoid softlock.`);
-    break;
-  }
-  previousRemaining = remaining.length;
-}
 
-        // === Batch 6: Mutation Defense (20% chance) ===
+    if (remaining.length === previousRemaining) {
+      await channel.send(`⚠️ No eliminations this round. Skipping to avoid softlock.`);
+      break;
+    }
+    previousRemaining = remaining.length;
+
+    // === Batch 6: Mutation Defense (20% chance) ===
     if (Math.random() < 0.2) {
       const mutateRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -421,11 +421,7 @@ let previousRemaining = remaining.length;
       });
 
       await channel.send(`🗣️ Discuss who to curse... you have **1 minute**.`);
-      await new Promise(r => setTimeout(r, 20000));
-      await channel.send(`⏳ 40 seconds remaining...`);
-      await new Promise(r => setTimeout(r, 20000));
-      await channel.send(`⚠️ Final 20 seconds to cast your suspicions.`);
-      await new Promise(r => setTimeout(r, 20000));
+      await new Promise(r => setTimeout(r, 60000));
 
       const voteRow = new ActionRowBuilder().addComponents(
         ...pollPlayers.map((p) =>
@@ -474,13 +470,14 @@ let previousRemaining = remaining.length;
         await channel.send(`👻 No votes were cast. The malformed crowd stays silent.`);
       }
     }
+
+    // === Elimination Logic ===
     const trial = trialNames[Math.floor(Math.random() * trialNames.length)];
-    let eliminationDescriptions = [];
+    const eliminationDescriptions = [];
 
     for (let i = 0; i < eliminations; i++) {
       let player;
 
-      // Force cursed player to be eliminated first
       if (i === 0 && cursedPlayerId) {
         player = remaining.find(p => p.id === cursedPlayerId);
         if (player) {
@@ -492,7 +489,6 @@ let previousRemaining = remaining.length;
         player = remaining.splice(Math.floor(Math.random() * remaining.length), 1)[0];
       }
 
-      // Immunities, Boons, and Boss protections
       if (roundImmunity[player.id]) {
         eliminationDescriptions.push(`🛡️ <@${player.id}> avoided elimination with quick reflexes!`);
         continue;
@@ -521,15 +517,8 @@ let previousRemaining = remaining.length;
         ? specialEliminations[Math.floor(Math.random() * specialEliminations.length)]
         : eliminationEvents[Math.floor(Math.random() * eliminationEvents.length)];
 
-      const style = Math.floor(Math.random() * 3);
       if (useSpecial) {
-        if (style === 0) {
-          eliminationDescriptions.push(`━━━━━━━━━━ 👁‍🗨 THE MALFORMED STRIKE 👁‍🗨 ━━━━━━━━━━\n❌ <@${player.id}> ${reason}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-        } else if (style === 1) {
-          eliminationDescriptions.push(`⚠️💀⚠️ SPECIAL FATE ⚠️💀⚠️\n❌ <@${player.id}> ${reason}\n🩸🧟‍♂️😈👁🔥👣🪦🧠👃`);
-        } else {
-          eliminationDescriptions.push(`**💥 Cursed Spotlight: <@${player.id}> 💥**\n_${reason}_`);
-        }
+        eliminationDescriptions.push(`**💥 Cursed Spotlight: <@${player.id}> 💥**\n_${reason}_`);
       } else {
         eliminationDescriptions.push(`❌ <@${player.id}> ${reason}`);
       }
@@ -546,7 +535,7 @@ let previousRemaining = remaining.length;
       }
     }
 
-    // 🎨 Embed with Random Ugly NFT
+    // 📷 Send Round Embed
     const tokenId = Math.floor(Math.random() * 530) + 1;
     const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}.jpg`;
 
@@ -561,18 +550,11 @@ let previousRemaining = remaining.length;
 
     roundCounter++;
     await new Promise(r => setTimeout(r, 10000));
-if (remaining.length < 3) {
-  await channel.send(`⚠️ Not enough players remain to finish The Gauntlet. Ending game early.`);
-  gauntletActive = false;
-  return;
-}
+  }
 
-  // 🏆 Finalists + Rewards
+  // 🎉 Endgame
   const [first, second, third] = remaining;
-  let firstReward = 50;
-  let secondReward = 25;
-  let thirdReward = 10;
-
+  let firstReward = 50, secondReward = 25, thirdReward = 10;
   if (first.id === boss.id) firstReward *= 2;
   if (second.id === boss.id) secondReward *= 2;
   if (third.id === boss.id) thirdReward *= 2;
@@ -600,6 +582,7 @@ if (remaining.length < 3) {
   });
 
   await triggerRematchPrompt(channel);
+}
 
   // 🎁 Rare Mint Incentive
   completedGames++;
@@ -720,7 +703,6 @@ async function triggerRematchPrompt(channel) {
     }
   });
 }
-
   
 // === Batch 10: Message Commands ===
 client.on('messageCreate', async message => {
