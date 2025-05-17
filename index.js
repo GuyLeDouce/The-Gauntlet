@@ -815,7 +815,7 @@ async function sendCharmToUser(discordUserId, amount, channel = null) {
     }
   }
 }
-
+}
 // === Batch 13: Bot Ready & Login ===
 client.once('ready', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
