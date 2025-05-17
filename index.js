@@ -584,8 +584,9 @@ async function runGauntlet(channel) {
     ]
   });
 
-  await triggerRematchPrompt(channel);
-}
+   await triggerRematchPrompt(channel);
+} // ✅ THIS LINE closes runGauntlet!
+
 // === Batch 10: Rematch Vote Logic ===
 async function triggerRematchPrompt(channel) {
   lastGameEntrantCount = gauntletEntrants.length;
