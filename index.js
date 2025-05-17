@@ -187,7 +187,7 @@ async function massRevivalEvent(channel) {
     await new Promise(r => setTimeout(r, 1000));
     await channel.send('🕒 1...');
     await new Promise(r => setTimeout(r, 1000));
-
+  }
     const success = Math.random() < 0.5;
 
     if (success) {
@@ -294,16 +294,14 @@ async function runGauntlet(channel) {
 
   // Begin rounds
   while (remaining.length > 3) {
-  const eliminations = Math.min(2, remaining.length - 3);
-  const eliminated = [];
-  roundImmunity = {};
-  activeBoons = {};
-  activeCurses = {};
-  mutationDefenseClicks.clear();
+    const eliminations = Math.min(2, remaining.length - 3);
+    const eliminated = [];
+    roundImmunity = {};
+    activeBoons = {};
+    activeCurses = {};
+    mutationDefenseClicks.clear();
 
-
-    // === Batches 6–9 will be inserted here (traps, votes, mutations, etc.)
-    // === Batch 6: Mutation Defense (20% chance) ===
+    // === Mutation Defense (20% chance) ===
     if (Math.random() < 0.2) {
       const mutateRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -322,6 +320,7 @@ async function runGauntlet(channel) {
       });
 
       const mutateCollector = mutateMsg.createMessageComponentCollector({ time: 15000 });
+
       mutateCollector.on('collect', async interaction => {
         if (!remaining.find(p => p.id === interaction.user.id)) {
           return interaction.reply({ content: '🛑 Only live players may resist.', ephemeral: true });
@@ -331,13 +330,26 @@ async function runGauntlet(channel) {
       });
 
       await new Promise(r => setTimeout(r, 15000));
+      await mutateMsg.edit({ components: [] });
 
       const suppressed = mutationDefenseClicks.size >= 3;
+
       await channel.send(suppressed
         ? '🧬 Enough resistance! The mutation has been suppressed.'
         : '💥 Not enough resistance. The mutation begins...');
     }
+
+    // === Continue with trap, boons, curse vote, elimination etc. ===
+    // ⚠️ Your next logic batches (6–9) should follow here as usual.
+    // After the round, call elimination formatting and go to next round.
+
+    // roundCounter++;
+    // await new Promise(r => setTimeout(r, 10000));
   }
+
+  // === You still need your finalists/reward block here ===
+
+
     // === Batch 6: Survival Trap (15% chance) ===
     if (Math.random() < 0.15) {
       const survivalRow = new ActionRowBuilder().addComponents(
@@ -587,7 +599,7 @@ async function runGauntlet(channel) {
       .setColor(0xdaa520)
     ]
   });
-
+}
     await triggerRematchPrompt(channel);
 
     // === Batch 13: Rare Mint Incentive Trigger ===
