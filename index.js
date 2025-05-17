@@ -336,7 +336,7 @@ async function runGauntlet(channel) {
         ? '🧬 Enough resistance! The mutation has been suppressed.'
         : '💥 Not enough resistance. The mutation begins...');
     }
-
+  }
     // === Batch 6: Survival Trap (15% chance) ===
     if (Math.random() < 0.15) {
       const survivalRow = new ActionRowBuilder().addComponents(
