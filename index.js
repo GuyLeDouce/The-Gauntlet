@@ -609,14 +609,20 @@ if (audienceVoteCount < maxVotesPerGame && remaining.length >= 3 && Math.random(
     const tokenId = Math.floor(Math.random() * 530) + 1;
     const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}.jpg`;
 
-    await channel.send({
-      embeds: [new EmbedBuilder()
-        .setTitle(`⚔️ Round ${roundCounter} — ${trial}`)
-        .setDescription(eliminationDescriptions.join('\n'))
-        .setColor(0x8b0000)
-        .setImage(nftImage)
-      ]
-    });
+    const totalPlayers = gauntletEntrants.length;
+const survivors = remaining.length;
+
+await channel.send({
+  embeds: [new EmbedBuilder()
+    .setTitle(`⚔️ Round ${roundCounter} — ${trial}`)
+    .setDescription([
+      ...eliminationDescriptions,
+      `\n👥 **Players Remaining:** ${survivors} / ${totalPlayers}`
+    ].join('\n'))
+    .setColor(0x8b0000)
+    .setImage(nftImage)
+  ]
+});
 
     roundCounter++;
     await new Promise(r => setTimeout(r, 10000));
