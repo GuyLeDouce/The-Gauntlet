@@ -143,11 +143,11 @@ async function massRevivalEvent(channel) {
   );
 
   const prompt = await channel.send({
-    embeds: [{
-      title: '☠️ The Totem of Lost Souls Appears...',
-      description: 'A twisted totem hums with malformed energy. Click below for a **50/50** shot at resurrection.\n\nYou have **4 seconds**. Touch it... or stay forgotten.',
-      color: 0x910000
-    }],
+    embeds: [new EmbedBuilder()
+      .setTitle('☠️ The Totem of Lost Souls Appears...')
+      .setDescription('A twisted totem hums with malformed energy. Click below for a **50/50** shot at resurrection.\n\nYou have **4 seconds**. Touch it... or stay forgotten.')
+      .setColor(0x910000)
+    ],
     components: [resurrectionRow]
   });
 
@@ -173,11 +173,11 @@ async function massRevivalEvent(channel) {
     // List participants
     const names = [...braveFools].map(id => `<@${id}>`).join('\n');
     await channel.send({
-      embeds: [{
-        title: '⏳ The Totem Judged Them...',
-        description: `The following souls reached for resurrection:\n\n${names}\n\nWill they return... or be mocked for eternity?`,
-        color: 0xffcc00
-      }]
+      embeds: [new EmbedBuilder()
+        .setTitle('⏳ The Totem Judged Them...')
+        .setDescription(`The following souls reached for resurrection:\n\n${names}\n\nWill they return... or be mocked for eternity?`)
+        .setColor(0xffcc00)
+      ]
     });
 
     // Countdown
@@ -200,23 +200,24 @@ async function massRevivalEvent(channel) {
       }
 
       await channel.send({
-        embeds: [{
-          title: '💥 They Returned!',
-          description: `Against all odds, the totem roared with approval.\n${[...braveFools].map(id => `<@${id}>`).join('\n')} **have re-entered The Gauntlet!**`,
-          color: 0x00cc66
-        }]
+        embeds: [new EmbedBuilder()
+          .setTitle('💥 They Returned!')
+          .setDescription(`Against all odds, the totem roared with approval.\n${[...braveFools].map(id => `<@${id}>`).join('\n')} **have re-entered The Gauntlet!**`)
+          .setColor(0x00cc66)
+        ]
       });
     } else {
       await channel.send({
-        embeds: [{
-          title: '🤣 The Totem Laughed...',
-          description: `Not a single soul was accepted.\nInstead, the totem belched out a fart cloud and vanished.\nBetter luck next undeath.`,
-          color: 0xbb0000
-        }]
+        embeds: [new EmbedBuilder()
+          .setTitle('🤣 The Totem Laughed...')
+          .setDescription(`Not a single soul was accepted.\nInstead, the totem belched out a fart cloud and vanished.\nBetter luck next undeath.`)
+          .setColor(0xbb0000)
+        ]
       });
     }
   });
 }
+
 // === Batch 4: Start Gauntlet & Join Countdown ===
 async function startGauntlet(channel, delay) {
   if (gauntletActive) return;
@@ -816,7 +817,6 @@ async function sendCharmToUser(discordUserId, amount, channel = null) {
       await channel.send(`⚠️ Could not send $CHARM to <@${discordUserId}>. Please contact the team.`);
     }
   }
-}
 }
 // === Batch 13: Bot Ready & Login ===
 client.once('ready', () => {
