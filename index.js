@@ -187,7 +187,7 @@ async function massRevivalEvent(channel) {
     await new Promise(r => setTimeout(r, 1000));
     await channel.send('🕒 1...');
     await new Promise(r => setTimeout(r, 1000));
-  }
+
     const success = Math.random() < 0.5;
 
     if (success) {
