@@ -44,6 +44,7 @@ let lastGameEntrantCount = 0;
 let rematchesThisHour = 0;
 let rematchLimitResetTime = Date.now();
 let completedGames = 0;
+let isTrialMode = false;
 
 
 const trialNames = [
@@ -220,6 +221,7 @@ async function massRevivalEvent(channel) {
 // === Batch 4: Start Gauntlet & Join Countdown ===
 async function startGauntlet(channel, delay) {
   if (gauntletActive) return;
+isTrialMode = false;
 
   gauntletEntrants = [];
   gauntletActive = true;
@@ -297,6 +299,12 @@ async function runGauntlet(channel) {
     activeBoons = {};
     activeCurses = {};
     mutationDefenseClicks.clear();
+    if (remaining.length === previousRemaining) {
+    await channel.send(`⚠️ No eliminations this round. Skipping to avoid softlock.`);
+    break;
+  }
+  previousRemaining = remaining.length;
+}
 
         // === Batch 6: Mutation Defense (20% chance) ===
     if (Math.random() < 0.2) {
@@ -552,6 +560,12 @@ async function runGauntlet(channel) {
 
     roundCounter++;
     await new Promise(r => setTimeout(r, 10000));
+if (remaining.length < 3) {
+  await channel.send(`⚠️ Not enough players remain to finish The Gauntlet. Ending game early.`);
+  gauntletActive = false;
+  return;
+}
+
   // 🏆 Finalists + Rewards
   const [first, second, third] = remaining;
   let firstReward = 50;
@@ -764,18 +778,19 @@ client.on('messageCreate', async message => {
 
   // 🧪 Trial mode (mock 20 players)
   if (content === '!gauntlettrial') {
-    if (gauntletActive) return message.channel.send('A Gauntlet is already running.');
-    gauntletEntrants = Array.from({ length: 20 }, (_, i) => ({
-      id: `MockUser${i + 1}`,
-      username: `MockPlayer${i + 1}`
-    }));
-    remaining = [...gauntletEntrants];
-    eliminatedPlayers = [];
-    gauntletActive = true;
-    gauntletChannel = message.channel;
-    await message.channel.send('🧪 Trial Mode Activated — 20 mock players have entered. Starting...');
-    return runGauntlet(message.channel);
-  }
+  if (gauntletActive) return message.channel.send('A Gauntlet is already running.');
+  isTrialMode = true; // 🔧 Flag trial mode
+  gauntletEntrants = Array.from({ length: 20 }, (_, i) => ({
+    id: `MockUser${i + 1}`,
+    username: `MockPlayer${i + 1}`
+  }));
+  remaining = [...gauntletEntrants];
+  eliminatedPlayers = [];
+  gauntletActive = true;
+  gauntletChannel = message.channel;
+  await message.channel.send('🧪 Trial Mode Activated — 20 mock players have entered. Starting...');
+  return runGauntlet(message.channel);
+}
 });
 // === Batch 11: Send DRIP $CHARM Token Rewards ===
 async function sendCharmToUser(discordUserId, amount, channel = null) {
