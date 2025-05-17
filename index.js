@@ -294,12 +294,13 @@ async function runGauntlet(channel) {
 
   // Begin rounds
   while (remaining.length > 3) {
-    const eliminations = Math.min(2, remaining.length - 3);
-    const eliminated = [];
-    roundImmunity = {};
-    activeBoons = {};
-    activeCurses = {};
-    mutationDefenseClicks = new Set();
+  const eliminations = Math.min(2, remaining.length - 3);
+  const eliminated = [];
+  roundImmunity = {};
+  activeBoons = {};
+  activeCurses = {};
+  mutationDefenseClicks.clear();
+
 
     // === Batches 6–9 will be inserted here (traps, votes, mutations, etc.)
     // === Batch 6: Mutation Defense (20% chance) ===
