@@ -217,7 +217,6 @@ async function massRevivalEvent(channel) {
     }
   });
 }
-
 // === Batch 4: Start Gauntlet & Join Countdown ===
 async function startGauntlet(channel, delay) {
   if (gauntletActive) return;
@@ -288,11 +287,9 @@ async function runGauntlet(channel) {
   let audienceVoteCount = 0;
   const maxVotesPerGame = Math.floor(Math.random() * 2) + 2; // 2 or 3 audience votes per game
 
-  // Pick the Boss
   const boss = remaining[Math.floor(Math.random() * remaining.length)];
   await channel.send(`👹 A foul stench rises... <@${boss.id}> has been chosen as the **UGLY BOSS**! If they make it to the podium, they earn **double $CHARM**...`);
 
-  // Begin rounds
   while (remaining.length > 3) {
     const eliminations = Math.min(2, remaining.length - 3);
     const eliminated = [];
@@ -301,7 +298,7 @@ async function runGauntlet(channel) {
     activeCurses = {};
     mutationDefenseClicks.clear();
 
-    // === Mutation Defense (20% chance) ===
+        // === Batch 6: Mutation Defense (20% chance) ===
     if (Math.random() < 0.2) {
       const mutateRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -333,22 +330,10 @@ async function runGauntlet(channel) {
       await mutateMsg.edit({ components: [] });
 
       const suppressed = mutationDefenseClicks.size >= 3;
-
       await channel.send(suppressed
         ? '🧬 Enough resistance! The mutation has been suppressed.'
         : '💥 Not enough resistance. The mutation begins...');
     }
-
-    // === Continue with trap, boons, curse vote, elimination etc. ===
-    // ⚠️ Your next logic batches (6–9) should follow here as usual.
-    // After the round, call elimination formatting and go to next round.
-
-    // roundCounter++;
-    // await new Promise(r => setTimeout(r, 10000));
-  }
-
-  // === You still need your finalists/reward block here ===
-
 
     // === Batch 6: Survival Trap (15% chance) ===
     if (Math.random() < 0.15) {
@@ -378,11 +363,12 @@ async function runGauntlet(channel) {
       });
     }
 
-    // === Batch 6: 50/50 Mass Resurrection Totem (20% chance if 2+ eliminated) ===
+    // === Batch 6: Mass Resurrection Totem (20% chance if 2+ eliminated) ===
     if (Math.random() < 0.2 && eliminatedPlayers.length >= 2) {
       await massRevivalEvent(channel);
     }
-    // === Batch 7: Random Boons & Curses (15% chance) ===
+
+    // === Batch 7: Boons & Curses (15% chance) ===
     if (Math.random() < 0.15 && remaining.length > 2) {
       const shuffled = [...remaining].sort(() => 0.5 - Math.random());
       const affectedPlayers = shuffled.slice(0, Math.floor(Math.random() * 2) + 1);
@@ -408,78 +394,76 @@ async function runGauntlet(channel) {
       });
     }
 
-    // === Batch 7: Audience Vote for a Curse (only 2–3 per game) ===
+    // === Batch 8–9: Audience Curse Vote (up to 3 times per game) ===
     let cursedPlayerId = null;
 
     if (audienceVoteCount < maxVotesPerGame && remaining.length >= 3) {
-      await (async () => {
-        audienceVoteCount++;
+      audienceVoteCount++;
 
-        const pollPlayers = remaining.slice(0, 3);
-        const playerList = pollPlayers.map(p => `- <@${p.id}>`).join('\n');
+      const pollPlayers = remaining.slice(0, 3);
+      const playerList = pollPlayers.map(p => `- <@${p.id}>`).join('\n');
 
-        await channel.send({
-          embeds: [new EmbedBuilder()
-            .setTitle(`👁️ Audience Vote #${audienceVoteCount}`)
-            .setDescription(`Three players are up for a potential CURSE:\n\n${playerList}`)
-            .setColor(0xff6666)
-          ]
-        });
+      await channel.send({
+        embeds: [new EmbedBuilder()
+          .setTitle(`👁️ Audience Vote #${audienceVoteCount}`)
+          .setDescription(`Three players are up for a potential CURSE:\n\n${playerList}`)
+          .setColor(0xff6666)
+        ]
+      });
 
-        await channel.send(`🗣️ Discuss who to curse... you have **1 minute**.`);
-        await new Promise(r => setTimeout(r, 20000));
-        await channel.send(`⏳ 40 seconds remaining...`);
-        await new Promise(r => setTimeout(r, 20000));
-        await channel.send(`⚠️ Final 20 seconds to cast your suspicions.`);
-        await new Promise(r => setTimeout(r, 20000));
+      await channel.send(`🗣️ Discuss who to curse... you have **1 minute**.`);
+      await new Promise(r => setTimeout(r, 20000));
+      await channel.send(`⏳ 40 seconds remaining...`);
+      await new Promise(r => setTimeout(r, 20000));
+      await channel.send(`⚠️ Final 20 seconds to cast your suspicions.`);
+      await new Promise(r => setTimeout(r, 20000));
 
-        const voteRow = new ActionRowBuilder().addComponents(
-          ...pollPlayers.map((p) =>
-            new ButtonBuilder()
-              .setCustomId(`vote_${p.id}`)
-              .setLabel(`Curse ${p.username}`)
-              .setStyle(ButtonStyle.Secondary)
-          )
-        );
+      const voteRow = new ActionRowBuilder().addComponents(
+        ...pollPlayers.map((p) =>
+          new ButtonBuilder()
+            .setCustomId(`vote_${p.id}`)
+            .setLabel(`Curse ${p.username}`)
+            .setStyle(ButtonStyle.Secondary)
+        )
+      );
 
-        const voteMsg = await channel.send({
-          embeds: [new EmbedBuilder()
-            .setTitle('🗳️ Cast Your Curse')
-            .setDescription('Click a button below to vote. The player with the most votes will be cursed.')
-            .setColor(0x880808)
-          ],
-          components: [voteRow]
-        });
+      const voteMsg = await channel.send({
+        embeds: [new EmbedBuilder()
+          .setTitle('🗳️ Cast Your Curse')
+          .setDescription('Click a button below to vote. The player with the most votes will be cursed.')
+          .setColor(0x880808)
+        ],
+        components: [voteRow]
+      });
 
-        const voteCounts = {};
-        const voteCollector = voteMsg.createMessageComponentCollector({ time: 15000 });
-        const alreadyVoted = new Set();
+      const voteCounts = {};
+      const voteCollector = voteMsg.createMessageComponentCollector({ time: 15000 });
+      const alreadyVoted = new Set();
 
-        voteCollector.on('collect', interaction => {
-          if (alreadyVoted.has(interaction.user.id)) {
-            return interaction.reply({ content: '🛑 You already voted.', ephemeral: true });
-          }
-          alreadyVoted.add(interaction.user.id);
-          const targetId = interaction.customId.split('_')[1];
-          voteCounts[targetId] = (voteCounts[targetId] || 0) + 1;
-          interaction.reply({ content: '✅ Your vote has been cast.', ephemeral: true });
-        });
-
-        await new Promise(r => setTimeout(r, 15000));
-
-        const maxVotes = Math.max(...Object.values(voteCounts));
-        const cursedIds = Object.entries(voteCounts)
-          .filter(([_, count]) => count === maxVotes)
-          .map(([id]) => id);
-        cursedPlayerId = cursedIds[Math.floor(Math.random() * cursedIds.length)];
-
-        if (cursedPlayerId) {
-          activeCurses[cursedPlayerId] = true;
-          await channel.send(`😨 The audience has spoken. <@${cursedPlayerId}> is **cursed**!`);
-        } else {
-          await channel.send(`👻 No votes were cast. The malformed crowd stays silent.`);
+      voteCollector.on('collect', interaction => {
+        if (alreadyVoted.has(interaction.user.id)) {
+          return interaction.reply({ content: '🛑 You already voted.', ephemeral: true });
         }
-      })();
+        alreadyVoted.add(interaction.user.id);
+        const targetId = interaction.customId.split('_')[1];
+        voteCounts[targetId] = (voteCounts[targetId] || 0) + 1;
+        interaction.reply({ content: '✅ Your vote has been cast.', ephemeral: true });
+      });
+
+      await new Promise(r => setTimeout(r, 15000));
+
+      const maxVotes = Math.max(...Object.values(voteCounts));
+      const cursedIds = Object.entries(voteCounts)
+        .filter(([_, count]) => count === maxVotes)
+        .map(([id]) => id);
+      cursedPlayerId = cursedIds[Math.floor(Math.random() * cursedIds.length)];
+
+      if (cursedPlayerId) {
+        activeCurses[cursedPlayerId] = true;
+        await channel.send(`😨 The audience has spoken. <@${cursedPlayerId}> is **cursed**!`);
+      } else {
+        await channel.send(`👻 No votes were cast. The malformed crowd stays silent.`);
+      }
     }
     const trial = trialNames[Math.floor(Math.random() * trialNames.length)];
     let eliminationDescriptions = [];
@@ -487,7 +471,7 @@ async function runGauntlet(channel) {
     for (let i = 0; i < eliminations; i++) {
       let player;
 
-      // Force curse target to be eliminated first
+      // Force cursed player to be eliminated first
       if (i === 0 && cursedPlayerId) {
         player = remaining.find(p => p.id === cursedPlayerId);
         if (player) {
@@ -599,65 +583,64 @@ async function runGauntlet(channel) {
       .setColor(0xdaa520)
     ]
   });
-}
-    await triggerRematchPrompt(channel);
 
-    // === Batch 13: Rare Mint Incentive Trigger ===
-    completedGames++;
-    if (completedGames >= 50) {
-      completedGames = 0;
+  await triggerRematchPrompt(channel);
 
-      const incentives = [
-        {
-          title: "⚡ First to Mint an Ugly gets 500 $CHARM!",
-          desc: "⏳ You have **5 minutes**. Post proof in <#1334345680461762671>!",
-        },
-        {
-          title: "🧵 First to Tweet their Ugly or Monster + tag @Charm_Ugly gets 100 $CHARM!",
-          desc: "Drop proof in <#1334345680461762671> and the team will verify. GO!",
-        },
-        {
-          title: "💥 Mint 3, Get 1 Free (must open ticket)",
-          desc: "⏳ You have **15 minutes** to mint 3 — and we’ll airdrop 1 more. #UglyLuck",
-        },
-        {
-          title: "👑 Mint 3, Get a FREE MONSTER",
-          desc: "⏳ You have **15 minutes**. Prove it in a ticket and a Monster is yours.",
-        },
-        {
-          title: "🎁 All mints in the next 10 minutes earn +150 $CHARM",
-          desc: "Yes, all. Go go go.",
-        },
-        {
-          title: "🃏 Every mint = 1 raffle entry",
-          desc: "**Next prize:** 1,000 $CHARM! All mints from now to the next milestone are eligible.",
-        },
-        {
-          title: "📸 Lore Challenge Activated!",
-          desc: "Post your Ugly in <#💬┆general-chat> with a 1-liner backstory. Best lore gets 250 $CHARM in 24h.",
-        },
-        {
-          title: "📦 SECRET BOUNTY ⚠️",
-          desc: "One of the next 10 mints will receive... something special. We won't say what.",
-        }
-      ];
+  // 🎁 Rare Mint Incentive
+  completedGames++;
+  if (completedGames >= 50) {
+    completedGames = 0;
 
-      const selected = incentives[Math.floor(Math.random() * incentives.length)];
-      const tokenId = Math.floor(Math.random() * 530) + 1;
-      const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}.jpg`;
+    const incentives = [
+      {
+        title: "⚡ First to Mint an Ugly gets 500 $CHARM!",
+        desc: "⏳ You have **5 minutes**. Post proof in <#1334345680461762671>!",
+      },
+      {
+        title: "🧵 First to Tweet their Ugly or Monster + tag @Charm_Ugly gets 100 $CHARM!",
+        desc: "Drop proof in <#1334345680461762671> and the team will verify. GO!",
+      },
+      {
+        title: "💥 Mint 3, Get 1 Free (must open ticket)",
+        desc: "⏳ You have **15 minutes** to mint 3 — and we’ll airdrop 1 more. #UglyLuck",
+      },
+      {
+        title: "👑 Mint 3, Get a FREE MONSTER",
+        desc: "⏳ You have **15 minutes**. Prove it in a ticket and a Monster is yours.",
+      },
+      {
+        title: "🎁 All mints in the next 10 minutes earn +150 $CHARM",
+        desc: "Yes, all. Go go go.",
+      },
+      {
+        title: "🃏 Every mint = 1 raffle entry",
+        desc: "**Next prize:** 1,000 $CHARM! All mints from now to the next milestone are eligible.",
+      },
+      {
+        title: "📸 Lore Challenge Activated!",
+        desc: "Post your Ugly in <#💬┆general-chat> with a 1-liner backstory. Best lore gets 250 $CHARM in 24h.",
+      },
+      {
+        title: "📦 SECRET BOUNTY ⚠️",
+        desc: "One of the next 10 mints will receive... something special. We won't say what.",
+      }
+    ];
 
-      await channel.send({
-        embeds: [new EmbedBuilder()
-          .setTitle(`🎉 RARE MINT INCENTIVE UNLOCKED!`)
-          .setDescription(`**${selected.title}**\n\n${selected.desc}`)
-          .setColor(0xffd700)
-          .setImage(nftImage)
-        ]
-      });
-    }
-} // ✅ THIS closes runGauntlet()
+    const selected = incentives[Math.floor(Math.random() * incentives.length)];
+    const tokenId = Math.floor(Math.random() * 530) + 1;
+    const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}.jpg`;
 
-// === Batch 10: Rematch Vote Logic ===
+    await channel.send({
+      embeds: [new EmbedBuilder()
+        .setTitle(`🎉 RARE MINT INCENTIVE UNLOCKED!`)
+        .setDescription(`**${selected.title}**\n\n${selected.desc}`)
+        .setColor(0xffd700)
+        .setImage(nftImage)
+      ]
+    });
+  }
+} // ✅ This is the closing brace for runGauntlet()
+// === Batch 9: Rematch Vote Logic ===
 async function triggerRematchPrompt(channel) {
   lastGameEntrantCount = gauntletEntrants.length;
 
@@ -722,7 +705,9 @@ async function triggerRematchPrompt(channel) {
     }
   });
 }
-// === Batch 11: Message Commands ===
+
+  }
+// === Batch 10: Message Commands ===
 client.on('messageCreate', async message => {
   console.log(`[MSG] ${message.author.username}: ${message.content}`);
 
@@ -755,18 +740,16 @@ client.on('messageCreate', async message => {
     }
   }
 
-  /// ⏱ Start Gauntlet (custom delay)
-if (content.startsWith('!gauntlet ')) {
-  const delay = parseInt(content.split(' ')[1], 10);
-  return startGauntlet(message.channel, isNaN(delay) ? 10 : delay);
-}
+  // ⏱ Start Gauntlet (custom delay)
+  if (content.startsWith('!gauntlet ')) {
+    const delay = parseInt(content.split(' ')[1], 10);
+    return startGauntlet(message.channel, isNaN(delay) ? 10 : delay);
+  }
 
-// 🟢 Start Gauntlet (default 10min)
-if (content === '!gauntlet') {
-  return startGauntlet(message.channel, 10);
-}
-
-
+  // 🟢 Start Gauntlet (default 10min)
+  if (content === '!gauntlet') {
+    return startGauntlet(message.channel, 10);
+  }
 
   // 🧨 Force start early
   if (content === '!startg') {
@@ -794,7 +777,7 @@ if (content === '!gauntlet') {
     return runGauntlet(message.channel);
   }
 });
-// === Batch 12: Send DRIP $CHARM Token Rewards ===
+// === Batch 11: Send DRIP $CHARM Token Rewards ===
 async function sendCharmToUser(discordUserId, amount, channel = null) {
   const DRIP_API_TOKEN = process.env.DRIP_API_TOKEN;
   const DRIP_ACCOUNT_ID = '676d81ee502cd15c9c983d81';
@@ -833,7 +816,7 @@ async function sendCharmToUser(discordUserId, amount, channel = null) {
     }
   }
 }
-// === Batch 13: Bot Ready & Login ===
+// === Batch 12: Bot Ready & Login ===
 client.once('ready', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
