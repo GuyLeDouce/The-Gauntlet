@@ -890,9 +890,6 @@ async function sendCharmToUser(discordUserId, amount, channel = null) {
       status: error.response?.status,
       data: error.response?.data
     });
-    if (channel) {
-      await channel.send(`⚠️ Could not send $CHARM to <@${discordUserId}>. Please contact the team.`);
-    }
   }
 }
 // === Batch 9: Bot Ready & Login ===
