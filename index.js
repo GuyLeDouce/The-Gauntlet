@@ -291,6 +291,7 @@ async function runGauntlet(channel) {
 
   const boss = remaining[Math.floor(Math.random() * remaining.length)];
   await channel.send(`👹 A foul stench rises... <@${boss.id}> has been chosen as the **UGLY BOSS**! If they make it to the podium, they earn **double $CHARM**...`);
+let previousRemaining = remaining.length;
 
   while (remaining.length > 3) {
     const eliminations = Math.min(2, remaining.length - 3);
@@ -720,7 +721,7 @@ async function triggerRematchPrompt(channel) {
   });
 }
 
-  }
+  
 // === Batch 10: Message Commands ===
 client.on('messageCreate', async message => {
   console.log(`[MSG] ${message.author.username}: ${message.content}`);
