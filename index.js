@@ -127,6 +127,94 @@ client.on(Events.InteractionCreate, async interaction => {
   }
 });
 
+async function massRevivalEvent(channel) {
+  const eligible = [...eliminatedPlayers];
+  if (eligible.length === 0) return;
+
+  const resurrectionRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('resurrection_click')
+      .setLabel('💀 Touch the Totem')
+      .setStyle(ButtonStyle.Danger)
+  );
+
+  const prompt = await channel.send({
+    embeds: [{
+      title: '☠️ The Totem of Lost Souls Appears...',
+      description: 'A twisted totem hums with malformed energy. Click below for a **50/50** shot at resurrection.\n\nYou have **4 seconds**. Touch it... or stay forgotten.',
+      color: 0x910000
+    }],
+    components: [resurrectionRow]
+  });
+
+  const collector = prompt.createMessageComponentCollector({ time: 4000 });
+  const braveFools = new Set();
+
+  collector.on('collect', async i => {
+    if (!eliminatedPlayers.find(p => p.id === i.user.id)) {
+      return i.reply({ content: '👻 You aren’t even dead. Nice try.', ephemeral: true });
+    }
+    braveFools.add(i.user.id);
+    i.reply({ content: '💫 The totem accepts your touch...', ephemeral: true });
+  });
+
+  collector.on('end', async () => {
+    await prompt.edit({ components: [] }); // disable the button
+
+    if (braveFools.size === 0) {
+      await channel.send('🪦 No souls were bold enough to risk the totem.');
+      return;
+    }
+
+    // List participants
+    const names = [...braveFools].map(id => `<@${id}>`).join('\n');
+    await channel.send({
+      embeds: [{
+        title: '⏳ The Totem Judged Them...',
+        description: `The following souls reached for resurrection:\n\n${names}\n\nWill they return... or be mocked for eternity?`,
+        color: 0xffcc00
+      }]
+    });
+
+    // Optional: add countdown GIF or animation
+    await channel.send('🕒 3...');
+    await new Promise(r => setTimeout(r, 1000));
+    await channel.send('🕒 2...');
+    await new Promise(r => setTimeout(r, 1000));
+    await channel.send('🕒 1...');
+    await new Promise(r => setTimeout(r, 1000));
+
+    // Decide the outcome
+    const success = Math.random() < 0.5;
+
+    if (success) {
+      for (const id of braveFools) {
+        const player = eliminatedPlayers.find(p => p.id === id);
+        if (player) {
+          remaining.push(player);
+          eliminatedPlayers = eliminatedPlayers.filter(p => p.id !== id);
+        }
+      }
+
+      await channel.send({
+        embeds: [{
+          title: '💥 They Returned!',
+          description: `Against all odds, the totem roared with approval.\n${[...braveFools].map(id => `<@${id}>`).join('\n')} **have re-entered The Gauntlet!**`,
+          color: 0x00cc66
+        }]
+      });
+    } else {
+      await channel.send({
+        embeds: [{
+          title: '🤣 The Totem Laughed...',
+          description: `Not a single soul was accepted.\nInstead, the totem belched out a fart cloud and vanished.\nBetter luck next undeath.`,
+          color: 0xbb0000
+        }]
+      });
+    }
+  });
+}
+
 async function startGauntlet(channel, delay) {
   if (gauntletActive) return;
 
@@ -191,6 +279,9 @@ async function runGauntlet(channel) {
   gauntletActive = false;
   remaining = [...gauntletEntrants];
   let roundCounter = 1;
+
+  let audienceVoteCount = 0;
+  const maxVotesPerGame = Math.floor(Math.random() * 2) + 2; // 2 or 3 votes
 
   const boss = remaining[Math.floor(Math.random() * remaining.length)];
   await channel.send(`👹 A foul stench rises... <@${boss.id}> has been chosen as the **UGLY BOSS**! If they make it to the podium, they earn **double $CHARM**...`);
@@ -272,7 +363,10 @@ if (Math.random() < 0.15) {
     }
   });
 }
-// === Batch 7: Random Boons & Curses (15% chance) ===
+if (Math.random() < 0.2 && eliminatedPlayers.length >= 2) {
+  await massRevivalEvent(channel);
+}
+    // === Batch 7: Random Boons & Curses (15% chance) ===
 if (Math.random() < 0.15 && remaining.length > 2) {
   const shuffled = [...remaining].sort(() => 0.5 - Math.random());
   const affectedPlayers = shuffled.slice(0, Math.floor(Math.random() * 2) + 1);
@@ -298,29 +392,33 @@ if (Math.random() < 0.15 && remaining.length > 2) {
   });
 }
 // === Batch 8: Audience Vote for a Curse (40% chance) ===
+// 🗳️ Audience Vote (only 2–3 per game, anyone can vote)
 let cursedPlayerId = null;
-if (Math.random() < 0.4 && remaining.length >= 3) {
+
+if (audienceVoteCount < maxVotesPerGame && remaining.length >= 3) {
+  audienceVoteCount++;
+
   const pollPlayers = remaining.slice(0, 3);
   const playerList = pollPlayers.map(p => `- <@${p.id}>`).join('\n');
 
-  // Step 1: Introduce the cursed candidates
+  // Reveal vote candidates first
   await channel.send({
     embeds: [{
-      title: '👁️ Audience Vote Incoming...',
-      description: `The malformed crowd stirs...\n\nThe following players are up for a curse:\n\n${playerList}`,
+      title: `👁️ Audience Vote #${audienceVoteCount}`,
+      description: `Three players are up for a potential CURSE:\n\n${playerList}`,
       color: 0xff6666
     }]
   });
 
-  // Step 2: 1-minute discussion in 3 parts
-  await channel.send(`🗣️ Discuss who you want to curse. You have **1 minute**!`);
+  // Discussion countdown
+  await channel.send(`🗣️ Discuss who to curse... you have **1 minute**.`);
   await new Promise(r => setTimeout(r, 20000));
   await channel.send(`⏳ 40 seconds remaining...`);
   await new Promise(r => setTimeout(r, 20000));
-  await channel.send(`⚠️ Final 20 seconds to cast shade!`);
+  await channel.send(`⚠️ Final 20 seconds to cast your suspicions.`);
   await new Promise(r => setTimeout(r, 20000));
 
-  // Step 3: Voting buttons
+  // Vote buttons
   const voteRow = new ActionRowBuilder().addComponents(
     ...pollPlayers.map((p) =>
       new ButtonBuilder()
@@ -329,6 +427,47 @@ if (Math.random() < 0.4 && remaining.length >= 3) {
         .setStyle(ButtonStyle.Secondary)
     )
   );
+
+  const voteMsg = await channel.send({
+    embeds: [{
+      title: '🗳️ Cast Your Curse',
+      description: 'Click a button below to vote. The player with the most votes will be cursed.',
+      color: 0x880808
+    }],
+    components: [voteRow]
+  });
+
+  const voteCounts = {};
+  const voteCollector = voteMsg.createMessageComponentCollector({ time: 15000 });
+  const alreadyVoted = new Set();
+
+  voteCollector.on('collect', interaction => {
+    if (alreadyVoted.has(interaction.user.id)) {
+      return interaction.reply({ content: '🛑 You already voted.', ephemeral: true });
+    }
+
+    alreadyVoted.add(interaction.user.id);
+    const targetId = interaction.customId.split('_')[1];
+    voteCounts[targetId] = (voteCounts[targetId] || 0) + 1;
+
+    interaction.reply({ content: '✅ Your vote has been cast.', ephemeral: true });
+  });
+
+  await new Promise(r => setTimeout(r, 15000));
+
+  // Choose cursed player
+  const maxVotes = Math.max(...Object.values(voteCounts));
+  const cursedIds = Object.entries(voteCounts)
+    .filter(([_, count]) => count === maxVotes)
+    .map(([id]) => id);
+  cursedPlayerId = cursedIds[Math.floor(Math.random() * cursedIds.length)];
+
+  if (cursedPlayerId) {
+    await channel.send(`😨 The audience has chosen... <@${cursedPlayerId}> is **cursed**!`);
+  } else {
+    await channel.send(`👻 No votes were cast. The malformed crowd stays silent.`);
+  }
+}
 
   const voteMsg = await channel.send({
     embeds: [{
