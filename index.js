@@ -611,7 +611,7 @@ if (audienceVoteCount < maxVotesPerGame && remaining.length >= 3 && Math.random(
 
     // 🎨 Embed with Random Ugly NFT
 const tokenId = Math.floor(Math.random() * 574) + 1;
-const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}.jpg`;
+const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}`;
 
 const totalPlayers = gauntletEntrants.length;
 const survivors = remaining.length;
