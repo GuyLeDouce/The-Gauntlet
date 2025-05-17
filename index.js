@@ -252,14 +252,15 @@ async function startGauntlet(channel, delay) {
   });
 
   const totalMs = delay * 60 * 1000;
-  joinTimeout = setTimeout(() => {
-    if (gauntletEntrants.length < 1) {
-      channel.send('Not enough entrants joined. Try again later.');
-      gauntletActive = false;
-    } else {
-      runGauntlet(channel);
-    }
-  }, totalMs);
+  joinTimeout = setTimeout(async () => {
+  if (gauntletEntrants.length < 1) {
+    await channel.send('Not enough entrants joined. Try again later.');
+    gauntletActive = false;
+  } else {
+    await runGauntlet(channel); // ✅ Now inside an async arrow function
+  }
+}, totalMs);
+
 
   const intervalMs = totalMs / 3;
 
