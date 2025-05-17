@@ -45,6 +45,7 @@ let rematchLimitResetTime = Date.now();
 let completedGames = 0;
 let isTrialMode = false;
 let previousRemaining = 0;
+let lastVoteRound = -2; 
 
 // === Game Data Arrays ===
 const trialNames = [
@@ -411,8 +412,12 @@ async function runGauntlet(channel) {
     // === Audience Curse Vote (2–3 times max per game) ===
     let cursedPlayerId = null;
 
-    if (audienceVoteCount < maxVotesPerGame && remaining.length >= 3) {
-      audienceVoteCount++;
+    if (
+  audienceVoteCount < maxVotesPerGame &&
+  remaining.length >= 3 &&
+  roundCounter - lastVoteRound >= 2
+) {
+
 
       const pollPlayers = remaining.slice(0, 3);
       const playerList = pollPlayers.map(p => `- <@${p.id}>`).join('\n');
@@ -478,6 +483,7 @@ async function runGauntlet(channel) {
       } else {
         await channel.send(`👻 No votes were cast. The malformed crowd stays silent.`);
       }
+     lastVoteRound = roundCounter; 
     }
 
     // === Elimination Round ===
