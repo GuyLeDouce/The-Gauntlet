@@ -430,12 +430,9 @@ async function runGauntlet(channel) {
         ]
       });
 
-      await channel.send(`🗣️ Discuss who to curse... you have **1 minute**.`);
+      await channel.send(`🗣️ Discuss who to curse... you have **20 seconds**.`);
       await new Promise(r => setTimeout(r, 20000));
-      await channel.send(`⏳ 40 seconds remaining...`);
-      await new Promise(r => setTimeout(r, 20000));
-      await channel.send(`⚠️ Final 20 seconds to cast your suspicions.`);
-      await new Promise(r => setTimeout(r, 20000));
+
 
       const voteRow = new ActionRowBuilder().addComponents(
         ...pollPlayers.map((p) =>
@@ -449,14 +446,15 @@ async function runGauntlet(channel) {
       const voteMsg = await channel.send({
         embeds: [new EmbedBuilder()
           .setTitle('🗳️ Cast Your Curse')
-          .setDescription('Click a button below to vote. The player with the most votes will be cursed.')
+          .setDescription('Click a button below to vote. You have 10 seconds. The player with the most votes will be cursed.')
+                 
           .setColor(0x880808)
         ],
         components: [voteRow]
       });
 
       const voteCounts = {};
-      const voteCollector = voteMsg.createMessageComponentCollector({ time: 15000 });
+      const voteCollector = voteMsg.createMessageComponentCollector({ time: 10000 });
       const alreadyVoted = new Set();
 
       voteCollector.on('collect', interaction => {
