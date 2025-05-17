@@ -319,7 +319,11 @@ const voteCounts = {};
 const alreadyVoted = new Set();
 
 const voteMsg = await channel.send({
-  content: "🗳️ Voting ends in **15 seconds**. Choose wisely.",
+  embeds: [new EmbedBuilder()
+    .setTitle("👑 Who Should Be the UGLY BOSS?")
+    .setDescription("Vote for who you think should be this game's Ugly Boss.\nThe winner earns **double $CHARM** if they survive to the podium.\n\n🗳️ Voting ends in **15 seconds**. Choose wisely.")
+    .setColor(0x9932cc)
+  ],
   components: [bossVoteRow]
 });
 
