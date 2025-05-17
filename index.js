@@ -610,10 +610,10 @@ if (audienceVoteCount < maxVotesPerGame && remaining.length >= 3 && Math.random(
     }
 
     // 🎨 Embed with Random Ugly NFT
-    const tokenId = Math.floor(Math.random() * 530) + 1;
-    const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}.jpg`;
+const tokenId = Math.floor(Math.random() * 574) + 1;
+const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}.jpg`;
 
-    const totalPlayers = gauntletEntrants.length;
+const totalPlayers = gauntletEntrants.length;
 const survivors = remaining.length;
 
 await channel.send({
