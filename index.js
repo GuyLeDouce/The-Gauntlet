@@ -46,6 +46,7 @@ let completedGames = 0;
 let isTrialMode = false;
 let previousRemaining = 0;
 let lastVoteRound = -2; 
+let totemTriggered = false;
 
 // === Game Data Arrays ===
 const trialNames = [
@@ -427,9 +428,12 @@ await channel.send(`👹 A foul stench rises... <@${boss.id}> has been chosen as
     }
 
     // === Mass Resurrection Totem (20% chance if 2+ eliminated) ===
-    if (Math.random() < 0.1 && eliminatedPlayers.length >= 2) {
-      await massRevivalEvent(channel);
-    }
+    // ✅ Always trigger Totem if 50% or more of the players are eliminated
+const halfEliminated = eliminatedPlayers.length >= Math.floor(gauntletEntrants.length / 2);
+if (halfEliminated && !totemTriggered) {
+  await massRevivalEvent(channel);
+  totemTriggered = true;
+}
 
     // === Boons & Curses (15% chance) ===
     if (Math.random() < 0.15 && remaining.length > 2) {
