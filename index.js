@@ -778,8 +778,8 @@ client.on('messageCreate', async message => {
 // === Batch 12: Send DRIP $CHARM Token Rewards ===
 async function sendCharmToUser(discordUserId, amount, channel = null) {
   const DRIP_API_TOKEN = process.env.DRIP_API_TOKEN;
-  const DRIP_ACCOUNT_ID = '676d81ee502cd15c9c983d81'; // Replace if different
-  const CURRENCY_ID = '1047256251320520705'; // $CHARM token ID
+  const DRIP_ACCOUNT_ID = '676d81ee502cd15c9c983d81';
+  const CURRENCY_ID = '1047256251320520705';
 
   const headers = {
     Authorization: `Bearer ${DRIP_API_TOKEN}`,
@@ -815,9 +815,9 @@ async function sendCharmToUser(discordUserId, amount, channel = null) {
   }
 }
 
-// === Batch 12: Login ===
+// === Batch 13: Bot Ready & Login ===
 client.once('ready', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
-client.login(process.env.DISCORD_TOKEN);
+client.login(process.env.DISCORD_TOKEN); // ✅ FINAL LINE
