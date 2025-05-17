@@ -306,15 +306,6 @@ const bossVoteRow = new ActionRowBuilder().addComponents(
   )
 );
 
-await channel.send({
-  embeds: [new EmbedBuilder()
-    .setTitle("👑 Who Should Be the UGLY BOSS?")
-    .setDescription("Vote for who you think should be this game's Ugly Boss.\nThe winner earns **double $CHARM** if they survive to the podium.")
-    .setColor(0x9932cc)
-  ],
-  components: [bossVoteRow]
-});
-
 const voteCounts = {};
 const alreadyVoted = new Set();
 
