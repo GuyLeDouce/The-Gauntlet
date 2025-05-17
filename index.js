@@ -43,6 +43,8 @@ let rematchClicks = 0;
 let lastGameEntrantCount = 0;
 let rematchesThisHour = 0;
 let rematchLimitResetTime = Date.now();
+let completedGames = 0;
+
 
 const trialNames = [
   "Trial of the Screaming Mire", "The Eldritch Scramble", "Trial of the Shattered Bones",
@@ -584,8 +586,61 @@ async function runGauntlet(channel) {
     ]
   });
 
-   await triggerRematchPrompt(channel);
-} // ✅ THIS LINE closes runGauntlet!
+    await triggerRematchPrompt(channel);
+  
+  // === Batch 13: Rare Mint Incentive Trigger ===
+  completedGames++;
+  if (completedGames >= 50) {
+    completedGames = 0;
+
+    const incentives = [
+      {
+        title: "⚡ First to Mint an Ugly gets 500 $CHARM!",
+        desc: "⏳ You have **5 minutes**. Post proof in <#1334345680461762671>!",
+      },
+      {
+        title: "🧵 First to Tweet their Ugly or Monster + tag @Charm_Ugly gets 100 $CHARM!",
+        desc: "Drop proof in <#1334345680461762671> and the team will verify. GO!",
+      },
+      {
+        title: "💥 Mint 3, Get 1 Free (must open ticket)",
+        desc: "⏳ You have **15 minutes** to mint 3 — and we’ll airdrop 1 more. #UglyLuck",
+      },
+      {
+        title: "👑 Mint 3, Get a FREE MONSTER",
+        desc: "⏳ You have **15 minutes**. Prove it in a ticket and a Monster is yours.",
+      },
+      {
+        title: "🎁 All mints in the next 10 minutes earn +150 $CHARM",
+        desc: "Yes, all. Go go go.",
+      },
+      {
+        title: "🃏 Every mint = 1 raffle entry",
+        desc: "**Next prize:** 1,000 $CHARM! All mints from now to the next milestone are eligible.",
+      },
+      {
+        title: "📸 Lore Challenge Activated!",
+        desc: "Post your Ugly in <#💬┆general-chat> with a 1-liner backstory. Best lore gets 250 $CHARM in 24h.",
+      },
+      {
+        title: "📦 SECRET BOUNTY ⚠️",
+        desc: "One of the next 10 mints will receive... something special. We won't say what.",
+      }
+    ];
+
+    const selected = incentives[Math.floor(Math.random() * incentives.length)];
+    const tokenId = Math.floor(Math.random() * 530) + 1;
+    const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}.jpg`;
+
+    await channel.send({
+      embeds: [new EmbedBuilder()
+        .setTitle(`🎉 RARE MINT INCENTIVE UNLOCKED!`)
+        .setDescription(`**${selected.title}**\n\n${selected.desc}`)
+        .setColor(0xffd700)
+        .setImage(nftImage)
+      ]
+    });
+  }
 
 // === Batch 10: Rematch Vote Logic ===
 async function triggerRematchPrompt(channel) {
