@@ -217,13 +217,13 @@ async function massRevivalEvent(channel) {
   const prompt = await channel.send({
     embeds: [new EmbedBuilder()
       .setTitle('☠️ The Totem of Lost Souls Appears...')
-      .setDescription('A twisted totem hums with malformed energy. Click below for a **50/50** shot at resurrection.\n\nYou have **4 seconds**. Touch it... or stay forgotten.')
+      .setDescription('A twisted totem hums with malformed energy. Click below for a **50/50** shot at resurrection.\n\nYou have **7 seconds**. Touch it... or stay forgotten.')
       .setColor(0x910000)
     ],
     components: [resurrectionRow]
   });
 
-  const collector = prompt.createMessageComponentCollector({ time: 4000 });
+  const collector = prompt.createMessageComponentCollector({ time: 7000 });
   const braveFools = new Set();
 
   collector.on('collect', async i => {
@@ -538,7 +538,7 @@ if (audienceVoteCount < maxVotesPerGame && remaining.length >= 3 && Math.random(
   const playerList = pollPlayers.map(p => `- <@${p.id}>`).join('\n');
 
   await channel.send('👁️ The malformed eyes of the crowd turn toward the players...');
-  await new Promise(r => setTimeout(r, 3000));
+  await new Promise(r => setTimeout(r, 4000));
 
   await channel.send({
     embeds: [new EmbedBuilder()
