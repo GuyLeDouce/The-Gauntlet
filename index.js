@@ -818,7 +818,7 @@ async function triggerRematchPrompt(channel) {
   }
 
   rematchClicks = 0;
-  const neededClicks = lastGameEntrantCount + 1;
+  const neededClicks = Math.ceil(lastGameEntrantCount * 0.75);
   const rematchVoters = new Set();
 
   const buildRematchButton = () =>
@@ -830,7 +830,7 @@ async function triggerRematchPrompt(channel) {
     );
 
   const rematchMsg = await channel.send({
-    content: `The blood is still warm... **${neededClicks} souls** must choose to rematch...`,
+    content: `The blood is still warm... At least **${neededClicks}** brave souls must rise to demand a rematch...`,
     components: [buildRematchButton()]
   });
 
