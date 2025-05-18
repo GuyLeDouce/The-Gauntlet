@@ -47,6 +47,7 @@ let isTrialMode = false;
 let previousRemaining = 0;
 let lastVoteRound = -2; 
 let totemTriggered = false;
+let massReviveTriggered = false;
 
 // === Game Data Arrays ===
 const trialNames = [
@@ -604,7 +605,20 @@ if (audienceVoteCount < maxVotesPerGame && remaining.length >= 3 && Math.random(
     // === Elimination Round ===
     const trial = trialNames[Math.floor(Math.random() * trialNames.length)];
     let eliminationDescriptions = [];
+// === Mass Revive Trigger if under 50% remain ===
+if (!massReviveTriggered && remaining.length < Math.floor(gauntletEntrants.length / 2)) {
+  massReviveTriggered = true;
 
+  const revived = eliminatedPlayers.splice(0, Math.floor(Math.random() * 4) + 1); // revive 1–4 randomly
+  remaining.push(...revived);
+
+  const reviveMessage = new EmbedBuilder()
+    .setTitle('☠️⚡ Mass Resurrection Event ⚡☠️')
+    .setDescription(`The Malformed mist curls...\n${revived.map(p => `💀 <@${p}> claws back to life!`).join('\n') || '...but no one was strong enough to return.'}`)
+    .setColor(0x9b59b6);
+
+  await gauntletChannel.send({ embeds: [reviveMessage] });
+}
     for (let i = 0; i < eliminations; i++) {
       let player;
 
