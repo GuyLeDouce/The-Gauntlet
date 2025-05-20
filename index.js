@@ -308,7 +308,7 @@ async function massRevivalEvent(channel) {
     }
   });
 }
-
+}
 // === Batch 4: Start Gauntlet & Join Countdown ===
 async function startGauntlet(channel, delay) {
   if (gauntletActive) return;
