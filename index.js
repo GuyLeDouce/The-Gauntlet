@@ -434,21 +434,28 @@ await channel.send(`👹 A foul stench rises... <@${boss.id}> has been chosen as
 
 
   while (remaining.length > 3) {
-    const eliminations = Math.min(2, remaining.length - 3);
-    const eliminated = [];
-    roundImmunity = {};
-    activeBoons = {};
-    activeCurses = {};
-    mutationDefenseClicks.clear();
+  const eliminations = Math.min(2, remaining.length - 3);
+  const eliminated = [];
+  roundImmunity = {};
+  activeBoons = {};
+  activeCurses = {};
+  mutationDefenseClicks.clear();
 
-    if (remaining.length === previousRemaining) {
-      await channel.send(`⚠️ No eliminations this round. Skipping to avoid softlock.`);
-      break;
-    }
+  if (remaining.length === previousRemaining) {
+    await channel.send(`⚠️ No eliminations this round. Skipping to avoid softlock.`);
+    break;
+  }
+  previousRemaining = remaining.length;
+
+  // ✅ Add this line here
+  let roundEventFired = false;
+
     previousRemaining = remaining.length;
 
     // === Mutation Defense (20% chance) ===
-    if (Math.random() < 0.1) {
+    if (!roundEventFired && Math.random() < 0.1) {
+  roundEventFired = true;
+
       const mutateRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId('resist_mutation')
@@ -485,7 +492,9 @@ await channel.send(`👹 A foul stench rises... <@${boss.id}> has been chosen as
     }
 
     // === Survival Trap (15% chance) ===
-    if (Math.random() < 0.1) {
+    if (!roundEventFired && Math.random() < 0.1) {
+  roundEventFired = true;
+
       const survivalRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId('survival_click')
@@ -515,13 +524,18 @@ await channel.send(`👹 A foul stench rises... <@${boss.id}> has been chosen as
     // === Mass Resurrection Totem (20% chance if 2+ eliminated) ===
     // ✅ Always trigger Totem if 50% or more of the players are eliminated
 const halfEliminated = eliminatedPlayers.length >= Math.floor(gauntletEntrants.length / 2);
-if (halfEliminated && !totemTriggered) {
+if (!roundEventFired && halfEliminated && !totemTriggered) {
+  roundEventFired = true;
+  totemTriggered = true;
+
   await massRevivalEvent(channel);
   totemTriggered = true;
 }
 
     // === Boons & Curses (15% chance) ===
-    if (Math.random() < 0.15 && remaining.length > 2) {
+    if (!roundEventFired && Math.random() < 0.15 && remaining.length > 2) {
+  roundEventFired = true;
+
       const shuffled = [...remaining].sort(() => 0.5 - Math.random());
       const affectedPlayers = shuffled.slice(0, Math.floor(Math.random() * 2) + 1);
       const fateLines = [];
@@ -552,11 +566,14 @@ if (halfEliminated && !totemTriggered) {
 let cursedPlayerId = null;
 
 if (
+  !roundEventFired &&
   audienceVoteCount < maxVotesPerGame &&
   remaining.length >= 3 &&
   roundCounter >= 3 &&
   Math.random() < 0.25
 ) {
+  roundEventFired = true;
+
   audienceVoteCount++;
 
   const pollPlayers = remaining.slice(0, 3);
