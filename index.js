@@ -548,7 +548,12 @@ if (halfEliminated && !totemTriggered) {
     // === Batch 8–9: Audience Curse Vote (up to 3 times per game, 40% chance per round) ===
 let cursedPlayerId = null;
 
-if (audienceVoteCount < maxVotesPerGame && remaining.length >= 3 && Math.random() < 0.4) {
+if (
+  audienceVoteCount < maxVotesPerGame &&
+  remaining.length >= 3 &&
+  roundCounter >= 3 &&
+  Math.random() < 0.25
+) {
   audienceVoteCount++;
 
   const pollPlayers = remaining.slice(0, 3);
