@@ -174,7 +174,7 @@ const reviveFailLines = [
   "🪤 You triggered a trap trying to live. Good effort though."
 ];
 
-// === Batch 2: Interaction Handlers & Join Button ===
+// === Batch 2: Interaction Handlers & Button Logic ===
 client.on(Events.InteractionCreate, async interaction => {
   if (!interaction.isButton()) return;
 
@@ -201,7 +201,24 @@ client.on(Events.InteractionCreate, async interaction => {
       });
     }
   }
+
+  // === Resurrection Button Logic ===
+  if (interaction.customId === 'resurrection_click') {
+    const isDead = eliminatedPlayers.find(p => p.id === interaction.user.id);
+    if (!isDead) {
+      return interaction.reply({ content: '👻 You aren’t even dead. Nice try.', ephemeral: true });
+    }
+
+    // Prevent duplicate interactions if you want
+    if (isDead.attemptedRevive) {
+      return interaction.reply({ content: '⚰️ You’ve already touched the totem.', ephemeral: true });
+    }
+
+    isDead.attemptedRevive = true;
+    interaction.reply({ content: '💫 The totem accepts your touch...', ephemeral: true });
+  }
 });
+
 // === Batch 3: Mass Resurrection Totem Event ===
 async function massRevivalEvent(channel) {
   const eligible = [...eliminatedPlayers];
