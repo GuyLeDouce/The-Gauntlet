@@ -203,16 +203,7 @@ client.on(Events.InteractionCreate, async interaction => {
   }
 
   // === Resurrection Button Logic ===
-  if (interaction.customId === 'resurrection_click') {
-  if (remaining.find(p => p.id === interaction.user.id)) {
-    return interaction.reply({ content: '🧟 You’re already alive. Back off the totem.', ephemeral: true });
-  }
-
-  interaction.reply({ content: '💫 The totem accepts your touch...', ephemeral: true });
-}
-
-
-// === Batch 3: Mass Resurrection Totem Event ===
+  // === Batch 3: Mass Resurrection Totem Event ===
 async function massRevivalEvent(channel) {
   const resurrectionRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -243,7 +234,7 @@ async function massRevivalEvent(channel) {
   });
 
   collector.on('end', async () => {
-    await prompt.edit({ components: [] }); // disable the button
+    await prompt.edit({ components: [] }); // disable button
 
     if (braveFools.size === 0) {
       await channel.send('🪦 No souls were bold enough to risk the totem.');
@@ -318,26 +309,6 @@ async function massRevivalEvent(channel) {
   });
 }
 
-      }
-
-      await channel.send({
-        embeds: [new EmbedBuilder()
-          .setTitle('💥 They Returned!')
-          .setDescription(`Against all odds, the totem roared with approval.\n${[...braveFools].map(id => `<@${id}>`).join('\n')} **have re-entered The Gauntlet!**`)
-          .setColor(0x00cc66)
-        ]
-      });
-    } else {
-      await channel.send({
-        embeds: [new EmbedBuilder()
-          .setTitle('🤣 The Totem Laughed...')
-          .setDescription(`Not a single soul was accepted.\nInstead, the totem belched out a fart cloud and vanished.\nBetter luck next undeath.`)
-          .setColor(0xbb0000)
-        ]
-      });
-    }
-  });
-}
 // === Batch 4: Start Gauntlet & Join Countdown ===
 async function startGauntlet(channel, delay) {
   if (gauntletActive) return;
