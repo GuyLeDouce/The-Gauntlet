@@ -201,6 +201,8 @@ client.on(Events.InteractionCreate, async interaction => {
       });
     }
   }
+// === End of Interaction Handler ===
+});
 
   
   // === Batch 3: Mass Resurrection Totem Event ===
