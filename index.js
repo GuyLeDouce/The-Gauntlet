@@ -355,17 +355,20 @@ async function startGauntlet(channel, delay) {
 
   const intervalMs = totalMs / 3;
 
-  setTimeout(() => {
-    channel.send(`⏳ One third of the time has passed. **${Math.round((delay * 2) / 3)} minutes left** to join the Gauntlet...`);
-  }, intervalMs);
+  const joinLink = gauntletMessage.url;
 
-  setTimeout(() => {
-    channel.send(`⚠️ Two thirds of the countdown are gone. Only **${Math.round(delay / 3)} minutes** remain to join!`);
-  }, intervalMs * 2);
+setTimeout(() => {
+  channel.send(`@everyone ⏳ **Time is ticking!** One third of the countdown has passed.\nClick the **Join the Gauntlet** button here: ${joinLink}`);
+}, intervalMs);
 
-  setTimeout(() => {
-    channel.send(`🕰️ Final moment! The Gauntlet will begin **any second now...**`);
-  }, totalMs - 5000);
+setTimeout(() => {
+  channel.send(`@everyone ⚠️ **Two thirds down!** Only **${Math.round(delay / 3)} minutes** left to join!\nSummon your courage and join: ${joinLink}`);
+}, intervalMs * 2);
+
+setTimeout(() => {
+  channel.send(`@everyone 🕰️ **Final moments!** The Gauntlet begins **any second now...**\nLast chance to click the join button: ${joinLink}`);
+}, totalMs - 5000);
+
 }
 // === Batch 5: runGauntlet — Setup, Boss, and Round Loop ===
 async function runGauntlet(channel) {
