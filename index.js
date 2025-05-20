@@ -244,9 +244,9 @@ async function massRevivalEvent(channel) {
   const braveFools = new Set();
 
   collector.on('collect', async i => {
-    if (!eliminatedPlayers.find(p => p.id === i.user.id)) {
-      return i.reply({ content: '👻 You aren’t even dead. Nice try.', ephemeral: true });
-    }
+    if (remaining.find(p => p.id === i.user.id)) {
+  return i.reply({ content: '🧟 You’re already alive. Back off the totem.', ephemeral: true });
+}
     braveFools.add(i.user.id);
     i.reply({ content: '💫 The totem accepts your touch...', ephemeral: true });
   });
@@ -280,11 +280,21 @@ async function massRevivalEvent(channel) {
 
     if (success) {
       for (const id of braveFools) {
-        const player = eliminatedPlayers.find(p => p.id === id);
-        if (player) {
-          remaining.push(player);
-          eliminatedPlayers = eliminatedPlayers.filter(p => p.id !== id);
-        }
+  // Try to find them in eliminated list
+  let player = eliminatedPlayers.find(p => p.id === id);
+
+  if (player) {
+    // Revive eliminated player
+    remaining.push(player);
+    eliminatedPlayers = eliminatedPlayers.filter(p => p.id !== id);
+  } else {
+    // New player entering via totem
+    const newPlayer = { id: id, username: (await client.users.fetch(id)).username };
+    remaining.push(newPlayer);
+    gauntletEntrants.push(newPlayer);
+  }
+}
+
       }
 
       await channel.send({
