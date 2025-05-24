@@ -504,35 +504,55 @@ await channel.send(`👹 A foul stench rises... <@${boss.id}> has been chosen as
         : '💥 Not enough resistance. The mutation begins...');
     }
 
-    // === Survival Trap (15% chance) ===
-    if (!roundEventFired && Math.random() < 0.1) {
+// === Survival Trap (15% chance) ===
+if (!roundEventFired && Math.random() < 0.1) {
   roundEventFired = true;
 
-      const survivalRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId('survival_click')
-          .setLabel('🪢 Grab the Rope!')
-          .setStyle(ButtonStyle.Success)
-      );
+  const survivalRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('survival_click')
+      .setLabel('🪢 Grab the Rope!')
+      .setStyle(ButtonStyle.Success)
+  );
 
-      const trapMsg = await channel.send({
-        content: '⏳ A trap is triggered! First 3 to grab the rope will survive this round.',
-        components: [survivalRow]
-      });
+  const trapMsg = await channel.send({
+    content: '⏳ A trap is triggered! First 3 to grab the rope will survive this round.',
+    components: [survivalRow]
+  });
 
-      const survivalCollector = trapMsg.createMessageComponentCollector({ time: 10000 });
-      let saved = 0;
+  const survivalCollector = trapMsg.createMessageComponentCollector({ time: 10000 });
+  let saved = 0;
+  const ropeGrabbers = [];
 
-      survivalCollector.on('collect', async i => {
-        if (saved < 3 && remaining.find(p => p.id === i.user.id)) {
-          roundImmunity[i.user.id] = true;
-          saved++;
-          await i.reply({ content: '🛡️ You grabbed the rope and are protected!', ephemeral: true });
-        } else {
-          await i.reply({ content: '⛔ Too late — the rope has already saved 3!', ephemeral: true });
-        }
-      });
+  survivalCollector.on('collect', async i => {
+    if (saved < 3 && remaining.find(p => p.id === i.user.id)) {
+      roundImmunity[i.user.id] = true;
+      ropeGrabbers.push(`<@${i.user.id}>`);
+      saved++;
+      await i.reply({ content: '🛡️ You grabbed the rope and are protected!', ephemeral: true });
+    } else {
+      await i.reply({ content: '⛔ Too late — the rope has already saved 3!', ephemeral: true });
     }
+  });
+
+  await new Promise(r => setTimeout(r, 10000));
+  await trapMsg.edit({ components: [] });
+
+  // 🪢 Summary message of who grabbed the rope
+  if (ropeGrabbers.length > 0) {
+    await channel.send({
+      embeds: [new EmbedBuilder()
+        .setTitle('🛡️ Rope Survivors')
+        .setDescription(`${ropeGrabbers.join('\n')}\n\nThese players are **immune from elimination** this round.`)
+        .setColor(0x00cc99)
+      ]
+    });
+  } else {
+    await channel.send('☠️ No one grabbed the rope in time. The Gauntlet shows no mercy.');
+  }
+}
+
+
 
     // === Mass Resurrection Totem (20% chance if 2+ eliminated) ===
     // ✅ Always trigger Totem if 50% or more of the players are eliminated
