@@ -774,8 +774,9 @@ if (eliminated.length === 0) {
     await channel.send(`⚠️ No eliminations this round. Continuing cautiously...`);
   }
 } else {
-  noEliminationRounds = 0; // Reset if someone was eliminated
+  noEliminationRounds = 0; // Reset the counter if at least 1 was eliminated
 }
+
 
     roundCounter++;
     await new Promise(r => setTimeout(r, 10000));
