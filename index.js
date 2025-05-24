@@ -680,23 +680,21 @@ if (
     // === Elimination Round ===
     const trial = trialNames[Math.floor(Math.random() * trialNames.length)];
     let eliminationDescriptions = [];
-// === Mass Revive Trigger if under 50% remain ===
-// === Guaranteed Mass Revive when 5 or fewer remain (once per game)
+// === Mass Revival Totem — Triggered Once When 5 or Fewer Remain
 if (!massReviveTriggered && remaining.length <= 5) {
   massReviveTriggered = true;
 
-  const revived = eliminatedPlayers.splice(0, Math.floor(Math.random() * 4) + 1); // revive 1–4 randomly
-  remaining.push(...revived);
+  await channel.send({
+    embeds: [new EmbedBuilder()
+      .setTitle('💀 The Totem Has Awakened')
+      .setDescription(`With only a handful of survivors clinging to life...\n\nThe **Totem of Lost Souls** emerges.\n\nEliminated players and wandering souls may now **touch the Totem**...\nfor a chance to return to the Gauntlet.`)
+      .setColor(0x9932cc)
+    ]
+  });
 
-  const reviveMessage = new EmbedBuilder()
-    .setTitle('☠️⚡ The Final Cry — Resurrection ⚡☠️')
-    .setDescription(`The cursed winds howl…\n${revived.map(p => `💀 <@${p.id}> claws back to life!`).join('\n') || '...but no souls answered the call.'}`)
-    .setColor(0xff00ff);
-
-  await gauntletChannel.send({ embeds: [reviveMessage] });
+  await massRevivalEvent(channel);
 }
-    for (let i = 0; i < eliminations; i++) {
-      let player;
+
 
       // Force cursed player first
       if (i === 0 && cursedPlayerId) {
