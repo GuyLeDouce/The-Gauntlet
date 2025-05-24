@@ -472,18 +472,6 @@ await massRevivalEvent(channel);
   await new Promise(r => setTimeout(r, 3000));
 }
 
-    if (eliminated.length === 0) {
-  noEliminationRounds++;
-  if (noEliminationRounds >= 2) {
-    await channel.send(`⚠️ Two rounds in a row with no eliminations. Ending to avoid softlock.`);
-    break;
-  } else {
-    await channel.send(`⚠️ No eliminations this round. Continuing cautiously...`);
-  }
-} else {
-  noEliminationRounds = 0; // Reset if someone was eliminated
-}
-
 
     previousRemaining = remaining.length;
 
@@ -777,6 +765,17 @@ await massRevivalEvent(channel);
         .setImage(nftImage)
       ]
     });
+if (eliminated.length === 0) {
+  noEliminationRounds++;
+  if (noEliminationRounds >= 2) {
+    await channel.send(`⚠️ Two rounds in a row with no eliminations. Ending to avoid softlock.`);
+    break;
+  } else {
+    await channel.send(`⚠️ No eliminations this round. Continuing cautiously...`);
+  }
+} else {
+  noEliminationRounds = 0; // Reset if someone was eliminated
+}
 
     roundCounter++;
     await new Promise(r => setTimeout(r, 10000));
