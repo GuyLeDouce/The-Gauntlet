@@ -448,6 +448,23 @@ async function runGauntlet(channel) {
     activeBoons = {};
     activeCurses = {};
     mutationDefenseClicks.clear();
+// === Guaranteed Mass Revival when 5 or fewer remain (before anything else)
+if (!massReviveTriggered && remaining.length <= 5) {
+  massReviveTriggered = true;
+
+  await channel.send({
+    embeds: [new EmbedBuilder()
+      .setTitle('💀 The Totem Has Awakened')
+      .setDescription(`With only a handful of survivors clinging to life...\n\nThe **Totem of Lost Souls** emerges.\n\nEliminated players and wandering souls may now **touch the Totem**...\nfor a chance to return to the Gauntlet.`)
+      .setColor(0x9932cc)
+    ]
+  });
+
+  await massRevivalEvent(channel);
+
+  // Pause briefly to let the revivers register before the round continues
+  await new Promise(r => setTimeout(r, 3000));
+}
 
     if (remaining.length === previousRemaining) {
       await channel.send(`⚠️ No eliminations this round. Skipping to avoid softlock.`);
@@ -545,22 +562,7 @@ async function runGauntlet(channel) {
       await channel.send('🪢 The rope vanishes into the mist... the trial resumes soon.');
       await new Promise(r => setTimeout(r, 5000));
     }
-
-    // === Guaranteed Mass Revival when 5 or fewer remain
-   // === Guaranteed Mass Revival when 5 or fewer remain
-if (!massReviveTriggered && remaining.length <= 5) {
-  massReviveTriggered = true;
-
-  await channel.send({
-    embeds: [new EmbedBuilder()
-      .setTitle('💀 The Totem Has Awakened')
-      .setDescription(`With only a handful of survivors clinging to life...\n\nThe **Totem of Lost Souls** emerges.\n\nEliminated players and wandering souls may now **touch the Totem**...\nfor a chance to return to the Gauntlet.`)
-      .setColor(0x9932cc)
-    ]
-  });
-
-  await massRevivalEvent(channel);
-
+  
   // ✅ SKIP the rest of this round to allow revived players to re-enter
   await channel.send('🔄 The Gauntlet shifts… giving space for the newly risen to settle in.');
   continue;
