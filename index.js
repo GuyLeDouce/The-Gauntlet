@@ -856,8 +856,6 @@ async function runGauntlet(channel) {
   }
 }
 
-
-jklhjh
 // === Batch 6: Rematch Vote Logic ===
 async function triggerRematchPrompt(channel) {
   lastGameEntrantCount = gauntletEntrants.length;
