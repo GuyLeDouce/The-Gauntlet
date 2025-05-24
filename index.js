@@ -459,7 +459,6 @@ async function runGauntlet(channel) {
     console.log(`[GAUNTLET] Mass Revival triggered with ${remaining.length} players`);
     await massRevivalEvent(channel);
     await new Promise(r => setTimeout(r, 3000));
-    continue; // ✅ skip rest of this round, resume next
   }
 
   // rest of the round logic...
