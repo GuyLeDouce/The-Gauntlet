@@ -49,6 +49,7 @@ let lastVoteRound = -2;
 let totemTriggered = false;
 let massReviveTriggered = false;
 let nonProgressRounds = 0;
+let noEliminationRounds = 0; // Add this near your other global game state variables
 
 // === Game Data Arrays ===
 const trialNames = [
