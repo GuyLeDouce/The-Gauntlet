@@ -474,8 +474,6 @@ if (!massReviveTriggered && remaining.length <= 5) {
   // Skip the rest of this round — resume cleanly next loop
   continue;
 }
-
-});
     previousRemaining = remaining.length;
 
     let roundEventFired = false;
