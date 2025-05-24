@@ -547,19 +547,25 @@ async function runGauntlet(channel) {
     }
 
     // === Guaranteed Mass Revival when 5 or fewer remain
-    if (!massReviveTriggered && remaining.length <= 5) {
-      massReviveTriggered = true;
+   // === Guaranteed Mass Revival when 5 or fewer remain
+if (!massReviveTriggered && remaining.length <= 5) {
+  massReviveTriggered = true;
 
-      await channel.send({
-        embeds: [new EmbedBuilder()
-          .setTitle('💀 The Totem Has Awakened')
-          .setDescription(`With only a handful of survivors clinging to life...\n\nThe **Totem of Lost Souls** emerges.\n\nEliminated players and wandering souls may now **touch the Totem**...\nfor a chance to return to the Gauntlet.`)
-          .setColor(0x9932cc)
-        ]
-      });
+  await channel.send({
+    embeds: [new EmbedBuilder()
+      .setTitle('💀 The Totem Has Awakened')
+      .setDescription(`With only a handful of survivors clinging to life...\n\nThe **Totem of Lost Souls** emerges.\n\nEliminated players and wandering souls may now **touch the Totem**...\nfor a chance to return to the Gauntlet.`)
+      .setColor(0x9932cc)
+    ]
+  });
 
-      await massRevivalEvent(channel);
-    }
+  await massRevivalEvent(channel);
+
+  // ✅ SKIP the rest of this round to allow revived players to re-enter
+  await channel.send('🔄 The Gauntlet shifts… giving space for the newly risen to settle in.');
+  continue;
+}
+
     // === Boons & Curses (15% chance)
     if (!roundEventFired && Math.random() < 0.15 && remaining.length > 2) {
       roundEventFired = true;
