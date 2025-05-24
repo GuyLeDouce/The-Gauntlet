@@ -468,10 +468,11 @@ console.log(`[GAUNTLET] Mass Revival triggered with ${remaining.length} players`
 
 await massRevivalEvent(channel);
 
-  // Pause briefly to let the revivers register before the round continues
-  await new Promise(r => setTimeout(r, 3000));
-}
+// Pause briefly to let the revivers register before the round continues
+await new Promise(r => setTimeout(r, 3000));
 
+// Skip the rest of this round — resume cleanly next loop
+continue;
 
     previousRemaining = remaining.length;
 
