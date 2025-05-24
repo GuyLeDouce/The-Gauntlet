@@ -661,16 +661,17 @@ if (
     const trial = trialNames[Math.floor(Math.random() * trialNames.length)];
     let eliminationDescriptions = [];
 // === Mass Revive Trigger if under 50% remain ===
-if (!massReviveTriggered && remaining.length < Math.floor(gauntletEntrants.length / 2)) {
+// === Guaranteed Mass Revive when 5 or fewer remain (once per game)
+if (!massReviveTriggered && remaining.length <= 5) {
   massReviveTriggered = true;
 
   const revived = eliminatedPlayers.splice(0, Math.floor(Math.random() * 4) + 1); // revive 1–4 randomly
   remaining.push(...revived);
 
   const reviveMessage = new EmbedBuilder()
-    .setTitle('☠️⚡ Mass Resurrection Event ⚡☠️')
-    .setDescription(`The Malformed mist curls...\n${revived.map(p => `💀 <@${p}> claws back to life!`).join('\n') || '...but no one was strong enough to return.'}`)
-    .setColor(0x9b59b6);
+    .setTitle('☠️⚡ The Final Cry — Resurrection ⚡☠️')
+    .setDescription(`The cursed winds howl…\n${revived.map(p => `💀 <@${p.id}> claws back to life!`).join('\n') || '...but no souls answered the call.'}`)
+    .setColor(0xff00ff);
 
   await gauntletChannel.send({ embeds: [reviveMessage] });
 }
