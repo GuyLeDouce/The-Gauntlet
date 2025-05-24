@@ -453,7 +453,7 @@ async function runGauntlet(channel) {
     activeCurses = {};
     mutationDefenseClicks.clear();
 // === Guaranteed Mass Revival when 5 or fewer remain (before anything else)
-if (!massReviveTriggered && remaining.length <= 5) {
+if (!massReviveTriggered && remaining.length <= Math.floor(gauntletEntrants.length / 3)) {
   massReviveTriggered = true;
 
   await channel.send({
