@@ -472,16 +472,17 @@ await massRevivalEvent(channel);
 }
 
     if (eliminated.length === 0) {
-  nonProgressRounds++;
-  if (nonProgressRounds >= 2) {
-    await channel.send(`⚠️ Two rounds passed with no eliminations. The Gauntlet stalls in eerie silence...`);
+  noEliminationRounds++;
+  if (noEliminationRounds >= 2) {
+    await channel.send(`⚠️ Two rounds in a row with no eliminations. Ending to avoid softlock.`);
     break;
   } else {
-    await channel.send(`⚠️ No eliminations this round. The spirits watch in confusion...`);
+    await channel.send(`⚠️ No eliminations this round. Continuing cautiously...`);
   }
 } else {
-  nonProgressRounds = 0; // Reset counter if any player was eliminated
+  noEliminationRounds = 0; // Reset if someone was eliminated
 }
+
 
     previousRemaining = remaining.length;
 
