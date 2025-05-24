@@ -336,6 +336,8 @@ async function startGauntlet(channel, delay) {
   hideAttempts = {};
   mutationDefenseClicks = new Set();
   rematchClicks = 0;
+  massReviveTriggered = false; // ✅ Reset Mass Revival for each new game
+
 
   gauntletChannel = channel;
   currentDelay = delay;
@@ -736,7 +738,7 @@ await massRevivalEvent(channel);
     }
 
     // 💫 Rare Resurrection (15% chance)
-    if (eliminated.length && Math.random() < 0.15) {
+    if (eliminated.length && Math.random() < 0.35) {
       const reviveIndex = Math.floor(Math.random() * eliminated.length);
       const revived = eliminated.splice(reviveIndex, 1)[0];
       if (revived) {
