@@ -470,10 +470,10 @@ await massRevivalEvent(channel);
   await new Promise(r => setTimeout(r, 3000));
 }
 
-    if (remaining.length === previousRemaining) {
-      await channel.send(`⚠️ No eliminations this round. Skipping to avoid softlock.`);
-      break;
-    }
+    if (eliminated.length === 0) {
+  await channel.send(`⚠️ No eliminations this round. Skipping to avoid softlock.`);
+  break;
+}
     previousRemaining = remaining.length;
 
     let roundEventFired = false;
