@@ -472,13 +472,6 @@ async function runGauntlet(channel) {
     activeCurses = {};
     mutationDefenseClicks.clear();
 
-  // Pause briefly to let the revivers register before the round continues
-  await new Promise(r => setTimeout(r, 3000));
-
-  // Skip the rest of this round — resume cleanly next loop
-  continue;
-}
-
     previousRemaining = remaining.length;
 
     let roundEventFired = false;
