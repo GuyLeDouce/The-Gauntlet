@@ -462,7 +462,7 @@ if (!massReviveTriggered && remaining.length <= 5) {
     .setDescription(`With only a handful of survivors clinging to life...\n\nThe **Totem of Lost Souls** emerges.\n\nEliminated players and wandering souls may now **touch the Totem**...\nfor a chance to return to the Gauntlet.`)
     .setColor(0x9932cc)
   ]
-});
+
 
 console.log(`[GAUNTLET] Mass Revival triggered with ${remaining.length} players`);
 
@@ -473,7 +473,7 @@ await new Promise(r => setTimeout(r, 3000));
 
 // Skip the rest of this round — resume cleanly next loop
 continue;
-
+});
     previousRemaining = remaining.length;
 
     let roundEventFired = false;
