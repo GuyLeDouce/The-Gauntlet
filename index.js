@@ -562,11 +562,6 @@ if (!massReviveTriggered && remaining.length <= 5) {
       await channel.send('🪢 The rope vanishes into the mist... the trial resumes soon.');
       await new Promise(r => setTimeout(r, 5000));
     }
-  
-  // ✅ SKIP the rest of this round to allow revived players to re-enter
-  await channel.send('🔄 The Gauntlet shifts… giving space for the newly risen to settle in.');
-  continue;
-}
 
     // === Boons & Curses (15% chance)
     if (!roundEventFired && Math.random() < 0.15 && remaining.length > 2) {
