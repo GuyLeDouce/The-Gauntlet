@@ -768,7 +768,6 @@ if (eliminated.length === 0) {
   noEliminationRounds++;
   if (noEliminationRounds >= 2) {
     await channel.send(`⚠️ Two rounds in a row with no eliminations. Ending to avoid softlock.`);
-    break;
   } else {
     await channel.send(`⚠️ No eliminations this round. Continuing cautiously...`);
   }
