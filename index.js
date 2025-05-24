@@ -560,7 +560,6 @@ async function runGauntlet(channel) {
 
       await massRevivalEvent(channel);
     }
-
     // === Boons & Curses (15% chance)
     if (!roundEventFired && Math.random() < 0.15 && remaining.length > 2) {
       roundEventFired = true;
@@ -668,6 +667,10 @@ async function runGauntlet(channel) {
         await channel.send(`👻 No votes were cast. The malformed crowd stays silent.`);
       }
     }
+
+    // === Elimination Round Begins
+    const trial = trialNames[Math.floor(Math.random() * trialNames.length)];
+    let eliminationDescriptions = [];
     for (let i = 0; i < eliminations; i++) {
       let player;
 
@@ -756,6 +759,10 @@ async function runGauntlet(channel) {
         .setImage(nftImage)
       ]
     });
+
+    roundCounter++;
+    await new Promise(r => setTimeout(r, 10000));
+  } // End of while (remaining.length > 3)
   // 🏆 Finalists + Rewards
   if (remaining.length < 3) {
     await channel.send('⚠️ Not enough players remain to crown a full podium. Ending game.');
@@ -848,6 +855,9 @@ async function runGauntlet(channel) {
     });
   }
 }
+
+
+jklhjh
 // === Batch 6: Rematch Vote Logic ===
 async function triggerRematchPrompt(channel) {
   lastGameEntrantCount = gauntletEntrants.length;
