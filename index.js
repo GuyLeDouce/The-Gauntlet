@@ -445,20 +445,26 @@ async function runGauntlet(channel) {
   const boss = remaining.find(p => p.id === bossId);
 
   await channel.send(`👹 A foul stench rises... <@${boss.id}> has been chosen as the **UGLY BOSS**! If they make it to the podium, they earn **double $CHARM**...`);
+  while (remaining.length > 3) {
   if (!massReviveTriggered && remaining.length <= Math.floor(gauntletEntrants.length / 3)) {
     massReviveTriggered = true;
+
     await channel.send({
       embeds: [new EmbedBuilder()
         .setTitle('💀 The Totem Has Awakened')
         .setDescription(`With only a handful of survivors clinging to life...\n\nThe **Totem of Lost Souls** emerges.\n\nEliminated players and wandering souls may now **touch the Totem**...\nfor a chance to return to the Gauntlet.`)
         .setColor(0x9932cc)]
     });
+
     console.log(`[GAUNTLET] Mass Revival triggered with ${remaining.length} players`);
     await massRevivalEvent(channel);
     await new Promise(r => setTimeout(r, 3000));
+    continue; // ✅ skip rest of this round, resume next
   }
 
-  while (remaining.length > 3) {
+  // rest of the round logic...
+}
+
     const eliminations = Math.min(2, remaining.length - 3);
     const eliminated = [];
     roundImmunity = {};
