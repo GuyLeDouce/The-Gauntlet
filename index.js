@@ -48,6 +48,7 @@ let previousRemaining = 0;
 let lastVoteRound = -2; 
 let totemTriggered = false;
 let massReviveTriggered = false;
+let nonProgressRounds = 0;
 
 // === Game Data Arrays ===
 const trialNames = [
@@ -471,9 +472,17 @@ await massRevivalEvent(channel);
 }
 
     if (eliminated.length === 0) {
-  await channel.send(`⚠️ No eliminations this round. Skipping to avoid softlock.`);
-  break;
+  nonProgressRounds++;
+  if (nonProgressRounds >= 2) {
+    await channel.send(`⚠️ Two rounds passed with no eliminations. The Gauntlet stalls in eerie silence...`);
+    break;
+  } else {
+    await channel.send(`⚠️ No eliminations this round. The spirits watch in confusion...`);
+  }
+} else {
+  nonProgressRounds = 0; // Reset counter if any player was eliminated
 }
+
     previousRemaining = remaining.length;
 
     let roundEventFired = false;
