@@ -459,7 +459,9 @@ if (!massReviveTriggered && remaining.length <= 5) {
       .setColor(0x9932cc)
     ]
     console.log(`[GAUNTLET] Mass Revival triggered with ${remaining.length} players`);
-  });
+await massRevivalEvent(channel);
+}
+
 
   await massRevivalEvent(channel);
 
