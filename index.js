@@ -445,6 +445,19 @@ async function runGauntlet(channel) {
   const boss = remaining.find(p => p.id === bossId);
 
   await channel.send(`👹 A foul stench rises... <@${boss.id}> has been chosen as the **UGLY BOSS**! If they make it to the podium, they earn **double $CHARM**...`);
+  if (!massReviveTriggered && remaining.length <= Math.floor(gauntletEntrants.length / 3)) {
+    massReviveTriggered = true;
+    await channel.send({
+      embeds: [new EmbedBuilder()
+        .setTitle('💀 The Totem Has Awakened')
+        .setDescription(`With only a handful of survivors clinging to life...\n\nThe **Totem of Lost Souls** emerges.\n\nEliminated players and wandering souls may now **touch the Totem**...\nfor a chance to return to the Gauntlet.`)
+        .setColor(0x9932cc)]
+    });
+    console.log(`[GAUNTLET] Mass Revival triggered with ${remaining.length} players`);
+    await massRevivalEvent(channel);
+    await new Promise(r => setTimeout(r, 3000));
+  }
+
   while (remaining.length > 3) {
     const eliminations = Math.min(2, remaining.length - 3);
     const eliminated = [];
@@ -452,21 +465,6 @@ async function runGauntlet(channel) {
     activeBoons = {};
     activeCurses = {};
     mutationDefenseClicks.clear();
-// === Guaranteed Mass Revival when 1/3 or fewer remain (before anything else)
-if (!massReviveTriggered && remaining.length <= Math.floor(gauntletEntrants.length / 3)) {
-  massReviveTriggered = true;
-
-  await channel.send({
-    embeds: [new EmbedBuilder()
-      .setTitle('💀 The Totem Has Awakened')
-      .setDescription(`With only a handful of survivors clinging to life...\n\nThe **Totem of Lost Souls** emerges.\n\nEliminated players and wandering souls may now **touch the Totem**...\nfor a chance to return to the Gauntlet.`)
-      .setColor(0x9932cc)
-    ]
-  });
-
-  console.log(`[GAUNTLET] Mass Revival triggered with ${remaining.length} players`);
-
-  await massRevivalEvent(channel);
 
   // Pause briefly to let the revivers register before the round continues
   await new Promise(r => setTimeout(r, 3000));
