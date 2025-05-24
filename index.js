@@ -383,91 +383,83 @@ setTimeout(() => {
 }, totalMs - 5000);
 
 }
-// === Batch 5: runGauntlet — Setup, Boss, and Round Loop ===
 async function runGauntlet(channel) {
   gauntletActive = false;
   remaining = [...gauntletEntrants];
   let roundCounter = 1;
   let audienceVoteCount = 0;
   let previousRemaining = -1;
-  const maxVotesPerGame = Math.floor(Math.random() * 2) + 2; // 2 or 3 audience votes per game
-// === Boss Vote (NEW) ===
-const bossCandidates = [...remaining].sort(() => 0.5 - Math.random()).slice(0, 5);
+  const maxVotesPerGame = Math.floor(Math.random() * 2) + 2;
 
-const voteButtons = bossCandidates.map((p) =>
-  new ButtonBuilder()
-    .setCustomId(`boss_vote_${p.id}`)
-    .setLabel(`Vote ${p.username}`)
-    .setStyle(ButtonStyle.Secondary)
-);
+  // === Boss Vote (NEW) ===
+  const bossCandidates = [...remaining].sort(() => 0.5 - Math.random()).slice(0, 5);
 
-// Wrap buttons in an ActionRow (1 row if ≤5 buttons)
-const bossVoteRow = new ActionRowBuilder().addComponents(...voteButtons);
+  const voteButtons = bossCandidates.map((p) =>
+    new ButtonBuilder()
+      .setCustomId(`boss_vote_${p.id}`)
+      .setLabel(`Vote ${p.username}`)
+      .setStyle(ButtonStyle.Secondary)
+  );
 
-const voteCounts = {};
-const alreadyVoted = new Set();
+  const bossVoteRow = new ActionRowBuilder().addComponents(...voteButtons);
+  const voteCounts = {};
+  const alreadyVoted = new Set();
 
-const voteMsg = await channel.send({
-  embeds: [new EmbedBuilder()
-    .setTitle("👑 Who Should Be the UGLY BOSS?")
-    .setDescription("Vote for who you think should be this game's Ugly Boss.\nThe winner earns **double $CHARM** if they survive to the podium.\n\n🗳️ Voting ends in **15 seconds**. Choose wisely.")
-    .setColor(0x9932cc)
-  ],
-  components: [bossVoteRow] // must be an array of ActionRows
-});
+  const voteMsg = await channel.send({
+    embeds: [new EmbedBuilder()
+      .setTitle("👑 Who Should Be the UGLY BOSS?")
+      .setDescription("Vote for who you think should be this game's Ugly Boss.\nThe winner earns **double $CHARM** if they survive to the podium.\n\n🗳️ Voting ends in **15 seconds**. Choose wisely.")
+      .setColor(0x9932cc)
+    ],
+    components: [bossVoteRow]
+  });
 
+  const voteCollector = voteMsg.createMessageComponentCollector({ time: 15000 });
 
-const voteCollector = voteMsg.createMessageComponentCollector({ time: 15000 });
+  voteCollector.on('collect', async interaction => {
+    if (alreadyVoted.has(interaction.user.id)) {
+      return interaction.reply({ content: '❌ You already voted for the Ugly Boss.', ephemeral: true });
+    }
+    alreadyVoted.add(interaction.user.id);
+    const selectedId = interaction.customId.replace('boss_vote_', '');
+    voteCounts[selectedId] = (voteCounts[selectedId] || 0) + 1;
+    await interaction.reply({ content: `✅ Your vote has been cast.`, ephemeral: true });
+  });
 
-voteCollector.on('collect', async interaction => {
-  if (alreadyVoted.has(interaction.user.id)) {
-    return interaction.reply({ content: '❌ You already voted for the Ugly Boss.', ephemeral: true });
-  }
-  alreadyVoted.add(interaction.user.id);
-  const selectedId = interaction.customId.replace('boss_vote_', '');
-  voteCounts[selectedId] = (voteCounts[selectedId] || 0) + 1;
-  await interaction.reply({ content: `✅ Your vote has been cast.`, ephemeral: true });
-});
+  await new Promise(r => setTimeout(r, 15000));
+  await voteMsg.edit({ components: [] });
 
-await new Promise(r => setTimeout(r, 15000));
-await voteMsg.edit({ components: [] });
+  const maxVotes = Math.max(...Object.values(voteCounts), 0);
+  const topCandidates = Object.entries(voteCounts)
+    .filter(([_, count]) => count === maxVotes)
+    .map(([id]) => id);
 
-const maxVotes = Math.max(...Object.values(voteCounts), 0);
-const topCandidates = Object.entries(voteCounts)
-  .filter(([_, count]) => count === maxVotes)
-  .map(([id]) => id);
+  const bossId = topCandidates.length
+    ? topCandidates[Math.floor(Math.random() * topCandidates.length)]
+    : bossCandidates[Math.floor(Math.random() * bossCandidates.length)].id;
 
-const bossId = topCandidates.length
-  ? topCandidates[Math.floor(Math.random() * topCandidates.length)]
-  : bossCandidates[Math.floor(Math.random() * bossCandidates.length)].id;
+  const boss = remaining.find(p => p.id === bossId);
 
-const boss = remaining.find(p => p.id === bossId);
-
-await channel.send(`👹 A foul stench rises... <@${boss.id}> has been chosen as the **UGLY BOSS**! If they make it to the podium, they earn **double $CHARM**...`);
-
-
+  await channel.send(`👹 A foul stench rises... <@${boss.id}> has been chosen as the **UGLY BOSS**! If they make it to the podium, they earn **double $CHARM**...`);
   while (remaining.length > 3) {
-  const eliminations = Math.min(2, remaining.length - 3);
-  const eliminated = [];
-  roundImmunity = {};
-  activeBoons = {};
-  activeCurses = {};
-  mutationDefenseClicks.clear();
+    const eliminations = Math.min(2, remaining.length - 3);
+    const eliminated = [];
+    roundImmunity = {};
+    activeBoons = {};
+    activeCurses = {};
+    mutationDefenseClicks.clear();
 
-  if (remaining.length === previousRemaining) {
-    await channel.send(`⚠️ No eliminations this round. Skipping to avoid softlock.`);
-    break;
-  }
-  previousRemaining = remaining.length;
-
-  // ✅ Add this line here
-  let roundEventFired = false;
-
+    if (remaining.length === previousRemaining) {
+      await channel.send(`⚠️ No eliminations this round. Skipping to avoid softlock.`);
+      break;
+    }
     previousRemaining = remaining.length;
 
-    // === Mutation Defense (20% chance) ===
+    let roundEventFired = false;
+
+    // === Mutation Defense (10% chance)
     if (!roundEventFired && Math.random() < 0.1) {
-  roundEventFired = true;
+      roundEventFired = true;
 
       const mutateRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -504,70 +496,74 @@ await channel.send(`👹 A foul stench rises... <@${boss.id}> has been chosen as
         : '💥 Not enough resistance. The mutation begins...');
     }
 
-// === Survival Trap (15% chance) ===
-if (!roundEventFired && Math.random() < 0.1) {
-  roundEventFired = true;
+    // === Survival Trap (10% chance)
+    if (!roundEventFired && Math.random() < 0.1) {
+      roundEventFired = true;
 
-  const survivalRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('survival_click')
-      .setLabel('🪢 Grab the Rope!')
-      .setStyle(ButtonStyle.Success)
-  );
+      const survivalRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('survival_click')
+          .setLabel('🪢 Grab the Rope!')
+          .setStyle(ButtonStyle.Success)
+      );
 
-  const trapMsg = await channel.send({
-    content: '⏳ A trap is triggered! First 3 to grab the rope will survive this round.',
-    components: [survivalRow]
-  });
+      const trapMsg = await channel.send({
+        content: '⏳ A trap is triggered! First 3 to grab the rope will survive this round.',
+        components: [survivalRow]
+      });
 
-  const survivalCollector = trapMsg.createMessageComponentCollector({ time: 10000 });
-  let saved = 0;
-  const ropeGrabbers = [];
+      const survivalCollector = trapMsg.createMessageComponentCollector({ time: 10000 });
+      let saved = 0;
+      const ropeGrabbers = [];
 
-  survivalCollector.on('collect', async i => {
-    if (saved < 3 && remaining.find(p => p.id === i.user.id)) {
-      roundImmunity[i.user.id] = true;
-      ropeGrabbers.push(`<@${i.user.id}>`);
-      saved++;
-      await i.reply({ content: '🛡️ You grabbed the rope and are protected!', ephemeral: true });
-    } else {
-      await i.reply({ content: '⛔ Too late — the rope has already saved 3!', ephemeral: true });
+      survivalCollector.on('collect', async i => {
+        if (saved < 3 && remaining.find(p => p.id === i.user.id)) {
+          roundImmunity[i.user.id] = true;
+          ropeGrabbers.push(`<@${i.user.id}>`);
+          saved++;
+          await i.reply({ content: '🛡️ You grabbed the rope and are protected!', ephemeral: true });
+        } else {
+          await i.reply({ content: '⛔ Too late — the rope has already saved 3!', ephemeral: true });
+        }
+      });
+
+      await new Promise(r => setTimeout(r, 10000));
+      await trapMsg.edit({ components: [] });
+
+      if (ropeGrabbers.length > 0) {
+        await channel.send({
+          embeds: [new EmbedBuilder()
+            .setTitle('🛡️ Rope Survivors')
+            .setDescription(`${ropeGrabbers.join('\n')}\n\nThese players are **immune from elimination** this round.`)
+            .setColor(0x00cc99)
+          ]
+        });
+      } else {
+        await channel.send('☠️ No one grabbed the rope in time. The Gauntlet shows no mercy.');
+      }
+
+      await channel.send('🪢 The rope vanishes into the mist... the trial resumes soon.');
+      await new Promise(r => setTimeout(r, 5000));
     }
-  });
 
-  await new Promise(r => setTimeout(r, 10000));
-  await trapMsg.edit({ components: [] });
+    // === Guaranteed Mass Revival when 5 or fewer remain
+    if (!massReviveTriggered && remaining.length <= 5) {
+      massReviveTriggered = true;
 
-  // 🪢 Summary message of who grabbed the rope
-  if (ropeGrabbers.length > 0) {
-    await channel.send({
-      embeds: [new EmbedBuilder()
-        .setTitle('🛡️ Rope Survivors')
-        .setDescription(`${ropeGrabbers.join('\n')}\n\nThese players are **immune from elimination** this round.`)
-        .setColor(0x00cc99)
-      ]
-    });
-  } else {
-    await channel.send('☠️ No one grabbed the rope in time. The Gauntlet shows no mercy.');
-  }
-}
+      await channel.send({
+        embeds: [new EmbedBuilder()
+          .setTitle('💀 The Totem Has Awakened')
+          .setDescription(`With only a handful of survivors clinging to life...\n\nThe **Totem of Lost Souls** emerges.\n\nEliminated players and wandering souls may now **touch the Totem**...\nfor a chance to return to the Gauntlet.`)
+          .setColor(0x9932cc)
+        ]
+      });
 
+      await massRevivalEvent(channel);
+    }
 
-
-    // === Mass Resurrection Totem (20% chance if 2+ eliminated) ===
-    // ✅ Always trigger Totem if 50% or more of the players are eliminated
-const halfEliminated = eliminatedPlayers.length >= Math.floor(gauntletEntrants.length / 2);
-if (!roundEventFired && halfEliminated && !totemTriggered) {
-  roundEventFired = true;
-  totemTriggered = true;
-
-  await massRevivalEvent(channel);
-  totemTriggered = true;
-}
-
-    // === Boons & Curses (15% chance) ===
+    // === Boons & Curses (15% chance)
     if (!roundEventFired && Math.random() < 0.15 && remaining.length > 2) {
-  roundEventFired = true;
+      roundEventFired = true;
 
       const shuffled = [...remaining].sort(() => 0.5 - Math.random());
       const affectedPlayers = shuffled.slice(0, Math.floor(Math.random() * 2) + 1);
@@ -593,108 +589,87 @@ if (!roundEventFired && halfEliminated && !totemTriggered) {
       });
     }
 
-    // 🔜 Next batch will handle Audience Vote and Eliminations
-    // === Audience Curse Vote (2–3 times max per game) ===
-    // === Batch 8–9: Audience Curse Vote (up to 3 times per game, 40% chance per round) ===
-let cursedPlayerId = null;
+    // === Audience Curse Vote (2–3 times max per game)
+    let cursedPlayerId = null;
 
-if (
-  !roundEventFired &&
-  audienceVoteCount < maxVotesPerGame &&
-  remaining.length >= 3 &&
-  roundCounter >= 3 &&
-  Math.random() < 0.25
-) {
-  roundEventFired = true;
+    if (
+      !roundEventFired &&
+      audienceVoteCount < maxVotesPerGame &&
+      remaining.length >= 3 &&
+      roundCounter >= 3 &&
+      Math.random() < 0.25
+    ) {
+      roundEventFired = true;
+      audienceVoteCount++;
 
-  audienceVoteCount++;
+      const pollPlayers = remaining.slice(0, 3);
+      const playerList = pollPlayers.map(p => `- <@${p.id}>`).join('\n');
 
-  const pollPlayers = remaining.slice(0, 3);
-  const playerList = pollPlayers.map(p => `- <@${p.id}>`).join('\n');
+      await channel.send('👁️ The malformed eyes of the crowd turn toward the players...');
+      await new Promise(r => setTimeout(r, 4000));
 
-  await channel.send('👁️ The malformed eyes of the crowd turn toward the players...');
-  await new Promise(r => setTimeout(r, 4000));
+      await channel.send({
+        embeds: [new EmbedBuilder()
+          .setTitle(`👁️ Audience Vote #${audienceVoteCount}`)
+          .setDescription(`Three players are up for a potential CURSE:\n\n${playerList}`)
+          .setColor(0xff6666)
+        ]
+      });
 
-  await channel.send({
-    embeds: [new EmbedBuilder()
-      .setTitle(`👁️ Audience Vote #${audienceVoteCount}`)
-      .setDescription(`Three players are up for a potential CURSE:\n\n${playerList}`)
-      .setColor(0xff6666)
-    ]
-  });
+      await channel.send(`🗣️ Discuss who to curse... you have **20 seconds**.`);
+      await new Promise(r => setTimeout(r, 10000));
+      await channel.send(`⏳ 10 seconds remaining...`);
+      await new Promise(r => setTimeout(r, 10000));
 
-  await channel.send(`🗣️ Discuss who to curse... you have **20 seconds**.`);
-  await new Promise(r => setTimeout(r, 10000));
-  await channel.send(`⏳ 10 seconds remaining...`);
-  await new Promise(r => setTimeout(r, 10000));
+      const voteRow = new ActionRowBuilder().addComponents(
+        ...pollPlayers.map((p) =>
+          new ButtonBuilder()
+            .setCustomId(`vote_${p.id}`)
+            .setLabel(`Curse ${p.username}`)
+            .setStyle(ButtonStyle.Secondary)
+        )
+      );
 
-  const voteRow = new ActionRowBuilder().addComponents(
-    ...pollPlayers.map((p) =>
-      new ButtonBuilder()
-        .setCustomId(`vote_${p.id}`)
-        .setLabel(`Curse ${p.username}`)
-        .setStyle(ButtonStyle.Secondary)
-    )
-  );
+      const voteMsg = await channel.send({
+        embeds: [new EmbedBuilder()
+          .setTitle('🗳️ Cast Your Curse')
+          .setDescription('Click a button below to vote. The player with the most votes will be cursed.\nYou have **10 seconds**.')
+          .setColor(0x880808)
+        ],
+        components: [voteRow]
+      });
 
-  const voteMsg = await channel.send({
-    embeds: [new EmbedBuilder()
-      .setTitle('🗳️ Cast Your Curse')
-      .setDescription('Click a button below to vote. The player with the most votes will be cursed.\nYou have **10 seconds**.')
-      .setColor(0x880808)
-    ],
-    components: [voteRow]
-  });
+      const voteCounts = {};
+      const voteCollector = voteMsg.createMessageComponentCollector({ time: 10000 });
+      const alreadyVoted = new Set();
 
-  const voteCounts = {};
-  const voteCollector = voteMsg.createMessageComponentCollector({ time: 10000 });
-  const alreadyVoted = new Set();
+      voteCollector.on('collect', interaction => {
+        if (alreadyVoted.has(interaction.user.id)) {
+          return interaction.reply({ content: '🛑 You already voted.', ephemeral: true });
+        }
+        alreadyVoted.add(interaction.user.id);
+        const targetId = interaction.customId.split('_')[1];
+        voteCounts[targetId] = (voteCounts[targetId] || 0) + 1;
+        interaction.reply({ content: '✅ Your vote has been cast.', ephemeral: true });
+      });
 
-  voteCollector.on('collect', interaction => {
-    if (alreadyVoted.has(interaction.user.id)) {
-      return interaction.reply({ content: '🛑 You already voted.', ephemeral: true });
+      await new Promise(r => setTimeout(r, 10000));
+
+      const maxVotes = Math.max(...Object.values(voteCounts));
+      const cursedIds = Object.entries(voteCounts)
+        .filter(([_, count]) => count === maxVotes)
+        .map(([id]) => id);
+      cursedPlayerId = cursedIds[Math.floor(Math.random() * cursedIds.length)];
+
+      if (cursedPlayerId) {
+        activeCurses[cursedPlayerId] = true;
+        await channel.send(`😨 The audience has spoken. <@${cursedPlayerId}> is **cursed**!`);
+      } else {
+        await channel.send(`👻 No votes were cast. The malformed crowd stays silent.`);
+      }
     }
-    alreadyVoted.add(interaction.user.id);
-    const targetId = interaction.customId.split('_')[1];
-    voteCounts[targetId] = (voteCounts[targetId] || 0) + 1;
-    interaction.reply({ content: '✅ Your vote has been cast.', ephemeral: true });
-  });
-
-  await new Promise(r => setTimeout(r, 10000));
-
-  const maxVotes = Math.max(...Object.values(voteCounts));
-  const cursedIds = Object.entries(voteCounts)
-    .filter(([_, count]) => count === maxVotes)
-    .map(([id]) => id);
-  cursedPlayerId = cursedIds[Math.floor(Math.random() * cursedIds.length)];
-
-  if (cursedPlayerId) {
-    activeCurses[cursedPlayerId] = true;
-    await channel.send(`😨 The audience has spoken. <@${cursedPlayerId}> is **cursed**!`);
-  } else {
-    await channel.send(`👻 No votes were cast. The malformed crowd stays silent.`);
-  }
-}
-
-
-    // === Elimination Round ===
-    const trial = trialNames[Math.floor(Math.random() * trialNames.length)];
-    let eliminationDescriptions = [];
-// === Mass Revival Totem — Triggered Once When 5 or Fewer Remain
-if (!massReviveTriggered && remaining.length <= 5) {
-  massReviveTriggered = true;
-
-  await channel.send({
-    embeds: [new EmbedBuilder()
-      .setTitle('💀 The Totem Has Awakened')
-      .setDescription(`With only a handful of survivors clinging to life...\n\nThe **Totem of Lost Souls** emerges.\n\nEliminated players and wandering souls may now **touch the Totem**...\nfor a chance to return to the Gauntlet.`)
-      .setColor(0x9932cc)
-    ]
-  });
-
-  await massRevivalEvent(channel);
-}
-
+    for (let i = 0; i < eliminations; i++) {
+      let player;
 
       // Force cursed player first
       if (i === 0 && cursedPlayerId) {
@@ -704,6 +679,7 @@ if (!massReviveTriggered && remaining.length <= 5) {
         }
       }
 
+      // Pick a random player if not already removed
       if (!player) {
         player = remaining.splice(Math.floor(Math.random() * remaining.length), 1)[0];
       }
@@ -750,6 +726,7 @@ if (!massReviveTriggered && remaining.length <= 5) {
         eliminationDescriptions.push(`❌ <@${player.id}> ${reason}`);
       }
     }
+
     // 💫 Rare Resurrection (15% chance)
     if (eliminated.length && Math.random() < 0.15) {
       const reviveIndex = Math.floor(Math.random() * eliminated.length);
@@ -762,28 +739,23 @@ if (!massReviveTriggered && remaining.length <= 5) {
     }
 
     // 🎨 Embed with Random Ugly NFT
-const tokenId = Math.floor(Math.random() * 574) + 1;
-const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}`;
+    const tokenId = Math.floor(Math.random() * 574) + 1;
+    const nftImage = `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}`;
 
-const totalPlayers = gauntletEntrants.length;
-const survivors = remaining.length;
+    const totalPlayers = gauntletEntrants.length;
+    const survivors = remaining.length;
 
-await channel.send({
-  embeds: [new EmbedBuilder()
-    .setTitle(`⚔️ Round ${roundCounter} — ${trial}`)
-    .setDescription([
-      ...eliminationDescriptions,
-      `\n👥 **Players Remaining:** ${survivors} / ${totalPlayers}`
-    ].join('\n'))
-    .setColor(0x8b0000)
-    .setImage(nftImage)
-  ]
-});
-
-    roundCounter++;
-    await new Promise(r => setTimeout(r, 10000));
-  }
-
+    await channel.send({
+      embeds: [new EmbedBuilder()
+        .setTitle(`⚔️ Round ${roundCounter} — ${trial}`)
+        .setDescription([
+          ...eliminationDescriptions,
+          `\n👥 **Players Remaining:** ${survivors} / ${totalPlayers}`
+        ].join('\n'))
+        .setColor(0x8b0000)
+        .setImage(nftImage)
+      ]
+    });
   // 🏆 Finalists + Rewards
   if (remaining.length < 3) {
     await channel.send('⚠️ Not enough players remain to crown a full podium. Ending game.');
@@ -823,7 +795,7 @@ await channel.send({
 
   await triggerRematchPrompt(channel);
 
-  // 🎁 Rare Mint Incentive
+  // 🎁 Rare Mint Incentive (every 50 games)
   completedGames++;
   if (completedGames >= 50) {
     completedGames = 0;
@@ -831,35 +803,35 @@ await channel.send({
     const incentives = [
       {
         title: "⚡ First to Mint an Ugly gets 500 $CHARM!",
-        desc: "⏳ You have **5 minutes**. Post proof in <#1334345680461762671>!",
+        desc: "⏳ You have **5 minutes**. Post proof in <#1334345680461762671>!"
       },
       {
         title: "🧵 First to Tweet their Ugly or Monster + tag @Charm_Ugly gets 100 $CHARM!",
-        desc: "Drop proof in <#1334345680461762671> and the team will verify. GO!",
+        desc: "Drop proof in <#1334345680461762671> and the team will verify. GO!"
       },
       {
         title: "💥 Mint 3, Get 1 Free (must open ticket)",
-        desc: "⏳ You have **15 minutes** to mint 3 — and we’ll airdrop 1 more. #UglyLuck",
+        desc: "⏳ You have **15 minutes** to mint 3 — and we’ll airdrop 1 more. #UglyLuck"
       },
       {
         title: "👑 Mint 3, Get a FREE MONSTER",
-        desc: "⏳ You have **15 minutes**. Prove it in a ticket and a Monster is yours.",
+        desc: "⏳ You have **15 minutes**. Prove it in a ticket and a Monster is yours."
       },
       {
         title: "🎁 All mints in the next 10 minutes earn +150 $CHARM",
-        desc: "Yes, all. Go go go.",
+        desc: "Yes, all. Go go go."
       },
       {
         title: "🃏 Every mint = 1 raffle entry",
-        desc: "**Next prize:** 1,000 $CHARM! All mints from now to the next milestone are eligible.",
+        desc: "**Next prize:** 1,000 $CHARM! All mints from now to the next milestone are eligible."
       },
       {
         title: "📸 Lore Challenge Activated!",
-        desc: "Post your Ugly in <#💬┆general-chat> with a 1-liner backstory. Best lore gets 250 $CHARM in 24h.",
+        desc: "Post your Ugly in <#💬┆general-chat> with a 1-liner backstory. Best lore gets 250 $CHARM in 24h."
       },
       {
         title: "📦 SECRET BOUNTY ⚠️",
-        desc: "One of the next 10 mints will receive... something special. We won't say what.",
+        desc: "One of the next 10 mints will receive... something special. We won't say what."
       }
     ];
 
