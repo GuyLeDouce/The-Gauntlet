@@ -230,10 +230,12 @@ client.on(Events.InteractionCreate, async interaction => {
     if (!alreadyJoined) {
       gauntletEntrants.push({ id: interaction.user.id, username: interaction.user.username });
 
-      await interaction.reply({
-        content: '🧟 You have joined the Ugly Gauntlet! Prepare yourself…',
-        ephemeral: true
-      });
+      try {
+  await interaction.reply({ content: '🩸 Your vote has been cast.', flags: 64 });
+} catch (err) {
+  console.warn('⚠️ Could not reply to interaction (likely expired):', err.message);
+}
+
 
       if (gauntletMessage && gauntletMessage.editable) {
         const embed = EmbedBuilder.from(gauntletMessage.embeds[0])
