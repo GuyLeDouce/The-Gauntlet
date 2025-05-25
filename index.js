@@ -641,9 +641,12 @@ async function massRevivalEvent(channel) {
       const passed = Math.random() < odds;
 
       if (passed) {
-        if (wasEliminated) {
-          remaining.push(wasEliminated);
-          eliminatedPlayers = eliminatedPlayers.filter(p => p.id !== id);
+        if (passed) {
+  if (wasEliminated) {
+    wasEliminated.revived = true; // ✅ flag revival for stats
+    remaining.push(wasEliminated);
+    eliminatedPlayers = eliminatedPlayers.filter(p => p.id !== id);
+
           revivedLines.push(`💀 <@${id}> **rose again from the ashes**.`);
         } else {
           const user = await client.users.fetch(id);
@@ -1228,14 +1231,13 @@ async function triggerRematchPrompt(channel) {
     }
   });
 }
-// === Batch 11: Message Commands ===
+// === REVIVE COMMAND ===
 client.on('messageCreate', async message => {
   if (message.author.bot) return;
 
   const content = message.content.trim().toLowerCase();
   const userId = message.author.id;
 
-  // 🔁 Try to revive
   if (content === '!revive') {
     const isAlive = remaining.find(p => p.id === userId);
     if (isAlive) return message.channel.send(`🧟 <@${userId}> You're already among the living.`);
@@ -1249,8 +1251,11 @@ client.on('messageCreate', async message => {
 
     wasEliminated.attemptedRevive = true;
 
-    if (Math.random() < 0.01) {
+    if (Math.random() < 0.35) {
+      wasEliminated.revived = true; // ✅ NEW: flag for stats tracking
       remaining.push(wasEliminated);
+      eliminatedPlayers = eliminatedPlayers.filter(p => p.id !== userId);
+
       const reviveMsg = revivalEvents[Math.floor(Math.random() * revivalEvents.length)];
       return message.channel.send(`💫 <@${userId}> ${reviveMsg}`);
     } else {
@@ -1258,7 +1263,7 @@ client.on('messageCreate', async message => {
       return message.channel.send(`${failMsg} <@${userId}> remains dead.`);
     }
   }
-
+});
   // ⏱ Start Gauntlet (custom delay)
   if (content.startsWith('!gauntlet ')) {
     const delay = parseInt(content.split(' ')[1], 10);
