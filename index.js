@@ -369,6 +369,93 @@ client.on('messageCreate', async (message) => {
         monthlyChamps.push(`🥇 ${cat.charAt(0).toUpperCase() + cat.slice(1)}: ${result.rows[0].username} (${result.rows[0][cat]})`);
       }
     }
+  // === !lockchampions Command ===
+  if (message.content === '!lockchampions') {
+    if (!message.member.permissions.has('Administrator')) {
+      return message.reply('🚫 You don’t have permission to lock monthly champions.');
+    }
+
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+
+    const categories = [
+      { key: 'wins', label: 'Most Wins' },
+      { key: 'revives', label: 'Most Revives' },
+      { key: 'games_played', label: 'Most Games Played' },
+    ];
+
+    for (const cat of categories) {
+      const result = await db.query(`
+        SELECT user_id, username, ${cat.key} as value FROM player_stats
+        WHERE year = $1 AND month = $2
+        ORDER BY ${cat.key} DESC
+        LIMIT 1;
+      `, [year, month]);
+
+      if (result.rows.length) {
+        const { user_id, username, value } = result.rows[0];
+        await db.query(`
+          INSERT INTO monthly_champions (user_id, username, year, month, category, value)
+          VALUES ($1, $2, $3, $4, $5, $6)
+        `, [user_id, username, year, month, cat.label, value]);
+      }
+    }
+
+    const bestAvg = await db.query(`
+      SELECT user_id, username, ROUND(CAST(wins AS decimal)/NULLIF(games_played, 0), 2) AS value
+      FROM player_stats
+      WHERE year = $1 AND month = $2 AND games_played >= 3
+      ORDER BY value DESC
+      LIMIT 1;
+    `, [year, month]);
+
+    if (bestAvg.rows.length) {
+      const { user_id, username, value } = bestAvg.rows[0];
+      await db.query(`
+        INSERT INTO monthly_champions (user_id, username, year, month, category, value)
+        VALUES ($1, $2, $3, $4, $5, $6)
+      `, [user_id, username, year, month, 'Best Avg Wins', value]);
+    }
+
+    await message.reply('✅ Monthly Champions have been locked in!');
+  }
+  // === !stats @user Command ===
+  if (message.content.startsWith('!stats')) {
+    const mention = message.mentions.users.first();
+    const user = mention || message.author;
+    const userId = user.id;
+
+    const total = await db.query(`
+      SELECT SUM(wins) AS wins, SUM(revives) AS revives, SUM(games_played) AS games
+      FROM player_stats
+      WHERE user_id = $1
+    `, [userId]);
+
+    const bestMonth = await db.query(`
+      SELECT year, month, wins
+      FROM player_stats
+      WHERE user_id = $1
+      ORDER BY wins DESC
+      LIMIT 1;
+    `, [userId]);
+
+    const stats = total.rows[0];
+    const top = bestMonth.rows[0];
+
+    const embed = new EmbedBuilder()
+      .setTitle(`📊 Stats for ${user.username}`)
+      .addFields(
+        { name: '🏆 Total Wins', value: `${stats.wins || 0}`, inline: true },
+        { name: '💀 Total Revives', value: `${stats.revives || 0}`, inline: true },
+        { name: '🎮 Games Played', value: `${stats.games || 0}`, inline: true },
+        { name: '🔥 Best Month', value: top ? `${top.month}/${top.year} (${top.wins} wins)` : 'No games yet' }
+      )
+      .setColor('Gold')
+      .setFooter({ text: 'Track your legacy. Stay Ugly.' });
+
+    await message.channel.send({ embeds: [embed] });
+  }
 
     // Best Average Wins (minimum 3 games)
     const bestAvg = await db.query(`
