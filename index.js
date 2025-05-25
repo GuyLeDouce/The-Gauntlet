@@ -53,11 +53,6 @@ let nonProgressRounds = 0;
 let noEliminationRounds = 0;
 
 // === GAME DATA ARRAYS ===
-const trialNames = [
-  "Trial of the Screaming Mire", "The Eldritch Scramble", "Trial of the Shattered Bones",
-  "The Maw's Hunger", "Dance of the Ugly Reflection", "Trial of the Crooked Path",
-  "Storm of the Severed Sky", "Gauntlet of Broken Dreams", "The Echoing Crawl", "The Wretched Spiral"
-];
 const eliminationEvents = [
   "was dragged into the swamp by unseen claws.",
   "tried to pet a malformed dog. It bit back... with ten mouths.",
