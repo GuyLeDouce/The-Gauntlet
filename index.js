@@ -257,7 +257,8 @@ client.on(Events.InteractionCreate, async interaction => {
     rematchClicksSet.add(userId);
     rematchClicks++;
 
-    const neededClicks = Math.ceil(lastGameEntrantCount * 0.75);
+    const neededClicks = Math.max(6, Math.ceil(lastGameEntrantCount * 0.75));
+
     await interaction.reply({ content: '🩸 Your vote has been cast.', ephemeral: true });
 
     const newRow = new ActionRowBuilder().addComponents(
