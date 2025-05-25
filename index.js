@@ -1,16 +1,28 @@
 require('dotenv').config();
-const { Client } = require('pg');
 
-const db = new Client({
+const {
+  Client, // from discord.js
+  GatewayIntentBits,
+  Partials,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  Events,
+  EmbedBuilder
+} = require('discord.js');
+
+const { Client: PgClient } = require('pg'); // renamed to avoid conflict
+
+const db = new PgClient({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false } // required for Railway
+  ssl: { rejectUnauthorized: false }
 });
 
 db.connect()
   .then(async () => {
     console.log('✅ Connected to PostgreSQL!');
 
-    // Auto-create player_stats table if it doesn't exist
+    // Create the table if it doesn't exist
     await db.query(`
       CREATE TABLE IF NOT EXISTS player_stats (
         id SERIAL PRIMARY KEY,
@@ -28,28 +40,16 @@ db.connect()
   })
   .catch(err => console.error('❌ DB Connection Error:', err));
 
-const {
-  Client,
-  GatewayIntentBits,
-  Partials,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  Events,
-  EmbedBuilder
-} = require('discord.js');
-const axios = require('axios');
-
-// === CLIENT SETUP ===
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMembers
+    GatewayIntentBits.GuildMembers,
   ],
-  partials: [Partials.Message, Partials.Channel, Partials.Reaction]
+  partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 });
+
 
 // === GLOBAL STATE VARIABLES ===
 let gauntletEntrants = [];
