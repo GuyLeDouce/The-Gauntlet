@@ -7,8 +7,27 @@ const db = new Client({
 });
 
 db.connect()
-  .then(() => console.log('✅ Connected to PostgreSQL!'))
+  .then(async () => {
+    console.log('✅ Connected to PostgreSQL!');
+
+    // Auto-create player_stats table if it doesn't exist
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS player_stats (
+        id SERIAL PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        username TEXT,
+        year INT,
+        month INT,
+        wins INT DEFAULT 0,
+        revives INT DEFAULT 0,
+        games_played INT DEFAULT 0
+      );
+    `);
+
+    console.log('📊 player_stats table is ready!');
+  })
   .catch(err => console.error('❌ DB Connection Error:', err));
+
 const {
   Client,
   GatewayIntentBits,
