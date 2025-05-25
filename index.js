@@ -22,19 +22,32 @@ db.connect()
   .then(async () => {
     console.log('✅ Connected to PostgreSQL!');
 
-    // Create the table if it doesn't exist
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS player_stats (
-        id SERIAL PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        username TEXT,
-        year INT,
-        month INT,
-        wins INT DEFAULT 0,
-        revives INT DEFAULT 0,
-        games_played INT DEFAULT 0
-      );
-    `);
+   // Auto-create the player_stats and monthly_champions tables
+await db.query(`
+  CREATE TABLE IF NOT EXISTS player_stats (
+    id SERIAL PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    username TEXT,
+    year INT,
+    month INT,
+    wins INT DEFAULT 0,
+    revives INT DEFAULT 0,
+    games_played INT DEFAULT 0
+  );
+`);
+
+await db.query(`
+  CREATE TABLE IF NOT EXISTS monthly_champions (
+    id SERIAL PRIMARY KEY,
+    user_id TEXT,
+    username TEXT,
+    year INT,
+    month INT,
+    category TEXT,
+    value INT
+  );
+`);
+
 
     console.log('📊 player_stats table is ready!');
   })
@@ -324,6 +337,89 @@ client.on('messageCreate', async message => {
       return runGauntlet(message.channel);
     }
   });
+client.on('messageCreate', async (message) => {
+  if (message.content === '!leaderboard' || message.content === '!lb') {
+    const now = new Date();
+    const thisMonth = now.getMonth() + 1;
+    const thisYear = now.getFullYear();
+
+    // Fetch This Month's Top 3
+    const monthlyTop = await db.query(`
+      SELECT username, wins, revives, games_played,
+        ROUND(CAST(wins AS decimal)/NULLIF(games_played, 0), 2) AS avg_wins
+      FROM player_stats
+      WHERE year = $1 AND month = $2
+      ORDER BY wins DESC
+      LIMIT 3;
+    `, [thisYear, thisMonth]);
+
+    // Monthly Category Champions
+    const categories = ['wins', 'revives', 'games_played'];
+    const monthlyChamps = [];
+
+    for (const cat of categories) {
+      const result = await db.query(`
+        SELECT username, ${cat} FROM player_stats
+        WHERE year = $1 AND month = $2
+        ORDER BY ${cat} DESC
+        LIMIT 1;
+      `, [thisYear, thisMonth]);
+
+      if (result.rows[0]) {
+        monthlyChamps.push(`🥇 ${cat.charAt(0).toUpperCase() + cat.slice(1)}: ${result.rows[0].username} (${result.rows[0][cat]})`);
+      }
+    }
+
+    // Best Average Wins (minimum 3 games)
+    const bestAvg = await db.query(`
+      SELECT username, ROUND(CAST(wins AS decimal)/NULLIF(games_played, 0), 2) as avg
+      FROM player_stats
+      WHERE year = $1 AND month = $2 AND games_played >= 3
+      ORDER BY avg DESC
+      LIMIT 1;
+    `, [thisYear, thisMonth]);
+
+    if (bestAvg.rows[0]) {
+      monthlyChamps.push(`📈 Avg Wins: ${bestAvg.rows[0].username} (${bestAvg.rows[0].avg})`);
+    }
+
+    // All-Time Top 3 by Wins
+    const allTime = await db.query(`
+      SELECT username, SUM(wins) as total_wins
+      FROM player_stats
+      GROUP BY username
+      ORDER BY total_wins DESC
+      LIMIT 3;
+    `);
+
+    const embed = new EmbedBuilder()
+      .setTitle('🏆 The Ugly Gauntlet Leaderboard')
+      .setColor('Purple')
+      .addFields(
+        {
+          name: `📊 This Month (${thisMonth}/${thisYear})`,
+          value: monthlyTop.rows.length
+            ? monthlyTop.rows.map((row, i) =>
+              `#${i + 1} ${row.username} — 🏆 Wins: ${row.wins}, 💀 Revives: ${row.revives}, 🎮 Games: ${row.games_played}, 📈 Avg: ${row.avg_wins}`).join('\n')
+            : 'No games yet this month.'
+        },
+        {
+          name: `👑 Monthly Champions`,
+          value: monthlyChamps.length ? monthlyChamps.join('\n') : 'No champions yet!'
+        },
+        {
+          name: `🔥 All-Time Legends`,
+          value: allTime.rows.length
+            ? allTime.rows.map((row, i) =>
+              `#${i + 1} ${row.username} — 🏆 ${row.total_wins} Wins`).join('\n')
+            : 'No all-time data yet.'
+        }
+      )
+      .setFooter({ text: 'Updated live • Stay Ugly' });
+
+    await message.channel.send({ embeds: [embed] });
+  }
+});
 
   // === START GAUNTLET FUNCTION ===
   async function startGauntlet(channel, delay) {
