@@ -641,12 +641,10 @@ async function massRevivalEvent(channel) {
       const passed = Math.random() < odds;
 
       if (passed) {
-        if (passed) {
-  if (wasEliminated) {
-    wasEliminated.revived = true; // ✅ flag revival for stats
-    remaining.push(wasEliminated);
-    eliminatedPlayers = eliminatedPlayers.filter(p => p.id !== id);
-
+        if (wasEliminated) {
+          wasEliminated.revived = true;
+          remaining.push(wasEliminated);
+          eliminatedPlayers = eliminatedPlayers.filter(p => p.id !== id);
           revivedLines.push(`💀 <@${id}> **rose again from the ashes**.`);
         } else {
           const user = await client.users.fetch(id);
@@ -686,6 +684,7 @@ async function massRevivalEvent(channel) {
     }
   });
 }
+
   async function runGauntlet(channel) {
     gauntletActive = false;
     remaining = [...gauntletEntrants];
