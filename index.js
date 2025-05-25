@@ -3,11 +3,7 @@ const {
   Client,
   GatewayIntentBits,
   Partials,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  Events,
-  EmbedBuilder
+  Events
 } = require('discord.js');
 const axios = require('axios');
 
@@ -73,6 +69,7 @@ const {
 
 // === EVENT LISTENERS ===
 client.on(Events.InteractionCreate, handleInteraction(client));
+
 client.on('messageCreate', async message => {
   if (message.author.bot) return;
   const content = message.content.trim().toLowerCase();
@@ -102,6 +99,7 @@ client.on('messageCreate', async message => {
   }
 
   if (content === '!gauntlet') return startGauntlet(message.channel, 10);
+
   if (content === '!startg' && gauntletActive) {
     clearTimeout(joinTimeout);
     return runGauntlet(message.channel);
