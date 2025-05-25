@@ -1,4 +1,14 @@
 require('dotenv').config();
+const { Client } = require('pg');
+
+const db = new Client({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false } // required for Railway
+});
+
+db.connect()
+  .then(() => console.log('✅ Connected to PostgreSQL!'))
+  .catch(err => console.error('❌ DB Connection Error:', err));
 const {
   Client,
   GatewayIntentBits,
