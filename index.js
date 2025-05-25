@@ -278,7 +278,7 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 
 // === REVIVE COMMAND ===
-client.on('messageCreate', async message => {
+client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
 
   const content = message.content.trim().toLowerCase();
@@ -308,7 +308,7 @@ client.on('messageCreate', async message => {
   }
 });
   // === START GAUNTLET COMMANDS ===
-  client.on('messageCreate', async message => {
+  client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
     const content = message.content.trim().toLowerCase();
 
