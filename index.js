@@ -740,7 +740,7 @@ async function runGauntlet(channel) {
 
   await channel.send(`👹 A foul stench rises... <@${boss.id}> has been chosen as the **UGLY BOSS**! If they make it to the podium, they earn **double $CHARM**...`);
   while (remaining.length > 3) {
-    if (!massReviveTriggered && remaining.length <= Math.floor(gauntletEntrants.length / 3)) {
+    if (!massReviveTriggered && remaining.length <= Math.floor(gauntletEntrants.length / 2)) {
       massReviveTriggered = true;
 
       await channel.send({
