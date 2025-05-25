@@ -1231,39 +1231,6 @@ async function triggerRematchPrompt(channel) {
     }
   });
 }
-// === REVIVE COMMAND ===
-client.on('messageCreate', async message => {
-  if (message.author.bot) return;
-
-  const content = message.content.trim().toLowerCase();
-  const userId = message.author.id;
-
-  if (content === '!revive') {
-    const isAlive = remaining.find(p => p.id === userId);
-    if (isAlive) return message.channel.send(`🧟 <@${userId}> You're already among the living.`);
-
-    const wasEliminated = eliminatedPlayers.find(p => p.id === userId);
-    if (!wasEliminated) return message.channel.send(`👻 <@${userId}> You haven’t been eliminated yet.`);
-
-    if (wasEliminated.attemptedRevive) {
-      return message.channel.send(`🔁 <@${userId}> already tried to cheat death. Fate isn’t amused.`);
-    }
-
-    wasEliminated.attemptedRevive = true;
-
-    if (Math.random() < 0.35) {
-      wasEliminated.revived = true; // ✅ NEW: flag for stats tracking
-      remaining.push(wasEliminated);
-      eliminatedPlayers = eliminatedPlayers.filter(p => p.id !== userId);
-
-      const reviveMsg = revivalEvents[Math.floor(Math.random() * revivalEvents.length)];
-      return message.channel.send(`💫 <@${userId}> ${reviveMsg}`);
-    } else {
-      const failMsg = reviveFailLines[Math.floor(Math.random() * reviveFailLines.length)];
-      return message.channel.send(`${failMsg} <@${userId}> remains dead.`);
-    }
-  }
-});
   // ⏱ Start Gauntlet (custom delay)
   if (content.startsWith('!gauntlet ')) {
     const delay = parseInt(content.split(' ')[1], 10);
