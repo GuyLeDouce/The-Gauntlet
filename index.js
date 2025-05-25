@@ -10,6 +10,7 @@ const {
   Events,
   EmbedBuilder
 } = require('discord.js');
+const axios = require('axios');
 
 const { Client: PgClient } = require('pg'); // renamed to avoid conflict
 
@@ -93,6 +94,7 @@ let totemTriggered = false;
 let massReviveTriggered = false;
 let nonProgressRounds = 0;
 let noEliminationRounds = 0;
+let rematchClicksSet = new Set();
 
 // === GAME DATA ARRAYS ===
 const eliminationEvents = [
@@ -527,6 +529,7 @@ client.on('messageCreate', async (message) => {
     mutationDefenseClicks = new Set();
     rematchClicks = 0;
     massReviveTriggered = false;
+    rematchClicksSet = new Set();
 
     gauntletChannel = channel;
     currentDelay = delay;
