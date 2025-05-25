@@ -360,6 +360,114 @@ client.on('messageCreate', async message => {
       channel.send(`@everyone 🕰️ **Final moments!** The Gauntlet begins **any second now...**\nLast chance to click the join button: ${joinLink}`);
     }, totalMs - 5000);
   }
+async function massRevivalEvent(channel) {
+  const resurrectionRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('resurrection_click')
+      .setLabel('💀 Touch the Totem')
+      .setStyle(ButtonStyle.Danger)
+  );
+
+  const prompt = await channel.send({
+    embeds: [
+      new EmbedBuilder()
+        .setTitle('☠️ The Totem of Lost Souls Appears...')
+        .setDescription(
+          'A twisted totem hums with malformed energy. Click below for a **chance** at resurrection.\n\n' +
+          'Eliminated players: 60%\nNew players: 40%\n\n' +
+          'You have **7 seconds**. Touch it... or stay forgotten.'
+        )
+        .setColor(0x910000)
+    ],
+    components: [resurrectionRow]
+  });
+
+  const collector = prompt.createMessageComponentCollector({ time: 7000 });
+  const braveFools = new Set();
+
+  collector.on('collect', async i => {
+    if (remaining.find(p => p.id === i.user.id)) {
+      return i.reply({ content: '🧟 You’re already alive. Back off the totem.', ephemeral: true });
+    }
+
+    braveFools.add(i.user.id);
+    i.reply({ content: '💫 The totem accepts your touch...', ephemeral: true });
+  });
+
+  collector.on('end', async () => {
+    await prompt.edit({ components: [] });
+
+    if (braveFools.size === 0) {
+      await channel.send('🪦 No souls were bold enough to risk the totem.');
+      return;
+    }
+
+    const names = [...braveFools].map(id => `<@${id}>`).join('\n');
+    await channel.send({
+      embeds: [
+        new EmbedBuilder()
+          .setTitle('⏳ The Totem Judged Them...')
+          .setDescription(`These brave fools reached for resurrection:\n\n${names}\n\nBut the Totem shows no mercy...`)
+          .setColor(0xffcc00)
+      ]
+    });
+
+    for (const count of ['3', '2', '1']) {
+      await channel.send(`🕒 ${count}...`);
+      await new Promise(r => setTimeout(r, 1000));
+    }
+
+    const revivedLines = [];
+    const failedLines = [];
+
+    for (const id of braveFools) {
+      const wasEliminated = eliminatedPlayers.find(p => p.id === id);
+      const odds = wasEliminated ? 0.6 : 0.4;
+      const passed = Math.random() < odds;
+
+      if (passed) {
+        if (wasEliminated) {
+          remaining.push(wasEliminated);
+          eliminatedPlayers = eliminatedPlayers.filter(p => p.id !== id);
+          revivedLines.push(`💀 <@${id}> **rose again from the ashes**.`);
+        } else {
+          const user = await client.users.fetch(id);
+          const newPlayer = { id, username: user.username };
+          remaining.push(newPlayer);
+          gauntletEntrants.push(newPlayer);
+          revivedLines.push(`🆕 <@${id}> **was pulled into The Gauntlet by the Totem’s will**.`);
+        }
+      } else {
+        const failLine = wasEliminated
+          ? `☠️ <@${id}> reached for life... and was denied.`
+          : `🚫 <@${id}> was rejected — a new soul not worthy... yet.`;
+        failedLines.push(failLine);
+      }
+    }
+
+    if (revivedLines.length > 0) {
+      await channel.send({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle('💥 The Totem Showed Mercy')
+            .setDescription(revivedLines.join('\n'))
+            .setColor(0x00cc66)
+        ]
+      });
+    }
+
+    if (failedLines.length > 0) {
+      await channel.send({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle('💨 The Totem Ignored Their Pleas')
+            .setDescription(failedLines.join('\n'))
+            .setColor(0xbb0000)
+        ]
+      });
+    }
+  });
+}
   async function runGauntlet(channel) {
     gauntletActive = false;
     remaining = [...gauntletEntrants];
