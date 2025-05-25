@@ -720,17 +720,17 @@ client.on('messageCreate', async message => {
       const survivors = remaining.length;
 
       await channel.send({
-        embeds: [new EmbedBuilder()
-          .setTitle(`⚔️ Round ${roundCounter} — ${trial}`)
-          .setDescription([
-            ...eliminationDescriptions,
-            `\n👥 **Players Remaining:** ${survivors} / ${totalPlayers}`,
-            `If you own this Ugly, speak up now and you will get 10 $CHARM from the team.`
-          ].join('\n'))
-          .setColor(0x8b0000)
-          .setImage(nftImage)
-        ]
-      });
+  embeds: [new EmbedBuilder()
+    .setTitle(`⚔️ Round ${roundCounter} — ${trial}`)
+    .setDescription([
+      ...eliminationDescriptions,
+      `\n👥 **Players Remaining:** ${survivors} / ${totalPlayers}`
+    ].join('\n'))
+    .setColor(0x8b0000)
+    .setImage(nftImage)
+  ]
+});
+
 
       if (eliminated.length === 0) {
         noEliminationRounds++;
