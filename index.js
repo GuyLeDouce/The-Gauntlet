@@ -297,7 +297,7 @@ client.on('messageCreate', async message => {
 
     wasEliminated.attemptedRevive = true;
 
-    if (Math.random() < 0.01) {
+    if (Math.random() < 0.35) {
       remaining.push(wasEliminated);
       const reviveMsg = revivalEvents[Math.floor(Math.random() * revivalEvents.length)];
       return message.channel.send(`💫 <@${userId}> ${reviveMsg}`);
