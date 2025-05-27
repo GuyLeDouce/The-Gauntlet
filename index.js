@@ -1,7 +1,7 @@
 require('dotenv').config();
 
 const {
-  Client, // from discord.js
+  Client,
   GatewayIntentBits,
   Partials,
   ActionRowBuilder,
@@ -11,7 +11,6 @@ const {
   EmbedBuilder
 } = require('discord.js');
 const axios = require('axios');
-
 const { Client: PgClient } = require('pg'); // renamed to avoid conflict
 
 const db = new PgClient({
@@ -22,6 +21,19 @@ const db = new PgClient({
 db.connect()
   .then(async () => {
     console.log('✅ Connected to PostgreSQL!');
+
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS player_stats (
+        id SERIAL PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        username TEXT,
+        year INT,
+        month INT,
+        wins INT DEFAULT 0,
+        revives INT DEFAULT 0,
+        games_played INT DEFAULT 0
+      );
+    `);
 
     await db.query(`
       CREATE TABLE IF NOT EXISTS monthly_champions (
@@ -35,7 +47,7 @@ db.connect()
       );
     `);
 
-    console.log('📊 player_stats table is ready!');
+    console.log('📊 player_stats and monthly_champions tables are ready!');
   })
   .catch(err => console.error('❌ DB Connection Error:', err));
 
@@ -48,7 +60,6 @@ const client = new Client({
   ],
   partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 });
-
 // === GLOBAL STATE VARIABLES ===
 let gauntletEntrants = [];
 let gauntletActive = false;
@@ -79,6 +90,7 @@ let massReviveTriggered = false;
 let nonProgressRounds = 0;
 let noEliminationRounds = 0;
 let rematchClicksSet = new Set();
+
 // === GAME DATA ARRAYS ===
 const eliminationEvents = [
   "was dragged into the swamp by unseen claws.",
@@ -127,7 +139,28 @@ const eliminationEvents = [
   "was caught multitasking. The Gauntlet demands full attention.",
   "opened a lootbox labeled “DO NOT OPEN.”",
   "hit reply-all in the underworld newsletter. Got banned."
+  "sipped tea brewed with cursed toenails. Instantly dissolved.",
+  "tried to out-lore the Lore Keeper. Their voice got eaten.",
+  "mistook the Totem for a vending machine. Pressed B3, got obliterated.",
+  "called an Ugly ‘mid’ and was banished to the Shadow Subreddit.",
+  "flirted with the Bone Witch. She ghosted them — literally.",
+  "took a selfie with a Malformed Idol. Got cursed with photobomb gremlins.",
+  "snuck a pizza slice into the Ritual. Summoned the Deep Cheese.",
+  "typed `!exit` during the trial. The Gauntlet granted their wish.",
+  "laughed at a cursed meme. Turned into 404 error.",
+  "posted AI art in #ugly-chat. Got flattened by aesthetic backlash.",
+  "asked too many questions. Became a lore plot hole.",
+  "climbed into a monster's mouth ‘for content’. Never came back.",
+  "activated gamer mode during the Sacrifice. Got quickscoped by fate.",
+  "made a tier list of Malformed Gods. The lowest ranked one retaliated.",
+  "said ‘vibe check failed’ ironically. The check was real.",
+  "opened a forbidden box labeled ‘Do Not Even’… and they evened.",
+  "tried to explain NFTs to the Undead Accountant. Bored him to death.",
+  "summoned their IRL job by accident. Died of emails.",
+  "entered the Wrong Door. The one marked 'extremely final exit.'",
+  "ate a lore scroll. Mistook it for a burrito. Brain rebooted."
 ];
+
 
 const specialEliminations = [
   "was sacrificed to the ancient hairball under the couch.",
@@ -150,7 +183,28 @@ const specialEliminations = [
   "equipped the Cloak of Invisibility. It worked a little *too* well.",
   "tweeted something cringe. The spirits canceled them.",
   "rolled a d20 and summoned their inner child. It panicked and ran."
+  "traded souls for Discord Nitro. Got disconnected.",
+  "wrote fanfic about the Totem. It came true. Bad idea.",
+  "cosplayed as an Ugly Boss. The real one took offense.",
+  "booted up Windows 95 during the ritual. Froze in time.",
+  "got caught forging $CHARM. Now forged into a bench.",
+  "yelled ‘rekt’ at a fallen ally. Was instantly ratioed.",
+  "wore an NFT PFP to the Shadow Summit. Was roasted by shadows.",
+  "tried to speedrun death. Glitched into permanent deletion.",
+  "cast a spell using ChatGPT. Was overwritten.",
+  "ate the sacrificial onions. Cried themselves out of existence.",
+  "found the forbidden lore PDF. Double-clicked. Triple damned.",
+  "asked the Gauntlet for WiFi. Got a dial-up tone to the face.",
+  "accidentally summoned a Mod. Got muted. Permanently.",
+  "tried to trade a soul for a Quirkling. Was scammed.",
+  "used their last breath to say ‘wen token’. Timeline collapsed.",
+  "called a Monster ‘mid-evo’. It evolved into vengeance.",
+  "built a lore timeline. Got lost in it. Still wandering.",
+  "streamed the ritual on TikTok. Got shadowbanned by reality.",
+  "offered their body to science. Science declined and deleted them.",
+  "poked a Shredding Sassy shrine. Fell into the Snowboardverse."
 ];
+
 
 const revivalEvents = [
   "was too ugly to stay dead and clawed their way back!",
@@ -173,6 +227,26 @@ const revivalEvents = [
   "convinced the Reaper it was a prank.",
   "used the wrong pronoun in a curse, causing a reset.",
   "was resurrected as a meme, and that counts."
+  "rose again wearing a cape made of bad tweets.",
+  "was reposted by the Algorithm of Undeath.",
+  "bartered with the Bone Witch using a cursed pog collection.",
+  "regrew from a single eyebrow hair. Resilient.",
+  "rode a Monster back from the grave. Yeehaw.",
+  "was memed into existence by a misfired spell.",
+  "got CPR from the Echo of a Screamed GM.",
+  "whispered ‘ugly is beauty’ to the void. It nodded.",
+  "used ancient lore to edit their fate.txt",
+  "respawned in a lore loop. Again. Again. Again.",
+  "offered the void a mint. The void accepted.",
+  "rolled a nat 20 while dead. Revived on technicality.",
+  "convinced death to take their alt account instead.",
+  "woke up in a crater full of $CHARM. Just vibing.",
+  "un-died out of spite. Absolute petty legend.",
+  "slapped a Totem so hard it rewound time.",
+  "was resurrected by a meme sacrifice. LOL.",
+  "found the Lore Scroll of Undo. Used once. Never again.",
+  "stole a heartbeat from a Mod. Didn't ask. Didn't care.",
+  "walked out of the afterlife mid-meeting."
 ];
 
 const reviveFailLines = [
@@ -191,7 +265,23 @@ const reviveFailLines = [
   "🐌 Your request was too slow. Death already moved on.",
   "🤡 Your revival was reviewed… and laughed at.",
   "🪤 You triggered a trap trying to live. Good effort though."
+  "🪦 You knocked. Death changed the locks.",
+  "😵 You flexed… but forgot to revive first.",
+  "🐛 You glitched. The void patched you.",
+  "📉 Your revival request was rugged.",
+  "🎤 You dropped the comeback line. No mic.",
+  "🤖 Botched your ritual with a typo.",
+  "👽 You pinged a dead channel. No response.",
+  "📼 Your life flashed back. It was just ads.",
+  "📎 A cursed paperclip blocked your attempt.",
+  "🍕 You bribed fate with pizza. It was pineapple.",
+  "📡 The underworld blocked your signal.",
+  "🕳️ You tried to manifest... and demanifested.",
+  "🫧 You bubblewrapped your soul. Still popped.",
+  "💸 You paid with exposure. Fate declined.",
+  "🪙 You flipped a coin. Landed on betrayal."
 ];
+
 
 const trialNames = [
   "Trial of the Screaming Mire",
@@ -205,7 +295,6 @@ const trialNames = [
   "The Echoing Crawl",
   "The Wretched Spiral"
 ];
-
 // === INTERACTION HANDLER ===
 client.on(Events.InteractionCreate, async interaction => {
   if (!interaction.isButton()) return;
@@ -217,11 +306,10 @@ client.on(Events.InteractionCreate, async interaction => {
       gauntletEntrants.push({ id: interaction.user.id, username: interaction.user.username });
 
       try {
-  await interaction.reply({ content: '✅ You have joined The Ugly Gauntlet!', ephemeral: true });
-} catch (err) {
-  console.warn('⚠️ Could not reply to interaction (likely expired):', err.message);
-}
-
+        await interaction.reply({ content: '✅ You have joined The Ugly Gauntlet!', ephemeral: true });
+      } catch (err) {
+        console.warn('⚠️ Could not reply to interaction (likely expired):', err.message);
+      }
 
       if (gauntletMessage && gauntletMessage.editable) {
         const embed = EmbedBuilder.from(gauntletMessage.embeds[0])
@@ -325,14 +413,76 @@ client.on('messageCreate', async (message) => {
     return runGauntlet(message.channel);
   }
 });
-// === LEADERBOARD + CHAMPIONS + STATS ===
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
+  if (message.content.toLowerCase() !== '!leaderboard') return;
 
   const now = new Date();
-  const thisMonth = now.getMonth() + 1;
   const thisYear = now.getFullYear();
+  const thisMonth = now.getMonth() + 1;
 
+  try {
+    const topWins = await db.query(`
+      SELECT username, wins FROM player_stats
+      WHERE year = $1 AND month = $2
+      ORDER BY wins DESC LIMIT 3
+    `, [thisYear, thisMonth]);
+
+    const topRevives = await db.query(`
+      SELECT username, revives FROM player_stats
+      WHERE year = $1 AND month = $2
+      ORDER BY revives DESC LIMIT 3
+    `, [thisYear, thisMonth]);
+
+    const topGames = await db.query(`
+      SELECT username, games_played FROM player_stats
+      WHERE year = $1 AND month = $2
+      ORDER BY games_played DESC LIMIT 3
+    `, [thisYear, thisMonth]);
+
+    const allTimeWins = await db.query(`
+      SELECT username, SUM(wins) as total_wins
+      FROM player_stats
+      GROUP BY username
+      ORDER BY total_wins DESC
+      LIMIT 3
+    `);
+
+    const monthlyChampions = await db.query(`
+      SELECT username, year, month, category, value
+      FROM monthly_champions
+      ORDER BY year DESC, month DESC, category
+      LIMIT 12
+    `);
+
+    const formatList = (rows, key, emoji) =>
+      rows.rows.length
+        ? rows.rows.map((r, i) => `${emoji.repeat(i + 1)} ${r.username} — ${r[key]}`).join('\n')
+        : '_No data yet._';
+
+    const embed = new EmbedBuilder()
+      .setTitle("📊 Gauntlet Leaderboard")
+      .addFields(
+        { name: `🏆 Top Wins (${thisMonth}/${thisYear})`, value: formatList(topWins, 'wins', '🥇'), inline: false },
+        { name: `💀 Top Revives`, value: formatList(topRevives, 'revives', '🧟'), inline: false },
+        { name: `🎮 Most Games Played`, value: formatList(topGames, 'games_played', '🎯'), inline: false },
+        { name: `📈 All-Time Legends`, value: formatList(allTimeWins, 'total_wins', '🔥'), inline: false },
+        {
+          name: `🗓️ Monthly Champions`,
+          value: monthlyChampions.rows.length
+            ? monthlyChampions.rows.map(r => `- ${r.username} (${r.year}/${r.month}) — **${r.category}**: ${r.value}`).join('\n')
+            : '_No champions recorded yet._',
+          inline: false
+        }
+      )
+      .setColor(0x00bfff);
+
+    await message.channel.send({ embeds: [embed] });
+  } catch (err) {
+    console.error("❌ Leaderboard error:", err);
+    await message.channel.send("⚠️ Failed to load leaderboard.");
+  }
+});
 
 // === START GAUNTLET FUNCTION ===
 async function startGauntlet(channel, delay) {
@@ -508,7 +658,6 @@ async function massRevivalEvent(channel) {
     }
   });
 }
-
 async function runGauntlet(channel) {
   gauntletActive = false;
   remaining = [...gauntletEntrants];
@@ -516,8 +665,8 @@ async function runGauntlet(channel) {
   let audienceVoteCount = 0;
   const maxVotesPerGame = Math.floor(Math.random() * 2) + 2;
   const now = new Date();
-const year = now.getFullYear();
-const month = now.getMonth() + 1;
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
 
   // === Boss Vote ===
   const bossCandidates = [...remaining].sort(() => 0.5 - Math.random()).slice(0, 5);
@@ -681,7 +830,6 @@ const month = now.getMonth() + 1;
       await channel.send('🪢 The rope vanishes into the mist... the trial resumes soon.');
       await new Promise(r => setTimeout(r, 5000));
     }
-
     // === Boons & Curses (15% chance)
     if (!roundEventFired && Math.random() < 0.15 && remaining.length > 2) {
       roundEventFired = true;
@@ -710,7 +858,6 @@ const month = now.getMonth() + 1;
       });
     }
 
-    // Audience vote + eliminations continue next...
     // === Audience Curse Vote (2–3 times per game)
     let cursedPlayerId = null;
 
@@ -790,7 +937,6 @@ const month = now.getMonth() + 1;
         await channel.send(`👻 No votes were cast. The malformed crowd stays silent.`);
       }
     }
-
     // === Elimination Round
     const trial = trialNames[Math.floor(Math.random() * trialNames.length)];
     let eliminationDescriptions = [];
@@ -923,22 +1069,22 @@ const month = now.getMonth() + 1;
   }
 
   await channel.send({
-  embeds: [new EmbedBuilder()
-    .setTitle('🏆 Champions of the Ugly Gauntlet!')
-    .setDescription([
-      `**1st Place:** <@${first.id}> — **${firstReward} $CHARM**`,
-      `**2nd Place:** <@${second.id}> — **${secondReward} $CHARM**`,
-      `**3rd Place:** <@${third.id}> — **${thirdReward} $CHARM**`,
-      ``,
-      `The Gauntlet has spoken. Well fought, Champions!`
-    ].join('\n'))
-    .setColor(0xdaa520)
-  ]
-});
+    embeds: [new EmbedBuilder()
+      .setTitle('🏆 Champions of the Ugly Gauntlet!')
+      .setDescription([
+        `**1st Place:** <@${first.id}> — **${firstReward} $CHARM**`,
+        `**2nd Place:** <@${second.id}> — **${secondReward} $CHARM**`,
+        `**3rd Place:** <@${third.id}> — **${thirdReward} $CHARM**`,
+        ``,
+        `The Gauntlet has spoken. Well fought, Champions!`
+      ].join('\n'))
+      .setColor(0xdaa520)
+    ]
+  });
 
-await recordWin(first);
-await recordWin(second);
-await recordWin(third);
+  await recordWin(first);
+  await recordWin(second);
+  await recordWin(third);
 
   await triggerRematchPrompt(channel);
 
@@ -1096,9 +1242,32 @@ async function sendCharmToUser(discordUserId, amount, channel = null) {
     });
   }
 }
-// === Batch 12: Bot Ready & Login ===
+// === Batch 12: Record Win Stats ===
+async function recordWin(player) {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+
+  try {
+    await db.query(`
+      INSERT INTO player_stats (user_id, username, year, month, wins, revives, games_played)
+      VALUES ($1, $2, $3, $4, 1, 0, 1)
+      ON CONFLICT (user_id, year, month)
+      DO UPDATE SET
+        wins = player_stats.wins + 1,
+        games_played = player_stats.games_played + 1,
+        username = EXCLUDED.username;
+    `, [player.id, player.username, year, month]);
+  } catch (err) {
+    console.error(`❌ Failed to record win for ${player.username}:`, err.message);
+  }
+}
+
+// === Optional: Could add recordRevive() here if needed ===
+
+// === Final: Bot Ready + Login ===
 client.once('ready', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
-}
+
 client.login(process.env.DISCORD_TOKEN); // ✅ FINAL LINE
