@@ -587,14 +587,14 @@ async function massRevivalEvent(channel) {
         .setDescription(
           'A twisted totem hums with malformed energy. Click below for a **chance** at resurrection.\n\n' +
           'Eliminated players: 60%\nNew players: 40%\n\n' +
-          'You have **7 seconds**. Touch it... or stay forgotten.'
+          'You have **12 seconds**. Touch it... or stay forgotten.'
         )
         .setColor(0x910000)
     ],
     components: [resurrectionRow]
   });
 
-  const collector = prompt.createMessageComponentCollector({ time: 7000 });
+  const collector = prompt.createMessageComponentCollector({ time: 12000 });
   const braveFools = new Set();
 
   collector.on('collect', async i => {
@@ -688,6 +688,21 @@ async function runGauntlet(channel) {
   let roundCounter = 1;
   let audienceVoteCount = 0;
   const maxVotesPerGame = Math.floor(Math.random() * 2) + 2;
+  const now = new Date();
+const year = now.getFullYear();
+const month = now.getMonth() + 1;
+
+for (const player of gauntletEntrants) {
+  await db.query(`
+    INSERT INTO player_stats (user_id, username, year, month, games_played)
+    VALUES ($1, $2, $3, $4, 1)
+    ON CONFLICT (user_id, year, month)
+    DO UPDATE SET 
+      games_played = player_stats.games_played + 1,
+      username = EXCLUDED.username;
+  `, [player.id, player.username, year, month]);
+}
+
 
   // === Boss Vote ===
   const bossCandidates = [...remaining].sort(() => 0.5 - Math.random()).slice(0, 5);
@@ -1030,6 +1045,14 @@ async function runGauntlet(channel) {
       const revived = eliminated.splice(reviveIndex, 1)[0];
       if (revived) {
         remaining.push(revived);
+        await db.query(`
+  INSERT INTO player_stats (user_id, username, year, month, revives)
+  VALUES ($1, $2, $3, $4, 1)
+  ON CONFLICT (user_id, year, month)
+  DO UPDATE SET 
+    revives = player_stats.revives + 1,
+    username = EXCLUDED.username;
+`, [revived.id, revived.username, year, month]);
         const reviveMsg = revivalEvents[Math.floor(Math.random() * revivalEvents.length)];
         eliminationDescriptions.push(`💫 <@${revived.id}> ${reviveMsg}`);
       }
@@ -1093,18 +1116,39 @@ async function runGauntlet(channel) {
   }
 
   await channel.send({
-    embeds: [new EmbedBuilder()
-      .setTitle('🏆 Champions of the Ugly Gauntlet!')
-      .setDescription([
-        `**1st Place:** <@${first.id}> — **${firstReward} $CHARM**`,
-        `**2nd Place:** <@${second.id}> — **${secondReward} $CHARM**`,
-        `**3rd Place:** <@${third.id}> — **${thirdReward} $CHARM**`,
-        ``,
-        `The Gauntlet has spoken. Well fought, Champions!`
-      ].join('\n'))
-      .setColor(0xdaa520)
-    ]
-  });
+  embeds: [new EmbedBuilder()
+    .setTitle('🏆 Champions of the Ugly Gauntlet!')
+    .setDescription([
+      `**1st Place:** <@${first.id}> — **${firstReward} $CHARM**`,
+      `**2nd Place:** <@${second.id}> — **${secondReward} $CHARM**`,
+      `**3rd Place:** <@${third.id}> — **${thirdReward} $CHARM**`,
+      ``,
+      `The Gauntlet has spoken. Well fought, Champions!`
+    ].join('\n'))
+    .setColor(0xdaa520)
+  ]
+});
+
+// ✅ NOW we are out of channel.send()
+const now = new Date();
+const year = now.getFullYear();
+const month = now.getMonth() + 1;
+
+async function recordWin(user) {
+  await db.query(`
+  INSERT INTO player_stats (user_id, username, year, month, wins)
+  VALUES ($1, $2, $3, $4, 1)
+  ON CONFLICT (user_id, year, month)
+  DO UPDATE SET 
+    wins = player_stats.wins + 1,
+    username = EXCLUDED.username;
+`, [user.id, user.username, year, month]);
+
+}
+
+await recordWin(first);
+await recordWin(second);
+await recordWin(third);
 
   await triggerRematchPrompt(channel);
 
