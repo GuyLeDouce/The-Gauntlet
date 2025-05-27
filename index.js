@@ -23,21 +23,6 @@ db.connect()
   .then(async () => {
     console.log('✅ Connected to PostgreSQL!');
 
-    // Auto-create the player_stats and monthly_champions tables
-    await db.query(`
-  CREATE TABLE IF NOT EXISTS player_stats (
-    id SERIAL PRIMARY KEY,
-    user_id TEXT NOT NULL,
-    username TEXT,
-    year INT,
-    month INT,
-    wins INT DEFAULT 0,
-    revives INT DEFAULT 0,
-    games_played INT DEFAULT 0,
-    UNIQUE (user_id, year, month)
-  );
-`);
-
     await db.query(`
       CREATE TABLE IF NOT EXISTS monthly_champions (
         id SERIAL PRIMARY KEY,
@@ -348,166 +333,7 @@ client.on('messageCreate', async (message) => {
   const thisMonth = now.getMonth() + 1;
   const thisYear = now.getFullYear();
 
-  // === LEADERBOARD
-  if (message.content === '!leaderboard' || message.content === '!lb') {
-    const monthlyTop = await db.query(`
-      SELECT username, wins, revives, games_played,
-        ROUND(CAST(wins AS decimal)/NULLIF(games_played, 0), 2) AS avg_wins
-      FROM player_stats
-      WHERE year = $1 AND month = $2
-      ORDER BY wins DESC
-      LIMIT 3;
-    `, [thisYear, thisMonth]);
 
-    const categories = ['wins', 'revives', 'games_played'];
-    const monthlyChamps = [];
-
-    for (const cat of categories) {
-      const result = await db.query(`
-        SELECT username, ${cat} FROM player_stats
-        WHERE year = $1 AND month = $2
-        ORDER BY ${cat} DESC
-        LIMIT 1;
-      `, [thisYear, thisMonth]);
-
-      if (result.rows[0]) {
-        monthlyChamps.push(`🥇 ${cat.charAt(0).toUpperCase() + cat.slice(1)}: ${result.rows[0].username} (${result.rows[0][cat]})`);
-      }
-    }
-
-    const bestAvg = await db.query(`
-      SELECT username, ROUND(CAST(wins AS decimal)/NULLIF(games_played, 0), 2) as avg
-      FROM player_stats
-      WHERE year = $1 AND month = $2 AND games_played >= 3
-      ORDER BY avg DESC
-      LIMIT 1;
-    `, [thisYear, thisMonth]);
-
-    if (bestAvg.rows[0]) {
-      monthlyChamps.push(`📈 Avg Wins: ${bestAvg.rows[0].username} (${bestAvg.rows[0].avg})`);
-    }
-
-    const allTime = await db.query(`
-      SELECT username, SUM(wins) as total_wins
-      FROM player_stats
-      GROUP BY username
-      ORDER BY total_wins DESC
-      LIMIT 3;
-    `);
-
-    const embed = new EmbedBuilder()
-      .setTitle('🏆 The Ugly Gauntlet Leaderboard')
-      .setColor('Purple')
-      .addFields(
-        {
-          name: `📊 This Month (${thisMonth}/${thisYear})`,
-          value: monthlyTop.rows.length
-            ? monthlyTop.rows.map((row, i) =>
-                `#${i + 1} ${row.username} — 🏆 Wins: ${row.wins}, 💀 Revives: ${row.revives}, 🎮 Games: ${row.games_played}, 📈 Avg: ${row.avg_wins}`).join('\n')
-            : 'No games yet this month.'
-        },
-        {
-          name: `👑 Monthly Champions`,
-          value: monthlyChamps.length ? monthlyChamps.join('\n') : 'No champions yet!'
-        },
-        {
-          name: `🔥 All-Time Legends`,
-          value: allTime.rows.length
-            ? allTime.rows.map((row, i) =>
-                `#${i + 1} ${row.username} — 🏆 ${row.total_wins} Wins`).join('\n')
-            : 'No all-time data yet.'
-        }
-      )
-      .setFooter({ text: 'Updated live • Stay Ugly' });
-
-    await message.channel.send({ embeds: [embed] });
-  }
-
-  // === !lockchampions
-  if (message.content === '!lockchampions') {
-    if (!message.member.permissions.has('Administrator')) {
-      return message.reply('🚫 You don’t have permission to lock monthly champions.');
-    }
-
-    const categories = [
-      { key: 'wins', label: 'Most Wins' },
-      { key: 'revives', label: 'Most Revives' },
-      { key: 'games_played', label: 'Most Games Played' },
-    ];
-
-    for (const cat of categories) {
-      const result = await db.query(`
-        SELECT user_id, username, ${cat.key} as value FROM player_stats
-        WHERE year = $1 AND month = $2
-        ORDER BY ${cat.key} DESC
-        LIMIT 1;
-      `, [thisYear, thisMonth]);
-
-      if (result.rows.length) {
-        const { user_id, username, value } = result.rows[0];
-        await db.query(`
-          INSERT INTO monthly_champions (user_id, username, year, month, category, value)
-          VALUES ($1, $2, $3, $4, $5, $6)
-        `, [user_id, username, thisYear, thisMonth, cat.label, value]);
-      }
-    }
-
-    const bestAvg = await db.query(`
-      SELECT user_id, username, ROUND(CAST(wins AS decimal)/NULLIF(games_played, 0), 2) AS value
-      FROM player_stats
-      WHERE year = $1 AND month = $2 AND games_played >= 3
-      ORDER BY value DESC
-      LIMIT 1;
-    `, [thisYear, thisMonth]);
-
-    if (bestAvg.rows.length) {
-      const { user_id, username, value } = bestAvg.rows[0];
-      await db.query(`
-        INSERT INTO monthly_champions (user_id, username, year, month, category, value)
-        VALUES ($1, $2, $3, $4, $5, $6)
-      `, [user_id, username, thisYear, thisMonth, 'Best Avg Wins', value]);
-    }
-
-    await message.reply('✅ Monthly Champions have been locked in!');
-  }
-
-  // === !stats
-  if (message.content.startsWith('!stats')) {
-    const mention = message.mentions.users.first();
-    const user = mention || message.author;
-    const userId = user.id;
-
-    const total = await db.query(`
-      SELECT SUM(wins) AS wins, SUM(revives) AS revives, SUM(games_played) AS games
-      FROM player_stats
-      WHERE user_id = $1
-    `, [userId]);
-
-    const bestMonth = await db.query(`
-      SELECT year, month, wins
-      FROM player_stats
-      WHERE user_id = $1
-      ORDER BY wins DESC
-      LIMIT 1;
-    `, [userId]);
-
-    const stats = total.rows[0];
-    const top = bestMonth.rows[0];
-
-    const embed = new EmbedBuilder()
-      .setTitle(`📊 Stats for ${user.username}`)
-      .addFields(
-        { name: '🏆 Total Wins', value: `${stats.wins || 0}`, inline: true },
-        { name: '💀 Total Revives', value: `${stats.revives || 0}`, inline: true },
-        { name: '🎮 Games Played', value: `${stats.games || 0}`, inline: true },
-        { name: '🔥 Best Month', value: top ? `${top.month}/${top.year} (${top.wins} wins)` : 'No games yet' }
-      )
-      .setColor('Gold')
-      .setFooter({ text: 'Track your legacy. Stay Ugly.' });
-
-    await message.channel.send({ embeds: [embed] });
-  }
-});
 // === START GAUNTLET FUNCTION ===
 async function startGauntlet(channel, delay) {
   if (gauntletActive) return;
@@ -692,18 +518,6 @@ async function runGauntlet(channel) {
   const now = new Date();
 const year = now.getFullYear();
 const month = now.getMonth() + 1;
-
-for (const player of gauntletEntrants) {
-  await db.query(`
-    INSERT INTO player_stats (user_id, username, year, month, games_played)
-    VALUES ($1, $2, $3, $4, 1)
-    ON CONFLICT (user_id, year, month)
-    DO UPDATE SET 
-      games_played = player_stats.games_played + 1,
-      username = EXCLUDED.username;
-  `, [player.id, player.username, year, month]);
-}
-
 
   // === Boss Vote ===
   const bossCandidates = [...remaining].sort(() => 0.5 - Math.random()).slice(0, 5);
@@ -1046,14 +860,6 @@ for (const player of gauntletEntrants) {
       const revived = eliminated.splice(reviveIndex, 1)[0];
       if (revived) {
         remaining.push(revived);
-        await db.query(`
-  INSERT INTO player_stats (user_id, username, year, month, revives)
-  VALUES ($1, $2, $3, $4, 1)
-  ON CONFLICT (user_id, year, month)
-  DO UPDATE SET 
-    revives = player_stats.revives + 1,
-    username = EXCLUDED.username;
-`, [revived.id, revived.username, year, month]);
         const reviveMsg = revivalEvents[Math.floor(Math.random() * revivalEvents.length)];
         eliminationDescriptions.push(`💫 <@${revived.id}> ${reviveMsg}`);
       }
@@ -1129,19 +935,6 @@ for (const player of gauntletEntrants) {
     .setColor(0xdaa520)
   ]
 });
-
-// ✅ NOW we are out of channel.send()
-async function recordWin(user) {
-  await db.query(`
-    INSERT INTO player_stats (user_id, username, year, month, wins)
-    VALUES ($1, $2, $3, $4, 1)
-    ON CONFLICT (user_id, year, month)
-    DO UPDATE SET 
-      wins = player_stats.wins + 1,
-      username = EXCLUDED.username;
-  `, [user.id, user.username, year, month]);
-}
-
 
 await recordWin(first);
 await recordWin(second);
