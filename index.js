@@ -1002,11 +1002,80 @@ if (
 }
 
     // === Elimination Round
-    const trial = trialNames[Math.floor(Math.random() * trialNames.length)];
-    let eliminationDescriptions = [];
+    // === Elimination Round
+const trial = trialNames[Math.floor(Math.random() * trialNames.length)];
+let eliminationDescriptions = [];
 
-    for (let i = 0; i < eliminations; i++) {
-      let player;
+for (let i = 0; i < eliminations; i++) {
+  let player;
+
+  // Force curse elimination first
+  if (i === 0 && cursedPlayerId) {
+    player = remaining.find(p => p.id === cursedPlayerId);
+    if (player) {
+      remaining = remaining.filter(p => p.id !== cursedPlayerId);
+    }
+  }
+
+  // Pick randomly if not cursed
+  if (!player) {
+    player = remaining.splice(Math.floor(Math.random() * remaining.length), 1)[0];
+  }
+
+  // === Protection Checks
+  if (roundImmunity[player.id]) {
+    eliminationDescriptions.push(`🛡️ <@${player.id}> avoided elimination with quick reflexes!`);
+    continue;
+  }
+
+  if (activeBoons[player.id]) {
+    eliminationDescriptions.push(`✨ <@${player.id}> was protected by a boon and dodged elimination!`);
+    continue;
+  }
+
+  if (activeCurses[player.id]) {
+    eliminationDescriptions.push(`💀 <@${player.id}> succumbed to their curse!`);
+  }
+
+  if (player.id === boss.id && Math.random() < 0.5) {
+    eliminationDescriptions.push(`🛑 <@${player.id}> is the Boss — and shrugged off the attack!`);
+    remaining.push(player);
+    continue;
+  }
+
+  eliminated.push(player);
+  eliminatedPlayers.push(player);
+
+  const useSpecial = Math.random() < 0.15;
+  const reason = useSpecial
+    ? specialEliminations[Math.floor(Math.random() * specialEliminations.length)]
+    : eliminationEvents[Math.floor(Math.random() * eliminationEvents.length)];
+
+  const style = Math.floor(Math.random() * 3);
+  if (useSpecial) {
+    if (style === 0) {
+      eliminationDescriptions.push(`━━━━━━━━━━ 👁‍🗨 THE MALFORMED STRIKE 👁‍🗨 ━━━━━━━━━━\n❌ <@${player.id}> ${reason}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    } else if (style === 1) {
+      eliminationDescriptions.push(`⚠️💀⚠️ SPECIAL FATE ⚠️💀⚠️\n❌ <@${player.id}> ${reason}\n🩸🧟‍♂️😈👁🔥👣🪦🧠👃`);
+    } else {
+      eliminationDescriptions.push(`**💥 Cursed Spotlight: <@${player.id}> 💥**\n_${reason}_`);
+    }
+  } else {
+    eliminationDescriptions.push(`❌ <@${player.id}> ${reason}`);
+  }
+}
+
+// 💫 Rare Resurrection (35% chance)
+if (eliminated.length && Math.random() < 0.35) {
+  const reviveIndex = Math.floor(Math.random() * eliminated.length);
+  const revived = eliminated.splice(reviveIndex, 1)[0];
+  if (revived) {
+    remaining.push(revived);
+    const reviveMsg = revivalEvents[Math.floor(Math.random() * revivalEvents.length)];
+    eliminationDescriptions.push(`💫 <@${revived.id}> ${reviveMsg}`);
+  }
+}
+
 
       // Force curse elimination first
       if (i === 0 && cursedPlayerId) {
