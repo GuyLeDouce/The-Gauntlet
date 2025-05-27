@@ -896,7 +896,6 @@ async function runGauntlet(channel) {
     if (noEliminationRounds >= 4) {
       await channel.send('☠️ Four rounds without eliminations… the Gauntlet has grown bored and devours all.');
       remaining = [];
-      break;
     }
 
     roundCounter++;
