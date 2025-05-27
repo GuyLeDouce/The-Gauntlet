@@ -25,17 +25,18 @@ db.connect()
 
     // Auto-create the player_stats and monthly_champions tables
     await db.query(`
-      CREATE TABLE IF NOT EXISTS player_stats (
-        id SERIAL PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        username TEXT,
-        year INT,
-        month INT,
-        wins INT DEFAULT 0,
-        revives INT DEFAULT 0,
-        games_played INT DEFAULT 0
-      );
-    `);
+  CREATE TABLE IF NOT EXISTS player_stats (
+    id SERIAL PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    username TEXT,
+    year INT,
+    month INT,
+    wins INT DEFAULT 0,
+    revives INT DEFAULT 0,
+    games_played INT DEFAULT 0,
+    UNIQUE (user_id, year, month)
+  );
+`);
 
     await db.query(`
       CREATE TABLE IF NOT EXISTS monthly_champions (
@@ -231,7 +232,7 @@ client.on(Events.InteractionCreate, async interaction => {
       gauntletEntrants.push({ id: interaction.user.id, username: interaction.user.username });
 
       try {
-  await interaction.reply({ content: '🩸 Your vote has been cast.', flags: 64 });
+  await interaction.reply({ content: '✅ You have joined The Ugly Gauntlet!', ephemeral: true });
 } catch (err) {
   console.warn('⚠️ Could not reply to interaction (likely expired):', err.message);
 }
