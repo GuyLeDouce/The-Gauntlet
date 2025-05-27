@@ -138,7 +138,7 @@ const eliminationEvents = [
   "asked for WiFi mid-quest. Got throttled into the afterlife.",
   "was caught multitasking. The Gauntlet demands full attention.",
   "opened a lootbox labeled “DO NOT OPEN.”",
-  "hit reply-all in the underworld newsletter. Got banned."
+  "hit reply-all in the underworld newsletter. Got banned.",
   "sipped tea brewed with cursed toenails. Instantly dissolved.",
   "tried to out-lore the Lore Keeper. Their voice got eaten.",
   "mistook the Totem for a vending machine. Pressed B3, got obliterated.",
@@ -182,7 +182,7 @@ const specialEliminations = [
   "took a bathroom break and came back erased.",
   "equipped the Cloak of Invisibility. It worked a little *too* well.",
   "tweeted something cringe. The spirits canceled them.",
-  "rolled a d20 and summoned their inner child. It panicked and ran."
+  "rolled a d20 and summoned their inner child. It panicked and ran.",
   "traded souls for Discord Nitro. Got disconnected.",
   "wrote fanfic about the Totem. It came true. Bad idea.",
   "cosplayed as an Ugly Boss. The real one took offense.",
@@ -226,7 +226,7 @@ const revivalEvents = [
   "fake cried until the spirits gave in.",
   "convinced the Reaper it was a prank.",
   "used the wrong pronoun in a curse, causing a reset.",
-  "was resurrected as a meme, and that counts."
+  "was resurrected as a meme, and that counts.",
   "rose again wearing a cape made of bad tweets.",
   "was reposted by the Algorithm of Undeath.",
   "bartered with the Bone Witch using a cursed pog collection.",
@@ -264,7 +264,7 @@ const reviveFailLines = [
   "🦴 Your bones attempted to reassemble. They unionized instead.",
   "🐌 Your request was too slow. Death already moved on.",
   "🤡 Your revival was reviewed… and laughed at.",
-  "🪤 You triggered a trap trying to live. Good effort though."
+  "🪤 You triggered a trap trying to live. Good effort though.",
   "🪦 You knocked. Death changed the locks.",
   "😵 You flexed… but forgot to revive first.",
   "🐛 You glitched. The void patched you.",
