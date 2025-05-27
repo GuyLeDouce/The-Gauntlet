@@ -916,7 +916,7 @@ async function runGauntlet(channel) {
   gauntletActive = false;
 
   setTimeout(() => triggerRematchPrompt(channel), 3000);
-}
+
 
 
 
@@ -999,7 +999,7 @@ async function runGauntlet(channel) {
         await channel.send(`👻 No votes were cast. The malformed crowd stays silent.`);
       }
     }
-
+}
     // === Elimination Round
     const trial = trialNames[Math.floor(Math.random() * trialNames.length)];
     let eliminationDescriptions = [];
