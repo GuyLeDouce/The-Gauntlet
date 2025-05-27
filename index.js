@@ -921,161 +921,159 @@ async function runGauntlet(channel) {
 
 
 
-// === Audience Curse Vote (2–3 times per game)
-let cursedPlayerId = null;
+    // === Audience Curse Vote (2–3 times per game)
+    let cursedPlayerId = null;
 
-if (
-  !roundEventFired &&
-  audienceVoteCount < maxVotesPerGame &&
-  remaining.length >= 3 &&
-  roundCounter >= 3 &&
-  Math.random() < 0.25
-) {
-  roundEventFired = true;
-  audienceVoteCount++;
+    if (
+      !roundEventFired &&
+      audienceVoteCount < maxVotesPerGame &&
+      remaining.length >= 3 &&
+      roundCounter >= 3 &&
+      Math.random() < 0.25
+    ) {
+      roundEventFired = true;
+      audienceVoteCount++;
 
-  const pollPlayers = remaining.slice(0, 3);
-  const playerList = pollPlayers.map(p => `- <@${p.id}>`).join('\n');
+      const pollPlayers = remaining.slice(0, 3);
+      const playerList = pollPlayers.map(p => `- <@${p.id}>`).join('\n');
 
-  await channel.send('👁️ The malformed eyes of the crowd turn toward the players...');
-  await new Promise(r => setTimeout(r, 4000));
+      await channel.send('👁️ The malformed eyes of the crowd turn toward the players...');
+      await new Promise(r => setTimeout(r, 4000));
 
-  await channel.send({
-    embeds: [new EmbedBuilder()
-      .setTitle(`👁️ Audience Vote #${audienceVoteCount}`)
-      .setDescription(`Three players are up for a potential CURSE:\n\n${playerList}`)
-      .setColor(0xff6666)
-    ]
-  });
+      await channel.send({
+        embeds: [new EmbedBuilder()
+          .setTitle(`👁️ Audience Vote #${audienceVoteCount}`)
+          .setDescription(`Three players are up for a potential CURSE:\n\n${playerList}`)
+          .setColor(0xff6666)
+        ]
+      });
 
-  await channel.send(`🗣️ Discuss who to curse... you have **20 seconds**.`);
-  await new Promise(r => setTimeout(r, 10000));
-  await channel.send(`⏳ 10 seconds remaining...`);
-  await new Promise(r => setTimeout(r, 10000));
+      await channel.send(`🗣️ Discuss who to curse... you have **20 seconds**.`);
+      await new Promise(r => setTimeout(r, 10000));
+      await channel.send(`⏳ 10 seconds remaining...`);
+      await new Promise(r => setTimeout(r, 10000));
 
-  const voteRow = new ActionRowBuilder().addComponents(
-    ...pollPlayers.map((p) =>
-      new ButtonBuilder()
-        .setCustomId(`vote_${p.id}`)
-        .setLabel(`Curse ${p.username}`)
-        .setStyle(ButtonStyle.Secondary)
-    )
-  );
+      const voteRow = new ActionRowBuilder().addComponents(
+        ...pollPlayers.map((p) =>
+          new ButtonBuilder()
+            .setCustomId(`vote_${p.id}`)
+            .setLabel(`Curse ${p.username}`)
+            .setStyle(ButtonStyle.Secondary)
+        )
+      );
 
-  const voteMsg = await channel.send({
-    embeds: [new EmbedBuilder()
-      .setTitle('🗳️ Cast Your Curse')
-      .setDescription('Click a button below to vote. The player with the most votes will be cursed.\nYou have **10 seconds**.')
-      .setColor(0x880808)
-    ],
-    components: [voteRow]
-  });
+      const voteMsg = await channel.send({
+        embeds: [new EmbedBuilder()
+          .setTitle('🗳️ Cast Your Curse')
+          .setDescription('Click a button below to vote. The player with the most votes will be cursed.\nYou have **10 seconds**.')
+          .setColor(0x880808)
+        ],
+        components: [voteRow]
+      });
 
-  const voteCounts = {};
-  const voteCollector = voteMsg.createMessageComponentCollector({ time: 10000 });
-  const alreadyVoted = new Set();
+      const voteCounts = {};
+      const voteCollector = voteMsg.createMessageComponentCollector({ time: 10000 });
+      const alreadyVoted = new Set();
 
-  voteCollector.on('collect', interaction => {
-    if (alreadyVoted.has(interaction.user.id)) {
-      return interaction.reply({ content: '🛑 You already voted.', ephemeral: true });
+      voteCollector.on('collect', interaction => {
+        if (alreadyVoted.has(interaction.user.id)) {
+          return interaction.reply({ content: '🛑 You already voted.', ephemeral: true });
+        }
+        alreadyVoted.add(interaction.user.id);
+        const targetId = interaction.customId.split('_')[1];
+        voteCounts[targetId] = (voteCounts[targetId] || 0) + 1;
+        interaction.reply({ content: '✅ Your vote has been cast.', ephemeral: true });
+      });
+
+      await new Promise(r => setTimeout(r, 10000));
+
+      const maxVotes = Math.max(...Object.values(voteCounts));
+      const cursedIds = Object.entries(voteCounts)
+        .filter(([_, count]) => count === maxVotes)
+        .map(([id]) => id);
+      cursedPlayerId = cursedIds[Math.floor(Math.random() * cursedIds.length)];
+
+      if (cursedPlayerId) {
+        activeCurses[cursedPlayerId] = true;
+        await channel.send(`😨 The audience has spoken. <@${cursedPlayerId}> is **cursed**!`);
+      } else {
+        await channel.send(`👻 No votes were cast. The malformed crowd stays silent.`);
+      }
     }
-    alreadyVoted.add(interaction.user.id);
-    const targetId = interaction.customId.split('_')[1];
-    voteCounts[targetId] = (voteCounts[targetId] || 0) + 1;
-    interaction.reply({ content: '✅ Your vote has been cast.', ephemeral: true });
-  });
-
-  await new Promise(r => setTimeout(r, 10000));
-
-  const maxVotes = Math.max(...Object.values(voteCounts));
-  const cursedIds = Object.entries(voteCounts)
-    .filter(([_, count]) => count === maxVotes)
-    .map(([id]) => id);
-  cursedPlayerId = cursedIds[Math.floor(Math.random() * cursedIds.length)];
-
-  if (cursedPlayerId) {
-    activeCurses[cursedPlayerId] = true;
-    await channel.send(`😨 The audience has spoken. <@${cursedPlayerId}> is **cursed**!`);
-  } else {
-    await channel.send(`👻 No votes were cast. The malformed crowd stays silent.`);
-  }
-}
 
     // === Elimination Round
-    // === Elimination Round
-const trial = trialNames[Math.floor(Math.random() * trialNames.length)];
-let eliminationDescriptions = [];
+    const trial = trialNames[Math.floor(Math.random() * trialNames.length)];
+    let eliminationDescriptions = [];
 
-for (let i = 0; i < eliminations; i++) {
-  let player;
+    for (let i = 0; i < eliminations; i++) {
+      let player;
 
-  // Force curse elimination first
-  if (i === 0 && cursedPlayerId) {
-    player = remaining.find(p => p.id === cursedPlayerId);
-    if (player) {
-      remaining = remaining.filter(p => p.id !== cursedPlayerId);
+      // Force curse elimination first
+      if (i === 0 && cursedPlayerId) {
+        player = remaining.find(p => p.id === cursedPlayerId);
+        if (player) {
+          remaining = remaining.filter(p => p.id !== cursedPlayerId);
+        }
+      }
+
+      // Pick randomly if not cursed
+      if (!player) {
+        player = remaining.splice(Math.floor(Math.random() * remaining.length), 1)[0];
+      }
+
+      // === Protection Checks
+      if (roundImmunity[player.id]) {
+        eliminationDescriptions.push(`🛡️ <@${player.id}> avoided elimination with quick reflexes!`);
+        continue;
+      }
+
+      if (activeBoons[player.id]) {
+        eliminationDescriptions.push(`✨ <@${player.id}> was protected by a boon and dodged elimination!`);
+        continue;
+      }
+
+      if (activeCurses[player.id]) {
+        eliminationDescriptions.push(`💀 <@${player.id}> succumbed to their curse!`);
+      }
+
+      if (player.id === boss.id && Math.random() < 0.5) {
+        eliminationDescriptions.push(`🛑 <@${player.id}> is the Boss — and shrugged off the attack!`);
+        remaining.push(player);
+        continue;
+      }
+
+      eliminated.push(player);
+      eliminatedPlayers.push(player);
+
+      const useSpecial = Math.random() < 0.15;
+      const reason = useSpecial
+        ? specialEliminations[Math.floor(Math.random() * specialEliminations.length)]
+        : eliminationEvents[Math.floor(Math.random() * eliminationEvents.length)];
+
+      const style = Math.floor(Math.random() * 3);
+      if (useSpecial) {
+        if (style === 0) {
+          eliminationDescriptions.push(`━━━━━━━━━━ 👁‍🗨 THE MALFORMED STRIKE 👁‍🗨 ━━━━━━━━━━\n❌ <@${player.id}> ${reason}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+        } else if (style === 1) {
+          eliminationDescriptions.push(`⚠️💀⚠️ SPECIAL FATE ⚠️💀⚠️\n❌ <@${player.id}> ${reason}\n🩸🧟‍♂️😈👁🔥👣🪦🧠👃`);
+        } else {
+          eliminationDescriptions.push(`**💥 Cursed Spotlight: <@${player.id}> 💥**\n_${reason}_`);
+        }
+      } else {
+        eliminationDescriptions.push(`❌ <@${player.id}> ${reason}`);
+      }
     }
-  }
 
-  // Pick randomly if not cursed
-  if (!player) {
-    player = remaining.splice(Math.floor(Math.random() * remaining.length), 1)[0];
-  }
-
-  // === Protection Checks
-  if (roundImmunity[player.id]) {
-    eliminationDescriptions.push(`🛡️ <@${player.id}> avoided elimination with quick reflexes!`);
-    continue;
-  }
-
-  if (activeBoons[player.id]) {
-    eliminationDescriptions.push(`✨ <@${player.id}> was protected by a boon and dodged elimination!`);
-    continue;
-  }
-
-  if (activeCurses[player.id]) {
-    eliminationDescriptions.push(`💀 <@${player.id}> succumbed to their curse!`);
-  }
-
-  if (player.id === boss.id && Math.random() < 0.5) {
-    eliminationDescriptions.push(`🛑 <@${player.id}> is the Boss — and shrugged off the attack!`);
-    remaining.push(player);
-    continue;
-  }
-
-  eliminated.push(player);
-  eliminatedPlayers.push(player);
-
-  const useSpecial = Math.random() < 0.15;
-  const reason = useSpecial
-    ? specialEliminations[Math.floor(Math.random() * specialEliminations.length)]
-    : eliminationEvents[Math.floor(Math.random() * eliminationEvents.length)];
-
-  const style = Math.floor(Math.random() * 3);
-  if (useSpecial) {
-    if (style === 0) {
-      eliminationDescriptions.push(`━━━━━━━━━━ 👁‍🗨 THE MALFORMED STRIKE 👁‍🗨 ━━━━━━━━━━\n❌ <@${player.id}> ${reason}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-    } else if (style === 1) {
-      eliminationDescriptions.push(`⚠️💀⚠️ SPECIAL FATE ⚠️💀⚠️\n❌ <@${player.id}> ${reason}\n🩸🧟‍♂️😈👁🔥👣🪦🧠👃`);
-    } else {
-      eliminationDescriptions.push(`**💥 Cursed Spotlight: <@${player.id}> 💥**\n_${reason}_`);
+    // 💫 Rare Resurrection (35% chance)
+    if (eliminated.length && Math.random() < 0.35) {
+      const reviveIndex = Math.floor(Math.random() * eliminated.length);
+      const revived = eliminated.splice(reviveIndex, 1)[0];
+      if (revived) {
+        remaining.push(revived);
+        const reviveMsg = revivalEvents[Math.floor(Math.random() * revivalEvents.length)];
+        eliminationDescriptions.push(`💫 <@${revived.id}> ${reviveMsg}`);
+      }
     }
-  } else {
-    eliminationDescriptions.push(`❌ <@${player.id}> ${reason}`);
-  }
-}
-
-// 💫 Rare Resurrection (35% chance)
-if (eliminated.length && Math.random() < 0.35) {
-  const reviveIndex = Math.floor(Math.random() * eliminated.length);
-  const revived = eliminated.splice(reviveIndex, 1)[0];
-  if (revived) {
-    remaining.push(revived);
-    const reviveMsg = revivalEvents[Math.floor(Math.random() * revivalEvents.length)];
-    eliminationDescriptions.push(`💫 <@${revived.id}> ${reviveMsg}`);
-  }
-}
-
 
       // Force curse elimination first
       if (i === 0 && cursedPlayerId) {
