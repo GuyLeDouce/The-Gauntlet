@@ -1130,21 +1130,17 @@ for (const player of gauntletEntrants) {
 });
 
 // ✅ NOW we are out of channel.send()
-const now = new Date();
-const year = now.getFullYear();
-const month = now.getMonth() + 1;
-
 async function recordWin(user) {
   await db.query(`
-  INSERT INTO player_stats (user_id, username, year, month, wins)
-  VALUES ($1, $2, $3, $4, 1)
-  ON CONFLICT (user_id, year, month)
-  DO UPDATE SET 
-    wins = player_stats.wins + 1,
-    username = EXCLUDED.username;
-`, [user.id, user.username, year, month]);
-
+    INSERT INTO player_stats (user_id, username, year, month, wins)
+    VALUES ($1, $2, $3, $4, 1)
+    ON CONFLICT (user_id, year, month)
+    DO UPDATE SET 
+      wins = player_stats.wins + 1,
+      username = EXCLUDED.username;
+  `, [user.id, user.username, year, month]);
 }
+
 
 await recordWin(first);
 await recordWin(second);
