@@ -897,7 +897,7 @@ async function runGauntlet(channel) {
       await channel.send('☠️ Four rounds without eliminations… the Gauntlet has grown bored and devours all.');
       remaining = [];
       break;
-    }
+    
 
     roundCounter++;
     await new Promise(r => setTimeout(r, 10000));
