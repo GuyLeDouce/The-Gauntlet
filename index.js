@@ -1141,18 +1141,16 @@ async function runGauntlet(channel) {
     });
   }
 } // End of runGauntlet
-// === Batch 10: Rematch Vote Logic ===
 async function triggerRematchPrompt(channel) {
   lastGameEntrantCount = gauntletEntrants.length;
 
-  // Reset rematch limit if an hour has passed
   if (Date.now() - rematchLimitResetTime > 60 * 60 * 1000) {
     rematchesThisHour = 0;
     rematchLimitResetTime = Date.now();
   }
 
   if (rematchesThisHour >= 3) {
-    await channel.send(`🚫 Max of 3 rematches reached this hour. The Gauntlet rests... for now.`);
+    await channel.send("🚫 Max of 3 rematches reached this hour. The Gauntlet rests... for now.");
     return;
   }
 
@@ -1163,104 +1161,58 @@ async function triggerRematchPrompt(channel) {
   const buildRematchButton = () =>
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId('rematch_gauntlet')
+        .setCustomId("rematch_gauntlet")
         .setLabel(`🔁 Rematch? (${rematchClicks}/${neededClicks})`)
         .setStyle(ButtonStyle.Primary)
     );
 
+  const rematchEmbed = new EmbedBuilder()
+    .setTitle("🔁 Call for Rematch?")
+    .setDescription(`The blood is still warm...\nAt least **${neededClicks}** brave souls must rise in the next **60 seconds**.`)
+    .setColor(0xff4c4c);
+
   const rematchMsg = await channel.send({
-    content: `The blood is still warm... At least **${neededClicks}** brave souls must rise to demand a rematch...`,
+    embeds: [rematchEmbed],
     components: [buildRematchButton()]
   });
 
-  await channel.send(`🕐 You have **1 minute** to vote for a rematch.`);
-
   const rematchCollector = rematchMsg.createMessageComponentCollector({ time: 60000 });
 
-  rematchCollector.on('collect', async interaction => {
+  rematchCollector.on("collect", async (interaction) => {
     if (rematchVoters.has(interaction.user.id)) {
-      return interaction.reply({ content: '⛔ You’ve already voted for a rematch.', ephemeral: true });
+      return interaction.reply({ content: "⛔ You've already voted.", ephemeral: true });
     }
 
     rematchVoters.add(interaction.user.id);
     rematchClicks++;
+    await interaction.deferUpdate();
 
-    await interaction.reply({ content: '🩸 Your vote has been cast.', ephemeral: true });
+    const updatedEmbed = EmbedBuilder.from(rematchEmbed)
+      .setDescription(`The blood is still warm...\n**${rematchClicks} / ${neededClicks}** have stepped forward...\nVote closes in **under 60 seconds**.`);
 
     await rematchMsg.edit({
-      content: `The blood is still warm... **${neededClicks} souls** must choose to rematch...`,
+      embeds: [updatedEmbed],
       components: [buildRematchButton()]
     });
 
     if (rematchClicks >= neededClicks) {
-      rematchesThisHour++;
-      await channel.send(`🔁 The Gauntlet begins again — summoned by ${rematchClicks} brave souls!`);
-      setTimeout(() => startGauntlet(channel, 3), 2000);
-      rematchCollector.stop();
+      rematchCollector.stop("passed");
     }
   });
 
-  rematchCollector.on('end', async () => {
-    if (rematchClicks < neededClicks) {
-      await channel.send(`☠️ Not enough players voted for a rematch. The Gauntlet sleeps... for now.`);
-    }
-  });
-}
-// === Batch 11: Send DRIP $CHARM Token Rewards ===
-async function sendCharmToUser(discordUserId, amount, channel = null) {
-  const DRIP_API_TOKEN = process.env.DRIP_API_TOKEN;
-  const DRIP_ACCOUNT_ID = '676d81ee502cd15c9c983d81'; // Replace with your actual DRIP account ID if different
-  const CURRENCY_ID = '1047256251320520705'; // Replace with your $CHARM currency ID if different
-
-  const headers = {
-    Authorization: `Bearer ${DRIP_API_TOKEN}`,
-    'Content-Type': 'application/json'
-  };
-
-  const data = {
-    recipient: {
-      id: discordUserId,
-      id_type: "discord_id"
-    },
-    amount: amount,
-    reason: "Victory in The Gauntlet",
-    currency_id: CURRENCY_ID,
-    account_id: DRIP_ACCOUNT_ID
-  };
-
-  try {
-    await axios.post(`https://api.drip.re/v2/send`, data, { headers });
-    console.log(`✅ Sent ${amount} $CHARM to ${discordUserId}`);
-    if (channel) {
-      await channel.send(`🪙 <@${discordUserId}> received **${amount} $CHARM** from the Malformed Vault.`);
-    }
-  } catch (error) {
-    console.error(`❌ Failed to send $CHARM to ${discordUserId}`, {
-      message: error.message,
-      status: error.response?.status,
-      data: error.response?.data
+  rematchCollector.on("end", async (_, reason) => {
+    await rematchMsg.edit({
+      components: []
     });
-  }
-}
-// === Batch 12: Record Win Stats ===
-async function recordWin(player) {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
 
-  try {
-    await db.query(`
-      INSERT INTO player_stats (user_id, username, year, month, wins, revives, games_played)
-      VALUES ($1, $2, $3, $4, 1, 0, 1)
-      ON CONFLICT (user_id, year, month)
-      DO UPDATE SET
-        wins = player_stats.wins + 1,
-        games_played = player_stats.games_played + 1,
-        username = EXCLUDED.username;
-    `, [player.id, player.username, year, month]);
-  } catch (err) {
-    console.error(`❌ Failed to record win for ${player.username}:`, err.message);
-  }
+    if (reason === "passed") {
+      rematchesThisHour++;
+      await channel.send("🔥 The Gauntlet stirs once more! A new trial shall begin shortly...");
+      setTimeout(() => startGauntlet(channel, 3), 2500); // Delay for drama
+    } else {
+      await channel.send("💤 Not enough stepped forward. The Gauntlet returns to slumber...");
+    }
+  });
 }
 
 // === Optional: Could add recordRevive() here if needed ===
