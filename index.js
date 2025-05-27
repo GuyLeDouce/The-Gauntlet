@@ -372,7 +372,7 @@ client.on('messageCreate', async (message) => {
 
     wasEliminated.attemptedRevive = true;
 
-    if (Math.random() < 0.35) {
+    if (Math.random() < 0.25) {
       remaining.push(wasEliminated);
       const reviveMsg = revivalEvents[Math.floor(Math.random() * revivalEvents.length)];
       return message.channel.send(`💫 <@${userId}> ${reviveMsg}`);
@@ -667,6 +667,7 @@ async function runGauntlet(channel) {
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
+  let noEliminationRounds = 0; // 🧠 Softlock counter
 
   // === Boss Vote ===
   const bossCandidates = [...remaining].sort(() => 0.5 - Math.random()).slice(0, 5);
@@ -718,7 +719,9 @@ async function runGauntlet(channel) {
   const boss = remaining.find(p => p.id === bossId);
 
   await channel.send(`👹 A foul stench rises... <@${boss.id}> has been chosen as the **UGLY BOSS**! If they make it to the podium, they earn **double $CHARM**...`);
+
   while (remaining.length > 3) {
+    // === 🔥 Trigger Mass Revival Event
     if (!massReviveTriggered && remaining.length <= Math.floor(gauntletEntrants.length / 2)) {
       massReviveTriggered = true;
 
@@ -734,6 +737,7 @@ async function runGauntlet(channel) {
       await new Promise(r => setTimeout(r, 3000));
     }
 
+    // === 🧱 Softlock Prevention Check (moved to later below)
     const eliminations = Math.min(2, remaining.length - 3);
     const eliminated = [];
     roundImmunity = {};
@@ -830,6 +834,7 @@ async function runGauntlet(channel) {
       await channel.send('🪢 The rope vanishes into the mist... the trial resumes soon.');
       await new Promise(r => setTimeout(r, 5000));
     }
+
     // === Boons & Curses (15% chance)
     if (!roundEventFired && Math.random() < 0.15 && remaining.length > 2) {
       roundEventFired = true;
@@ -857,6 +862,64 @@ async function runGauntlet(channel) {
         ]
       });
     }
+    let eliminatedThisRound = 0;
+    while (eliminated.length < eliminations) {
+      const unlucky = remaining[Math.floor(Math.random() * remaining.length)];
+      if (roundImmunity[unlucky.id]) continue;
+
+      // 2% chance of revival mid-round
+      if (Math.random() < 0.02) {
+        await channel.send(`💫 A ghostly surge spares <@${unlucky.id}> from certain doom...`);
+        continue;
+      }
+
+      const tokenId = Math.floor(Math.random() * 530) + 1;
+      const nftEmbed = new EmbedBuilder()
+        .setTitle(`💀 The Gauntlet Claims Another`)
+        .setDescription(`<@${unlucky.id}> has fallen.\n\nTheir Ugly lives on...`)
+        .setImage(`https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}`)
+        .setColor(0x8b0000);
+
+      await channel.send({ embeds: [nftEmbed] });
+
+      eliminated.push(unlucky);
+      remaining = remaining.filter(p => p.id !== unlucky.id);
+      eliminatedThisRound++;
+    }
+
+    if (eliminatedThisRound === 0) {
+      noEliminationRounds++;
+    } else {
+      noEliminationRounds = 0;
+    }
+
+    if (noEliminationRounds >= 4) {
+      await channel.send('☠️ Four rounds without eliminations… the Gauntlet has grown bored and devours all.');
+      remaining = [];
+      break;
+    }
+
+    roundCounter++;
+    await new Promise(r => setTimeout(r, 10000));
+  }
+
+  // === Podium ===
+  const winners = [...remaining];
+  const positions = ['🥇', '🥈', '🥉'];
+
+  for (let i = 0; i < winners.length; i++) {
+    await channel.send(`${positions[i]} ${winners[i].username} has survived The Gauntlet!`);
+    await recordWin(winners[i]);
+    await sendCharmToUser(winners[i].id, i === 0 ? 150 : i === 1 ? 100 : 75, channel);
+  }
+
+  gauntletEntrants = [];
+  gauntletActive = false;
+
+  setTimeout(() => triggerRematchPrompt(channel), 3000);
+}
+
+
 
     // === Audience Curse Vote (2–3 times per game)
     let cursedPlayerId = null;
@@ -1030,17 +1093,19 @@ async function runGauntlet(channel) {
       ]
     });
 
-    if (eliminated.length === 0) {
-      noEliminationRounds++;
-      if (noEliminationRounds >= 2) {
-        await channel.send(`⚠️ Two rounds in a row with no eliminations. Ending to avoid softlock.`);
-        break;
-      } else {
-        await channel.send(`⚠️ No eliminations this round. Continuing cautiously...`);
-      }
-    } else {
-      noEliminationRounds = 0;
-    }
+   // Track if anyone was eliminated this round
+if (eliminated.length === 0) {
+  noEliminationRounds++;
+  console.log(`No eliminations this round. (${noEliminationRounds} in a row)`);
+
+  if (noEliminationRounds >= 4) {
+    await channel.send("⛔ The Gauntlet has stalled. Four rounds have passed with no eliminations. It fades into the void...No winners declared");
+    return;
+  }
+} else {
+  noEliminationRounds = 0; // Reset if someone was eliminated
+}
+
 
     roundCounter++;
     await new Promise(r => setTimeout(r, 10000));
