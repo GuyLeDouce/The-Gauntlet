@@ -870,7 +870,6 @@ async function runGauntlet(channel) {
       // 2% chance of revival mid-round
       if (Math.random() < 0.02) {
         await channel.send(`💫 A ghostly surge spares <@${unlucky.id}> from certain doom...`);
-        continue;
       }
 
       const tokenId = Math.floor(Math.random() * 530) + 1;
