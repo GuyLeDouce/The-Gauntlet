@@ -900,7 +900,7 @@ async function runGauntlet(channel) {
 
     roundCounter++;
     await new Promise(r => setTimeout(r, 10000));
-}
+
 
   // === Podium ===
   const winners = [...remaining];
