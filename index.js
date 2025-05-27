@@ -731,7 +731,7 @@ async function runGauntlet(channel) {
           .setDescription(`With only a handful of survivors clinging to life...\n\nThe **Totem of Lost Souls** emerges.\n\nEliminated players and wandering souls may now **touch the Totem**...\nfor a chance to return to the Gauntlet.`)
           .setColor(0x9932cc)]
       });
-
+    }
       console.log(`[GAUNTLET] Mass Revival triggered with ${remaining.length} players`);
       await massRevivalEvent(channel);
       await new Promise(r => setTimeout(r, 3000));
