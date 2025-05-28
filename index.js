@@ -96,7 +96,7 @@ function formatEntrants() {
 }
 function generateNFTImageURL(baseURL) {
   const tokenId = Math.floor(Math.random() * 530) + 1;
-  return `https://opensea.io/assets/ethereum/0x9492505633d74451bdf3079c09ccc979588bc309/${tokenId}`;
+  return `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}`;
 }
 
 const eliminationEvents = [
@@ -434,7 +434,7 @@ async function runGauntlet(channel) {
       .setColor(0xff4444);
 
     await channel.send({ embeds: [roundEmbed] });
-    await delay(4000);
+    await delay(7500);
   }
 
   const winner = entrants[0];
