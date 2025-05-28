@@ -515,6 +515,43 @@ async function runGauntlet(channel) {
     await recordWin(winner);
     await announceTop3(channel, winner);
   }
+  // 🎉 Smart Final Podium Logic
+let podiumTitle, podiumDesc;
+
+// If there are survivors, celebrate them
+if (finalists.length > 0) {
+  const winner = finalists[0] || "—";
+  const second = finalists[1] || "—";
+  const third = finalists[2] || "—";
+  podiumTitle = "💀 THE GAUNTLET HAS SPOKEN 💀";
+  podiumDesc =
+    `After a brutal descent through chaos and carnage...\n\n` +
+    `🏆 **ULTIMATE CHAMPION:** **${winner}**\n` +
+    `🥈 **Valiant Second:** ${second}\n` +
+    `🥉 **Bloodied Bronze:** ${third}\n\n` +
+    `✨ These survivors have etched their names in Ugly lore.`;
+} else {
+  // No survivors — fallback to last 3 eliminated
+  const recentElims = eliminated.slice(-3).reverse(); // last 3 eliminated
+  const [third, second, winner] = recentElims; // winner = longest lasting
+  podiumTitle = "☠️ NO ONE SURVIVED ☠️";
+  podiumDesc =
+    `The Gauntlet claimed every soul...\nBut some held out longer than others:\n\n` +
+    `🥉 **Third to Fall:** ${third || "—"}\n` +
+    `🥈 **Second to Last:** ${second || "—"}\n` +
+    `🏆 **Last One Standing (Before Doom):** **${winner || "—"}**\n\n` +
+    `⚰️ Let them be remembered in the halls of failure.`;
+}
+
+const podiumEmbed = new EmbedBuilder()
+  .setTitle(podiumTitle)
+  .setColor(0xff4f00)
+  .setDescription(podiumDesc)
+  .setThumbnail('https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExdHJ3d3JpYnl2bHF4enJ0YjVrbWRqOWw4dXBlN3ZrMXFyZG1nb2ptNiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/iGDh4m3B7s2c9RogOl/giphy.gif')
+  .setFooter({ text: 'Legends rise. The Gauntlet awaits again.' });
+
+channel.send({ content: '🔥 **THE FINAL PODIUM** 🔥', embeds: [podiumEmbed] });
+
 showPodium(channel, entrants, eliminatedPlayers);
   await runRematchPrompt(channel);
   gameInProgress = false;
