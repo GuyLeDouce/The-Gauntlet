@@ -374,16 +374,22 @@ async function runBossVotePhase(channel) {
 
   await channel.send(`👑 <@${bossPlayer.id}> has been chosen as **Boss Level Ugly** and now has **2 lives**!`);
 
-  // 🔐 Trial check: don't continue into full game
+  // 🧪 If it's trial mode, end cleanly and do NOT start the real game
   if (isTrialMode) {
     await channel.send("🧪 Trial mode complete. No eliminations will be run.");
+    console.log('✅ Trial completed. Game state reset.');
+    isTrialMode = false;
     gameInProgress = false;
-    isTrialMode = false; // reset flag
+    entrants = [];
+    eliminated = [];
+    revivable = [];
     return;
   }
 
+  // Otherwise start the actual Gauntlet
   await runGauntlet(channel);
 }
+
 async function runGauntlet(channel) {
   await delay(2000);
   await channel.send("🎲 The Gauntlet begins now... let the eliminations commence!");
