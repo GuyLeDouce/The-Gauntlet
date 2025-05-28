@@ -222,7 +222,6 @@ async function recordMonthlyChampion(userId, username, category, value) {
   `, [userId, username, year, month, category, value]);
 }
 let devMode = false;
-let entrants = [];
 let eliminated = [];
 let revivable = [];
 let originalEntrants = [];
