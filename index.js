@@ -865,7 +865,7 @@ async function runGauntlet(channel) {
     let eliminatedThisRound = 0;
     while (eliminated.length < eliminations) {
       const unlucky = remaining[Math.floor(Math.random() * remaining.length)];
-      if (roundImmunity[unlucky.id]) continue;
+      if (roundImmunity[unlucky.id])
 
       // 2% chance of revival mid-round
       if (Math.random() < 0.02) {
