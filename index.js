@@ -176,8 +176,34 @@ const reviveFailLines = [
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
   const content = message.content.toLowerCase();
+  if (content.startsWith('!gauntlettrial')) {
+  if (gameInProgress) return message.reply("A Gauntlet is already in progress!");
 
-  if (content.startsWith('!gauntlet')) {
+  const args = content.split(' ');
+  let count = parseInt(args[1]);
+  if (isNaN(count) || count < 5) count = 20;
+  if (count > 100) count = 100; // prevent abuse
+
+  const emojiSet = ['😈', '👺', '🤡', '👹', '👻', '🦴', '🧟‍♂️', '💀', '🐷', '🪰'];
+
+  const trialPlayers = Array.from({ length: count }, (_, i) => ({
+    id: `Trial${i + 1}`,
+    username: `${getRandomItem(emojiSet)} Ugly${Math.floor(Math.random() * 1000)}`,
+    lives: 1
+  }));
+
+  entrants = trialPlayers;
+  eliminated = [];
+  revivable = [];
+  round = 0;
+  originalCount = trialPlayers.length;
+  massRevivalTriggered = false;
+  gameInProgress = true;
+
+  await message.channel.send(`🧪 Starting Gauntlet Trial Mode with **${count}** randomly generated test players...`);
+  await runBossVotePhase(message.channel);
+}
+    if (content.startsWith('!gauntlet')) {
   if (gameInProgress) return message.reply("A Gauntlet is already in progress!");
 
   const args = content.split(' ');
@@ -238,33 +264,6 @@ client.on('messageCreate', async (message) => {
       await runBossVotePhase(message.channel);
     }
   }, interval * 1000);
-}
-  if (content.startsWith('!gauntlettrial')) {
-  if (gameInProgress) return message.reply("A Gauntlet is already in progress!");
-
-  const args = content.split(' ');
-  let count = parseInt(args[1]);
-  if (isNaN(count) || count < 5) count = 20;
-  if (count > 100) count = 100; // prevent abuse
-
-  const emojiSet = ['😈', '👺', '🤡', '👹', '👻', '🦴', '🧟‍♂️', '💀', '🐷', '🪰'];
-
-  const trialPlayers = Array.from({ length: count }, (_, i) => ({
-    id: `Trial${i + 1}`,
-    username: `${getRandomItem(emojiSet)} Ugly${Math.floor(Math.random() * 1000)}`,
-    lives: 1
-  }));
-
-  entrants = trialPlayers;
-  eliminated = [];
-  revivable = [];
-  round = 0;
-  originalCount = trialPlayers.length;
-  massRevivalTriggered = false;
-  gameInProgress = true;
-
-  await message.channel.send(`🧪 Starting Gauntlet Trial Mode with **${count}** randomly generated test players...`);
-  await runBossVotePhase(message.channel);
 }
 });
 
