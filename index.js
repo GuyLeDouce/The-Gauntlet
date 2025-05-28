@@ -178,6 +178,33 @@ client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
   const content = message.content.toLowerCase();
 
+//DEV TEST
+if (content.startsWith('!gauntletdev')) {
+  if (gameInProgress) return message.reply("A Gauntlet is already in progress!");
+  isTrialMode = false;
+  gameInProgress = true;
+
+  const emojiSet = ['😈', '👺', '🤡', '👹', '👻', '🦴', '🧟‍♂️', '💀', '🐷', '🪰'];
+  const count = 10; // adjust number of test players here
+
+  entrants = Array.from({ length: count }, (_, i) => ({
+    id: `DevTest${i + 1}`,
+    username: `${getRandomItem(emojiSet)} Ugly${Math.floor(Math.random() * 1000)}`,
+    lives: 1
+  }));
+
+  eliminated = [];
+  revivable = [];
+  round = 0;
+  originalCount = entrants.length;
+  massRevivalTriggered = false;
+
+  await message.channel.send(`🧪 Dev Gauntlet starting with ${count} fake entrants...`);
+  await runBossVotePhase(message.channel);
+
+  return;
+}
+
   // Trial Mode
   if (content.startsWith('!gauntlettrial')) {
   if (gameInProgress) return message.reply("A Gauntlet is already in progress!");
@@ -271,6 +298,7 @@ client.on('messageCreate', async (message) => {
       }
     }, interval * 1000);
   }
+
 });
 
 
