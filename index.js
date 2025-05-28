@@ -77,6 +77,7 @@ let isTrialMode = false;
 // Server-specific settings
 const serverSettings = new Map();
 const DEFAULT_IMAGE_BASE_URL = 'https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/';
+const { EmbedBuilder } = require('discord.js');
 
 // Helper Functions
 function delay(ms) {
@@ -97,7 +98,7 @@ function formatEntrants() {
 }
 function generateNFTImageURL(baseURL) {
   const tokenId = Math.floor(Math.random() * 530) + 1;
-  return `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}`;
+  return `https://opensea.io/assets/ethereum/0x9492505633d74451bdf3079c09ccc979588bc309${tokenId}`;
 }
 
 const eliminationEvents = [
@@ -203,6 +204,27 @@ if (content.startsWith('!gauntletdev')) {
   await runBossVotePhase(message.channel);
 
   return;
+}
+function showPodium(channel, survivors, eliminatedThisGame) {
+  const title = survivors.length > 0 ? "🏆 The Gauntlet Has a Victor!" : "💀 No Survivors...";
+  const color = survivors.length > 0 ? 0xffcc00 : 0x990000;
+
+  const topThree = survivors.length > 0
+    ? [...survivors].reverse().slice(0, 3)
+    : [...eliminatedThisGame].reverse().slice(0, 3);
+
+  const podiumText = topThree.map((player, index) => {
+    const medal = ["🥇", "🥈", "🥉"][index] || "🏅";
+    return `${medal} <@${player.id}>`;
+  }).join('\n');
+
+  const embed = new EmbedBuilder()
+    .setTitle(title)
+    .setDescription(podiumText)
+    .setColor(color)
+    .setFooter({ text: "Thanks for surviving The Gauntlet." });
+
+  channel.send({ embeds: [embed] });
 }
 
   // Trial Mode
@@ -484,6 +506,7 @@ async function runGauntlet(channel) {
     await delay(7500);
   }
 
+
   const winner = entrants[0];
   if (!winner) {
     await channel.send("💥 All players perished. The Gauntlet claims everyone... but who stood longest?");
@@ -493,7 +516,7 @@ async function runGauntlet(channel) {
     await recordWin(winner);
     await announceTop3(channel, winner);
   }
-
+showPodium(channel, entrants, eliminatedPlayers);
   await runRematchPrompt(channel);
   gameInProgress = false;
 }
