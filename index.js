@@ -172,11 +172,6 @@ const reviveFailLines = [
   "missed the timer by one second. The saddest second.",
   "called the game 'mid.' The code heard them."
 ];
-client.on('messageCreate', async (message) => {
-  if (message.author.bot) return;
-
-  const content = message.content.toLowerCase();
-
  // Join command
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
