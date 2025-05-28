@@ -196,31 +196,44 @@ function generateTrialPlayers() {
     isTrial: true
   }));
 }
-async function runBossVotePhase(channel, players = entrants) {
-  const candidates = shuffleArray(players).slice(0, 3);
-  const emojis = ['🅰️', '🅱️', '🇨️'];
+async function runBossVotePhase(channel) {
+  const candidates = shuffleArray(entrants).slice(0, 5); // Pick 5 random players
+  bossVotes = {}; // Reset bossVotes object
 
   const embed = new EmbedBuilder()
     .setTitle("👑 Boss Selection Phase 👑")
-    .setDescription(`The Gauntlet demands a Boss.\n\nVote now:\n\n${emojis[0]} — ${candidates[0].username}\n${emojis[1]} — ${candidates[1].username}\n${emojis[2]} — ${candidates[2].username}`)
+    .setDescription("Choose who should become the Boss of this Gauntlet.\nClick a name below to cast your vote!")
     .setColor('Gold');
 
-  const voteMessage = await channel.send({ embeds: [embed] });
+  const row = new ActionRowBuilder();
 
-  for (const emoji of emojis) {
-    await voteMessage.react(emoji);
+  candidates.forEach((player, index) => {
+    row.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`vote_boss_${player.id}`)
+        .setLabel(player.username || `Player ${index + 1}`)
+        .setStyle(ButtonStyle.Primary)
+    );
+  });
+
+  const voteMessage = await channel.send({
+    embeds: [embed],
+    components: [row]
+  });
+
+  // Wait 30 seconds for voting
+  await delay(30000);
+
+  // Tally votes
+  const voteCounts = {};
+  for (const vote of Object.values(bossVotes)) {
+    voteCounts[vote] = (voteCounts[vote] || 0) + 1;
   }
 
-  await delay(30000); // Wait 30 seconds for voting
-
-  const fetchedMessage = await channel.messages.fetch(voteMessage.id);
-  const voteCounts = await Promise.all(emojis.map(e => fetchedMessage.reactions.cache.get(e)?.count || 0));
-
-  const winnerIndex = voteCounts.indexOf(Math.max(...voteCounts));
-  const boss = candidates[winnerIndex];
+  const winnerId = Object.entries(voteCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+  const boss = entrants.find(p => p.id === winnerId) || candidates[0]; // fallback if no votes
 
   await channel.send(`💥 **${boss.username}** has been chosen as the Boss of this Gauntlet. Let chaos reign!`);
-
   return boss;
 }
 async function incrementStat(userId, username, stat, amount = 1) {
@@ -352,10 +365,13 @@ client.on('interactionCreate', async interaction => {
 
   // Handle boss voting
   if (interaction.customId.startsWith('vote_boss_')) {
-    const votedId = interaction.customId.replace('vote_boss_', '');
-    bossVotes[interaction.user.id] = votedId;
-    await interaction.reply({ content: `🗳️ Your vote for <@${votedId}> has been counted.`, ephemeral: true });
-  }
+  const votedId = interaction.customId.replace('vote_boss_', '');
+  bossVotes[interaction.user.id] = votedId;
+  await interaction.reply({
+    content: `🗳️ Your vote for <@${votedId}> has been recorded.`,
+    ephemeral: true
+  });
+}
 
   // Start game after join window
   if (interaction.customId === 'start_game' && entrants.length > 1) {
