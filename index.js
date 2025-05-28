@@ -13,7 +13,7 @@ const {
 
 const axios = require('axios');
 const { Client: PgClient } = require('pg');
-
+const moment = require('moment');
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -518,12 +518,121 @@ function shuffleArray(array) {
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
+const updatePlayerStat = async (userId, username, stat, increment = 1) => {
+  const now = moment();
+  const year = now.year();
+  const month = now.month() + 1;
 
+  await db.query(`
+    INSERT INTO player_stats (user_id, username, year, month, ${stat})
+    VALUES ($1, $2, $3, $4, $5)
+    ON CONFLICT (user_id, year, month) DO UPDATE
+    SET ${stat} = player_stats.${stat} + EXCLUDED.${stat};
+  `, [userId, username, year, month, increment]);
+};
+
+const getLeaderboardStats = async () => {
+  const now = moment();
+  const year = now.year();
+  const month = now.month() + 1;
+
+  const current = await db.query(`
+    SELECT user_id, username, wins, revives, games_played,
+           ROUND(CASE WHEN games_played = 0 THEN 0 ELSE wins::DECIMAL / games_played END, 2) as avg
+    FROM player_stats
+    WHERE year = $1 AND month = $2
+    ORDER BY wins DESC
+    LIMIT 3;
+  `, [year, month]);
+
+  const allTime = await db.query(`
+    SELECT user_id, username,
+           SUM(wins) as total_wins,
+           SUM(revives) as total_revives,
+           SUM(games_played) as total_games
+    FROM player_stats
+    GROUP BY user_id, username
+    ORDER BY total_wins DESC
+    LIMIT 3;
+  `);
+
+  return { current: current.rows, allTime: allTime.rows };
+};
 client.on('messageCreate', async message => {
   if (message.author.bot) return;
 
   if (message.content.toLowerCase() === '!gauntlettrial') {
     if (gameInProgress) return message.reply("🛑 A Gauntlet is already in progress.");
+      if (message.content === '!leaderboard') {
+    const { current, allTime } = await getLeaderboardStats();
+
+    const embed = new EmbedBuilder()
+      .setTitle('🏆 Gauntlet Leaderboard')
+      .setColor('Gold')
+      .setDescription(`**Top Players This Month**\n${
+        current.map((p, i) => `${i + 1}. <@${p.user_id}> — ${p.wins} wins, ${p.revives} revives, ${p.games_played} games, ${p.avg} avg`).join('\n')
+      }\n\n**All-Time Legends**\n${
+        allTime.map((p, i) => `${i + 1}. <@${p.user_id}> — ${p.total_wins} wins, ${p.total_revives} revives, ${p.total_games} games`).join('\n')
+      }`);
+
+    return message.channel.send({ embeds: [embed] });
+  }
+
+  if (message.content === '!lockchampions') {
+    if (!message.member.permissions.has('Administrator')) return;
+
+    const now = moment();
+    const year = now.year();
+    const month = now.month();
+
+    const champs = await db.query(`
+      SELECT DISTINCT ON (category) user_id, username, category, value
+      FROM (
+        SELECT user_id, username, 'wins' as category, wins as value FROM player_stats WHERE year=$1 AND month=$2
+        UNION ALL
+        SELECT user_id, username, 'revives', revives FROM player_stats WHERE year=$1 AND month=$2
+        UNION ALL
+        SELECT user_id, username, 'games_played', games_played FROM player_stats WHERE year=$1 AND month=$2
+      ) as stats
+      ORDER BY category, value DESC;
+    `, [year, month]);
+
+    for (const champ of champs.rows) {
+      await db.query(`
+        INSERT INTO monthly_champions (user_id, username, year, month, category, value)
+        VALUES ($1, $2, $3, $4, $5, $6)
+      `, [champ.user_id, champ.username, year, month, champ.category, champ.value]);
+    }
+
+    return message.channel.send('🏅 Monthly champions have been locked in!');
+  }
+
+  if (message.content.startsWith('!stats')) {
+    const target = message.mentions.users.first() || message.author;
+    const now = moment();
+    const year = now.year();
+    const month = now.month() + 1;
+
+    const stats = await db.query(`
+      SELECT wins, revives, games_played,
+             ROUND(CASE WHEN games_played = 0 THEN 0 ELSE wins::DECIMAL / games_played END, 2) as avg
+      FROM player_stats
+      WHERE user_id = $1 AND year = $2 AND month = $3
+    `, [target.id, year, month]);
+
+    if (stats.rows.length === 0) {
+      return message.channel.send(`${target.username} has no stats this month.`);
+    }
+
+    const { wins, revives, games_played, avg } = stats.rows[0];
+    const embed = new EmbedBuilder()
+      .setTitle(`📊 Stats for ${target.username}`)
+      .setColor('Blue')
+      .setDescription(`Wins: ${wins}\nRevives: ${revives}\nGames Played: ${games_played}\nAvg Wins/Game: ${avg}`);
+
+    return message.channel.send({ embeds: [embed] });
+  }
+
     gameInProgress = true;
     players = generateTrialPlayers(20);
     eliminatedPlayers = [];
