@@ -364,13 +364,29 @@ client.on('interactionCreate', async interaction => {
   }
 
   // Handle boss voting
-  if (interaction.customId.startsWith('vote_boss_')) {
+ if (interaction.customId.startsWith('vote_boss_')) {
   const votedId = interaction.customId.replace('vote_boss_', '');
+
+  // Prevent duplicate votes
+  if (bossVotes[interaction.user.id]) {
+    try {
+      await interaction.deferUpdate(); // avoid reply collision
+    } catch (err) {
+      console.warn('⚠️ Could not deferUpdate:', err.message);
+    }
+    return;
+  }
+
   bossVotes[interaction.user.id] = votedId;
-  await interaction.reply({
-    content: `🗳️ Your vote for <@${votedId}> has been recorded.`,
-    ephemeral: true
-  });
+
+  try {
+    await interaction.reply({
+      content: `🗳️ Your vote for <@${votedId}> has been recorded.`,
+      flags: 64 // ephemeral flag instead of using 'ephemeral: true'
+    });
+  } catch (err) {
+    console.warn('⚠️ Could not reply to interaction:', err.message);
+  }
 }
 
   // Start game after join window
