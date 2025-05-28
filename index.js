@@ -83,6 +83,10 @@ function shuffleArray(array) {
   return array.sort(() => Math.random() - 0.5);
 }
 
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 function getRandomItem(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
@@ -627,31 +631,6 @@ async function runWarpEvent(channel) {
 
     await channel.send({ embeds: [resultEmbed] });
   });
-}
-function getRandomItem(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-function shuffleArray(array) {
-  const clone = [...array];
-  for (let i = clone.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [clone[i], clone[j]] = [clone[j], clone[i]];
-  }
-  return clone;
-}
-
-function formatUsername(user) {
-  return user.globalName || user.username || "Unknown";
-}
-
-function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-// 🧪 NFT Image Fallback
-function getUglyImageUrl(tokenId) {
-  return `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}.jpg`;
 }
 
 // 📊 Update player stats in database
