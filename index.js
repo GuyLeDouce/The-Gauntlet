@@ -192,6 +192,33 @@ function generateTrialPlayers() {
     isTrial: true
   }));
 }
+async function runBossVotePhase(channel, players) {
+  const candidates = shuffleArray(players).slice(0, 3);
+  const emojis = ['🅰️', '🅱️', '🇨️'];
+
+  const embed = new EmbedBuilder()
+    .setTitle("👑 Boss Selection Phase 👑")
+    .setDescription(`The Gauntlet demands a Boss.\n\nVote now:\n\n${emojis[0]} — ${candidates[0].username}\n${emojis[1]} — ${candidates[1].username}\n${emojis[2]} — ${candidates[2].username}`)
+    .setColor('Gold');
+
+  const voteMessage = await channel.send({ embeds: [embed] });
+
+  for (const emoji of emojis) {
+    await voteMessage.react(emoji);
+  }
+
+  await delay(30000); // Wait 30 seconds for voting
+
+  const fetchedMessage = await channel.messages.fetch(voteMessage.id);
+  const voteCounts = await Promise.all(emojis.map(e => fetchedMessage.reactions.cache.get(e)?.count || 0));
+
+  const winnerIndex = voteCounts.indexOf(Math.max(...voteCounts));
+  const boss = candidates[winnerIndex];
+
+  await channel.send(`💥 **${boss.username}** has been chosen as the Boss of this Gauntlet. Let chaos reign!`);
+
+  return boss;
+}
 async function incrementStat(userId, username, stat, amount = 1) {
   const now = new Date();
   const year = now.getFullYear();
