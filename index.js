@@ -378,7 +378,6 @@ async function runGauntlet(channel) {
 
     const nftToken = Math.floor(Math.random() * 530) + 1;
     const imageURL = `${serverSettings.get(channel.guildId)?.imageBaseURL || "https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/"}${nftToken}.jpg`;
-    const imageURL = generateNFTImageURL(DEFAULT_IMAGE_BASE_URL);
 
     // MUTATION ROUND? Add a gameplay twist
     let mutationText = "";
