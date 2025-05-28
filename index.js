@@ -178,6 +178,20 @@ const reviveFailLines = [
   "missed the timer by one second. The saddest second.",
   "called the game 'mid.' The code heard them."
 ];
+function generateTrialPlayers() {
+  const trialNames = [
+    "UglyBob", "Charmzilla", "WartWitch", "SleepySteve", "GnarGnome",
+    "PeelFace", "HorribleHank", "GlitchGoblin", "PukePrince", "Meh",
+    "Fleximus", "UglyBeard", "Dribble", "Burpette", "LordWart",
+    "Stinkfoot", "CringeMage", "BoogerJoe", "DroolBabe", "GobSmack"
+  ];
+
+  return trialNames.map((name, index) => ({
+    id: `trial_${index}`,
+    username: name,
+    isTrial: true
+  }));
+}
 async function incrementStat(userId, username, stat, amount = 1) {
   const now = new Date();
   const year = now.getFullYear();
