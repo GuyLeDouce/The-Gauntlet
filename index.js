@@ -221,7 +221,6 @@ async function recordMonthlyChampion(userId, username, category, value) {
     VALUES ($1, $2, $3, $4, $5, $6)
   `, [userId, username, year, month, category, value]);
 }
-let gameInProgress = false;
 let trialMode = false;
 let devMode = false;
 let entrants = [];
