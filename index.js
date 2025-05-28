@@ -77,7 +77,6 @@ let isTrialMode = false;
 // Server-specific settings
 const serverSettings = new Map();
 const DEFAULT_IMAGE_BASE_URL = 'https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/';
-const { EmbedBuilder } = require('discord.js');
 
 // Helper Functions
 function delay(ms) {
