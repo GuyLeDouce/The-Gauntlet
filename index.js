@@ -610,10 +610,6 @@ const podiumEmbed = new EmbedBuilder()
 
 channel.send({ embeds: [podiumEmbed] });
 
-
-  await channel.send({ embeds: [embed] });
-}
-
 async function runRematchPrompt(channel) {
   await delay(2000);
 
