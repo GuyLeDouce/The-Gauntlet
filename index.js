@@ -180,32 +180,34 @@ client.on('messageCreate', async (message) => {
 
   // Trial Mode
   if (content.startsWith('!gauntlettrial')) {
-    if (gameInProgress) return message.reply("A Gauntlet is already in progress!");
+  if (gameInProgress) return message.reply("A Gauntlet is already in progress!");
 
-    const args = content.split(' ');
-    let count = parseInt(args[1]);
-    if (isNaN(count) || count < 5) count = 20;
-    if (count > 100) count = 100;
+  const args = content.split(' ');
+  let count = parseInt(args[1]);
+  if (isNaN(count) || count < 5) count = 20;
+  if (count > 100) count = 100;
 
-    const emojiSet = ['😈', '👺', '🤡', '👹', '👻', '🦴', '🧟‍♂️', '💀', '🐷', '🪰'];
-    const trialPlayers = Array.from({ length: count }, (_, i) => ({
-      id: `Trial${i + 1}`,
-      username: `${getRandomItem(emojiSet)} Ugly${Math.floor(Math.random() * 1000)}`,
-      lives: 1
-    }));
+  const emojiSet = ['😈', '👺', '🤡', '👹', '👻', '🦴', '🧟‍♂️', '💀', '🐷', '🪰'];
+  const trialPlayers = Array.from({ length: count }, (_, i) => ({
+    id: `Trial${i + 1}`,
+    username: `${getRandomItem(emojiSet)} Ugly${Math.floor(Math.random() * 1000)}`,
+    lives: 1
+  }));
 
-    entrants = trialPlayers;
-    eliminated = [];
-    revivable = [];
-    round = 0;
-    originalCount = trialPlayers.length;
-    massRevivalTriggered = false;
-    gameInProgress = true;
-    isTrialMode = true; // 🧪 Flag trial mode
+  entrants = trialPlayers;
+  eliminated = [];
+  revivable = [];
+  round = 0;
+  originalCount = trialPlayers.length;
+  massRevivalTriggered = false;
+  gameInProgress = true;
+  isTrialMode = true;
 
-    await message.channel.send(`🧪 Starting Gauntlet Trial Mode with **${count}** randomly generated test players...`);
-    await runBossVotePhase(message.channel);
-  }
+  await message.channel.send(`🧪 Starting Gauntlet Trial Mode with **${count}** randomly generated test players...`);
+  await runBossVotePhase(message.channel);
+
+  return; // ⬅️ REQUIRED TO PREVENT DOUBLE TRIGGER
+}
 
   // Normal Gauntlet
   if (content.startsWith('!gauntlet')) {
