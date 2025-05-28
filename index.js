@@ -196,7 +196,7 @@ function generateTrialPlayers() {
     isTrial: true
   }));
 }
-async function runBossVotePhase(channel, players) {
+async function runBossVotePhase(channel, players = entrants) {
   const candidates = shuffleArray(players).slice(0, 3);
   const emojis = ['🅰️', '🅱️', '🇨️'];
 
@@ -322,7 +322,7 @@ client.on('messageCreate', async message => {
     eliminated = [];
     revivable = [];
     originalEntrants = [...entrants];
-    await runBossVotePhase(message.channel);
+    await runBossVotePhase(message.channel, entrants);
   }
 
   if (content === '!gauntletdev' && !gameInProgress) {
@@ -333,7 +333,7 @@ client.on('messageCreate', async message => {
     eliminated = [];
     revivable = [];
     originalEntrants = [...entrants];
-    await runBossVotePhase(message.channel);
+    await runBossVotePhase(message.channel, entrants);
   }
 });
 client.on('interactionCreate', async interaction => {
@@ -532,7 +532,7 @@ client.on('messageCreate', async message => {
         isRunning = false;
         return message.channel.send('⚠️ Not enough players to begin the Gauntlet.');
       }
-      await runBossVotePhase(message.channel);
+      await runBossVotePhase(message.channel, entrants);
       await delay(5000);
       await runGauntlet(message.channel);
     });
@@ -552,7 +552,7 @@ client.on('messageCreate', async message => {
     }
 
     await message.channel.send("🧪 Starting Gauntlet Trial Mode with 20 randomly generated test players...");
-    await runBossVotePhase(message.channel);
+    await runBossVotePhase(message.channel, entrants);
     await delay(3000);
     await message.channel.send("⚠️ Trial mode complete. No eliminations will be run.");
     isRunning = false;
@@ -568,7 +568,7 @@ client.on('messageCreate', async message => {
     ];
 
     await message.channel.send("👾 Developer Test Mode Enabled.");
-    await runBossVotePhase(message.channel);
+    await runBossVotePhase(message.channel, entrants);
     await delay(3000);
     await runGauntlet(message.channel);
   }
