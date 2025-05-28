@@ -76,6 +76,10 @@ let lastWarpRound = -1;
 let currentRound = 0;
 let bossVotes = {};
 let trialMode = false;
+let isRunning = false;
+let skipRoundCount = 0;
+let curseVotes = {};
+
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -611,5 +615,6 @@ client.on('interactionCreate', async interaction => {
   // Add more interactive responses here for future buttons like totem revival, fate gambles, etc.
 });
 
-// Bot Login
-client.login(process.env.BOT_TOKEN);
+client.login(process.env.BOT_TOKEN).catch(err => {
+  console.error('❌ Failed to log in:', err);
+});
