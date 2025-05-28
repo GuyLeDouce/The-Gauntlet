@@ -15,6 +15,8 @@ const {
 const axios = require('axios');
 const { Client: PgClient } = require('pg');
 
+const DEFAULT_IMAGE_BASE_URL = 'https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/';
+
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -34,6 +36,7 @@ const db = new PgClient({
 db.connect()
   .then(async () => {
     console.log('✅ Connected to PostgreSQL!');
+
     await db.query(`
       CREATE TABLE IF NOT EXISTS player_stats (
         id SERIAL PRIMARY KEY,
@@ -46,6 +49,7 @@ db.connect()
         games_played INT DEFAULT 0
       );
     `);
+
     await db.query(`
       CREATE TABLE IF NOT EXISTS monthly_champions (
         id SERIAL PRIMARY KEY,
@@ -57,49 +61,48 @@ db.connect()
         value INT
       );
     `);
+
     console.log('📊 Tables are ready!');
   })
   .catch(err => console.error('❌ DB Connection Error:', err));
-
-// Game State
-let gameInProgress = false;
+// === GLOBAL STATE ===
 let entrants = [];
 let eliminated = [];
-let revivable = [];
-let round = 0;
-let originalCount = 0;
-let massRevivalTriggered = false;
-let massReviveOpen = false;
-let massReviveAttempts = new Set();
+let trialMode = false;
+let revivalUsed = false;
+let joinMessage = null;
 let bossVotes = {};
-let isTrialMode = false;
+let currentGameGuild = null;
+let gameInProgress = false;
+let originalEntrantCount = 0;
 
-// Server-specific settings
-const serverSettings = new Map();
-const DEFAULT_IMAGE_BASE_URL = 'https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/';
+// === HELPER FUNCTIONS ===
+const delay = (ms) => new Promise(res => setTimeout(res, ms));
 
-// Helper Functions
-function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
 function shuffleArray(array) {
   return array.sort(() => Math.random() - 0.5);
 }
-function getRandomItem(array) {
-  return array[Math.floor(Math.random() * array.length)];
+
+function getRandomItem(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
 }
-function getMonthYear() {
+
+function formatUsername(user) {
+  return user.globalName || user.username || user.displayName || "Unknown";
+}
+
+function getCurrentMonthYear() {
   const now = new Date();
   return { month: now.getMonth() + 1, year: now.getFullYear() };
 }
-function formatEntrants() {
-  return entrants.map(e => `<@${e.id}>`).join(', ');
-}
-function generateNFTImageURL(baseURL) {
-  const tokenId = Math.floor(Math.random() * 530) + 1;
-  return `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}`;
+
+function formatLeaderboardEmbed(title, fields, color = 0xffc300) {
+  return new EmbedBuilder().setTitle(title).addFields(fields).setColor(color);
 }
 
+function getUglyImageUrl(tokenId) {
+  return `${DEFAULT_IMAGE_BASE_URL}${tokenId}.jpg`;
+}
 const eliminationEvents = [
   "tripped over a malformed meme and fell into the void.",
   "challenged the Gauntlet to a duel — and got ratio’d.",
@@ -176,1006 +179,862 @@ const reviveFailLines = [
 ];
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
+
   const content = message.content.toLowerCase();
 
-//DEV TEST
-if (content.startsWith('!gauntletdev')) {
-  if (gameInProgress) return message.reply("A Gauntlet is already in progress!");
-  isTrialMode = false;
-  gameInProgress = true;
-
-  const emojiSet = ['😈', '👺', '🤡', '👹', '👻', '🦴', '🧟‍♂️', '💀', '🐷', '🪰'];
-  const count = 10; // adjust number of test players here
-
-  entrants = Array.from({ length: count }, (_, i) => ({
-    id: `DevTest${i + 1}`,
-    username: `${getRandomItem(emojiSet)} Ugly${Math.floor(Math.random() * 1000)}`,
-    lives: 1
-  }));
-
-  eliminated = [];
-  revivable = [];
-  round = 0;
-  originalCount = entrants.length;
-  massRevivalTriggered = false;
-
-  await message.channel.send(`🧪 Dev Gauntlet starting with ${count} fake entrants...`);
-  await runBossVotePhase(message.channel);
-
-  return;
-}
-
-  // Trial Mode
-  if (content.startsWith('!gauntlettrial')) {
-  if (gameInProgress) return message.reply("A Gauntlet is already in progress!");
-
-  const args = content.split(' ');
-  let count = parseInt(args[1]);
-  if (isNaN(count) || count < 5) count = 20;
-  if (count > 100) count = 100;
-
-  const emojiSet = ['😈', '👺', '🤡', '👹', '👻', '🦴', '🧟‍♂️', '💀', '🐷', '🪰'];
-  const trialPlayers = Array.from({ length: count }, (_, i) => ({
-    id: `Trial${i + 1}`,
-    username: `${getRandomItem(emojiSet)} Ugly${Math.floor(Math.random() * 1000)}`,
-    lives: 1
-  }));
-
-  entrants = trialPlayers;
-  eliminated = [];
-  revivable = [];
-  round = 0;
-  originalCount = trialPlayers.length;
-  massRevivalTriggered = false;
-  gameInProgress = true;
-  isTrialMode = true;
-
-  await message.channel.send(`🧪 Starting Gauntlet Trial Mode with **${count}** randomly generated test players...`);
-  await runBossVotePhase(message.channel);
-
-  return; // ⬅️ REQUIRED TO PREVENT DOUBLE TRIGGER
-}
-
-  // Normal Gauntlet
-  if (content.startsWith('!gauntlet')) {
-    if (gameInProgress) return message.reply("A Gauntlet is already in progress!");
-
-    const args = content.split(' ');
-    let minutes = parseFloat(args[1]);
-    if (isNaN(minutes)) minutes = 3;
-    if (minutes < 0.25) minutes = 0.25;
-    if (minutes > 10) minutes = 10;
-    const joinTime = Math.floor(minutes * 60);
-
-    entrants = [{ id: message.author.id, username: message.author.username, lives: 1 }];
+  if (content === '!gauntlet' && !gameInProgress) {
+    entrants = [];
     eliminated = [];
-    revivable = [];
-    round = 0;
-    originalCount = 1;
-    massRevivalTriggered = false;
+    revivalUsed = false;
+    trialMode = false;
+    currentGameGuild = message.guild;
     gameInProgress = true;
-    isTrialMode = false; // 🛡️ Not trial mode
-
-    const joinEmbed = new EmbedBuilder()
-      .setTitle("⚔️ The Ugly Gauntlet Begins!")
-      .setDescription(`<@${message.author.id}> has summoned the Gauntlet!\nClick below to enter the arena.`)
-      .setColor(0xff0000);
-
-    const joinRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('join_gauntlet')
-        .setLabel('Join the Gauntlet')
-        .setStyle(ButtonStyle.Danger)
-    );
-
-    const joinMessage = await message.channel.send({ embeds: [joinEmbed], components: [joinRow] });
-
-    let secondsLeft = joinTime;
-    const interval = 15;
-    const oneThird = Math.floor(joinTime * (1 / 3));
-    const twoThirds = Math.floor(joinTime * (2 / 3));
-    const countdownMarks = new Set([twoThirds, oneThird, 10]);
-
-    const joinInterval = setInterval(async () => {
-      secondsLeft -= interval;
-
-      if (secondsLeft > 0) {
-        joinEmbed.setFooter({ text: `⏳ Game starts in ${secondsLeft} seconds...` });
-        await joinMessage.edit({ embeds: [joinEmbed] });
-
-        if (countdownMarks.has(secondsLeft)) {
-          await message.channel.send(`@everyone ⏳ **${secondsLeft} seconds left to join The Gauntlet!** Click the button now!`);
-        }
-      } else {
-        clearInterval(joinInterval);
-        if (entrants.length < 3) {
-          gameInProgress = false;
-          return message.channel.send("❌ Not enough players joined the Gauntlet.");
-        }
-        joinEmbed.setFooter(null);
-        await joinMessage.edit({ components: [] });
-        await runBossVotePhase(message.channel);
-      }
-    }, interval * 1000);
+    originalEntrantCount = 0;
+    await startJoinPhase(message.channel);
   }
 
-});
-
-
-client.on('interactionCreate', async (interaction) => {
-  if (!interaction.isButton()) return;
-
-  // Join button
-  if (interaction.customId === 'join_gauntlet') {
-    const alreadyJoined = entrants.some(e => e.id === interaction.user.id);
-    if (alreadyJoined) {
-      return interaction.reply({ content: '🌀 You are already in the Gauntlet!', ephemeral: true });
-    }
-
-    entrants.push({ id: interaction.user.id, username: interaction.user.username, lives: 1 });
-    originalCount = entrants.length;
-
-    await interaction.reply({ content: `⚔️ <@${interaction.user.id}> has joined the Gauntlet!`, ephemeral: false });
+  if (content === '!gauntlettrial' && !gameInProgress) {
+    entrants = generateTrialPlayers(20);
+    eliminated = [];
+    trialMode = true;
+    revivalUsed = false;
+    gameInProgress = true;
+    originalEntrantCount = entrants.length;
+    await runBossVotePhase(message.channel);
+    await delay(5000);
+    await message.channel.send('Trial mode complete. No eliminations will be run.');
+    gameInProgress = false;
   }
 
-  // Boss vote
-  if (interaction.customId.startsWith('vote_boss_')) {
-    const votedId = interaction.customId.split('_')[2];
-    const voterId = interaction.user.id;
-
-    if (bossVotes[voterId]) {
-      return interaction.reply({ content: "🗳️ You've already voted for Boss Level Ugly!", ephemeral: true });
+  if (content === '!revive') {
+    const userId = message.author.id;
+    if (!eliminated.find(e => e.id === userId)) {
+      return message.reply("You're not eliminated... yet.");
     }
 
-    bossVotes[voterId] = votedId;
-    await interaction.reply({ content: `✅ Your vote for <@${votedId}> has been counted.`, ephemeral: true });
-  }
-
-  // Rematch
-  if (interaction.customId === 'rematch_gauntlet') {
-    const alreadyJoined = entrants.some(e => e.id === interaction.user.id);
-    if (alreadyJoined) {
-      return interaction.reply({ content: '🌀 You already joined the rematch!', ephemeral: true });
-    }
-
-    entrants.push({ id: interaction.user.id, username: interaction.user.username, lives: 1 });
-    originalCount = entrants.length;
-
-    await interaction.reply({ content: `⚔️ <@${interaction.user.id}> is in for the rematch!`, ephemeral: false });
-  }
-
-  // Mass revival totem
-  if (interaction.customId === 'mass_revive') {
-    if (!massReviveOpen) return interaction.reply({ content: "⛔ The Totem is not active right now!", ephemeral: true });
-
-    const alreadyTried = massReviveAttempts.has(interaction.user.id);
-    if (alreadyTried) {
-      return interaction.reply({ content: "☠️ You already attempted to touch the Totem!", ephemeral: true });
-    }
-
-    const isValid = !entrants.some(p => p.id === interaction.user.id);
-    if (isValid) {
-      massReviveAttempts.add(interaction.user.id);
-      await interaction.reply({ content: "🔮 You have touched the Totem of Lost Souls...", ephemeral: true });
+    if (Math.random() < 0.01) {
+      entrants.push({ id: userId, username: formatUsername(message.author) });
+      eliminated = eliminated.filter(e => e.id !== userId);
+      return message.reply("💀 Against all odds, you've crawled back from the void...");
     } else {
-      await interaction.reply({ content: "❌ You're still alive in the Gauntlet!", ephemeral: true });
+      return message.reply("😵 Your body twitched... but the Gauntlet rejected your return.");
     }
   }
-});
 
+  if (content === '!leaderboard' || content === '!lb') {
+    await sendLeaderboardEmbed(message.channel);
+  }
+
+  if (content.startsWith('!stats')) {
+    const mention = message.mentions.users.first();
+    const target = mention || message.author;
+    await sendPlayerStatsEmbed(message.channel, target);
+  }
+
+  if (content === '!lockchampions' && message.member.permissions.has("Administrator")) {
+    await lockMonthlyChampions(message.channel);
+  }
+});
+async function startJoinPhase(channel) {
+  const joinEmbed = new EmbedBuilder()
+    .setTitle("The Ugly Gauntlet Begins!")
+    .setDescription(`<@${channel.client.user.id}> has summoned the Gauntlet!\nClick below to enter the arena.\n\n⏳ Game starts in 45 seconds...`)
+    .setColor(0xff0000);
+
+  const joinButton = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('join_gauntlet')
+      .setLabel('Join the Gauntlet')
+      .setStyle(ButtonStyle.Danger)
+  );
+
+  joinMessage = await channel.send({ embeds: [joinEmbed], components: [joinButton] });
+
+  const collector = channel.createMessageComponentCollector({
+    componentType: 'BUTTON',
+    time: 45000
+  });
+
+  collector.on('collect', async i => {
+    if (i.customId === 'join_gauntlet') {
+      const userId = i.user.id;
+      const username = formatUsername(i.user);
+      if (!entrants.find(e => e.id === userId)) {
+        entrants.push({ id: userId, username });
+        await i.reply({ content: `🗡️ ${username} has entered The Gauntlet!`, ephemeral: true });
+      } else {
+        await i.reply({ content: "You're already in!", ephemeral: true });
+      }
+    }
+  });
+
+  collector.on('end', async () => {
+    originalEntrantCount = entrants.length;
+    if (entrants.length < 2) {
+      await channel.send("⚠️ Not enough players to start the Gauntlet.");
+      gameInProgress = false;
+      return;
+    }
+    await runBossVotePhase(channel);
+    await delay(3000);
+    await runGauntlet(channel);
+  });
+}
 
 async function runBossVotePhase(channel) {
   bossVotes = {};
   const candidates = shuffleArray(entrants).slice(0, 5);
 
   const voteEmbed = new EmbedBuilder()
-    .setTitle("👑 Vote for the Boss Level Ugly")
-    .setDescription("Click a button below to vote for who should be crowned **Boss Level Ugly**.\nThey’ll start with 2 lives... choose wisely 👑")
-    .setColor(0xffaa00); // 🍊 Nice regal tone
+    .setTitle("👑 Choose the Boss Level Ugly")
+    .setDescription("You have 15 seconds to vote!\nThe chosen one will receive **2 lives** in The Gauntlet.")
+    .setColor(0xffaa00);
 
   const voteRow = new ActionRowBuilder();
   candidates.forEach((c) => {
     voteRow.addComponents(
       new ButtonBuilder()
         .setCustomId(`vote_boss_${c.id}`)
-        .setLabel(`${c.username}`)
+        .setLabel(`Vote ${c.username}`)
         .setStyle(ButtonStyle.Primary)
     );
   });
 
-  const voteMsg = await channel.send({ embeds: [voteEmbed], components: [voteRow] });
-  await delay(15000);
+  const voteMessage = await channel.send({ embeds: [voteEmbed], components: [voteRow] });
 
-
-  // Count votes
-  const voteCounts = {};
-  for (const voter in bossVotes) {
-    const voted = bossVotes[voter];
-    voteCounts[voted] = (voteCounts[voted] || 0) + 1;
-  }
-
-  const winnerId = Object.entries(voteCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || candidates[0].id;
-  const bossPlayer = entrants.find(p => p.id === winnerId);
-  if (bossPlayer) bossPlayer.lives = 2;
-
-  await channel.send(`👑 <@${bossPlayer.id}> has been chosen as **Boss Level Ugly** and now has **2 lives**!`);
-
-  // 🧪 If it's trial mode, end cleanly and do NOT start the real game
-  if (isTrialMode) {
-    await channel.send("🧪 Trial mode complete. No eliminations will be run.");
-    console.log('✅ Trial completed. Game state reset.');
-    isTrialMode = false;
-    gameInProgress = false;
-    entrants = [];
-    eliminated = [];
-    revivable = [];
-    return;
-  }
-
-  // Otherwise start the actual Gauntlet
-  await runGauntlet(channel);
-}
-
-async function runGauntlet(channel) {
-  await delay(2000);
-  await channel.send("🎲 The Gauntlet begins now... let the eliminations commence!");
-
-  while (entrants.length > 1) {
-    round++;
-    await delay(2000);
-
-    const imageURL = generateNFTImageURL(serverSettings.get(channel.guildId)?.imageBaseURL || DEFAULT_IMAGE_BASE_URL);
-
-    // MUTATION ROUND (40% chance) — wait until it finishes
-    if (Math.random() < 0.40) {
-      await runMutationEvent(channel);
-      await delay(10000);
-    }
-
-    // Clear immunity each round
-    entrants.forEach(p => delete p.immune);
-
-    const eligible = entrants.filter(p => !p.immune);
-    if (eligible.length === 0) continue;
-
-    const killsThisRound = Math.min(Math.floor(Math.random() * 2) + 2, eligible.length);
-    const elimDescriptions = [];
-
-    for (let i = 0; i < killsThisRound; i++) {
-      const victim = getRandomItem(eligible);
-      const isBoss = victim.lives > 1;
-
-      if (isBoss) {
-        victim.lives -= 1;
-        elimDescriptions.push(`🛡️ <@${victim.id}> lost 1 life but survives as Boss Level Ugly!`);
-        eligible.splice(eligible.indexOf(victim), 1);
-      } else {
-        entrants = entrants.filter(p => p.id !== victim.id);
-        eliminated.push(victim);
-        const message = Math.random() < 0.3 ? getRandomItem(specialEliminations) : getRandomItem(eliminationEvents);
-        elimDescriptions.push(`💀 <@${victim.id}> ${message}`);
-        eligible.splice(eligible.indexOf(victim), 1);
-      }
-    }
-
-    if (Math.random() < 0.15 && eliminated.length > 0) {
-      const comeback = getRandomItem(eliminated);
-      eliminated = eliminated.filter(p => p.id !== comeback.id);
-      entrants.push({ ...comeback, lives: 1 });
-      elimDescriptions.push(`🌟 <@${comeback.id}> ${getRandomItem(revivalEvents)}`);
-    }
-
-    if (!massRevivalTriggered && entrants.length <= Math.ceil(originalCount / 3)) {
-      massRevivalTriggered = true;
-      await runMassRevival(channel);
-    }
-
-    const roundEmbed = new EmbedBuilder()
-      .setTitle(`⚔️ Round ${round}`)
-      .setDescription(`${elimDescriptions.join('\n')}\n\n**🧍 ${entrants.length} of ${originalCount} remain.**`)
-      .setImage(imageURL)
-      .setColor(0xff4444);
-
-    await channel.send({ embeds: [roundEmbed] });
-    await delay(7500);
-  }
-
-  const winner = entrants[0];
-  if (!winner) {
-    await channel.send("💥 All players perished. The Gauntlet claims everyone... but who stood longest?");
-    await announceTop3(channel, null); // fallback to top 3 from eliminated
-  } else {
-    await channel.send(`🏆 The Gauntlet has ended. Our survivor: <@${winner.id}>`);
-    await recordWin(winner);
-    await announceTop3(channel, winner);
-  }
-
-  await runRematchPrompt(channel);
-  gameInProgress = false;
-}
-
-async function runMassRevival(channel) {
-  massReviveOpen = true;
-  massReviveAttempts = new Set();
-
-  const totemEmbed = new EmbedBuilder()
-    .setTitle("🌀 Totem of Lost Souls")
-    .setDescription("Eliminated players and outsiders may now attempt to return.\nTouch the totem… if you dare.")
-    .setColor(0x9933ff);
-
-  const reviveRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('mass_revive')
-      .setLabel('Touch the Totem')
-      .setStyle(ButtonStyle.Primary)
-  );
-
-  await channel.send({ embeds: [totemEmbed], components: [reviveRow] });
-
-  await delay(8000);
-  for (let i = 12; i >= 1; i -= 3) {
-    await channel.send(`⏳ Totem resolves in **${i}** seconds...`);
-    await delay(3000);
-  }
-
-  massReviveOpen = false;
-
-  const attemptedIds = [...massReviveAttempts];
-  const returned = [];
-  const failed = [];
-
-  for (const id of attemptedIds) {
-    const isEliminated = eliminated.find(p => p.id === id);
-    const isOutside = !entrants.find(p => p.id === id) && !isEliminated;
-
-    if (isEliminated && Math.random() < 0.5) {
-      entrants.push({ ...isEliminated, lives: 1 });
-      eliminated = eliminated.filter(p => p.id !== id);
-      returned.push(`<@${id}>`);
-    } else if (isOutside && Math.random() < 0.4) {
-      entrants.push({ id, username: 'Mysterious Stranger', lives: 1 });
-      returned.push(`<@${id}>`);
-    } else {
-      failed.push(`<@${id}>`);
-    }
-  }
-
-  let description = '';
-  if (returned.length > 0) {
-    description += `🌟 Returned: ${returned.join(', ')}\n`;
-  }
-  if (failed.length > 0) {
-    description += `☠️ Failed: ${failed.join(', ')}`;
-  }
-  if (description.length === 0) {
-    description = "No one dared touch the Totem this time...";
-  }
-
-  const resultEmbed = new EmbedBuilder()
-    .setTitle("📜 Totem Judgment")
-    .setDescription(description)
-    .setColor(returned.length > 0 ? 0x00ff99 : 0x660000);
-
-  await channel.send({ embeds: [resultEmbed] });
-  await delay(2000);
-}
-if (Math.random() < 0.45) {
-  await runWarpEvent(channel); // new fully separate logic
-  await delay(11000); // give full time for interaction
-}
-
-async function announceTop3(channel, winner) {
-  let top3;
-  if (winner) {
-    top3 = [...eliminated.slice(-2), winner];
-  } else {
-    top3 = eliminated.slice(-3); // all died — take last 3
-  }
-
-  const places = ['🥉 3rd Place', '🥈 2nd Place', '🥇 Winner'];
-  const podium = top3.map((p, i) => `${places[i]} — <@${p.id}>`).join('\n');
-
-  const embed = new EmbedBuilder()
-    .setTitle("🏆 Final Podium")
-    .setDescription(podium || "No one survived... but some fell slower than others.")
-    .setColor(0xffff66)
-    .setFooter({ text: "Legends fall hard. Stay Ugly." });
-
-  await channel.send({ embeds: [embed] });
-}
-
-async function runRematchPrompt(channel) {
-  await delay(2000);
-
-  const rematchEmbed = new EmbedBuilder()
-    .setTitle("🔁 Gauntlet Rematch?")
-    .setDescription("Want another shot at glory?\nClick below to join the rematch.\nWe need **75% of the last game** to join.")
-    .setColor(0x3399ff);
-
-  const rematchRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('rematch_gauntlet')
-      .setLabel('Join Rematch')
-      .setStyle(ButtonStyle.Success)
-  );
-
-  const msg = await channel.send({ embeds: [rematchEmbed], components: [rematchRow] });
-
-  const requiredCount = Math.ceil(originalCount * 0.75);
-
-  const collector = msg.createMessageComponentCollector({ time: 30000 });
+  const collector = channel.createMessageComponentCollector({
+    componentType: 'BUTTON',
+    time: 15000
+  });
 
   collector.on('collect', async i => {
-    const already = entrants.some(p => p.id === i.user.id);
-    if (!already) {
-      entrants.push({ id: i.user.id, username: i.user.username, lives: 1 });
-      await i.reply({ content: '🔁 You’re in for the rematch!', ephemeral: true });
+    if (i.customId.startsWith('vote_boss_')) {
+      const votedId = i.customId.split('vote_boss_')[1];
+      bossVotes[votedId] = (bossVotes[votedId] || 0) + 1;
+      await i.reply({ content: `Your vote for <@${votedId}> has been counted.`, ephemeral: true });
     }
   });
 
   collector.on('end', async () => {
-    if (entrants.length >= requiredCount) {
-      await channel.send("⚔️ Enough have joined! The rematch begins...");
-      eliminated = [];
-      revivable = [];
-      round = 0;
-      massRevivalTriggered = false;
-      originalCount = entrants.length;
-      await runBossVotePhase(channel);
-    } else {
-      await channel.send("⏹️ Not enough joined for a rematch. The Gauntlet rests... for now.");
-      gameInProgress = false;
+    const sorted = Object.entries(bossVotes).sort((a, b) => b[1] - a[1]);
+    if (sorted.length === 0) {
+      await channel.send("⚠️ No votes were cast. No boss was chosen.");
+      return;
+    }
+
+    const [chosenId] = sorted[0];
+    const chosen = entrants.find(e => e.id === chosenId);
+    if (chosen) {
+      chosen.lives = 2;
+      await channel.send(`<@${chosenId}> has been chosen as Boss Level Ugly and now has 2 lives!`);
     }
   });
 }
-async function recordWin(winner) {
-  const { month, year } = getMonthYear();
-
-  try {
-    const result = await db.query(
-      `SELECT * FROM player_stats WHERE user_id = $1 AND month = $2 AND year = $3`,
-      [winner.id, month, year]
-    );
-
-    if (result.rows.length === 0) {
-      await db.query(
-        `INSERT INTO player_stats (user_id, username, month, year, wins, games_played)
-         VALUES ($1, $2, $3, $4, 1, 1)`,
-        [winner.id, winner.username, month, year]
-      );
-    } else {
-      await db.query(
-        `UPDATE player_stats
-         SET wins = wins + 1, games_played = games_played + 1
-         WHERE user_id = $1 AND month = $2 AND year = $3`,
-        [winner.id, month, year]
-      );
+async function runGauntlet(channel) {
+  while (entrants.length > 1) {
+    // 🔮 Random chance for WARP Event (not always)
+    if (Math.random() < 0.2) {
+      await runWarpEvent(channel);
+      await delay(11000);
     }
-  } catch (err) {
-    console.error("❌ Error recording win:", err);
-  }
-}
-async function runMutationEvent(channel) {
-  const eventTypes = ['last-click-dies', 'first-click-safe', 'reaction-survival', 'emote-sacrifice', 'reverse-totem'];
-  const type = getRandomItem(eventTypes);
 
-  if (type === 'reaction-survival') {
-    const msg = await channel.send("🧬 MUTATION: Only those who react with 🐷 in the next 10 seconds will survive...");
+    // 🧬 Mutation Round trigger
+    if (Math.random() < 0.15) {
+      await runMutationRound(channel);
+      await delay(10000);
+    }
 
-    await msg.react('🐷');
+    const eliminatedPlayer = getRandomItem(entrants);
+    const imageId = Math.floor(Math.random() * 530) + 1;
 
-    const collector = msg.createReactionCollector({
-      time: 10000,
-      filter: (reaction, user) =>
-        reaction.emoji.name === '🐷' && entrants.some(p => p.id === user.id),
-    });
-
-    const survivors = new Set();
-
-    collector.on('collect', (reaction, user) => {
-      survivors.add(user.id);
-    });
-
-    collector.on('end', async () => {
-      const eliminatedThisRound = entrants.filter(p => !survivors.has(p.id));
-      entrants = entrants.filter(p => survivors.has(p.id));
-      eliminated.push(...eliminatedThisRound);
-
-      const elimNames = eliminatedThisRound.map(p => `<@${p.id}>`).join('\n') || 'Nobody';
-      const embed = new EmbedBuilder()
-        .setTitle("☠️ The Reaction Purge")
-        .setDescription(`${elimNames} failed to oink and were obliterated.`)
-        .setColor(0xff0000);
-      await channel.send({ embeds: [embed] });
-    });
-  }
-
-  else if (type === 'emote-sacrifice') {
-    const msg = await channel.send("🧬 MUTATION: React with 🔥 — only one will be spared...");
-
-    await msg.react('🔥');
-
-    const collector = msg.createReactionCollector({
-      time: 7000,
-      filter: (reaction, user) =>
-        reaction.emoji.name === '🔥' && entrants.some(p => p.id === user.id),
-    });
-
-    const reactors = [];
-
-    collector.on('collect', (reaction, user) => {
-      if (!reactors.includes(user.id)) reactors.push(user.id);
-    });
-
-    collector.on('end', async () => {
-      if (reactors.length === 0) {
-        await channel.send("😐 No one dared touch the fire. Everyone lives… for now.");
-        return;
-      }
-
-      const savedId = getRandomItem(reactors);
-      const survivors = entrants.filter(p => p.id === savedId);
-      const eliminatedThisRound = entrants.filter(p => p.id !== savedId);
-      entrants = survivors;
-      eliminated.push(...eliminatedThisRound);
-
-      const embed = new EmbedBuilder()
-        .setTitle("🔥 Sacrificial Mutation")
-        .setDescription(`<@${savedId}> survives. All others who clicked 🔥 were burned by the lore gods.`)
-        .setColor(0xdd3333);
-      await channel.send({ embeds: [embed] });
-    });
-  }
-
-  else if (type === 'reverse-totem') {
+    // 📸 NFT Embed
     const embed = new EmbedBuilder()
-      .setTitle("🧬 MUTATION: Totem of Deceit")
-      .setDescription("The button lies... whoever clicks **dies**.\nWill curiosity kill the cat?")
-      .setColor(0x550000);
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('mutation_curse')
-        .setLabel('Touch the Totem')
-        .setStyle(ButtonStyle.Danger)
-    );
-
-    const msg = await channel.send({ embeds: [embed], components: [row] });
-
-    const collector = msg.createMessageComponentCollector({
-      time: 10000,
-      filter: i => entrants.some(p => p.id === i.user.id),
-    });
-
-    let cursed = null;
-
-    collector.on('collect', async i => {
-      if (!cursed) {
-        cursed = i.user.id;
-        await i.reply({ content: '💀 You touched the cursed totem...', ephemeral: true });
-      }
-    });
-
-    collector.on('end', async () => {
-      if (cursed) {
-        const victim = entrants.find(p => p.id === cursed);
-        entrants = entrants.filter(p => p.id !== cursed);
-        eliminated.push(victim);
-
-        const embed = new EmbedBuilder()
-          .setTitle("☠️ Cursed by Curiosity")
-          .setDescription(`<@${cursed}> couldn’t resist the totem. It was a trap.`)
-          .setColor(0xaa0000);
-        await channel.send({ embeds: [embed] });
-      } else {
-        await channel.send("🧘 No one touched the cursed totem. You live — this time.");
-      }
-    });
-  }
-  else if (type === 'last-click-dies') {
-    const embed = new EmbedBuilder()
-      .setTitle("🧬 MUTATION: The Sluggish Reflex")
-      .setDescription("The last person to click the **Screaming Button** in 10 seconds will be eliminated.\n\nDo you dare?")
-      .setColor(0xaa00ff);
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('mutation_click')
-        .setLabel('Screaming Button')
-        .setStyle(ButtonStyle.Danger)
-    );
-
-    const msg = await channel.send({ embeds: [embed], components: [row] });
-
-    const collector = msg.createMessageComponentCollector({
-      time: 10000,
-      filter: i => entrants.some(p => p.id === i.user.id),
-    });
-
-    const clickOrder = [];
-
-    collector.on('collect', async i => {
-      if (!clickOrder.includes(i.user.id)) {
-        clickOrder.push(i.user.id);
-        await i.reply({ content: '😵 You clicked the button!', ephemeral: true });
-      }
-    });
-
-    collector.on('end', async () => {
-      if (clickOrder.length > 0) {
-        const last = clickOrder[clickOrder.length - 1];
-        const victim = entrants.find(p => p.id === last);
-        entrants = entrants.filter(p => p.id !== last);
-        eliminated.push(victim);
-
-        const elimEmbed = new EmbedBuilder()
-          .setTitle("☠️ Mutation Failure")
-          .setDescription(`<@${last}> was too slow... the Gauntlet takes no prisoners.`)
-          .setColor(0x880000);
-        await channel.send({ embeds: [elimEmbed] });
-      } else {
-        await channel.send("🌀 No one clicked the Screaming Button... no elimination this round.");
-      }
-    });
-  }
-
-  else if (type === 'first-click-safe') {
-    const embed = new EmbedBuilder()
-      .setTitle("🧬 MUTATION: Sudden Blessing")
-      .setDescription("The first person to click the **Ugly Totem** gains immunity from the next round.\nMove fast!")
-      .setColor(0x55ccff);
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('mutation_safe')
-        .setLabel('Ugly Totem')
-        .setStyle(ButtonStyle.Success)
-    );
-
-    const msg = await channel.send({ embeds: [embed], components: [row] });
-
-    const collector = msg.createMessageComponentCollector({
-      time: 10000,
-      max: 1,
-      filter: i => entrants.some(p => p.id === i.user.id),
-    });
-
-    collector.on('collect', async i => {
-      await i.reply({ content: '✨ You are now immune from the next round!', ephemeral: true });
-      const player = entrants.find(p => p.id === i.user.id);
-      player.immune = true;
-
-      const bless = new EmbedBuilder()
-        .setTitle("🛡️ Blessing Received")
-        .setDescription(`<@${player.id}> is protected next round!`)
-        .setColor(0x00ffcc);
-      await channel.send({ embeds: [bless] });
-    });
-
-    collector.on('end', async collected => {
-      if (collected.size === 0) {
-        await channel.send("❌ No one clicked the totem. No immunity granted.");
-      }
-    });
-  }
-}
-async function runMutationEvent(channel) {
-  const eventTypes = ['last-click-dies', 'first-click-safe', 'reaction-survival', 'emote-sacrifice', 'reverse-totem'];
-  const type = getRandomItem(eventTypes);
-
-  if (type === 'reaction-survival') {
-    const msg = await channel.send("🧬 MUTATION: Only those who react with 🐷 in the next 10 seconds will survive...");
-
-    await msg.react('🐷');
-
-    const collector = msg.createReactionCollector({
-      time: 10000,
-      filter: (reaction, user) =>
-        reaction.emoji.name === '🐷' && entrants.some(p => p.id === user.id),
-    });
-
-    const survivors = new Set();
-
-    collector.on('collect', (reaction, user) => {
-      survivors.add(user.id);
-    });
-
-    collector.on('end', async () => {
-      const eliminatedThisRound = entrants.filter(p => !survivors.has(p.id));
-      entrants = entrants.filter(p => survivors.has(p.id));
-      eliminated.push(...eliminatedThisRound);
-
-      const elimNames = eliminatedThisRound.map(p => `<@${p.id}>`).join('\n') || 'Nobody';
-      const embed = new EmbedBuilder()
-        .setTitle("☠️ The Reaction Purge")
-        .setDescription(`${elimNames} failed to oink and were obliterated.`)
-        .setColor(0xff0000);
-      await channel.send({ embeds: [embed] });
-    });
-  }
-
-  else if (type === 'emote-sacrifice') {
-    const msg = await channel.send("🧬 MUTATION: React with 🔥 — only one will be spared...");
-
-    await msg.react('🔥');
-
-    const collector = msg.createReactionCollector({
-      time: 7000,
-      filter: (reaction, user) =>
-        reaction.emoji.name === '🔥' && entrants.some(p => p.id === user.id),
-    });
-
-    const reactors = [];
-
-    collector.on('collect', (reaction, user) => {
-      if (!reactors.includes(user.id)) reactors.push(user.id);
-    });
-
-    collector.on('end', async () => {
-      if (reactors.length === 0) {
-        await channel.send("😐 No one dared touch the fire. Everyone lives… for now.");
-        return;
-      }
-
-      const savedId = getRandomItem(reactors);
-      const survivors = entrants.filter(p => p.id === savedId);
-      const eliminatedThisRound = entrants.filter(p => p.id !== savedId);
-      entrants = survivors;
-      eliminated.push(...eliminatedThisRound);
-
-      const embed = new EmbedBuilder()
-        .setTitle("🔥 Sacrificial Mutation")
-        .setDescription(`<@${savedId}> survives. All others who clicked 🔥 were burned by the lore gods.`)
-        .setColor(0xdd3333);
-      await channel.send({ embeds: [embed] });
-    });
-  }
-
-  else if (type === 'reverse-totem') {
-    const embed = new EmbedBuilder()
-      .setTitle("🧬 MUTATION: Totem of Deceit")
-      .setDescription("The button lies... whoever clicks **dies**.\nWill curiosity kill the cat?")
-      .setColor(0x550000);
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('mutation_curse')
-        .setLabel('Touch the Totem')
-        .setStyle(ButtonStyle.Danger)
-    );
-
-    const msg = await channel.send({ embeds: [embed], components: [row] });
-
-    const collector = msg.createMessageComponentCollector({
-      time: 10000,
-      filter: i => entrants.some(p => p.id === i.user.id),
-    });
-
-    let cursed = null;
-
-    collector.on('collect', async i => {
-      if (!cursed) {
-        cursed = i.user.id;
-        await i.reply({ content: '💀 You touched the cursed totem...', ephemeral: true });
-      }
-    });
-async function runWarpEvent(channel) {
-  const type = getRandomItem(["boneGamble", "infernoChoice", "gazeOfUglymon"]);
-  console.log(`🌀 WARP Event triggered: ${type}`);
-
-  if (type === "boneGamble") {
-    const embed = new EmbedBuilder()
-      .setTitle("🌀 WARP Event: The Bone Gamble")
-      .setDescription("A malformed skeleton clatters into the arena, its dice glowing with dread...\nDo you dare **roll** for power?")
-      .setColor(0xffffff);
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId("roll_bones").setLabel("🎲 Roll Dice").setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId("refuse_bones").setLabel("❌ Refuse Gamble").setStyle(ButtonStyle.Secondary)
-    );
-
-    const msg = await channel.send({ embeds: [embed], components: [row] });
-    const collector = msg.createMessageComponentCollector({ time: 10000 });
-
-    collector.on("collect", async (i) => {
-      const player = entrants.find(p => p.id === i.user.id);
-      if (!player) return i.reply({ content: "You're not in the Gauntlet!", ephemeral: true });
-
-      const roll = Math.random();
-      let result;
-      if (roll < 0.2) {
-        eliminated.push(player);
-        entrants = entrants.filter(p => p.id !== player.id);
-        result = `💀 <@${player.id}> rolled and was **crushed by the bones!**`;
-      } else if (roll < 0.5) {
-        player.immunity = true;
-        result = `🛡️ <@${player.id}> rolled and gained **immunity** for the next round!`;
-      } else {
-        result = `😅 <@${player.id}> rolled and survived — nothing gained, nothing lost.`;
-      }
-
-      await i.reply({ content: result, ephemeral: false });
-    });
-
-    await delay(11000);
-  }
-
-  else if (type === "infernoChoice") {
-    const embed = new EmbedBuilder()
-      .setTitle("🌀 WARP Event: Inferno Choice")
-      .setDescription("🔥 The floor cracks and lava surges upward!\nChoose your fate quickly...")
-      .setColor(0xff0000);
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId("leap_inferno").setLabel("🏃‍♂️ Leap to Safety").setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId("pray_inferno").setLabel("🙏 Pray for Mercy").setStyle(ButtonStyle.Secondary)
-    );
-
-    const msg = await channel.send({ embeds: [embed], components: [row] });
-    const collector = msg.createMessageComponentCollector({ time: 10000 });
-
-    collector.on("collect", async (i) => {
-      const player = entrants.find(p => p.id === i.user.id);
-      if (!player) return i.reply({ content: "You're not in the Gauntlet!", ephemeral: true });
-
-      const action = i.customId;
-      let result;
-
-      if (action === "leap_inferno") {
-        result = Math.random() < 0.7
-          ? `💨 <@${player.id}> leapt to safety!`
-          : `🔥 <@${player.id}> tripped mid-jump and was burned!`;
-      } else {
-        result = Math.random() < 0.4
-          ? `✨ <@${player.id}> was blessed by the flames and gains immunity.`
-          : `😵 <@${player.id}> was ignored by the fire gods... but survived.`;
-      }
-
-      if (result.includes("burned")) {
-        eliminated.push(player);
-        entrants = entrants.filter(p => p.id !== player.id);
-      } else if (result.includes("immunity")) {
-        player.immunity = true;
-      }
-
-      await i.reply({ content: result, ephemeral: false });
-    });
-
-    await delay(11000);
-  }
-
-  else if (type === "gazeOfUglymon") {
-    const embed = new EmbedBuilder()
-      .setTitle("🌀 WARP Event: Gaze of Uglymon")
-      .setDescription("👁️ A shimmering eye opens in the sky...\nIt will choose one soul to judge.")
-      .setColor(0x8800ff);
+      .setTitle(`☠️ ${eliminatedPlayer.username} has fallen`)
+      .setImage(getUglyImageUrl(imageId))
+      .setColor(0x8b0000);
 
     await channel.send({ embeds: [embed] });
-    await delay(5000);
 
-    const unlucky = getRandomItem(entrants);
-    const fate = Math.random();
-    let result;
+    eliminated.push(eliminatedPlayer);
+    entrants = entrants.filter(e => e.id !== eliminatedPlayer.id);
 
-    if (fate < 0.33) {
-      eliminated.push(unlucky);
-      entrants = entrants.filter(p => p.id !== unlucky.id);
-      result = `👁️ The Eye burns <@${unlucky.id}> into ashes.`;
-    } else if (fate < 0.66) {
-      unlucky.immunity = true;
-      result = `🛡️ The Eye blesses <@${unlucky.id}> with protection.`;
-    } else {
-      result = `😨 The Eye stares into <@${unlucky.id}>'s soul... then vanishes. They are unchanged.`;
+    await delay(6000); // Add time between rounds
+
+    // Totem of Lost Souls revival logic
+    if (!revivalUsed && entrants.length <= Math.floor(originalEntrantCount / 3)) {
+      revivalUsed = true;
+      await triggerTotemOfLostSouls(channel);
+      await delay(6000);
+    }
+  }
+
+  await announceWinners(channel);
+  resetGameState();
+}
+async function triggerTotemOfLostSouls(channel) {
+  const eliminatedIds = eliminated.map(e => e.id);
+  const nonEntrants = (await channel.guild.members.fetch())
+    .filter(m => !m.user.bot && !entrants.find(e => e.id === m.id) && !eliminatedIds.includes(m.id))
+    .map(m => m.user);
+
+  const embed = new EmbedBuilder()
+    .setTitle("💀 The Totem of Lost Souls has appeared...")
+    .setDescription("Eliminated players and outsiders may attempt a revival.\nClick quickly to grasp your second chance.")
+    .setColor(0x9932cc);
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('totem_attempt')
+      .setLabel('Attempt Revival')
+      .setStyle(ButtonStyle.Danger)
+  );
+
+  const msg = await channel.send({ embeds: [embed], components: [row] });
+
+  const attempts = [];
+  const collector = channel.createMessageComponentCollector({
+    componentType: 'BUTTON',
+    time: 4000
+  });
+
+  collector.on('collect', async i => {
+    if (!attempts.find(a => a.id === i.user.id)) {
+      attempts.push({ id: i.user.id, username: formatUsername(i.user) });
+    }
+    await i.deferUpdate();
+  });
+
+  collector.on('end', async () => {
+    const results = [];
+    for (let user of attempts) {
+      const alreadyIn = entrants.find(e => e.id === user.id);
+      if (alreadyIn) continue;
+
+      const wasEliminated = eliminated.find(e => e.id === user.id);
+      const chance = wasEliminated ? 0.5 : 0.4;
+
+      if (Math.random() < chance) {
+        entrants.push(user);
+        if (wasEliminated) {
+          eliminated = eliminated.filter(e => e.id !== user.id);
+        }
+        results.push(`✅ <@${user.id}> was **revived**!`);
+      } else {
+        results.push(`❌ <@${user.id}> **failed** to return.`);
+      }
     }
 
-    await channel.send(result);
-    await delay(5000);
+    const resultEmbed = new EmbedBuilder()
+      .setTitle("☠️ Totem Judgment")
+      .setDescription(results.length > 0 ? results.join("\n") : "No one dared attempt revival.")
+      .setColor(0x7f00ff);
+
+    await channel.send({ embeds: [resultEmbed] });
+  });
+}
+
+async function announceWinners(channel) {
+  const top3 = [...entrants].concat(eliminated.slice(-2)).reverse().slice(0, 3);
+  const podium = top3.map((p, i) => `🥇🥈🥉`.charAt(i) + ` <@${p.id}> — ${p.username}`).join("\n");
+
+  const embed = new EmbedBuilder()
+    .setTitle("🏆 The Final Podium")
+    .setDescription(podium || "No survivors... The Gauntlet claimed all.")
+    .setColor(0x00ff88);
+
+  await channel.send({ embeds: [embed] });
+
+  for (let winner of top3) {
+    await updatePlayerStats(winner.id, winner.username, i === 0 ? 1 : 0, 0, 1);
   }
 }
-    collector.on('end', async () => {
-      if (cursed) {
-        const victim = entrants.find(p => p.id === cursed);
-        entrants = entrants.filter(p => p.id !== cursed);
-        eliminated.push(victim);
 
-        const embed = new EmbedBuilder()
-          .setTitle("☠️ Cursed by Curiosity")
-          .setDescription(`<@${cursed}> couldn’t resist the totem. It was a trap.`)
-          .setColor(0xaa0000);
-        await channel.send({ embeds: [embed] });
-      } else {
-        await channel.send("🧘 No one touched the cursed totem. You live — this time.");
+function resetGameState() {
+  entrants = [];
+  eliminated = [];
+  gameInProgress = false;
+  trialMode = false;
+  bossVotes = {};
+  joinMessage = null;
+  originalEntrantCount = 0;
+}
+async function runMutationRound(channel) {
+  const mutationTypes = [
+    {
+      title: "🧬 Mutation: Delayed Reflexes",
+      description: "Last to click the button is eliminated! You have 10 seconds.",
+      buttonLabel: "React Quickly",
+      successCondition: (responses) => responses.sort((a, b) => a.timestamp - b.timestamp)
+    },
+    {
+      title: "🧬 Mutation: Hidden Trap",
+      description: "Clicking the button triggers a trap. Don't click!",
+      buttonLabel: "Click Me",
+      successCondition: (responses) => [] // Everyone who clicked is eliminated
+    },
+    {
+      title: "🧬 Mutation: Immunity Serum",
+      description: "First 3 to click gain immunity next round.",
+      buttonLabel: "Inject Serum",
+      successCondition: (responses) => responses.slice(0, 3)
+    }
+  ];
+
+  const mutation = getRandomItem(mutationTypes);
+
+  const embed = new EmbedBuilder()
+    .setTitle(mutation.title)
+    .setDescription(mutation.description)
+    .setColor(0x33ccff);
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('mutation_click')
+      .setLabel(mutation.buttonLabel)
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  const message = await channel.send({ embeds: [embed], components: [row] });
+
+  const responses = [];
+  const collector = channel.createMessageComponentCollector({
+    componentType: 'BUTTON',
+    time: 10000
+  });
+
+  collector.on('collect', async i => {
+    if (!responses.find(r => r.id === i.user.id)) {
+      responses.push({ id: i.user.id, username: formatUsername(i.user), timestamp: Date.now() });
+    }
+    await i.deferUpdate();
+  });
+
+  collector.on('end', async () => {
+    const affected = mutation.successCondition(responses);
+    const eliminatedIds = [];
+
+    if (mutation.title.includes("Delayed Reflexes") && responses.length > 0) {
+      const last = responses[responses.length - 1];
+      const player = entrants.find(e => e.id === last.id);
+      if (player) {
+        entrants = entrants.filter(e => e.id !== player.id);
+        eliminated.push(player);
+        eliminatedIds.push(player.username);
       }
-    });
+    }
+
+    if (mutation.title.includes("Hidden Trap")) {
+      for (const r of responses) {
+        const player = entrants.find(e => e.id === r.id);
+        if (player) {
+          entrants = entrants.filter(e => e.id !== r.id);
+          eliminated.push(player);
+          eliminatedIds.push(player.username);
+        }
+      }
+    }
+
+    if (mutation.title.includes("Immunity Serum")) {
+      for (const p of affected) {
+        const player = entrants.find(e => e.id === p.id);
+        if (player) {
+          player.immune = true;
+        }
+      }
+    }
+
+    const resultEmbed = new EmbedBuilder()
+      .setTitle("⚠️ Mutation Round Results")
+      .setDescription(eliminatedIds.length
+        ? `Eliminated:\n${eliminatedIds.join('\n')}`
+        : `No eliminations this round.`)
+      .setColor(0xcc3300);
+
+    await channel.send({ embeds: [resultEmbed] });
+  });
+}
+
+async function runWarpEvent(channel) {
+  const warpScenarios = [
+    {
+      title: "🌀 WARP: The Floor is Lava",
+      description: "Jump to safety! First 3 to click survive, the rest face danger.",
+      buttonLabel: "Leap Now",
+      survivors: 3
+    },
+    {
+      title: "🌀 WARP: Lightning Round",
+      description: "Quick! Only the first to click avoids elimination!",
+      buttonLabel: "Dodge Lightning",
+      survivors: 1
+    },
+    {
+      title: "🌀 WARP: The Great Hide",
+      description: "Click to hide. Those who don’t click are spotted and removed!",
+      buttonLabel: "Hide",
+      inverted: true
+    }
+  ];
+
+  const event = getRandomItem(warpScenarios);
+
+  const embed = new EmbedBuilder()
+    .setTitle(event.title)
+    .setDescription(event.description)
+    .setColor(0x5500cc);
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('warp_click')
+      .setLabel(event.buttonLabel)
+      .setStyle(ButtonStyle.Primary)
+  );
+
+  const msg = await channel.send({ embeds: [embed], components: [row] });
+
+  const responses = [];
+  const collector = channel.createMessageComponentCollector({
+    componentType: 'BUTTON',
+    time: 8000
+  });
+
+  collector.on('collect', async i => {
+    if (!responses.find(r => r.id === i.user.id)) {
+      responses.push({ id: i.user.id, username: formatUsername(i.user) });
+    }
+    await i.deferUpdate();
+  });
+
+  collector.on('end', async () => {
+    let eliminatedIds = [];
+
+    if (event.inverted) {
+      const safeIds = responses.map(r => r.id);
+      const doomed = entrants.filter(e => !safeIds.includes(e.id));
+      eliminatedIds = doomed.map(d => d.username);
+      entrants = entrants.filter(e => safeIds.includes(e.id));
+      eliminated.push(...doomed);
+    } else if (event.survivors) {
+      const safe = responses.slice(0, event.survivors).map(r => r.id);
+      const doomed = entrants.filter(e => !safe.includes(e.id));
+      eliminatedIds = doomed.map(d => d.username);
+      entrants = entrants.filter(e => safe.includes(e.id));
+      eliminated.push(...doomed);
+    }
+
+    const resultEmbed = new EmbedBuilder()
+      .setTitle("🌪️ WARP Event Results")
+      .setDescription(eliminatedIds.length
+        ? `Eliminated:\n${eliminatedIds.join('\n')}`
+        : `No one was harmed... this time.`)
+      .setColor(0xaa00aa);
+
+    await channel.send({ embeds: [resultEmbed] });
+  });
+}
+function getRandomItem(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function shuffleArray(array) {
+  const clone = [...array];
+  for (let i = clone.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [clone[i], clone[j]] = [clone[j], clone[i]];
+  }
+  return clone;
+}
+
+function formatUsername(user) {
+  return user.globalName || user.username || "Unknown";
+}
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// 🧪 NFT Image Fallback
+function getUglyImageUrl(tokenId) {
+  return `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}.jpg`;
+}
+
+// 📊 Update player stats in database
+async function updatePlayerStats(userId, username, wins = 0, revives = 0, games = 1) {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+
+  const res = await db.query(
+    `SELECT * FROM player_stats WHERE user_id = $1 AND year = $2 AND month = $3`,
+    [userId, year, month]
+  );
+
+  if (res.rows.length > 0) {
+    await db.query(
+      `UPDATE player_stats SET
+        wins = wins + $1,
+        revives = revives + $2,
+        games_played = games_played + $3
+       WHERE user_id = $4 AND year = $5 AND month = $6`,
+      [wins, revives, games, userId, year, month]
+    );
+  } else {
+    await db.query(
+      `INSERT INTO player_stats (user_id, username, year, month, wins, revives, games_played)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [userId, username, year, month, wins, revives, games]
+    );
+  }
+}
+client.on('messageCreate', async message => {
+  if (message.author.bot) return;
+
+  // ✅ Trial Mode (simulate only)
+  if (message.content === '!gauntlettrial' && !gameInProgress) {
+    gameInProgress = true;
+    trialMode = true;
+
+    entrants = Array.from({ length: 20 }).map((_, i) => ({
+      id: `Trial${i + 1}`,
+      username: `Trial${i + 1}`
+    }));
+
+    originalEntrantCount = entrants.length;
+
+    const embed = new EmbedBuilder()
+      .setTitle("🎲 Starting Gauntlet Trial Mode")
+      .setDescription("20 randomly generated test players have entered the arena.\nThis is a simulated run — no real eliminations.")
+      .setColor(0x6699ff);
+
+    await message.channel.send({ embeds: [embed] });
+
+    await runBossVotePhase(message.channel);
+
+    const waitEmbed = new EmbedBuilder()
+      .setDescription("✅ Trial mode complete. No eliminations will be run.")
+      .setColor(0x999999);
+    await message.channel.send({ embeds: [waitEmbed] });
+
+    gameInProgress = false;
+    return;
   }
 
-  else if (type === 'last-click-dies') {
-    const embed = new EmbedBuilder()
-      .setTitle("🧬 MUTATION: The Sluggish Reflex")
-      .setDescription("The last person to click the **Screaming Button** in 10 seconds will be eliminated.\n\nDo you dare?")
-      .setColor(0xaa00ff);
+  // 🗡️ Real Game Mode
+  if (message.content === '!gauntlet' && !gameInProgress) {
+    gameInProgress = true;
+    trialMode = false;
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId('mutation_click')
-        .setLabel('Screaming Button')
+        .setCustomId('join_gauntlet')
+        .setLabel('Join the Gauntlet')
         .setStyle(ButtonStyle.Danger)
     );
 
-    const msg = await channel.send({ embeds: [embed], components: [row] });
-
-    const collector = msg.createMessageComponentCollector({
-      time: 10000,
-      filter: i => entrants.some(p => p.id === i.user.id),
-    });
-
-    const clickOrder = [];
-
-    collector.on('collect', async i => {
-      if (!clickOrder.includes(i.user.id)) {
-        clickOrder.push(i.user.id);
-        await i.reply({ content: '😵 You clicked the button!', ephemeral: true });
-      }
-    });
-
-    collector.on('end', async () => {
-      if (clickOrder.length > 0) {
-        const last = clickOrder[clickOrder.length - 1];
-        const victim = entrants.find(p => p.id === last);
-        entrants = entrants.filter(p => p.id !== last);
-        eliminated.push(victim);
-
-        const elimEmbed = new EmbedBuilder()
-          .setTitle("☠️ Mutation Failure")
-          .setDescription(`<@${last}> was too slow... the Gauntlet takes no prisoners.`)
-          .setColor(0x880000);
-        await channel.send({ embeds: [elimEmbed] });
-      } else {
-        await channel.send("🌀 No one clicked the Screaming Button... no elimination this round.");
-      }
-    });
-  }
-
-  else if (type === 'first-click-safe') {
     const embed = new EmbedBuilder()
-      .setTitle("🧬 MUTATION: Sudden Blessing")
-      .setDescription("The first person to click the **Ugly Totem** gains immunity from the next round.\nMove fast!")
-      .setColor(0x55ccff);
+      .setTitle("🗡️ The Ugly Gauntlet Begins!")
+      .setDescription(`<@${message.author.id}> has summoned the Gauntlet!\nClick below to enter the arena.\n⏳ Game starts in 45 seconds...`)
+      .setColor(0xff5555);
 
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('mutation_safe')
-        .setLabel('Ugly Totem')
-        .setStyle(ButtonStyle.Success)
-    );
+    joinMessage = await message.channel.send({ embeds: [embed], components: [row] });
 
-    const msg = await channel.send({ embeds: [embed], components: [row] });
-
-    const collector = msg.createMessageComponentCollector({
-      time: 10000,
-      max: 1,
-      filter: i => entrants.some(p => p.id === i.user.id),
-    });
-
-    collector.on('collect', async i => {
-      await i.reply({ content: '✨ You are now immune from the next round!', ephemeral: true });
-      const player = entrants.find(p => p.id === i.user.id);
-      player.immune = true;
-
-      const bless = new EmbedBuilder()
-        .setTitle("🛡️ Blessing Received")
-        .setDescription(`<@${player.id}> is protected next round!`)
-        .setColor(0x00ffcc);
-      await channel.send({ embeds: [bless] });
-    });
-
-    collector.on('end', async collected => {
-      if (collected.size === 0) {
-        await channel.send("❌ No one clicked the totem. No immunity granted.");
-      }
-    });
+    setTimeout(() => startGame(message.channel), 45000);
   }
+});
+async function startGame(channel) {
+  if (trialMode) return; // skip real game logic
+
+  // Store the players from join button
+  const messages = await channel.messages.fetch({ limit: 50 });
+  const latestJoin = messages.find(m => m.id === joinMessage?.id);
+  if (!latestJoin) return;
+
+  const joinCollector = latestJoin.createMessageComponentCollector({
+    componentType: 'BUTTON',
+    time: 10000 // Short buffer before starting officially
+  });
+
+  joinCollector.on('collect', async i => {
+    if (!entrants.find(e => e.id === i.user.id)) {
+      entrants.push({ id: i.user.id, username: formatUsername(i.user) });
+      await i.reply({ content: `✅ You’ve joined the Gauntlet, <@${i.user.id}>!`, ephemeral: true });
+    } else {
+      await i.reply({ content: `⚔️ You’re already in the Gauntlet.`, ephemeral: true });
+    }
+  });
+
+  joinCollector.on('end', async () => {
+    originalEntrantCount = entrants.length;
+
+    if (entrants.length < 3) {
+      await channel.send("🚫 Not enough players to begin the Gauntlet. Try again with at least 3!");
+      resetGameState();
+      return;
+    }
+
+    await channel.send(`🧠 ${entrants.length} players have entered. Let the judgment begin!`);
+    await runBossVotePhase(channel);
+
+    await delay(5000);
+    await runGauntlet(channel);
+  });
+}
+async function runGauntlet(channel) {
+  while (entrants.length > 1) {
+    // 🌀 Chance for WARP Event mid-round
+    if (Math.random() < 0.2) {
+      await runWarpEvent(channel);
+      await delay(11000);
+    }
+
+    // 🧬 Mutation Round
+    if (Math.random() < 0.15) {
+      await runMutationRound(channel);
+      await delay(10000);
+    }
+
+    const eliminatedPlayer = getRandomItem(entrants);
+    const imageId = Math.floor(Math.random() * 530) + 1;
+
+    const embed = new EmbedBuilder()
+      .setTitle(`☠️ ${eliminatedPlayer.username} has fallen`)
+      .setImage(getUglyImageUrl(imageId))
+      .setColor(0x8b0000);
+
+    await channel.send({ embeds: [embed] });
+
+    eliminated.push(eliminatedPlayer);
+    entrants = entrants.filter(e => e.id !== eliminatedPlayer.id);
+
+    await delay(6000); // Delay between rounds
+
+    // ☠️ Totem mass revival trigger
+    if (!revivalUsed && entrants.length <= Math.floor(originalEntrantCount / 3)) {
+      revivalUsed = true;
+      await triggerTotemOfLostSouls(channel);
+      await delay(6000);
+    }
+  }
+
+  await announceWinners(channel);
+  resetGameState();
+}
+async function triggerTotemOfLostSouls(channel) {
+  const imageId = Math.floor(Math.random() * 530) + 1;
+
+  const embed = new EmbedBuilder()
+    .setTitle("💀 Totem of Lost Souls Awakens")
+    .setDescription("Eliminated and lurking spectators may now **click below** to attempt a cursed revival...\nYou have 10 seconds.")
+    .setImage(getUglyImageUrl(imageId))
+    .setColor(0xaa00ff);
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('totem_revive')
+      .setLabel('⚡ Touch the Totem')
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  const message = await channel.send({ embeds: [embed], components: [row] });
+
+  const collector = message.createMessageComponentCollector({ time: 10000 });
+
+  const attempted = [];
+
+  collector.on('collect', async i => {
+    if (!eliminated.find(e => e.id === i.user.id) && !entrants.find(e => e.id === i.user.id)) {
+      attempted.push({ user: i.user, eligible: true }); // new player
+    } else if (eliminated.find(e => e.id === i.user.id)) {
+      attempted.push({ user: i.user, eligible: false }); // eliminated
+    }
+    await i.deferUpdate();
+  });
+
+  collector.on('end', async () => {
+    const revived = [];
+    const failed = [];
+
+    for (const attempt of attempted) {
+      const chance = attempt.eligible ? 0.4 : 0.5;
+      const roll = Math.random();
+      const name = formatUsername(attempt.user);
+
+      if (roll < chance) {
+        entrants.push({ id: attempt.user.id, username: name });
+        revived.push(name);
+      } else {
+        failed.push(name);
+      }
+    }
+
+    const resultEmbed = new EmbedBuilder()
+      .setTitle("🔮 Totem Judgment")
+      .setDescription(`Revived: ${revived.length > 0 ? revived.join(', ') : 'None'}\nFailed: ${failed.length > 0 ? failed.join(', ') : 'None'}`)
+      .setColor(0xdd33aa);
+    await channel.send({ embeds: [resultEmbed] });
+  });
 }
 
-// Bot login
-client.login(process.env.BOT_TOKEN);
+async function announceWinners(channel) {
+  const top3 = eliminated.slice(-2).concat(entrants[0] ? [entrants[0]] : []);
+  const podium = top3.reverse();
+
+  const embed = new EmbedBuilder()
+    .setTitle("🏁 Final Standings — Ugly Gauntlet")
+    .setDescription(
+      `🥇 ${podium[0] ? podium[0].username : "None"}\n` +
+      `🥈 ${podium[1] ? podium[1].username : "None"}\n` +
+      `🥉 ${podium[2] ? podium[2].username : "None"}`
+    )
+    .setColor(0xffd700);
+
+  await channel.send({ embeds: [embed] });
+}
+async function runWarpEvent(channel) {
+  const events = [
+    {
+      title: "⛓️ WARPED ALLIANCE",
+      desc: "Two random Uglies form an unlikely pact.\nIf one falls in the next round, the other will follow...",
+      effect: async () => {
+        const [a, b] = shuffleArray(entrants).slice(0, 2);
+        if (!a || !b) return;
+
+        channel.send({
+          embeds: [new EmbedBuilder()
+            .setTitle("🤝 A Pact is Formed")
+            .setDescription(`If either <@${a.id}> or <@${b.id}> falls in the next round, the other shall perish too.`)
+            .setColor(0x8888ff)]
+        });
+
+        // Store pact for next round effect
+        activePacts.push([a.id, b.id]);
+      }
+    },
+    {
+      title: "🧿 CHAOS PROPHECY",
+      desc: "An old Ugly prophecy whispers a cursed name. Will it be self-fulfilling?",
+      effect: async () => {
+        const cursed = getRandomItem(entrants);
+        if (!cursed) return;
+
+        channel.send({
+          embeds: [new EmbedBuilder()
+            .setTitle("🔮 Prophecy Revealed")
+            .setDescription(`<@${cursed.id}> was named by the prophecy.\nThey feel the cold hand of fate creeping...`)
+            .setColor(0xcc0099)]
+        });
+
+        cursedByProphecy = cursed.id;
+      }
+    },
+    {
+      title: "📦 RANDOM ITEM DROP",
+      desc: "A mysterious crate crashes into the arena. Only one Ugly may open it...",
+      effect: async () => {
+        const rewarded = getRandomItem(entrants);
+        if (!rewarded) return;
+
+        channel.send({
+          embeds: [new EmbedBuilder()
+            .setTitle("📦 Loot Crate")
+            .setDescription(`<@${rewarded.id}> found a glowing charm. They will survive the next elimination!`)
+            .setColor(0x00ff99)]
+        });
+
+        immunitySet.add(rewarded.id);
+      }
+    }
+  ];
+
+  const event = getRandomItem(events);
+  const embed = new EmbedBuilder()
+    .setTitle(event.title)
+    .setDescription(event.desc)
+    .setColor(0xff33aa);
+
+  await channel.send({ embeds: [embed] });
+  await event.effect();
+}
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function formatUsername(user) {
+  return user.username?.length > 16 ? user.username.slice(0, 16) + '…' : user.username;
+}
+
+function getUglyImageUrl(tokenId) {
+  return `${DEFAULT_IMAGE_BASE_URL}${tokenId}.jpg`;
+}
+
+function getRandomItem(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function shuffleArray(array) {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function resetGameState() {
+  entrants = [];
+  eliminated = [];
+  revivalUsed = false;
+  joinMessage = null;
+  trialMode = false;
+  activePacts = [];
+  immunitySet = new Set();
+  cursedByProphecy = null;
+}
+client.on('messageCreate', async (message) => {
+  if (message.content === '!gauntletdev') {
+    const allowedUserId = '826581856400179210'; // replace with your ID
+
+    if (message.author.id !== allowedUserId) {
+      return message.reply("⛔ This command is restricted.");
+    }
+
+    const channel = message.channel;
+
+    // Create 10 mock users
+    entrants = Array.from({ length: 10 }, (_, i) => ({
+      id: `Dev${i + 1}`,
+      username: `Dev${i + 1}`
+    }));
+
+    eliminated = [];
+    originalEntrantCount = entrants.length;
+    revivalUsed = false;
+    trialMode = false;
+    activePacts = [];
+    immunitySet = new Set();
+    cursedByProphecy = null;
+
+    await channel.send(`🧪 Developer Gauntlet Starting with 10 mock Uglies...`);
+    await runBossVotePhase(channel);
+
+    // Simulate random vote clicks
+    await delay(3000);
+    const fakeVote = getRandomItem(entrants);
+    await channel.send(`🤖 Simulated vote for Boss: ${fakeVote.username}`);
+    // Force assign extra life to fakeVote
+    entrants = entrants.map(p => ({
+      ...p,
+      lives: p.id === fakeVote.id ? 2 : 1
+    }));
+
+    await delay(3000);
+    await channel.send("🎮 Dev Gauntlet begins now...");
+    await runGauntlet(channel);
+  }
+});
+
+client.once(Events.ClientReady, () => {
+  console.log(`✅ Logged in as ${client.user.tag}`);
+});
+
+client.login(process.env.TOKEN);
