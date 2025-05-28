@@ -429,7 +429,7 @@ async function runGauntlet(channel) {
     // MUTATION ROUND (40% chance) — wait until it finishes
     if (Math.random() < 0.40) {
       await runMutationEvent(channel);
-      await delay(3000);
+      await delay(10000);
     }
 
     // Clear immunity each round
@@ -558,6 +558,124 @@ async function runMassRevival(channel) {
 
   await channel.send({ embeds: [resultEmbed] });
   await delay(2000);
+}
+if (Math.random() < 0.45) {
+  await runWarpEvent(channel); // new fully separate logic
+  await delay(11000); // give full time for interaction
+}
+async function runWarpEvent(channel) {
+  const type = getRandomItem(["boneGamble", "infernoChoice", "gazeOfUglymon"]);
+  console.log(`🧬 Mutation triggered: ${type}`);
+
+  if (type === "boneGamble") {
+    const embed = new EmbedBuilder()
+      .setTitle("🦴 The Bone Gamble")
+      .setDescription("A malformed skeleton clatters forward holding glowing dice...\nWill you **roll** for a chance at survival and power?")
+      .setColor(0xffffff);
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId("roll_bones").setLabel("🎲 Roll Dice").setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId("refuse_bones").setLabel("❌ Refuse Gamble").setStyle(ButtonStyle.Secondary)
+    );
+
+    const msg = await channel.send({ embeds: [embed], components: [row] });
+    const collector = msg.createMessageComponentCollector({ time: 10000 });
+
+    collector.on("collect", async (i) => {
+      const player = entrants.find(p => p.id === i.user.id);
+      if (!player) return i.reply({ content: "You're not in the Gauntlet!", ephemeral: true });
+
+      const roll = Math.random();
+      let result;
+      if (roll < 0.2) {
+        eliminated.push(player);
+        entrants = entrants.filter(p => p.id !== player.id);
+        result = `💀 <@${player.id}> rolled and was **crushed by the bones!**`;
+      } else if (roll < 0.5) {
+        player.immunity = true;
+        result = `🛡️ <@${player.id}> rolled and gained **immunity** for the next round!`;
+      } else {
+        result = `😅 <@${player.id}> rolled and survived — nothing gained, nothing lost.`;
+      }
+
+      await i.reply({ content: result, ephemeral: false });
+    });
+
+    await delay(11000);
+  }
+
+  else if (type === "infernoChoice") {
+    const embed = new EmbedBuilder()
+      .setTitle("🔥 The Inferno Awakens")
+      .setDescription("The floor beneath you ignites! Choose your reaction wisely.")
+      .setColor(0xff0000);
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId("leap_inferno").setLabel("🏃‍♂️ Leap to Safety").setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId("pray_inferno").setLabel("🙏 Pray for Mercy").setStyle(ButtonStyle.Secondary)
+    );
+
+    const msg = await channel.send({ embeds: [embed], components: [row] });
+    const collector = msg.createMessageComponentCollector({ time: 10000 });
+
+    collector.on("collect", async (i) => {
+      const player = entrants.find(p => p.id === i.user.id);
+      if (!player) return i.reply({ content: "You're not in the Gauntlet!", ephemeral: true });
+
+      const action = i.customId;
+      let result;
+
+      if (action === "leap_inferno") {
+        result = Math.random() < 0.7
+          ? `💨 <@${player.id}> leapt to safety!`
+          : `🔥 <@${player.id}> tripped mid-jump and was burned!`;
+      } else {
+        result = Math.random() < 0.4
+          ? `✨ <@${player.id}> was blessed by the flames and gains immunity.`
+          : `😵 <@${player.id}> was ignored by the fire gods... but survived.`;
+      }
+
+      // Process result
+      if (result.includes("burned")) {
+        eliminated.push(player);
+        entrants = entrants.filter(p => p.id !== player.id);
+      } else if (result.includes("immunity")) {
+        player.immunity = true;
+      }
+
+      await i.reply({ content: result, ephemeral: false });
+    });
+
+    await delay(11000);
+  }
+
+  else if (type === "gazeOfUglymon") {
+    const embed = new EmbedBuilder()
+      .setTitle("👁️ The Gaze of Uglymon")
+      .setDescription("A cosmic eye opens above the arena...\nIt locks onto one of you...")
+      .setColor(0x8800ff);
+
+    await channel.send({ embeds: [embed] });
+    await delay(5000);
+
+    const unlucky = getRandomItem(entrants);
+    const fate = Math.random();
+    let result;
+
+    if (fate < 0.33) {
+      eliminated.push(unlucky);
+      entrants = entrants.filter(p => p.id !== unlucky.id);
+      result = `👁️ The Eye burns <@${unlucky.id}> into ashes.`;
+    } else if (fate < 0.66) {
+      unlucky.immunity = true;
+      result = `🛡️ The Eye grants <@${unlucky.id}> a glowing shield of protection.`;
+    } else {
+      result = `😨 The Eye stares into <@${unlucky.id}>'s soul... then vanishes. They are unchanged.`;
+    }
+
+    await channel.send(result);
+    await delay(5000);
+  }
 }
 
 
