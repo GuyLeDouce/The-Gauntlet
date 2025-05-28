@@ -72,6 +72,7 @@ let massRevivalTriggered = false;
 let massReviveOpen = false;
 let massReviveAttempts = new Set();
 let bossVotes = {};
+let isTrialMode = false;
 
 // Server-specific settings
 const serverSettings = new Map();
@@ -200,12 +201,13 @@ client.on('messageCreate', async (message) => {
     originalCount = trialPlayers.length;
     massRevivalTriggered = false;
     gameInProgress = true;
+    isTrialMode = true; // 🧪 Flag trial mode
 
     await message.channel.send(`🧪 Starting Gauntlet Trial Mode with **${count}** randomly generated test players...`);
     await runBossVotePhase(message.channel);
   }
 
-  // Normal Gauntlet Start
+  // Normal Gauntlet
   if (content.startsWith('!gauntlet')) {
     if (gameInProgress) return message.reply("A Gauntlet is already in progress!");
 
@@ -223,6 +225,7 @@ client.on('messageCreate', async (message) => {
     originalCount = 1;
     massRevivalTriggered = false;
     gameInProgress = true;
+    isTrialMode = false; // 🛡️ Not trial mode
 
     const joinEmbed = new EmbedBuilder()
       .setTitle("⚔️ The Ugly Gauntlet Begins!")
@@ -358,7 +361,7 @@ async function runBossVotePhase(channel) {
   const voteMsg = await channel.send({ embeds: [voteEmbed], components: [voteRow] });
   await delay(15000);
 
-  // Tally votes
+  // Count votes
   const voteCounts = {};
   for (const voter in bossVotes) {
     const voted = bossVotes[voter];
@@ -370,9 +373,17 @@ async function runBossVotePhase(channel) {
   if (bossPlayer) bossPlayer.lives = 2;
 
   await channel.send(`👑 <@${bossPlayer.id}> has been chosen as **Boss Level Ugly** and now has **2 lives**!`);
+
+  // 🔐 Trial check: don't continue into full game
+  if (isTrialMode) {
+    await channel.send("🧪 Trial mode complete. No eliminations will be run.");
+    gameInProgress = false;
+    isTrialMode = false; // reset flag
+    return;
+  }
+
   await runGauntlet(channel);
 }
-
 async function runGauntlet(channel) {
   await delay(2000);
   await channel.send("🎲 The Gauntlet begins now... let the eliminations commence!");
