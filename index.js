@@ -430,8 +430,8 @@ async function runGauntlet(channel) {
 
     const imageURL = generateNFTImageURL(serverSettings.get(channel.guildId)?.imageBaseURL || DEFAULT_IMAGE_BASE_URL);
 
-    // MUTATION ROUND (25% chance) — wait until it finishes
-    if (Math.random() < 0.25) {
+    // MUTATION ROUND (40% chance) — wait until it finishes
+    if (Math.random() < 0.40) {
       await runMutationEvent(channel);
       await delay(3000);
     }
