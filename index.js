@@ -369,27 +369,23 @@ async function runBossVotePhase(channel) {
   const candidates = shuffleArray(entrants).slice(0, 5);
 
   const voteEmbed = new EmbedBuilder()
-    .setTitle("👑 Choose the Boss Level Ugly")
-    .setDescription("You have 15 seconds to vote!\nThe chosen one will receive **2 lives** in The Gauntlet.")
-    .addFields(candidates.map((c, i) => ({
-      name: `Option ${i + 1}`,
-      value: `<@${c.id}>`,
-      inline: true
-    })))
-    .setColor(0xffaa00);
+    .setTitle("👑 Vote for the Boss Level Ugly")
+    .setDescription("Click a button below to vote for who should be crowned **Boss Level Ugly**.\nThey’ll start with 2 lives... choose wisely 👑")
+    .setColor(0xffaa00); // 🍊 Nice regal tone
 
   const voteRow = new ActionRowBuilder();
-  candidates.forEach((c, i) => {
+  candidates.forEach((c) => {
     voteRow.addComponents(
       new ButtonBuilder()
         .setCustomId(`vote_boss_${c.id}`)
-        .setLabel(`Vote ${c.username}`)
+        .setLabel(`${c.username}`)
         .setStyle(ButtonStyle.Primary)
     );
   });
 
   const voteMsg = await channel.send({ embeds: [voteEmbed], components: [voteRow] });
   await delay(15000);
+
 
   // Count votes
   const voteCounts = {};
