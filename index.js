@@ -95,8 +95,8 @@ function formatEntrants() {
   return entrants.map(e => `<@${e.id}>`).join(', ');
 }
 function generateNFTImageURL(baseURL) {
-  const tokenId = Math.floor(Math.random() * 613) + 1;
-  return `${baseURL}${tokenId}.jpg`;
+  const tokenId = Math.floor(Math.random() * 530) + 1;
+  return `https://opensea.io/assets/ethereum/0x9492505633d74451bdf3079c09ccc979588bc309/${tokenId}`;
 }
 
 const eliminationEvents = [
@@ -383,8 +383,7 @@ async function runGauntlet(channel) {
 
     const imageURL = generateNFTImageURL(serverSettings.get(channel.guildId)?.imageBaseURL || DEFAULT_IMAGE_BASE_URL);
 
-    // MUTATION ROUND (25% chance)
-    let mutationText = "";
+    // MUTATION ROUND (25% chance) — wait until it finishes
     if (Math.random() < 0.25) {
       await runMutationEvent(channel);
       await delay(3000);
@@ -393,7 +392,6 @@ async function runGauntlet(channel) {
     // Clear immunity each round
     entrants.forEach(p => delete p.immune);
 
-    // Elimination logic
     const eligible = entrants.filter(p => !p.immune);
     if (eligible.length === 0) continue;
 
@@ -417,7 +415,6 @@ async function runGauntlet(channel) {
       }
     }
 
-    // 15% chance revival
     if (Math.random() < 0.15 && eliminated.length > 0) {
       const comeback = getRandomItem(eliminated);
       eliminated = eliminated.filter(p => p.id !== comeback.id);
@@ -425,7 +422,6 @@ async function runGauntlet(channel) {
       elimDescriptions.push(`🌟 <@${comeback.id}> ${getRandomItem(revivalEvents)}`);
     }
 
-    // Mass revive trigger
     if (!massRevivalTriggered && entrants.length <= Math.ceil(originalCount / 3)) {
       massRevivalTriggered = true;
       await runMassRevival(channel);
@@ -433,7 +429,7 @@ async function runGauntlet(channel) {
 
     const roundEmbed = new EmbedBuilder()
       .setTitle(`⚔️ Round ${round}`)
-      .setDescription(`${mutationText ? mutationText + '\n\n' : ''}${elimDescriptions.join('\n')}\n\n**🧍 ${entrants.length} of ${originalCount} remain.**`)
+      .setDescription(`${elimDescriptions.join('\n')}\n\n**🧍 ${entrants.length} of ${originalCount} remain.**`)
       .setImage(imageURL)
       .setColor(0xff4444);
 
@@ -442,11 +438,17 @@ async function runGauntlet(channel) {
   }
 
   const winner = entrants[0];
-  await channel.send(`🏆 The Gauntlet has ended. Our survivor: <@${winner.id}>`);
-  await recordWin(winner);
-  await announceTop3(channel, winner);
+  if (!winner) {
+    await channel.send("💥 All players perished. The Gauntlet claims everyone... but who stood longest?");
+    await announceTop3(channel, null); // fallback to top 3 from eliminated
+  } else {
+    await channel.send(`🏆 The Gauntlet has ended. Our survivor: <@${winner.id}>`);
+    await recordWin(winner);
+    await announceTop3(channel, winner);
+  }
+
   await runRematchPrompt(channel);
-  gameInProgress = false; // <-- Reset game flag at end
+  gameInProgress = false;
 }
 
 async function runMassRevival(channel) {
@@ -476,44 +478,62 @@ async function runMassRevival(channel) {
   massReviveOpen = false;
 
   const attemptedIds = [...massReviveAttempts];
-  const survivors = [];
+  const returned = [];
+  const failed = [];
 
-  if (Math.random() < 0.5 && attemptedIds.length > 0) {
-    for (const id of attemptedIds) {
-      const existing = eliminated.find(p => p.id === id);
-      const revived = existing || { id, username: `??`, lives: 1 };
-      entrants.push({ ...revived, lives: 1 });
-      survivors.push(`<@${id}>`);
-      if (existing) {
-        eliminated = eliminated.filter(p => p.id !== id);
-      }
+  for (const id of attemptedIds) {
+    const isEliminated = eliminated.find(p => p.id === id);
+    const isOutside = !entrants.find(p => p.id === id) && !isEliminated;
+
+    if (isEliminated && Math.random() < 0.5) {
+      entrants.push({ ...isEliminated, lives: 1 });
+      eliminated = eliminated.filter(p => p.id !== id);
+      returned.push(`<@${id}>`);
+    } else if (isOutside && Math.random() < 0.4) {
+      entrants.push({ id, username: 'Mysterious Stranger', lives: 1 });
+      returned.push(`<@${id}>`);
+    } else {
+      failed.push(`<@${id}>`);
     }
-
-    const returnEmbed = new EmbedBuilder()
-      .setTitle("🌟 Totem Judgment")
-      .setDescription(`The Totem pulses with energy...\n${survivors.join(', ')} **have returned to the Gauntlet!**`)
-      .setColor(0x00ff99);
-    await channel.send({ embeds: [returnEmbed] });
-  } else {
-    const failEmbed = new EmbedBuilder()
-      .setTitle("☠️ Totem Judgment")
-      .setDescription("The Totem rejects all who reached for it...\nNo one returns this time.")
-      .setColor(0x660000);
-    await channel.send({ embeds: [failEmbed] });
   }
 
+  let description = '';
+  if (returned.length > 0) {
+    description += `🌟 Returned: ${returned.join(', ')}\n`;
+  }
+  if (failed.length > 0) {
+    description += `☠️ Failed: ${failed.join(', ')}`;
+  }
+  if (description.length === 0) {
+    description = "No one dared touch the Totem this time...";
+  }
+
+  const resultEmbed = new EmbedBuilder()
+    .setTitle("📜 Totem Judgment")
+    .setDescription(description)
+    .setColor(returned.length > 0 ? 0x00ff99 : 0x660000);
+
+  await channel.send({ embeds: [resultEmbed] });
   await delay(2000);
 }
 
+
 async function announceTop3(channel, winner) {
-  const top3 = [...eliminated.slice(-2), winner];
+  let top3;
+  if (winner) {
+    top3 = [...eliminated.slice(-2), winner];
+  } else {
+    top3 = eliminated.slice(-3); // all died — take last 3
+  }
+
   const places = ['🥉 3rd Place', '🥈 2nd Place', '🥇 Winner'];
   const podium = top3.map((p, i) => `${places[i]} — <@${p.id}>`).join('\n');
 
   const embed = new EmbedBuilder()
     .setTitle("🏆 Final Podium")
-    .setDescription(podium)
-    .setColor(0xffff66);
+    .setDescription(podium || "No one survived... but some fell slower than others.")
+    .setColor(0xffff66)
+    .setFooter({ text: "Legends fall hard. Stay Ugly." });
 
   await channel.send({ embeds: [embed] });
 }
