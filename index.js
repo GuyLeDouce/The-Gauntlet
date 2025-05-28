@@ -569,39 +569,6 @@ client.on('interactionCreate', async interaction => {
 
   // Add more interactive responses here for future buttons like totem revival, fate gambles, etc.
 });
-client.once('ready', async () => {
-  console.log(`🤖 Logged in as ${client.user.tag}`);
-  try {
-    await db.connect();
-    console.log('✅ Connected to PostgreSQL!');
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS player_stats (
-        id SERIAL PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        username TEXT,
-        year INT,
-        month INT,
-        wins INT DEFAULT 0,
-        revives INT DEFAULT 0,
-        games_played INT DEFAULT 0
-      );
-    `);
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS monthly_champions (
-        id SERIAL PRIMARY KEY,
-        user_id TEXT,
-        username TEXT,
-        year INT,
-        month INT,
-        category TEXT,
-        value INT
-      );
-    `);
-    console.log('📊 Tables are ready!');
-  } catch (err) {
-    console.error('❌ DB Connection Error:', err);
-  }
-});
 
 // Bot Login
 client.login(process.env.BOT_TOKEN);
