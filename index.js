@@ -1280,7 +1280,7 @@ async function runGauntlet(channel) {
         await channel.send(`❌ No one answered the riddle. The Oracle fades into static...`);
       }
     }
-
+  }
    // 🎲 Random event type
 const roll = Math.random();
 if (roll < 0.4) {
