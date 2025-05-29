@@ -101,7 +101,7 @@ const eliminationReasons = [
 "👑 put on the Crown of Revivals. It fit. Too well.",
 "🧠 forgot to update their resurrection firmware.",
 "🥄 got distracted by their reflection in a spoon. It lunged first.",
-"🐉 tried to solo the lore boss. The lore boss soloed back."
+"🐉 tried to solo the lore boss. The lore boss soloed back.",
 "🫀 tried to trade hearts with a Monster. Got the short end of the artery.",
 "📺 answered a call from an unplugged television. Now they’re static.",
 "🪤 walked into the charm’s trap labeled 'Free Win.'",
@@ -149,7 +149,7 @@ const reviveSuccessMessages = [
 "🪙 You flipped your fate — and landed on ‘Back in it, baby.’",
 "🕯️ A candle lights itself for you. One life. One more chance.",
 "⚡ You’re zapped alive with leftover electricity from a failed ritual.",
-"🪄 Someone else’s wish went wrong… and accidentally revived you. Oops."
+"🪄 Someone else’s wish went wrong… and accidentally revived you. Oops.",
 "🧠 You out-think death. Barely. It still calls you occasionally.",
 "🎮 You press the right combo. The charm gives you one extra life.",
 "🪆 You unfold from within yourself. You’re back… but not alone.",
@@ -192,7 +192,7 @@ const reviveFailureMessages = [
 "🪵 You are too ugly for the afterlife, yet too dead for the Ugly. Unlucky.",
 "🐈‍⬛ You get revived… but immediately stub your toe and die again.",
 "🍽️ The charm prepares to serve you… as a side dish.",
-"🪜 You climb back to life… but the ladder is greased with irony."
+"🪜 You climb back to life… but the ladder is greased with irony.",
 "🥔 Your comeback attempt is boiled alive in disappointment.",
 "🪤 You trigger a charm trap. All you revive as is regret.",
 "🎷 The afterlife plays you a jazz solo. You fail to revive, but it's a bop.",
