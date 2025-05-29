@@ -1262,9 +1262,9 @@ async function runGauntlet(channel) {
     if (roll < 0.4) {
       await runEliminationRound(channel);
     } else if (roll < 0.6) {
-      await runMutationEvent(channel);
+      await runMutationEvent(gameChannel, players);
     } else if (roll < 0.8) {
-      await runMiniGameEvent(channel);
+      await runMiniGameEvent(gameChannel, players);
     } else if (!massRevivalUsed) {
       await triggerMassRevival(channel);
     }
@@ -1304,7 +1304,7 @@ async function runEliminationRound(channel) {
 }
 
 // --- MUTATION EVENT ---
-async function runMutationEvent(channel) {
+async function runMutationEvent(channel, players) {
   const mutation = shuffleArray(mutationEvents)[0];
   const embed = new EmbedBuilder()
     .setTitle(`🧬 Mutation: ${mutation.name}`)
@@ -1313,20 +1313,35 @@ async function runMutationEvent(channel) {
     .setImage(getRandomNftImage());
 
   await channel.send({ embeds: [embed] });
-  await mutation.effect();
+  await wait(4000);
+
+  try {
+    await mutation.effect(channel, players);
+  } catch (err) {
+    console.error(`❌ Error running mutation effect (${mutation.name}):`, err);
+    await channel.send(`⚠️ Mutation event **${mutation.name}** glitched.`);
+  }
 }
 
 // --- MINI-GAME EVENT ---
-async function runMiniGameEvent(channel) {
-  const mini = shuffleArray(mutationMiniGames)[0];
+async function runMiniGameEvent(channel, players) {
+  const game = shuffleArray(mutationMiniGames)[0];
+
   const embed = new EmbedBuilder()
-    .setTitle(`🎲 Mini-Game: ${mini.name}`)
-    .setDescription(mini.description)
-    .setColor("Blue")
+    .setTitle(`🎮 Mini-Game: ${game.name}`)
+    .setDescription(game.description)
+    .setColor("Orange")
     .setImage(getRandomNftImage());
 
   await channel.send({ embeds: [embed] });
-  await mini.interaction();
+  await wait(4000);
+
+  try {
+    await game.interaction(channel, players);
+  } catch (err) {
+    console.error(`❌ Error running mini-game (${game.name}):`, err);
+    await channel.send(`⚠️ Mini-game **${game.name}** broke reality a little.`);
+  }
 }
 
 // --- MASS REVIVAL EVENT ---
