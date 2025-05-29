@@ -376,7 +376,7 @@ const mutationEvents = [
       });
     }
   }
-];
+],
   {
     name: "Ugly Seed",
     description: "A seed sprouts in your palm. Feed it your pain?",
@@ -728,7 +728,7 @@ const mutationMiniGames = [
       });
     }
   }
-];
+],
   {
     name: "Snail’s Pact",
     description: "A golden snail offers a contract. Accept it?",
