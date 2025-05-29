@@ -1080,6 +1080,7 @@ async function runBossVotePhase(channel) {
     });
   });
 }
+
 // --- Main Gauntlet Loop ---
 async function runGauntlet(channel, isTrial = false) {
   let round = 0;
@@ -1150,7 +1151,7 @@ if (correctPlayers.length > 0) {
       await runMassRevivalEvent(channel);
       await wait(12000);
     }
-
+  }
     // Randomly select round type
     const eventRoll = Math.random();
 
