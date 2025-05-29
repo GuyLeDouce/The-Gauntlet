@@ -685,68 +685,77 @@ const mutationEvents = [
 
 
 // --- Mini-Games ---
-const miniGames = [
-{
-  name: "Lever of Regret",
-  description: "Pull the lever? It promises... something.",
-  interaction: async (channel) => {
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId("pull_lever")
-        .setLabel("Pull the Lever")
-        .setStyle(ButtonStyle.Primary)
-    );
+const mutationMiniGames = [
+  {
+    name: "Lever of Regret",
+    description: "Pull the lever? It promises... something.",
+    interaction: async (channel, players) => {
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId("pull_lever")
+          .setLabel("Pull the Lever")
+          .setStyle(ButtonStyle.Primary)
+      );
 
-    const msg = await channel.send({
-      embeds: [
-        new EmbedBuilder()
-          .setTitle("🕹️ Mini-Game: Lever of Regret")
-          .setDescription("A rusted lever sits in the middle of the room. It's begging to be pulled.")
-          .setColor("Gold")
-      ],
-      components: [row]
-    });
+      const msg = await channel.send({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle("🕹️ Mini-Game: Lever of Regret")
+            .setDescription("A rusted lever sits in the middle of the room. It's begging to be pulled.")
+            .setColor("Gold")
+        ],
+        components: [row]
+      });
 
-    const clickers = [];
-    const results = [];
+      const collector = msg.createMessageComponentCollector({ time: 10000 });
+      const results = [];
 
-    const collector = msg.createMessageComponentCollector({ time: 10000 });
+      collector.on("collect", async i => {
+        await i.deferUpdate();
+        const userId = i.user.id;
+        if (results.find(r => r.id === userId)) return;
 
-    collector.on("collect", async (i) => {
-      const userId = i.user.id;
-      if (clickers.includes(userId)) return;
-      clickers.push(userId);
+        const roll = Math.random();
+        if (roll < 0.3) {
+          eliminatePlayerById(userId);
+          results.push({ id: userId, result: 'doom' });
+        } else if (roll < 0.6) {
+          results.push({ id: userId, result: 'neutral' });
+        } else {
+          let player = players.find(p => p.id === userId);
+          if (!player) {
+            player = {
+              id: userId,
+              username: i.user.username,
+              lives: 1,
+              eliminated: false,
+              isTrial: false
+            };
+            players.push(player);
+          }
+          player.lives++;
+          results.push({ id: userId, result: 'boon' });
+        }
+      });
 
-      await i.deferUpdate();
+      collector.on("end", async () => {
+        const lines = results.map(r =>
+          r.result === 'doom'
+            ? `☠️ <@${r.id}> was electrocuted by the lever!`
+            : r.result === 'boon'
+            ? `⚡ <@${r.id}> felt a surge of life! (+1 life)`
+            : `🤷 <@${r.id}> pulled it… nothing happened.`
+        );
 
-      const r = Math.random();
-      if (r < 0.4) {
-        results.push(`✅ <@${userId}> pulled the lever and gained +1 life.`);
-        applyLifeGain(userId);
-      } else if (r < 0.8) {
-        results.push(`☠️ <@${userId}> was flung into the void. Eliminated.`);
-        forceEliminateUser(userId);
-      } else {
-        results.push(`😐 <@${userId}> pulled... nothing happened.`);
-      }
-    });
-
-    collector.on("end", async () => {
-      if (results.length === 0) {
-        await channel.send("🔇 No one dared to pull the Lever of Regret...");
-      } else {
         await channel.send({
-          embeds: [
-            new EmbedBuilder()
-              .setTitle("🎲 Lever of Regret - Results")
-              .setDescription(results.join("\n"))
-              .setColor("Orange")
-          ]
+          embeds: [new EmbedBuilder()
+            .setTitle("Lever of Regret Results")
+            .setDescription(lines.length ? lines.join("\n") : "No one dared to pull it.")
+            .setColor("Orange")]
         });
-      }
-    });
-  }
-},
+      });
+    }
+  },
 // --- Mini-Game: Goblin’s Gamble ---
 {
   name: "Goblin’s Gamble",
