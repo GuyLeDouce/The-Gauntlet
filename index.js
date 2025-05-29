@@ -1249,12 +1249,30 @@ async function runBossVotePhase(channel) {
     await runGauntlet(channel);
   });
 }
-let mutationCount = 0;
-const maxMutations = Math.floor(Math.random() * 3) + 2; // random number between 2–4
 async function runGauntlet(channel) {
+  let mutationCount = 0;
+  const maxMutations = Math.floor(Math.random() * 3) + 2; // 2–4
+  let massRevivalUsed = false;
+
   while (players.filter(p => !p.eliminated && p.lives > 0).length > 1) {
     await wait(12000); // 12-second pause between rounds
 
+    const roll = Math.random();
+    console.log(`🌀 Event roll: ${roll.toFixed(2)} | Mutations: ${mutationCount}/${maxMutations} | RevivalUsed: ${massRevivalUsed}`);
+
+    if (roll < 0.4) {
+      await runEliminationRound(channel, players);
+    } else if (roll < 0.7 && mutationCount < maxMutations) {
+      await runMutationEvent(channel, players);
+      mutationCount++;
+    } else if (roll < 0.9) {
+      await runMiniGameEvent(channel, players);
+    } else if (!massRevivalUsed) {
+      await triggerMassRevival(channel);
+      massRevivalUsed = true;
+    }
+  }
+}
     // 💬 Random Lore Flavor (20% chance each)
     if (Math.random() < 0.2 && warpEchoes.length) {
       const echo = shuffleArray(warpEchoes)[0];
