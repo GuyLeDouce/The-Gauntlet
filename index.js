@@ -353,7 +353,7 @@ const warpEchoes = [
   "🔮 You blink and everyone is wearing your face. Including the floor.",
   "💽 A voice whispers, ‘You were never meant to survive this round.’",
   "📡 Static builds. A malformed broadcast interrupts reality: **‘WE ARE SO BACK’**",
-  "💀 A countdown begins. No one started it. No one knows what it’s for."
+  "💀 A countdown begins. No one started it. No one knows what it’s for.",
   "🧠 The ceiling whispers your birth name backwards. No one else seems to hear it.",
   "🪞 Every surface reflects something slightly wrong… and it’s getting closer.",
   "🫧 Your skin forgets how to be skin. It tries on fur. Then stone. Then teeth.",
