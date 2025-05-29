@@ -247,9 +247,14 @@ const mutationEvents = [
     const outcomes = [];
 
     collector.on("collect", async i => {
-      await i.deferUpdate();
       const userId = i.user.id;
-      if (outcomes.find(o => o.id === userId)) return;
+if (outcomes.find(o => o.id === userId)) {
+  await i.reply({ content: '❌ You’ve already interacted with this event.', ephemeral: true });
+  return;
+}
+
+await i.reply({ content: '✅ Your choice has been locked in.', ephemeral: true });
+
 
       const roll = Math.random();
       if (roll < 0.4) {
@@ -315,9 +320,14 @@ const mutationEvents = [
     const outcomes = [];
 
     collector.on("collect", async i => {
-      await i.deferUpdate();
       const userId = i.user.id;
-      if (outcomes.find(o => o.id === userId)) return;
+if (outcomes.find(o => o.id === userId)) {
+  await i.reply({ content: '❌ You’ve already interacted with this event.', ephemeral: true });
+  return;
+}
+
+await i.reply({ content: '✅ Your choice has been locked in.', ephemeral: true });
+
 
       const roll = Math.random();
       if (roll < 0.3) {
@@ -387,9 +397,13 @@ const mutationEvents = [
     const collector = message.createMessageComponentCollector({ time: 10000 });
 
     collector.on("collect", async i => {
-      await i.deferUpdate();
-      const userId = i.user.id;
-      if (outcomes.find(o => o.id === userId)) return;
+const userId = i.user.id;
+if (outcomes.find(o => o.id === userId)) {
+  await i.reply({ content: '❌ You’ve already interacted with this event.', ephemeral: true });
+  return;
+}
+
+await i.reply({ content: '✅ Your choice has been locked in.', ephemeral: true });
 
       const roll = Math.random();
       if (roll < 0.3) {
@@ -443,9 +457,14 @@ const mutationEvents = [
     const collector = message.createMessageComponentCollector({ time: 10000 });
 
     collector.on("collect", async i => {
-      await i.deferUpdate();
       const userId = i.user.id;
-      if (outcomes.find(o => o.id === userId)) return;
+if (outcomes.find(o => o.id === userId)) {
+  await i.reply({ content: '❌ You’ve already interacted with this event.', ephemeral: true });
+  return;
+}
+
+await i.reply({ content: '✅ Your choice has been locked in.', ephemeral: true });
+
 
       const r = Math.random();
       if (r < 0.2) {
@@ -493,9 +512,13 @@ const mutationEvents = [
     const collector = message.createMessageComponentCollector({ time: 10000 });
 
     collector.on("collect", async i => {
-      await i.deferUpdate();
-      const userId = i.user.id;
-      const r = Math.random();
+     const userId = i.user.id;
+if (outcomes.find(o => o.id === userId)) {
+  await i.reply({ content: '❌ You’ve already interacted with this event.', ephemeral: true });
+  return;
+}
+
+await i.reply({ content: '✅ Your choice has been locked in.', ephemeral: true });
 
       if (r < 0.4) {
         eliminatePlayerById(userId);
@@ -542,9 +565,14 @@ const mutationEvents = [
     const collector = message.createMessageComponentCollector({ time: 10000 });
 
     collector.on("collect", async i => {
-      await i.deferUpdate();
       const userId = i.user.id;
-      const r = Math.random();
+if (outcomes.find(o => o.id === userId)) {
+  await i.reply({ content: '❌ You’ve already interacted with this event.', ephemeral: true });
+  return;
+}
+
+await i.reply({ content: '✅ Your choice has been locked in.', ephemeral: true });
+
 
       if (r < 0.3) {
         eliminatePlayerById(userId);
@@ -597,9 +625,14 @@ const mutationEvents = [
     const collector = message.createMessageComponentCollector({ time: 10000 });
 
     collector.on("collect", async i => {
-      await i.deferUpdate();
       const userId = i.user.id;
-      const roll = Math.random();
+if (outcomes.find(o => o.id === userId)) {
+  await i.reply({ content: '❌ You’ve already interacted with this event.', ephemeral: true });
+  return;
+}
+
+await i.reply({ content: '✅ Your choice has been locked in.', ephemeral: true });
+
 
       if (roll < 0.35) {
         eliminatePlayerById(userId);
@@ -652,9 +685,14 @@ const mutationEvents = [
     const collector = message.createMessageComponentCollector({ time: 10000 });
 
     collector.on("collect", async i => {
-      await i.deferUpdate();
       const userId = i.user.id;
-      const r = Math.random();
+if (outcomes.find(o => o.id === userId)) {
+  await i.reply({ content: '❌ You’ve already interacted with this event.', ephemeral: true });
+  return;
+}
+
+await i.reply({ content: '✅ Your choice has been locked in.', ephemeral: true });
+
 
       if (r < 0.25) {
         eliminatePlayerById(userId);
@@ -719,9 +757,13 @@ const mutationMiniGames = [
       const results = [];
 
       collector.on("collect", async i => {
-        await i.deferUpdate();
-        const userId = i.user.id;
-        if (results.find(r => r.id === userId)) return;
+const userId = i.user.id;
+if (outcomes.find(o => o.id === userId)) {
+  await i.reply({ content: '❌ You’ve already interacted with this event.', ephemeral: true });
+  return;
+}
+
+await i.reply({ content: '✅ Your choice has been locked in.', ephemeral: true });
 
         const roll = Math.random();
         if (roll < 0.3) {
