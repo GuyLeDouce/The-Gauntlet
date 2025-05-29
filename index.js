@@ -1257,31 +1257,17 @@ async function runGauntlet(channel) {
   while (players.filter(p => !p.eliminated && p.lives > 0).length > 1) {
     await wait(12000); // 12-second pause between rounds
 
-    const roll = Math.random();
-    console.log(`🌀 Event roll: ${roll.toFixed(2)} | Mutations: ${mutationCount}/${maxMutations} | RevivalUsed: ${massRevivalUsed}`);
-
-    if (roll < 0.4) {
-      await runEliminationRound(channel, players);
-    } else if (roll < 0.7 && mutationCount < maxMutations) {
-      await runMutationEvent(channel, players);
-      mutationCount++;
-    } else if (roll < 0.9) {
-      await runMiniGameEvent(channel, players);
-    } else if (!massRevivalUsed) {
-      await triggerMassRevival(channel);
-      massRevivalUsed = true;
-    }
-  }
-}
-    // 💬 Random Lore Flavor (20% chance each)
+    // 💬 Random Lore Flavor (inside the loop, runs every round)
     if (Math.random() < 0.2 && warpEchoes.length) {
       const echo = shuffleArray(warpEchoes)[0];
       await channel.send(`✨ **Warp Echo**: _${echo}_`);
     }
+
     if (Math.random() < 0.15 && uglychants.length) {
       const chant = shuffleArray(uglychants)[0];
       await channel.send(`📢 ${chant}`);
     }
+
     if (Math.random() < 0.1 && uglyOracleRiddles.length) {
       const oracle = shuffleArray(uglyOracleRiddles)[0];
       await channel.send(`🔮 **The Ugly Oracle speaks:**\n_${oracle.riddle}_\n(Answer in chat within 30 seconds to survive)`);
@@ -1298,28 +1284,30 @@ async function runGauntlet(channel) {
         await channel.send(`❌ No one answered the riddle. The Oracle fades into static...`);
       }
     }
+
+    // 🎲 Random event type
+    const roll = Math.random();
+    console.log(`🌀 Event roll: ${roll.toFixed(2)} | Mutations: ${mutationCount}/${maxMutations} | RevivalUsed: ${massRevivalUsed}`);
+
+    if (roll < 0.4) {
+      await runEliminationRound(channel, players);
+    } else if (roll < 0.7 && mutationCount < maxMutations) {
+      await runMutationEvent(channel, players);
+      mutationCount++;
+    } else if (roll < 0.9) {
+      await runMiniGameEvent(channel, players);
+    } else if (!massRevivalUsed) {
+      await triggerMassRevival(channel);
+      massRevivalUsed = true;
+    }
   }
-   // 🎲 Random event type
-const roll = Math.random();
-
-if (roll < 0.4) {
-  await runEliminationRound(channel, players);
-} else if (roll < 0.7 && mutationCount < maxMutations) {
-  await runMutationEvent(channel, players);
-  mutationCount++;
-} else if (roll < 0.9) {
-  await runMiniGameEvent(channel, players);
-} else if (!massRevivalUsed) {
-  await triggerMassRevival(channel);
-  massRevivalUsed = true;
-}
-
 
   // 🎉 Game Over
   await showFinalPodium(channel);
   await showRematchButton(channel);
   gameInProgress = false;
 }
+
 // --- ELIMINATION ROUND ---
 async function runEliminationRound(channel) {
   const alive = players.filter(p => !p.eliminated && p.lives > 0);
