@@ -1144,7 +1144,21 @@ async function runGauntlet(channel, isTrial = false) {
     }
 
     // Run a core event (mutation, mini-game, elimination, or mass revive)
-    await runCoreEvent(channel);
+    // --- Core Event Chooser ---
+async function runCoreEvent(channel) {
+  const roll = Math.random();
+
+  if (roll < 0.25) {
+    await runMutationEvent(channel);
+  } else if (roll < 0.5) {
+    await runMiniGameEvent(channel);
+  } else if (roll < 0.7) {
+    await runMassRevivalEvent(channel);
+  } else {
+    await runEliminationRound(channel);
+  }
+}
+
   }
 
   // Game over — determine podium
