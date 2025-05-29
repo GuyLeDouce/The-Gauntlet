@@ -1143,7 +1143,7 @@ if (correctPlayers.length > 0) {
 }
 
       await wait(2000);
-    }
+    
 
     // Trigger Mass Revival if 50% or more eliminated and not yet done
     if (!revivalAttempted && eliminatedPlayers.length >= totalPlayers / 2) {
@@ -1210,7 +1210,7 @@ const podiumEmbed = new EmbedBuilder()
   .setThumbnail('https://media.tenor.com/P0XbdLqz8c4AAAAd/death-skull.gif'); // swap for any epic/ugly gif you want
 
 await channel.send({ embeds: [podiumEmbed] });
-
+}
 // Save stats if not trial
 if (!isTrial) {
   for (let i = 0; i < top3.length; i++) {
