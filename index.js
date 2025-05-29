@@ -1186,61 +1186,53 @@ async function runBossVotePhase(channel) {
   const alive = players.filter(p => !p.eliminated);
   const candidates = shuffleArray(alive).slice(0, 5);
 
+  const bossIntro = randomItem(bossEntryIntros);
+  const tokenId = Math.floor(Math.random() * 530) + 1;
+  const imageUrl = `https://opensea.io/assets/ethereum/0x9492505633d74451bdf3079c09ccc979588bc309/${tokenId}`;
+
+  const embed = new EmbedBuilder()
+    .setTitle("💀 Boss Level Incoming")
+    .setDescription(`${bossIntro}\n\nVote for the one worthy of Bosshood:`)
+    .setImage(imageUrl)
+    .setColor("DarkRed");
+
   const row = new ActionRowBuilder().addComponents(
     candidates.map(p =>
       new ButtonBuilder()
-        .setCustomId(`vote_${p.id}`)
-        .setLabel(p.username)
-        .setStyle(ButtonStyle.Primary)
+        .setCustomId(`vote_boss_${p.id}`)
+        .setLabel(p.username || p.id)
+        .setStyle(ButtonStyle.Danger)
     )
   );
 
-  const embed = new EmbedBuilder()
-    .setTitle("👑 Boss Vote")
-    .setDescription("Choose who should become the Boss-level Ugly.\nThey’ll start with **2 lives**.")
-    .setColor("Red");
-
   const voteMsg = await channel.send({ embeds: [embed], components: [row] });
 
-  const voteCounts = new Map();
-  const alreadyVoted = new Set();
+  const votes = new Map();
 
-  const collector = voteMsg.createMessageComponentCollector({ time: 10_000 });
+  const collector = voteMsg.createMessageComponentCollector({ time: 10000 });
 
   collector.on("collect", async i => {
-    if (alreadyVoted.has(i.user.id)) {
-      await i.reply({ content: "🛑 You already voted!", ephemeral: true });
-      return;
-    }
-
-    alreadyVoted.add(i.user.id);
-    const selectedId = i.customId.replace("vote_", "");
-    voteCounts.set(selectedId, (voteCounts.get(selectedId) || 0) + 1);
-
-    await i.reply({ content: "✅ Vote cast!", ephemeral: true });
+    await i.deferUpdate();
+    votes.set(i.user.id, i.customId.replace("vote_boss_", ""));
   });
 
   collector.on("end", async () => {
-    let topId = null;
-    let max = -1;
-    for (const [id, count] of voteCounts.entries()) {
-      if (count > max) {
-        max = count;
-        topId = id;
-      }
+    const voteCounts = {};
+    for (const votedId of votes.values()) {
+      voteCounts[votedId] = (voteCounts[votedId] || 0) + 1;
     }
 
-    const boss = players.find(p => p.id === topId);
+    const winnerId = Object.entries(voteCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+    const boss = players.find(p => p.id === winnerId);
+
     if (boss) {
       boss.lives = 2;
       await channel.send(`👑 <@${boss.id}> has been chosen as **Boss Level Ugly** and begins with **2 lives**!`);
-      if (bossEntryLines.length) {
-        const intro = shuffleArray(bossEntryLines)[0];
-        await channel.send(intro);
-      }
     } else {
-      await channel.send("No Boss was chosen. The Gauntlet proceeds normally...");
+      await channel.send("😶 No Boss was chosen. The Gauntlet proceeds without a champion...");
     }
+  });
+}
 
     // Proceed to game loop next
     await runGauntlet(channel);
