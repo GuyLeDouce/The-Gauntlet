@@ -725,6 +725,38 @@ client.on('messageCreate', async (message) => {
     const minutes = parseInt(args[1]) || 2;
     return startJoinPhase(message.channel, minutes * 60 * 1000, false);
   }
+  if (!message.content.startsWith('!revive')) return;
+  if (message.author.bot) return;
+
+  const playerId = message.author.id;
+  const username = message.author.username;
+
+  // Check if user is actually eliminated
+  const alreadyIn = gamePlayers.find(p => p.id === playerId && !p.eliminated);
+  if (alreadyIn) {
+    return message.reply({ content: `😅 You're already in the game, ${username}! Sit tight...` });
+  }
+
+  const isEliminated = eliminatedPlayers.find(p => p.id === playerId);
+  if (!isEliminated) {
+    return message.reply({ content: `🤔 You're not part of this Gauntlet run. Wait for the next one!` });
+  }
+
+  // Roll for revival
+  const chance = Math.random();
+  if (chance < 0.3) {
+    // Revived
+    eliminatedPlayers = eliminatedPlayers.filter(p => p.id !== playerId);
+    const revivedPlayer = { ...isEliminated, eliminated: false, lives: 1 };
+    gamePlayers.push(revivedPlayer);
+
+    const successLine = reviveSuccessLines[Math.floor(Math.random() * reviveSuccessLines.length)];
+    return message.channel.send(`🌟 **${username}** ${successLine}`);
+  } else {
+    // Failed
+    const failLine = reviveFailLines[Math.floor(Math.random() * reviveFailLines.length)];
+    return message.channel.send(`💀 **${username}** ${failLine}`);
+  }
 });
 
 // --- Join Phase Logic ---
@@ -961,35 +993,67 @@ if (eventRoll < 0.2 && mutationCount < 4) {
     await wait(12000);
   }
 
-  // Game over — determine podium
-  const finalists = gamePlayers.filter(p => !p.eliminated);
-  const top3 = [...finalists, ...eliminatedPlayers]
-    .sort((a, b) => (b.lives || 0) - (a.lives || 0))
-    .slice(0, 3);
+ // Game over — determine podium
+const finalists = gamePlayers.filter(p => !p.eliminated);
+const top3 = [...finalists, ...eliminatedPlayers]
+  .sort((a, b) => (b.lives || 0) - (a.lives || 0))
+  .slice(0, 3);
 
-  const podiumEmbed = new EmbedBuilder()
-    .setTitle(isTrial ? "🏁 Trial Gauntlet Complete" : "🏆 The Gauntlet Has Ended")
-    .setDescription(`**1st:** <@${top3[0]?.id || '???'}>\n**2nd:** <@${top3[1]?.id || '???'}>\n**3rd:** <@${top3[2]?.id || '???'}>`)
-    .setFooter({ text: isTrial ? "This was a test run." : "Glory is temporary. Ugliness is eternal." })
-    .setColor(isTrial ? 0xaaaaaa : 0x00ffcc);
+function getFinalFlair(rank) {
+  const flair = {
+    gold: [
+      'Ascended through ugliness.',
+      'Champion of the malformed.',
+      'Crowned by the charm itself.'
+    ],
+    silver: [
+      'One lash from victory.',
+      'Still dripping with near-glory.',
+      'The charm almost chose you.'
+    ],
+    bronze: [
+      'Ugly... but not forgotten.',
+      'You clawed through the chaos.',
+      'Dragged across the charmhole.'
+    ]
+  };
+  const options = flair[rank];
+  return options[Math.floor(Math.random() * options.length)];
+}
 
-  await channel.send({ embeds: [podiumEmbed] });
+const podiumEmbed = new EmbedBuilder()
+  .setTitle(isTrial ? "⚙️ Trial Gauntlet Complete" : "💀 The Gauntlet Has Ended")
+  .setDescription(
+    top3.length
+      ? `The charm has spoken. These three warped their way to the end:\n\n` +
+        `👑 **1st:** <@${top3[0]?.id || '???'}>\n*${getFinalFlair('gold')}*\n\n` +
+        `🥈 **2nd:** <@${top3[1]?.id || '???'}>\n*${getFinalFlair('silver')}*\n\n` +
+        `🥉 **3rd:** <@${top3[2]?.id || '???'}>\n*${getFinalFlair('bronze')}*`
+      : `Not a single Ugly survived... The charm devours all.`
+  )
+  .setColor(isTrial ? 0x888888 : 0xff0066)
+  .setFooter({ text: isTrial ? "Simulation complete. Your ugliness has been noted." : "👁 Glory fades. Ugliness endures." })
+  .setThumbnail('https://media.tenor.com/P0XbdLqz8c4AAAAd/death-skull.gif'); // swap for any epic/ugly gif you want
 
-  if (!isTrial) {
-    for (let i = 0; i < top3.length; i++) {
-      const player = top3[i];
-      if (!player) continue;
-      await updateStats(player.id, player.username, i === 0 ? 1 : 0, 0, 0);
-    }
-  }
+await channel.send({ embeds: [podiumEmbed] });
 
-  gameActive = false;
-  autoRestartCount = 0;
-
-  if (!isTrial) {
-    await showRematchButton(channel, gamePlayers);
+// Save stats if not trial
+if (!isTrial) {
+  for (let i = 0; i < top3.length; i++) {
+    const player = top3[i];
+    if (!player) continue;
+    await updateStats(player.id, player.username, i === 0 ? 1 : 0, 0, 0);
   }
 }
+
+// Reset game state
+gameActive = false;
+autoRestartCount = 0;
+
+if (!isTrial) {
+  await showRematchButton(channel, gamePlayers);
+}
+
 // --- Elimination Round ---
 async function runEliminationRound(channel) {
   const alive = gamePlayers.filter(p => !p.eliminated && p.lives > 0);
