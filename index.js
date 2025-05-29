@@ -1640,3 +1640,4 @@ client.once("ready", async () => {
 });
 
 client.login(process.env.BOT_TOKEN);
+console.log("✅ Gauntlet bot loaded successfully.");
