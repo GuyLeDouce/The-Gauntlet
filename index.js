@@ -1283,16 +1283,19 @@ async function runGauntlet(channel) {
   }
    // 🎲 Random event type
 const roll = Math.random();
+
 if (roll < 0.4) {
-  await runEliminationRound(channel);
-} else if (roll < 0.6 && mutationCount < maxMutations) {
+  await runEliminationRound(channel, players);
+} else if (roll < 0.7 && mutationCount < maxMutations) {
   await runMutationEvent(channel, players);
   mutationCount++;
-} else if (roll < 0.8) {
+} else if (roll < 0.9) {
   await runMiniGameEvent(channel, players);
 } else if (!massRevivalUsed) {
   await triggerMassRevival(channel);
+  massRevivalUsed = true;
 }
+
 
   // 🎉 Game Over
   await showFinalPodium(channel);
