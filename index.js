@@ -1,4 +1,3 @@
-// index.js — The Gauntlet Bot
 require('dotenv').config();
 
 const {
@@ -15,7 +14,6 @@ const {
 const axios = require('axios');
 const { Client: PgClient } = require('pg');
 
-// PostgreSQL setup
 const db = new PgClient({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
@@ -52,7 +50,6 @@ db.connect()
   })
   .catch(err => console.error('❌ DB Connection Error:', err));
 
-// Discord client setup
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -63,7 +60,6 @@ const client = new Client({
   partials: [Partials.Message, Partials.Channel, Partials.Reaction]
 });
 
-// Global game state
 let currentGame = null;
 let gameActive = false;
 let gamePlayers = [];
@@ -71,7 +67,6 @@ let eliminatedPlayers = [];
 let revivalAttempted = false;
 let autoRestartCount = 0;
 
-// --- Helper Functions ---
 function shuffleArray(array) {
   return [...array].sort(() => Math.random() - 0.5);
 }
@@ -94,8 +89,8 @@ function getRandomNftImage() {
   const useUgly = Math.random() < 0.5;
   const tokenId = Math.floor(Math.random() * 700) + 1;
   return useUgly
-    ? `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}`
-    : `https://ipfs.io/ipfs/bafybeicydaui66527mumvml5ushq5ngloqklh6rh7hv3oki2ieo6q25ns4/${tokenId}.webp`;
+    ? `https://opensea.io/assets/ethereum/0x9492505633d74451bdf3079c09ccc979588bc309/${tokenId}`
+    : `https://opensea.io/assets/ethereum/0xC38E2Ae060440c9269CcEB8C0EA8019a66Ce8927/${tokenId}`;
 }
 // --- Lore Arrays ---
 const eliminationReasons = [
@@ -304,35 +299,35 @@ const mutationMiniGames = [
       });
     }
   }
-  // Add 6 more games later as needed!
 ];
-// --- Gauntlet Command Listeners ---
+// --- Gauntlet Command Listeners (Reordered) ---
 client.on('messageCreate', async (message) => {
   if (message.author.bot || !message.guild) return;
 
   const content = message.content.toLowerCase();
 
-    
-
+  // Handle trial first to avoid misfire
   if (content === '!gauntlettrial') {
     if (gameActive) return message.reply("⚠️ A Gauntlet is already active!");
-    return startJoinPhase(message.channel, 5000, true); // short join window
+    return startJoinPhase(message.channel, 5000, true); // isTrial = true
   }
 
+  // Dev command
   if (content === '!gauntletdev') {
     if (gameActive) return message.reply("⚠️ A Gauntlet is already active!");
-    return startJoinPhase(message.channel, 10000, false); // 10s dev window
+    return startJoinPhase(message.channel, 10000, false); // short test window
   }
 
+  // Default Gauntlet
   if (content.startsWith('!gauntlet')) {
     if (gameActive) {
       return message.reply("⚠️ A Gauntlet is already active!");
     }
+
     const args = content.split(' ');
     const minutes = parseInt(args[1]) || 2;
     return startJoinPhase(message.channel, minutes * 60 * 1000, false);
   }
-  
 });
 
 // --- Join Phase Logic ---
@@ -388,35 +383,36 @@ async function startJoinPhase(channel, duration, isTrial = false) {
     }, ms);
   });
 
- collector.on('end', async () => {
-  if (isTrial) {
-    const fakeNames = [
-      "Botrick", "UglyGPT", "Charmander", "FunkStink", "NoSleep", "Uglet",
-      "HairyHag", "MalformedMike", "CrustyCarl", "SoggyWitch", "NFTBag", "TrialTroll",
-      "Flexorcist", "GasPasser", "DegenJean", "LilWart", "StankLee", "BuglyBob", "SleepySue", "RitualRandy"
-    ];
+  // --- End Join Phase ---
+  collector.on('end', async () => {
+    if (isTrial) {
+      const fakeNames = [
+        "Botrick", "UglyGPT", "Charmander", "FunkStink", "NoSleep", "Uglet",
+        "HairyHag", "MalformedMike", "CrustyCarl", "SoggyWitch", "NFTBag", "TrialTroll",
+        "Flexorcist", "GasPasser", "DegenJean", "LilWart", "StankLee", "BuglyBob", "SleepySue", "RitualRandy"
+      ];
 
-    fakeNames.forEach((name, index) => {
-      gamePlayers.push({
-        id: `trial_player_${index}`,
-        username: name,
-        lives: 1,
-        eliminated: false,
-        joinedAt: Date.now(),
-        isBoss: false
+      fakeNames.forEach((name, index) => {
+        gamePlayers.push({
+          id: `trial_player_${index}`,
+          username: name,
+          lives: 1,
+          eliminated: false,
+          joinedAt: Date.now(),
+          isBoss: false
+        });
       });
-    });
-  }
+    }
 
-  if (gamePlayers.length === 0) {
-    gameActive = false;
-    return channel.send("❌ No one joined The Gauntlet. Cancelled.");
-  }
+    if (gamePlayers.length === 0) {
+      gameActive = false;
+      return channel.send("❌ No one joined The Gauntlet. Cancelled.");
+    }
 
-  await channel.send(`🔒 Join phase ended. **${gamePlayers.length}** players are entering The Gauntlet...`);
-  return startGauntlet(gamePlayers, channel, isTrial);
-});
-
+    await channel.send(`🔒 Join phase ended. **${gamePlayers.length}** players are entering The Gauntlet...`);
+    return startGauntlet(gamePlayers, channel, isTrial);
+  });
+}
 // --- Start Game Function ---
 async function startGauntlet(players, channel, isTrial = false) {
   gamePlayers = [...players];
@@ -439,7 +435,7 @@ async function runBossVotePhase(channel) {
   const contenders = shuffleArray(gamePlayers).slice(0, 5);
   const row = new ActionRowBuilder();
 
-  contenders.forEach((p, i) => {
+  contenders.forEach((p) => {
     row.addComponents(
       new ButtonBuilder()
         .setCustomId(`bossvote_${p.id}`)
@@ -482,6 +478,7 @@ async function runBossVotePhase(channel) {
     });
   });
 }
+// --- Main Gauntlet Loop ---
 async function runGauntlet(channel, isTrial = false) {
   let round = 0;
   const totalPlayers = gamePlayers.length;
@@ -554,47 +551,40 @@ async function runGauntlet(channel, isTrial = false) {
     } else if (roll < 0.9) {
       await runMiniGameEvent(channel);
     } else {
-      // No event this round
       await channel.send("🌀 The charm hesitates... nothing happens.");
     }
 
-    await wait(3500);
+    await wait(12000);
   }
 
   // Game over — determine podium
-const finalists = gamePlayers.filter(p => !p.eliminated);
-const top3 = [...finalists, ...eliminatedPlayers]
-  .sort((a, b) => (b.lives || 0) - (a.lives || 0))
-  .slice(0, 3);
+  const finalists = gamePlayers.filter(p => !p.eliminated);
+  const top3 = [...finalists, ...eliminatedPlayers]
+    .sort((a, b) => (b.lives || 0) - (a.lives || 0))
+    .slice(0, 3);
 
-// Only send podium in trial, skip stats
-const podiumEmbed = new EmbedBuilder()
-  .setTitle(isTrial ? "🏁 Trial Gauntlet Complete" : "🏆 The Gauntlet Has Ended")
-  .setDescription(`**1st:** <@${top3[0]?.id || '???'}>\n**2nd:** <@${top3[1]?.id || '???'}>\n**3rd:** <@${top3[2]?.id || '???'}>`)
-  .setFooter({ text: isTrial ? "This was a test run." : "Glory is temporary. Ugliness is eternal." })
-  .setColor(isTrial ? 0xaaaaaa : 0x00ffcc);
+  const podiumEmbed = new EmbedBuilder()
+    .setTitle(isTrial ? "🏁 Trial Gauntlet Complete" : "🏆 The Gauntlet Has Ended")
+    .setDescription(`**1st:** <@${top3[0]?.id || '???'}>\n**2nd:** <@${top3[1]?.id || '???'}>\n**3rd:** <@${top3[2]?.id || '???'}>`)
+    .setFooter({ text: isTrial ? "This was a test run." : "Glory is temporary. Ugliness is eternal." })
+    .setColor(isTrial ? 0xaaaaaa : 0x00ffcc);
 
-await channel.send({ embeds: [podiumEmbed] });
+  await channel.send({ embeds: [podiumEmbed] });
 
-// 🔒 Only store stats if not trial
-if (!isTrial) {
-  for (let i = 0; i < top3.length; i++) {
-    const player = top3[i];
-    if (!player) continue;
-    await updateStats(player.id, player.username, i === 0 ? 1 : 0, 0, 0);
+  if (!isTrial) {
+    for (let i = 0; i < top3.length; i++) {
+      const player = top3[i];
+      if (!player) continue;
+      await updateStats(player.id, player.username, i === 0 ? 1 : 0, 0, 0);
+    }
   }
-}
 
   gameActive = false;
-autoRestartCount = 0;
+  autoRestartCount = 0;
 
-if (!isTrial) {
-  await showRematchButton(channel, gamePlayers);
-}
-
-
-  // Rematch
-  await showRematchButton(channel, gamePlayers);
+  if (!isTrial) {
+    await showRematchButton(channel, gamePlayers);
+  }
 }
 // --- Elimination Round ---
 async function runEliminationRound(channel) {
