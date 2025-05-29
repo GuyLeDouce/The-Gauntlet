@@ -46,7 +46,6 @@ let currentChannel = null;
 function shuffleArray(array) {
   return [...array].sort(() => Math.random() - 0.5);
 }
-
 function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -55,11 +54,11 @@ function getRandomAlivePlayers(count) {
   return shuffleArray(players.filter(p => !p.eliminated && p.lives > 0)).slice(0, count);
 }
 
-function eliminatePlayer(player, reason) {
-  player.lives--;
-  if (player.lives <= 0) {
+function eliminatePlayerById(userId) {
+  const player = players.find(p => p.id === userId);
+  if (player) {
     player.eliminated = true;
-    eliminatedPlayers.push(player);
+    player.lives = 0;
   }
 }
 
