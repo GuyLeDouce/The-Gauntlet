@@ -1161,7 +1161,7 @@ async function runCoreEvent(channel) {
 
   }
 
-  // Game over — determine podium
+  // End game and show podium
   const finalists = gamePlayers.filter(p => !p.eliminated);
   const top3 = [...finalists, ...eliminatedPlayers]
     .sort((a, b) => (b.lives || 0) - (a.lives || 0))
@@ -1169,13 +1169,18 @@ async function runCoreEvent(channel) {
 
   const podiumEmbed = new EmbedBuilder()
     .setTitle(isTrial ? "🏁 Trial Gauntlet Complete" : "🏆 The Gauntlet Has Ended")
-    .setDescription(`**1st:** <@${top3[0]?.id || '???'}>\n**2nd:** <@${top3[1]?.id || '???'}>\n**3rd:** <@${top3[2]?.id || '???'}>`)
+    .setDescription(`
+🥇 **1st:** ${top3[0] ? `<@${top3[0].id}> with ${top3[0].lives} lives` : 'Unknown'}
+🥈 **2nd:** ${top3[1] ? `<@${top3[1].id}> with ${top3[1].lives} lives` : 'Unknown'}
+🥉 **3rd:** ${top3[2] ? `<@${top3[2].id}> with ${top3[2].lives} lives` : 'Unknown'}
+    `)
     .setFooter({ text: isTrial ? "This was a test run." : "Glory is temporary. Ugliness is eternal." })
-    .setColor(isTrial ? 0xaaaaaa : 0x00ffcc);
+    .setColor(isTrial ? 0xaaaaaa : 0x00ffcc)
+    .setThumbnail('https://cdn.discordapp.com/emojis/1120652421982847017.gif?size=96&quality=lossless');
 
   await channel.send({ embeds: [podiumEmbed] });
 
-  // Update stats
+  // Save stats
   if (!isTrial) {
     for (let i = 0; i < top3.length; i++) {
       const player = top3[i];
@@ -1184,14 +1189,16 @@ async function runCoreEvent(channel) {
     }
   }
 
-  // Reset game state
+  // Reset state
   gameActive = false;
   autoRestartCount = 0;
 
+  // Rematch button
   if (!isTrial) {
     await showRematchButton(channel, gamePlayers);
   }
 }
+
 
 // --- Elimination Round ---
 async function runEliminationRound(channel) {
