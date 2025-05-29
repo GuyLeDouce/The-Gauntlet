@@ -1278,7 +1278,7 @@ async function runMiniGameEvent(channel) {
 async function runMassRevivalEvent(channel) {
   const embed = new EmbedBuilder()
     .setTitle("💫 Totem of Lost Souls")
-    .setDescription("Eliminated players and outsiders have one chance to **click the Totem** and return.\n\nOnly the lucky shall rise again.")
+    .setDescription("Eliminated players and outsiders have one chance to **touch the Totem** and return.\n\nOnly the lucky shall rise again.")
     .setColor(0xff00cc);
 
   const button = new ActionRowBuilder().addComponents(
@@ -1292,6 +1292,8 @@ async function runMassRevivalEvent(channel) {
 
   const collector = msg.createMessageComponentCollector({ time: 6000 });
   const attempted = [];
+  const revivedPlayers = [];
+  const failedPlayers = [];
 
   collector.on('collect', async i => {
     if (i.user.bot || attempted.includes(i.user.id)) return;
@@ -1302,45 +1304,56 @@ async function runMassRevivalEvent(channel) {
   collector.on('end', async () => {
     await msg.edit({ components: [] });
 
-    const revived = [];
     for (const id of attempted) {
       const isEliminated = eliminatedPlayers.find(p => p.id === id);
       const isNew = !gamePlayers.find(p => p.id === id);
 
       const successChance = isEliminated ? 0.6 : 0.4;
-      if (Math.random() < successChance) {
+      const success = Math.random() < successChance;
+
+      if (success) {
         if (isEliminated) {
           const player = eliminatedPlayers.find(p => p.id === id);
           player.eliminated = false;
           player.lives = 1;
-          revived.push(`<@${id}>`);
-        } else {
-          const player = {
-            id: id,
-            username: (await channel.guild.members.fetch(id)).user.username,
+          revivedPlayers.push(`<@${id}>`);
+        } else if (isNew) {
+          const member = await channel.guild.members.fetch(id);
+          const newPlayer = {
+            id,
+            username: member.user.username,
             lives: 1,
             eliminated: false,
             joinedAt: Date.now(),
             isBoss: false
           };
-          gamePlayers.push(player);
-          revived.push(`<@${id}>`);
+          gamePlayers.push(newPlayer);
+          revivedPlayers.push(`<@${id}>`);
         }
+      } else {
+        failedPlayers.push(`<@${id}>`);
       }
     }
-mutationCount = 0;
-miniGameCount = 0;
 
-    const embed = new EmbedBuilder()
+    mutationCount = 0;
+    miniGameCount = 0;
+
+    const successList = revivedPlayers.length ? revivedPlayers.join('\n') : "*None*";
+    const failList = failedPlayers.length ? failedPlayers.join('\n') : "*None*";
+
+    const resultEmbed = new EmbedBuilder()
       .setTitle("🕯️ Totem Judgment")
-      .setDescription(revived.length > 0
-        ? `The Totem shows mercy. Returned: ${revived.join(', ')}`
-        : "No soul was worthy. All attempts failed.")
-      .setColor(revived.length ? 0x33cc99 : 0x333333);
+      .setDescription(
+        `**Returned to the Gauntlet:**\n${successList}\n\n` +
+        `**Still Lost in the Void:**\n${failList}`
+      )
+      .setColor(revivedPlayers.length ? 0x33cc99 : 0x333333)
+      .setFooter({ text: "The Totem only answers to those who listen." });
 
-    await channel.send({ embeds: [embed] });
+    await channel.send({ embeds: [resultEmbed] });
   });
 }
+
 // --- Update Stats in DB ---
 async function updateStats(userId, username, wins = 0, revives = 0, duels = 0) {
   const now = new Date();
