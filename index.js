@@ -430,7 +430,7 @@ async function startGauntlet(players, channel, isTrial = false) {
   });
 
   await runBossVotePhase(channel);
-  await wait(4000);
+  await wait(8000);
 
   await runGauntlet(channel, isTrial);
 }
@@ -493,21 +493,21 @@ async function runGauntlet(channel, isTrial = false) {
     const alive = gamePlayers.filter(p => !p.eliminated);
     const aliveCount = alive.length;
 
-    await wait(3000);
+    await wait(8000);
     await channel.send(`🔄 **Round ${round}** begins! (${aliveCount}/${totalPlayers} remain)`);
 
     // 20% chance: Warp Echo
     if (Math.random() < 0.2) {
       const echo = warpEchoes[Math.floor(Math.random() * warpEchoes.length)];
       await channel.send(`🌌 ${echo}`);
-      await wait(1500);
+      await wait(3000);
     }
 
     // 15% chance: Ugly Chant
     if (Math.random() < 0.15) {
       const chant = uglychants[Math.floor(Math.random() * uglychants.length)];
       await channel.send(`🔊 *Ugly Chant:* "${chant}"`);
-      await wait(1500);
+      await wait(2500);
     }
 
     // 10% chance: Ugly Oracle Riddle
@@ -544,7 +544,7 @@ async function runGauntlet(channel, isTrial = false) {
     if (!revivalAttempted && eliminatedPlayers.length >= totalPlayers / 2) {
       revivalAttempted = true;
       await runMassRevivalEvent(channel);
-      await wait(3000);
+      await wait(12000);
     }
 
     // Randomly select round type
