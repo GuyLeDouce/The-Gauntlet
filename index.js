@@ -58,6 +58,48 @@ let playerLives = {};
 let rematchVotes = new Set();
 let consecutiveRestarts = 0;
 
+async function startJoinPhase(channel, durationMinutes = 3, isDevMode = false) {
+  entrantIDs = new Set();
+  eliminatedPlayers = [];
+  playerLives = {};
+  trialMode = false;
+  devMode = isDevMode;
+  rematchVotes = new Set();
+  lastGameEntrants = [];
+
+  const joinEmbed = new EmbedBuilder()
+    .setTitle('🎮 The Gauntlet Begins!')
+    .setDescription(`Click the button below to join.\nTime remaining: **${durationMinutes} minutes**`)
+    .setColor('#2ecc71')
+    .setFooter({ text: 'Get in here, if you dare...' });
+
+  const joinButton = new ButtonBuilder()
+    .setCustomId('join_button')
+    .setLabel('Join The Gauntlet')
+    .setStyle(ButtonStyle.Success);
+
+  const row = new ActionRowBuilder().addComponents(joinButton);
+
+  const joinMessage = await channel.send({ embeds: [joinEmbed], components: [row] });
+
+  let timeLeft = durationMinutes * 60;
+  const interval = setInterval(async () => {
+    timeLeft -= 60;
+    if (timeLeft <= 0) {
+      clearInterval(interval);
+      await joinMessage.edit({ components: [] });
+      if (entrantIDs.size < 3) {
+        await channel.send('Not enough players joined The Gauntlet. Game cancelled.');
+      } else {
+        await startGauntlet(channel);
+      }
+    } else if (timeLeft === Math.floor(durationMinutes * 60 * 2 / 3) ||
+               timeLeft === Math.floor(durationMinutes * 60 / 3)) {
+      await channel.send('@everyone ⏳ The Gauntlet is starting soon. Join now if you dare.');
+    }
+  }, 60_000);
+}
+
 const DEFAULT_MONSTER_ADDRESS = '0x1cd7fe72d64f6159775643acedc7d860dfb80348';
 
 const eliminationReasons = [
