@@ -333,94 +333,92 @@ const mutationEvents = [
       });
     }
   },
-  {
-    name: "Bone Crown",
-    description: "The Bone Crown appears. Will they wear it?",
-    effect: async (channel, players) => {
-      const [player] = getRandomAlivePlayers(1);
-      if (!player) return;
+{
+  name: "Bone Crown",
+  description: "The Bone Crown appears. Will they wear it?",
+  effect: async (channel, players) => {
+    const [player] = getRandomAlivePlayers(1);
+    if (!player) return;
 
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId(`wear_crown_${player.id}`)
-          .setLabel("Put on the Bone Crown")
-          .setStyle(ButtonStyle.Secondary)
-      );
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`wear_crown_${player.id}`)
+        .setLabel("Put on the Bone Crown")
+        .setStyle(ButtonStyle.Secondary)
+    );
 
-      await channel.send({
-        embeds: [new EmbedBuilder()
-          .setTitle("👑 Mutation: Bone Crown")
-          .setDescription(`<@${player.id}> discovers the Bone Crown. Glory or doom?`)],
-        components: [row]
-      });
+    await channel.send({
+      embeds: [new EmbedBuilder()
+        .setTitle("👑 Mutation: Bone Crown")
+        .setDescription(`<@${player.id}> discovers the Bone Crown. Glory or doom?`)],
+      components: [row]
+    });
 
-      const filter = i => i.customId === `wear_crown_${player.id}` && i.user.id === player.id;
-      const collector = channel.createMessageComponentCollector({ filter, time: 8000 });
+    const filter = i => i.customId === `wear_crown_${player.id}` && i.user.id === player.id;
+    const collector = channel.createMessageComponentCollector({ filter, time: 8000 });
 
-      collector.on("collect", async i => {
-        await i.deferUpdate();
-        const roll = Math.random();
-        if (roll < 0.4) {
-          player.lives += 2;
-          await channel.send(`👑 <@${player.id}> wears the Bone Crown and is infused with power! +2 lives.`);
-        } else {
-          eliminatePlayer(player, "was crushed under the Bone Crown's burden.");
-        }
-      });
+    collector.on("collect", async i => {
+      await i.deferUpdate();
+      const roll = Math.random();
+      if (roll < 0.4) {
+        player.lives += 2;
+        await channel.send(`👑 <@${player.id}> wears the Bone Crown and is infused with power! +2 lives.`);
+      } else {
+        eliminatePlayer(player, "was crushed under the Bone Crown's burden.");
+      }
+    });
 
-      collector.on("end", async collected => {
-        if (collected.size === 0) {
-          await channel.send(`🦴 <@${player.id}> hesitated. The crown devoured them.`);
-          eliminatePlayer(player, "was devoured by an impatient crown.");
-        }
-      });
-    }
+    collector.on("end", async collected => {
+      if (collected.size === 0) {
+        await channel.send(`🦴 <@${player.id}> hesitated. The crown devoured them.`);
+        eliminatePlayer(player, "was devoured by an impatient crown.");
+      }
+    });
   }
-],
-  {
-    name: "Ugly Seed",
-    description: "A seed sprouts in your palm. Feed it your pain?",
-    effect: async (channel, players) => {
-      const [player] = getRandomAlivePlayers(1);
-      if (!player) return;
+},
+{
+  name: "Ugly Seed",
+  description: "A seed sprouts in your palm. Feed it your pain?",
+  effect: async (channel, players) => {
+    const [player] = getRandomAlivePlayers(1);
+    if (!player) return;
 
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId(`plant_seed_${player.id}`)
-          .setLabel("Plant the Ugly Seed")
-          .setStyle(ButtonStyle.Success)
-      );
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`plant_seed_${player.id}`)
+        .setLabel("Plant the Ugly Seed")
+        .setStyle(ButtonStyle.Success)
+    );
 
-      await channel.send({
-        embeds: [new EmbedBuilder()
-          .setTitle("🌱 Mutation: Ugly Seed")
-          .setDescription(`<@${player.id}> holds a twitching seed. It demands emotion.`)],
-        components: [row]
-      });
+    await channel.send({
+      embeds: [new EmbedBuilder()
+        .setTitle("🌱 Mutation: Ugly Seed")
+        .setDescription(`<@${player.id}> holds a twitching seed. It demands emotion.`)],
+      components: [row]
+    });
 
-      const filter = i => i.customId === `plant_seed_${player.id}` && i.user.id === player.id;
-      const collector = channel.createMessageComponentCollector({ filter, time: 8000 });
+    const filter = i => i.customId === `plant_seed_${player.id}` && i.user.id === player.id;
+    const collector = channel.createMessageComponentCollector({ filter, time: 8000 });
 
-      collector.on("collect", async i => {
-        await i.deferUpdate();
-        const roll = Math.random();
-        if (roll < 0.33) {
-          eliminatePlayer(player, "was overgrown by the seed’s roots.");
-        } else if (roll < 0.66) {
-          await channel.send(`🪴 The seed sprouts and whispers truths. <@${player.id}> gains insight (but nothing happens).`);
-        } else {
-          player.lives++;
-          await channel.send(`🌿 <@${player.id}> nourished the seed and earned +1 life!`);
-        }
-      });
+    collector.on("collect", async i => {
+      await i.deferUpdate();
+      const roll = Math.random();
+      if (roll < 0.5) {
+        player.lives++;
+        await channel.send(`🌿 The seed blossoms grotesquely. <@${player.id}> gains +1 life.`);
+      } else {
+        eliminatePlayer(player, "was overgrown by sorrowful roots.");
+      }
+    });
 
-      collector.on("end", async collected => {
-        if (collected.size === 0) {
-          eliminatePlayer(player, "ignored the seed and was swallowed by soil.");
-        }
-      });
-    }
-  },
+    collector.on("end", async collected => {
+      if (collected.size === 0) {
+        eliminatePlayer(player, "let the seed starve. It fed on them instead.");
+        await channel.send(`🌑 <@${player.id}> showed no emotion. The seed consumed them.`);
+      }
+    });
+  }
+},
   {
     name: "Needle of Destiny",
     description: "One prick and your path is sealed.",
