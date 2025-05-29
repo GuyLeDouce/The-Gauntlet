@@ -660,5 +660,28 @@ client.once("ready", async () => {
     console.error("❌ DB Connection Error:", err);
   }
 });
+client.on('messageCreate', async message => {
+  if (message.author.bot) return;
+
+  const content = message.content.trim().toLowerCase();
+
+  // !gauntlet [optionalMinutes]
+  if (content.startsWith('!gauntlet')) {
+    const parts = content.split(' ');
+    const minutes = parseInt(parts[1]);
+    const joinDuration = isNaN(minutes) ? 3 : minutes;
+    startJoinPhase(message.channel, joinDuration, false);
+  }
+
+  // !gauntlettrial - test run with mock players
+  if (content === '!gauntlettrial') {
+    startTrialMode(message.channel);
+  }
+
+  // !gauntletdev - developer-only fast test
+  if (content === '!gauntletdev') {
+    startJoinPhase(message.channel, 0.25, true); // 15 seconds
+  }
+});
 
 client.login(process.env.BOT_TOKEN);
