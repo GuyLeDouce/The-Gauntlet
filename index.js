@@ -49,7 +49,6 @@ const client = new Client({
 });
 
 let gameInProgress = false;
-let players = [];
 let eliminatedPlayers = [];
 // Utility Functions
 const wait = ms => new Promise(res => setTimeout(res, ms));
@@ -361,7 +360,6 @@ const warpEchoes = [
 ];
 // === GLOBAL GAME STATE ===
 let players = [];
-let gameInProgress = false;
 let mutationCount = 0;
 let maxMutations = 0;
 let massRevivalUsed = false;
