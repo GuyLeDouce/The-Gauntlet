@@ -1209,9 +1209,7 @@ async function runEliminationRound(channel) {
 
   const embed = new EmbedBuilder()
     .setTitle("💀 Casualties This Round")
-    .setDescription(toEliminate.map(p =>
-      `• <@${p.id}> ${eliminationReasons[Math.floor(Math.random() * eliminationReasons.length)]}`
-    ).join('\n'))
+    .setDescription(toEliminate.map(p => `• <@${p.id}> ${eliminationReasons[Math.floor(Math.random() * eliminationReasons.length)]}`).join('\n'))
     .setColor(0xff4444)
     .setImage(getRandomNftImage());
 
@@ -1230,23 +1228,58 @@ async function runMutationEvent(channel) {
   await mutation.effect({ channel }, gamePlayers, eliminatedPlayers);
 }
 
-// --- Mini-Game Event ---
 async function runMiniGameEvent(channel) {
-  const miniGame = mutationMiniGames[Math.floor(Math.random() * mutationMiniGames.length)];
   const embed = new EmbedBuilder()
-    .setTitle(`🎮 Mini-Game: ${miniGame.name}`)
-    .setDescription(miniGame.description)
-    .setColor(0x66ccff);
-  await channel.send({ embeds: [embed] });
+    .setTitle("🎮 Mini-Game Time")
+    .setDescription("Click the right button. You have 5 seconds. One will save you. One will not.")
+    .setColor(0x00ccff);
 
-  await miniGame.effect({ channel }, gamePlayers, eliminatedPlayers);
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('safe_button')
+      .setLabel('🟢 Safe')
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId('trap_button')
+      .setLabel('🔴 Trap')
+      .setStyle(ButtonStyle.Danger)
+  );
+
+  const msg = await channel.send({ embeds: [embed], components: [row] });
+
+  const clicked = [];
+
+  const collector = msg.createMessageComponentCollector({ time: 5000 });
+
+  collector.on('collect', async i => {
+    if (clicked.includes(i.user.id)) return;
+    clicked.push(i.user.id);
+
+    if (i.customId === 'trap_button') {
+      const player = gamePlayers.find(p => p.id === i.user.id);
+      if (player && !player.eliminated) {
+        player.lives--;
+        if (player.lives <= 0) {
+          player.eliminated = true;
+          eliminatedPlayers.push(player);
+        }
+        await i.reply({ content: "💥 You clicked the trap! You lose a life.", ephemeral: true });
+      }
+    } else {
+      await i.reply({ content: "✅ You survived the mini-game!", ephemeral: true });
+    }
+  });
+
+  collector.on('end', async () => {
+    await msg.edit({ components: [] });
+  });
 }
 
-// --- Mass Revival Event ---
+
 async function runMassRevivalEvent(channel) {
   const embed = new EmbedBuilder()
     .setTitle("💫 Totem of Lost Souls")
-    .setDescription("Eliminated players and outsiders have one chance to **touch the Totem** and return.\n\nOnly the lucky shall rise again.")
+    .setDescription("Eliminated players and outsiders have one chance to **click the Totem** and return.\n\nOnly the lucky shall rise again.")
     .setColor(0xff00cc);
 
   const button = new ActionRowBuilder().addComponents(
@@ -1260,8 +1293,6 @@ async function runMassRevivalEvent(channel) {
 
   const collector = msg.createMessageComponentCollector({ time: 6000 });
   const attempted = [];
-  const revivedPlayers = [];
-  const failedPlayers = [];
 
   collector.on('collect', async i => {
     if (i.user.bot || attempted.includes(i.user.id)) return;
@@ -1272,55 +1303,47 @@ async function runMassRevivalEvent(channel) {
   collector.on('end', async () => {
     await msg.edit({ components: [] });
 
+    const revived = [];
+    const failed = [];
+
     for (const id of attempted) {
       const isEliminated = eliminatedPlayers.find(p => p.id === id);
       const isNew = !gamePlayers.find(p => p.id === id);
-
       const successChance = isEliminated ? 0.6 : 0.4;
-      const success = Math.random() < successChance;
 
-      if (success) {
+      if (Math.random() < successChance) {
         if (isEliminated) {
           const player = eliminatedPlayers.find(p => p.id === id);
           player.eliminated = false;
           player.lives = 1;
-          revivedPlayers.push(`<@${id}>`);
-        } else if (isNew) {
+          revived.push(`<@${id}>`);
+        } else {
           const member = await channel.guild.members.fetch(id);
-          const newPlayer = {
-            id,
+          const player = {
+            id: id,
             username: member.user.username,
             lives: 1,
             eliminated: false,
             joinedAt: Date.now(),
             isBoss: false
           };
-          gamePlayers.push(newPlayer);
-          revivedPlayers.push(`<@${id}>`);
+          gamePlayers.push(player);
+          revived.push(`<@${id}>`);
         }
       } else {
-        failedPlayers.push(`<@${id}>`);
+        failed.push(`<@${id}>`);
       }
     }
 
-    mutationCount = 0;
-    miniGameCount = 0;
-
-    const successList = revivedPlayers.length ? revivedPlayers.join('\n') : "*None*";
-    const failList = failedPlayers.length ? failedPlayers.join('\n') : "*None*";
-
     const resultEmbed = new EmbedBuilder()
       .setTitle("🕯️ Totem Judgment")
-      .setDescription(
-        `**Returned to the Gauntlet:**\n${successList}\n\n` +
-        `**Still Lost in the Void:**\n${failList}`
-      )
-      .setColor(revivedPlayers.length ? 0x33cc99 : 0x333333)
-      .setFooter({ text: "The Totem only answers to those who listen." });
+      .setDescription(`**Revived:** ${revived.length > 0 ? revived.join(', ') : '*None*'}\n**Failed:** ${failed.length > 0 ? failed.join(', ') : '*None*'}`)
+      .setColor(revived.length ? 0x33cc99 : 0x333333);
 
     await channel.send({ embeds: [resultEmbed] });
   });
 }
+
 // --- Update Stats in DB ---
 async function updateStats(userId, username, wins = 0, revives = 0, duels = 0) {
   const now = new Date();
