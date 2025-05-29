@@ -218,104 +218,687 @@ const reviveFailureMessages = [
 // --- Mutation Events ---
 const mutationEvents = [
   {
-    name: "Whispering Shadows",
-    description: "A wall of shadows descends. Choose to listen or run.",
-    effect: async () => {
-      const [lucky] = getRandomAlivePlayers(1);
-      const [doomed] = getRandomAlivePlayers(1).filter(p => p !== lucky);
-      if (lucky) lucky.lives++;
-      if (doomed) eliminatePlayer(doomed, "was consumed by the whispering void.");
-    }
-  },
-  {
-    name: "Ugly Mirror",
-    description: "Face your reflection. Some find strength, others despair.",
-    effect: async () => {
-      const r = Math.random();
+    name: "Mirror Trap",
+    description: "A cursed mirror shimmers. Will they shatter it?",
+    effect: async (channel, players) => {
       const [player] = getRandomAlivePlayers(1);
       if (!player) return;
-      if (r < 0.33 && eliminatedPlayers.length) {
-        const revived = eliminatedPlayers.pop();
-        revived.eliminated = false;
-        revived.lives = 1;
-        players.push(revived);
-        sendGameMessage(`💀 The mirror cracks and <@${revived.id}> walks free!`);
-      } else if (r < 0.66) {
-        eliminatePlayer(player, "fainted at their own reflection.");
-      } else {
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`mirror_shatter_${player.id}`)
+          .setLabel("Shatter the Mirror")
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      await channel.send({
+        embeds: [new EmbedBuilder()
+          .setTitle("🪞 Mutation: Mirror Trap")
+          .setDescription(`<@${player.id}> stands before a cursed mirror. Will they act before their reflection does?`)],
+        components: [row]
+      });
+
+      const filter = i => i.customId === `mirror_shatter_${player.id}` && i.user.id === player.id;
+      const collector = channel.createMessageComponentCollector({ filter, time: 8000 });
+
+      collector.on("collect", async i => {
+        await i.deferUpdate();
         player.lives++;
-        sendGameMessage(`💅 <@${player.id}> admired their hideousness. +1 life.`);
-      }
+        await channel.send(`💥 <@${player.id}> shattered the mirror and gained +1 life!`);
+      });
+
+      collector.on("end", async collected => {
+        if (collected.size === 0) {
+          eliminatePlayer(player, "hesitated before the mirror and was replaced by their reflection.");
+        }
+      });
     }
   },
   {
-    name: "Cauldron of Chance",
-    description: "Sip the soup. It could cure or kill.",
-    effect: async () => {
-      const targets = getRandomAlivePlayers(2);
-      for (const player of targets) {
-        const r = Math.random();
-        if (r < 0.4) {
-          player.lives++;
-          sendGameMessage(`🥣 <@${player.id}> drank bravery broth! +1 life.`);
-        } else if (r < 0.8) {
-          eliminatePlayer(player, "drank cursed soup and melted.");
-        } else {
-          sendGameMessage(`🍵 <@${player.id}> sipped confusion. Nothing happened.`);
+    name: "Charmhole Pulse",
+    description: "The charmhole pulses open. Will they seal it?",
+    effect: async (channel, players) => {
+      const [player] = getRandomAlivePlayers(1);
+      if (!player) return;
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`seal_charmhole_${player.id}`)
+          .setLabel("Seal the Charmhole")
+          .setStyle(ButtonStyle.Primary)
+      );
+
+      await channel.send({
+        embeds: [new EmbedBuilder()
+          .setTitle("🌪️ Mutation: Charmhole Pulse")
+          .setDescription(`<@${player.id}> faces a swirling charmhole. Delay may mean doom.`)],
+        components: [row]
+      });
+
+      const filter = i => i.customId === `seal_charmhole_${player.id}` && i.user.id === player.id;
+      const collector = channel.createMessageComponentCollector({ filter, time: 8000 });
+
+      collector.on("collect", async i => {
+        await i.deferUpdate();
+        await channel.send(`🔒 <@${player.id}> sealed the charmhole. Catastrophe avoided.`);
+      });
+
+      collector.on("end", async collected => {
+        if (collected.size === 0) {
+          eliminatePlayer(player, "was sucked into the charmhole’s warped whisper.");
         }
-      }
+      });
+    }
+  },
+  {
+    name: "Drip or Die",
+    description: "You find a vial of $CHARM. Will you inject it?",
+    effect: async (channel, players) => {
+      const [player] = getRandomAlivePlayers(1);
+      if (!player) return;
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`inject_charm_${player.id}`)
+          .setLabel("Inject the $CHARM")
+          .setStyle(ButtonStyle.Success)
+      );
+
+      await channel.send({
+        embeds: [new EmbedBuilder()
+          .setTitle("💉 Mutation: Drip or Die")
+          .setDescription(`<@${player.id}> holds a syringe of unstable $CHARM. Will they risk it?`)],
+        components: [row]
+      });
+
+      const filter = i => i.customId === `inject_charm_${player.id}` && i.user.id === player.id;
+      const collector = channel.createMessageComponentCollector({ filter, time: 8000 });
+
+      collector.on("collect", async i => {
+        await i.deferUpdate();
+        const roll = Math.random();
+        if (roll < 0.5) {
+          player.lives++;
+          await channel.send(`💉 <@${player.id}> injected it and grew stronger. +1 life!`);
+        } else {
+          eliminatePlayer(player, "overdosed on raw $CHARM essence.");
+        }
+      });
+
+      collector.on("end", async collected => {
+        if (collected.size === 0) {
+          await channel.send(`💀 <@${player.id}> froze up. The charm injected itself.`);
+          eliminatePlayer(player, "was injected by a sentient charm syringe.");
+        }
+      });
+    }
+  },
+  {
+    name: "Bone Crown",
+    description: "The Bone Crown appears. Will they wear it?",
+    effect: async (channel, players) => {
+      const [player] = getRandomAlivePlayers(1);
+      if (!player) return;
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`wear_crown_${player.id}`)
+          .setLabel("Put on the Bone Crown")
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+      await channel.send({
+        embeds: [new EmbedBuilder()
+          .setTitle("👑 Mutation: Bone Crown")
+          .setDescription(`<@${player.id}> discovers the Bone Crown. Glory or doom?`)],
+        components: [row]
+      });
+
+      const filter = i => i.customId === `wear_crown_${player.id}` && i.user.id === player.id;
+      const collector = channel.createMessageComponentCollector({ filter, time: 8000 });
+
+      collector.on("collect", async i => {
+        await i.deferUpdate();
+        const roll = Math.random();
+        if (roll < 0.4) {
+          player.lives += 2;
+          await channel.send(`👑 <@${player.id}> wears the Bone Crown and is infused with power! +2 lives.`);
+        } else {
+          eliminatePlayer(player, "was crushed under the Bone Crown's burden.");
+        }
+      });
+
+      collector.on("end", async collected => {
+        if (collected.size === 0) {
+          await channel.send(`🦴 <@${player.id}> hesitated. The crown devoured them.`);
+          eliminatePlayer(player, "was devoured by an impatient crown.");
+        }
+      });
+    }
+  }
+];
+  {
+    name: "Ugly Seed",
+    description: "A seed sprouts in your palm. Feed it your pain?",
+    effect: async (channel, players) => {
+      const [player] = getRandomAlivePlayers(1);
+      if (!player) return;
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`plant_seed_${player.id}`)
+          .setLabel("Plant the Ugly Seed")
+          .setStyle(ButtonStyle.Success)
+      );
+
+      await channel.send({
+        embeds: [new EmbedBuilder()
+          .setTitle("🌱 Mutation: Ugly Seed")
+          .setDescription(`<@${player.id}> holds a twitching seed. It demands emotion.`)],
+        components: [row]
+      });
+
+      const filter = i => i.customId === `plant_seed_${player.id}` && i.user.id === player.id;
+      const collector = channel.createMessageComponentCollector({ filter, time: 8000 });
+
+      collector.on("collect", async i => {
+        await i.deferUpdate();
+        const roll = Math.random();
+        if (roll < 0.33) {
+          eliminatePlayer(player, "was overgrown by the seed’s roots.");
+        } else if (roll < 0.66) {
+          await channel.send(`🪴 The seed sprouts and whispers truths. <@${player.id}> gains insight (but nothing happens).`);
+        } else {
+          player.lives++;
+          await channel.send(`🌿 <@${player.id}> nourished the seed and earned +1 life!`);
+        }
+      });
+
+      collector.on("end", async collected => {
+        if (collected.size === 0) {
+          eliminatePlayer(player, "ignored the seed and was swallowed by soil.");
+        }
+      });
+    }
+  },
+  {
+    name: "Needle of Destiny",
+    description: "One prick and your path is sealed.",
+    effect: async (channel, players) => {
+      const [player] = getRandomAlivePlayers(1);
+      if (!player) return;
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`prick_fate_${player.id}`)
+          .setLabel("Prick Finger")
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      await channel.send({
+        embeds: [new EmbedBuilder()
+          .setTitle("🧵 Mutation: Needle of Destiny")
+          .setDescription(`<@${player.id}> finds a floating needle. It hums with fate.`)],
+        components: [row]
+      });
+
+      const filter = i => i.customId === `prick_fate_${player.id}` && i.user.id === player.id;
+      const collector = channel.createMessageComponentCollector({ filter, time: 8000 });
+
+      collector.on("collect", async i => {
+        await i.deferUpdate();
+        const roll = Math.random();
+        if (roll < 0.4) {
+          eliminatePlayer(player, "bled out from a cursed prick.");
+        } else {
+          player.lives++;
+          await channel.send(`🧷 Fate smiled on <@${player.id}>. +1 life.`);
+        }
+      });
+
+      collector.on("end", async collected => {
+        if (collected.size === 0) {
+          await channel.send(`🪡 The needle threaded its own path. <@${player.id}> is unraveled.`);
+          eliminatePlayer(player, "was unraveled by neglect.");
+        }
+      });
+    }
+  },
+  {
+    name: "Warping Fruit",
+    description: "Bite the fruit. Change forever.",
+    effect: async (channel, players) => {
+      const [player] = getRandomAlivePlayers(1);
+      if (!player) return;
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`bite_fruit_${player.id}`)
+          .setLabel("Bite the Fruit")
+          .setStyle(ButtonStyle.Primary)
+      );
+
+      await channel.send({
+        embeds: [new EmbedBuilder()
+          .setTitle("🍎 Mutation: Warping Fruit")
+          .setDescription(`<@${player.id}> is offered a fruit that pulses with light and teeth.`)],
+        components: [row]
+      });
+
+      const filter = i => i.customId === `bite_fruit_${player.id}` && i.user.id === player.id;
+      const collector = channel.createMessageComponentCollector({ filter, time: 8000 });
+
+      collector.on("collect", async i => {
+        await i.deferUpdate();
+        const roll = Math.random();
+        if (roll < 0.33) {
+          eliminatePlayer(player, "was rewritten by the fruit’s code.");
+        } else if (roll < 0.66) {
+          await channel.send(`🤢 <@${player.id}> vomits pixels. Nothing changes.`);
+        } else {
+          player.lives++;
+          await channel.send(`🍏 The fruit bends fate. <@${player.id}> gains +1 life!`);
+        }
+      });
+
+      collector.on("end", async collected => {
+        if (collected.size === 0) {
+          eliminatePlayer(player, "was eaten by the fruit instead.");
+        }
+      });
+    }
+  },
+  {
+    name: "Ugly Totem",
+    description: "You find a carved totem of yourself… blinking.",
+    effect: async (channel, players) => {
+      const [player] = getRandomAlivePlayers(1);
+      if (!player) return;
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`touch_totem_${player.id}`)
+          .setLabel("Touch the Totem")
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+      await channel.send({
+        embeds: [new EmbedBuilder()
+          .setTitle("🪵 Mutation: Ugly Totem")
+          .setDescription(`<@${player.id}> sees a wooden totem with their face. It is blinking.`)],
+        components: [row]
+      });
+
+      const filter = i => i.customId === `touch_totem_${player.id}` && i.user.id === player.id;
+      const collector = channel.createMessageComponentCollector({ filter, time: 8000 });
+
+      collector.on("collect", async i => {
+        await i.deferUpdate();
+        const roll = Math.random();
+        if (roll < 0.5) {
+          eliminatePlayer(player, "was swapped with the totem's soul.");
+        } else {
+          player.lives++;
+          await channel.send(`🪆 <@${player.id}> becomes one with the totem. +1 life!`);
+        }
+      });
+
+      collector.on("end", async collected => {
+        if (collected.size === 0) {
+          eliminatePlayer(player, "refused the totem and was erased from memory.");
+        }
+      });
     }
   }
 ];
 
+
 // --- Mini-Games ---
 const mutationMiniGames = [
   {
-    name: "Lever of Regret",
-    description: "Pull the lever? It promises... something.",
-    interaction: async () => {
+    name: "The Button of Fate",
+    description: "One button. One outcome. Press it?",
+    interaction: async (channel, players) => {
       const [player] = getRandomAlivePlayers(1);
       if (!player) return;
-      const r = Math.random();
-      if (r < 0.5) {
-        player.lives++;
-        sendGameMessage(`🕹️ <@${player.id}> pulled the Lever and got +1 life!`);
-      } else {
-        eliminatePlayer(player, "fell through the lever's lies.");
-      }
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`fate_button_${player.id}`)
+          .setLabel("Press the Button")
+          .setStyle(ButtonStyle.Primary)
+      );
+
+      await channel.send({
+        embeds: [new EmbedBuilder()
+          .setTitle("🧲 Mini-Game: The Button of Fate")
+          .setDescription(`<@${player.id}> stands before a glowing red button. They must decide.`)],
+        components: [row]
+      });
+
+      const filter = i => i.customId === `fate_button_${player.id}` && i.user.id === player.id;
+      const collector = channel.createMessageComponentCollector({ filter, time: 8000 });
+
+      collector.on("collect", async i => {
+        await i.deferUpdate();
+        const roll = Math.random();
+        if (roll < 0.5) {
+          player.lives++;
+          await channel.send(`🔮 <@${player.id}> pressed it. Reality bent in their favor! +1 life.`);
+        } else {
+          eliminatePlayer(player, "pressed the button and vanished from existence.");
+        }
+      });
+
+      collector.on("end", async collected => {
+        if (collected.size === 0) {
+          await channel.send(`⏳ <@${player.id}> hesitated too long. The button pressed itself.`);
+          eliminatePlayer(player, "was crushed by fate’s indecision.");
+        }
+      });
     }
   },
   {
-    name: "Goblin’s Gamble",
-    description: "Flip a coin with a goblin. What could go wrong?",
-    interaction: async () => {
+    name: "The Ugly Cage",
+    description: "The cage rattles. Enter it?",
+    interaction: async (channel, players) => {
       const [player] = getRandomAlivePlayers(1);
       if (!player) return;
-      const r = Math.random();
-      if (r < 0.5) {
-        player.lives++;
-        sendGameMessage(`🪙 Goblin grins. <@${player.id}> wins +1 life.`);
-      } else {
-        eliminatePlayer(player, "lost the Goblin’s Gamble and vanished.");
-      }
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`enter_cage_${player.id}`)
+          .setLabel("Enter the Cage")
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      await channel.send({
+        embeds: [new EmbedBuilder()
+          .setTitle("🪤 Mini-Game: The Ugly Cage")
+          .setDescription(`<@${player.id}> is dared to step into a growling cage. Will they?`)],
+        components: [row]
+      });
+
+      const filter = i => i.customId === `enter_cage_${player.id}` && i.user.id === player.id;
+      const collector = channel.createMessageComponentCollector({ filter, time: 8000 });
+
+      collector.on("collect", async i => {
+        await i.deferUpdate();
+        const roll = Math.random();
+        if (roll < 0.3) {
+          eliminatePlayer(player, "was disassembled by the cage’s glee.");
+        } else if (roll < 0.6) {
+          await channel.send(`🐾 <@${player.id}> faced the beast. Survived... barely.`);
+        } else {
+          player.lives++;
+          await channel.send(`🦴 <@${player.id}> tamed the cage and gained +1 life!`);
+        }
+      });
+
+      collector.on("end", async collected => {
+        if (collected.size === 0) {
+          eliminatePlayer(player, "ignored the cage and became its dinner anyway.");
+        }
+      });
     }
   },
   {
-    name: "Mimic Chest",
-    description: "Shiny box. Sharp teeth.",
-    interaction: async () => {
+    name: "The Ticking Skull",
+    description: "A skull ticks like a clock. Stop it?",
+    interaction: async (channel, players) => {
       const [player] = getRandomAlivePlayers(1);
       if (!player) return;
-      const r = Math.random();
-      if (r < 0.5) {
-        player.lives++;
-        sendGameMessage(`📦 <@${player.id}> opened treasure! +1 life.`);
-      } else {
-        eliminatePlayer(player, "was devoured by a tongue-filled chest.");
-      }
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`stop_skull_${player.id}`)
+          .setLabel("Stop the Skull")
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+      await channel.send({
+        embeds: [new EmbedBuilder()
+          .setTitle("⏱️ Mini-Game: The Ticking Skull")
+          .setDescription(`<@${player.id}> must stop a ticking skull. But when?`)],
+        components: [row]
+      });
+
+      const filter = i => i.customId === `stop_skull_${player.id}` && i.user.id === player.id;
+      const collector = channel.createMessageComponentCollector({ filter, time: 8000 });
+
+      collector.on("collect", async i => {
+        await i.deferUpdate();
+        const roll = Math.random();
+        if (roll < 0.5) {
+          player.lives++;
+          await channel.send(`💀 The ticking stops. <@${player.id}> now hears silence. +1 life.`);
+        } else {
+          eliminatePlayer(player, "stopped it too late. The skull exploded.");
+        }
+      });
+
+      collector.on("end", async collected => {
+        if (collected.size === 0) {
+          eliminatePlayer(player, "let the ticking continue until it ruptured time.");
+        }
+      });
+    }
+  },
+  {
+    name: "The Smile Box",
+    description: "A box promises a smile. Open it?",
+    interaction: async (channel, players) => {
+      const [player] = getRandomAlivePlayers(1);
+      if (!player) return;
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`open_smilebox_${player.id}`)
+          .setLabel("Open the Box")
+          .setStyle(ButtonStyle.Primary)
+      );
+
+      await channel.send({
+        embeds: [new EmbedBuilder()
+          .setTitle("🎁 Mini-Game: The Smile Box")
+          .setDescription(`<@${player.id}> sees a pink box labeled “Smile Forever.”`)],
+        components: [row]
+      });
+
+      const filter = i => i.customId === `open_smilebox_${player.id}` && i.user.id === player.id;
+      const collector = channel.createMessageComponentCollector({ filter, time: 8000 });
+
+      collector.on("collect", async i => {
+        await i.deferUpdate();
+        const roll = Math.random();
+        if (roll < 0.3) {
+          eliminatePlayer(player, "opened the box and forgot how to scream.");
+        } else if (roll < 0.6) {
+          await channel.send(`🙂 <@${player.id}> got a weird doll. No effect.`);
+        } else {
+          player.lives++;
+          await channel.send(`😁 <@${player.id}> received joy serum. +1 life!`);
+        }
+      });
+
+      collector.on("end", async collected => {
+        if (collected.size === 0) {
+          eliminatePlayer(player, "ignored the box, but the box didn’t ignore them.");
+        }
+      });
     }
   }
 ];
+  {
+    name: "Snail’s Pact",
+    description: "A golden snail offers a contract. Accept it?",
+    interaction: async (channel, players) => {
+      const [player] = getRandomAlivePlayers(1);
+      if (!player) return;
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`sign_snail_${player.id}`)
+          .setLabel("Sign the Pact")
+          .setStyle(ButtonStyle.Success)
+      );
+
+      await channel.send({
+        embeds: [new EmbedBuilder()
+          .setTitle("🐌 Mini-Game: Snail’s Pact")
+          .setDescription(`<@${player.id}> is offered a pact from a golden snail.`)],
+        components: [row]
+      });
+
+      const filter = i => i.customId === `sign_snail_${player.id}` && i.user.id === player.id;
+      const collector = channel.createMessageComponentCollector({ filter, time: 8000 });
+
+      collector.on("collect", async i => {
+        await i.deferUpdate();
+        const roll = Math.random();
+        if (roll < 0.4) {
+          eliminatePlayer(player, "signed the snail’s pact and turned to slime.");
+        } else {
+          player.lives++;
+          await channel.send(`📜 The snail whispers truths. <@${player.id}> gains +1 life.`);
+        }
+      });
+
+      collector.on("end", async collected => {
+        if (collected.size === 0) {
+          eliminatePlayer(player, "rejected the snail and became its shell.");
+        }
+      });
+    }
+  },
+  {
+    name: "Charmhole Dive",
+    description: "A charmhole opens beneath your feet. Jump in?",
+    interaction: async (channel, players) => {
+      const [player] = getRandomAlivePlayers(1);
+      if (!player) return;
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`jump_charmhole_${player.id}`)
+          .setLabel("Jump In")
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      await channel.send({
+        embeds: [new EmbedBuilder()
+          .setTitle("🕳️ Mini-Game: Charmhole Dive")
+          .setDescription(`<@${player.id}> is drawn to the swirling charmhole below.`)],
+        components: [row]
+      });
+
+      const filter = i => i.customId === `jump_charmhole_${player.id}` && i.user.id === player.id;
+      const collector = channel.createMessageComponentCollector({ filter, time: 8000 });
+
+      collector.on("collect", async i => {
+        await i.deferUpdate();
+        const roll = Math.random();
+        if (roll < 0.4) {
+          eliminatePlayer(player, "was devoured by the charmhole’s secrets.");
+        } else {
+          player.lives++;
+          await channel.send(`🌀 <@${player.id}> dove in and emerged changed. +1 life.`);
+        }
+      });
+
+      collector.on("end", async collected => {
+        if (collected.size === 0) {
+          eliminatePlayer(player, "refused the dive and was pulled in anyway.");
+        }
+      });
+    }
+  },
+  {
+    name: "Eye of the Beholder",
+    description: "An eye opens. You feel seen. Stare back?",
+    interaction: async (channel, players) => {
+      const [player] = getRandomAlivePlayers(1);
+      if (!player) return;
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`stare_eye_${player.id}`)
+          .setLabel("Stare Back")
+          .setStyle(ButtonStyle.Primary)
+      );
+
+      await channel.send({
+        embeds: [new EmbedBuilder()
+          .setTitle("👁️ Mini-Game: Eye of the Beholder")
+          .setDescription(`<@${player.id}> feels the presence of something watching.`)],
+        components: [row]
+      });
+
+      const filter = i => i.customId === `stare_eye_${player.id}` && i.user.id === player.id;
+      const collector = channel.createMessageComponentCollector({ filter, time: 8000 });
+
+      collector.on("collect", async i => {
+        await i.deferUpdate();
+        const roll = Math.random();
+        if (roll < 0.33) {
+          eliminatePlayer(player, "was judged unworthy and erased.");
+        } else {
+          player.lives++;
+          await channel.send(`👁️ <@${player.id}> did not blink. The Eye nods. +1 life.`);
+        }
+      });
+
+      collector.on("end", async collected => {
+        if (collected.size === 0) {
+          eliminatePlayer(player, "looked away and ceased to exist.");
+        }
+      });
+    }
+  },
+  {
+    name: "Spin the Tooth",
+    description: "A cracked molar spins endlessly. Touch it?",
+    interaction: async (channel, players) => {
+      const [player] = getRandomAlivePlayers(1);
+      if (!player) return;
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`spin_tooth_${player.id}`)
+          .setLabel("Spin the Tooth")
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+      await channel.send({
+        embeds: [new EmbedBuilder()
+          .setTitle("🦷 Mini-Game: Spin the Tooth")
+          .setDescription(`<@${player.id}> finds a spinning molar etched with runes.`)],
+        components: [row]
+      });
+
+      const filter = i => i.customId === `spin_tooth_${player.id}` && i.user.id === player.id;
+      const collector = channel.createMessageComponentCollector({ filter, time: 8000 });
+
+      collector.on("collect", async i => {
+        await i.deferUpdate();
+        const roll = Math.random();
+        if (roll < 0.5) {
+          player.lives++;
+          await channel.send(`🦷 The tooth stops. <@${player.id}> feels empowered. +1 life!`);
+        } else {
+          eliminatePlayer(player, "spun too hard and fractured into ash.");
+        }
+      });
+
+      collector.on("end", async collected => {
+        if (collected.size === 0) {
+          eliminatePlayer(player, "let the tooth spin into madness. It took them with it.");
+        }
+      });
+    }
+  }
+];
+
 
 // --- Ugly Quotes ---
 const uglyQuotes = [
