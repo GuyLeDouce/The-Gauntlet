@@ -1080,8 +1080,6 @@ async function runBossVotePhase(channel) {
     });
   });
 }
-
-// --- Main Gauntlet Loop ---
 async function runGauntlet(channel, isTrial = false) {
   let round = 0;
   const totalPlayers = gamePlayers.length;
@@ -1094,21 +1092,21 @@ async function runGauntlet(channel, isTrial = false) {
     await wait(8000);
     await channel.send(`🔄 **Round ${round}** begins! (${aliveCount}/${totalPlayers} remain)`);
 
-    // 20% chance: Warp Echo
+    // 40% chance: Warp Echo
     if (Math.random() < 0.4) {
       const echo = warpEchoes[Math.floor(Math.random() * warpEchoes.length)];
       await channel.send(`🌌 ${echo}`);
       await wait(3000);
     }
 
-    // 15% chance: Ugly Chant
+    // 20% chance: Ugly Chant
     if (Math.random() < 0.2) {
       const chant = uglychants[Math.floor(Math.random() * uglychants.length)];
       await channel.send(`🔊 *Ugly Chant:* "${chant}"`);
       await wait(2500);
     }
 
-    // 10% chance: Ugly Oracle Riddle
+    // 20% chance: Ugly Oracle Riddle
     if (Math.random() < 0.2) {
       const riddle = uglyOracleRiddles[Math.floor(Math.random() * uglyOracleRiddles.length)];
       const embed = new EmbedBuilder()
@@ -1142,25 +1140,14 @@ async function runGauntlet(channel, isTrial = false) {
         await channel.send(`🤷‍♂️ No one solved the Oracle's riddle. The charm remains unimpressed.`);
       }
 
-      await wait(4000);
+      await wait(2000);
     }
 
-    // Randomly choose a round type
-    const chance = Math.random();
-    if (chance < 0.3 && mutationCount < 4) {
-      await runMutationEvent(channel);
-    } else if (chance < 0.5 && miniGameCount < 2) {
-      await runMiniGameEvent(channel);
-    } else if (chance < 0.8 && gamePlayers.filter(p => !p.eliminated).length <= totalPlayers / 2) {
-      await runMassRevivalEvent(channel);
-    } else {
-      await runEliminationRound(channel);
-    }
-
-    await wait(5000);
+    // Run a core event (mutation, mini-game, elimination, or mass revive)
+    await runCoreEvent(channel);
   }
 
-  // --- Final Podium ---
+  // Game over — determine podium
   const finalists = gamePlayers.filter(p => !p.eliminated);
   const top3 = [...finalists, ...eliminatedPlayers]
     .sort((a, b) => (b.lives || 0) - (a.lives || 0))
@@ -1168,47 +1155,13 @@ async function runGauntlet(channel, isTrial = false) {
 
   const podiumEmbed = new EmbedBuilder()
     .setTitle(isTrial ? "🏁 Trial Gauntlet Complete" : "🏆 The Gauntlet Has Ended")
-    .setDescription(`
-🥇 **1st:** <@${top3[0]?.id || '???'}>
-🥈 **2nd:** <@${top3[1]?.id || '???'}>
-🥉 **3rd:** <@${top3[2]?.id || '???'}>
-    `)
-    .setImage(getRandomNftImage())
-    .setFooter({ text: isTrial ? "This was only a trial... or was it?" : "Glory is temporary. Ugliness is eternal." })
-    .setColor(isTrial ? 0xaaaaaa : 0xff66cc);
+    .setDescription(`**1st:** <@${top3[0]?.id || '???'}>\n**2nd:** <@${top3[1]?.id || '???'}>\n**3rd:** <@${top3[2]?.id || '???'}>`)
+    .setFooter({ text: isTrial ? "This was a test run." : "Glory is temporary. Ugliness is eternal." })
+    .setColor(isTrial ? 0xaaaaaa : 0x00ffcc);
 
   await channel.send({ embeds: [podiumEmbed] });
 
-  if (!isTrial) {
-    for (let i = 0; i < top3.length; i++) {
-      const player = top3[i];
-      if (!player) continue;
-      await updateStats(player.id, player.username, i === 0 ? 1 : 0, 0, 0);
-    }
-  }
-
-  gameActive = false;
-  autoRestartCount = 0;
-
-  if (!isTrial) {
-    await showRematchButton(channel, gamePlayers);
-  }
-}
-
-async function runGauntlet(channel, isTrial = false) {
-  // ... entire gauntlet game logic ...
-
-  const top3 = [...finalists, ...eliminatedPlayers]
-    .sort((a, b) => (b.lives || 0) - (a.lives || 0))
-    .slice(0, 3);
-
-  const podiumEmbed = new EmbedBuilder()
-    .setTitle("🏆 The Gauntlet Has Ended")
-    .setDescription(`**1st:** <@${top3[0]?.id}>\n**2nd:** <@${top3[1]?.id}>\n**3rd:** <@${top3[2]?.id}>`)
-    .setColor(0x00ffcc);
-
-  await channel.send({ embeds: [podiumEmbed] });
-
+  // Update stats
   if (!isTrial) {
     for (let i = 0; i < top3.length; i++) {
       const player = top3[i];
