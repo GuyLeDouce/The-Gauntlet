@@ -444,8 +444,6 @@ async function showFinalPodium(channel) {
 }
 // --- REMATCH LOGIC ---
 
-let rematchVotes = new Set();
-let consecutiveGames = 0;
 const MAX_CONSECUTIVE_GAMES = 4;
 
 async function showRematchButton(channel, previousPlayers, durationMinutes = 3) {
@@ -580,9 +578,7 @@ async function showRematchButton(channel) {
     return;
   }
 
-  let rematchVotes = new Set();
-
-  const row = new ActionRowBuilder().addComponents(
+   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId("rematch_vote")
       .setLabel("Join Rematch")
