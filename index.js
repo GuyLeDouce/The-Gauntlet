@@ -66,6 +66,8 @@ let gamePlayers = [];
 let eliminatedPlayers = [];
 let revivalAttempted = false;
 let autoRestartCount = 0;
+let mutationCount = 0;
+let miniGameCount = 0;
 
 function shuffleArray(array) {
   return [...array].sort(() => Math.random() - 0.5);
@@ -173,137 +175,527 @@ const uglyOracleRiddles = [
 // --- Mutation Events ---
 const mutationEvents = [
   {
-    name: "The Maw Opens",
-    description: "A gaping mouth forms in the sky. It hungers. Choose to FEED it or FLEE.",
-    async effect(interaction, gamePlayers, eliminatedPlayers) {
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('feed').setLabel('FEED').setStyle(ButtonStyle.Danger),
-        new ButtonBuilder().setCustomId('flee').setLabel('FLEE').setStyle(ButtonStyle.Secondary)
-      );
-      const embed = new EmbedBuilder()
-        .setTitle("🕳️ The Maw Opens")
-        .setDescription("You may **FEED** the Maw with part of your soul... or attempt to **FLEE**.")
-        .setColor(0x8B0000);
-      const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
+  name: "The Maw Opens",
+  description: "A gaping mouth forms in the sky. It hungers. Choose to FEED it or FLEE.",
+  async effect(interaction, gamePlayers, eliminatedPlayers) {
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('feed').setLabel('FEED').setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId('flee').setLabel('FLEE').setStyle(ButtonStyle.Secondary)
+    );
 
-      const collector = msg.createMessageComponentCollector({ time: 10000 });
-      const results = { fed: [], fled: [] };
+    const embed = new EmbedBuilder()
+      .setTitle("🕳️ The Maw Opens")
+      .setDescription("A gaping mouth forms in the sky. It hungers.\n\nYou may **FEED** the Maw with part of your soul... or attempt to **FLEE**.")
+      .setColor(0x8B0000);
 
-      collector.on('collect', async i => {
-        if (i.user.bot) return;
-        if (results.fed.includes(i.user.id) || results.fled.includes(i.user.id)) {
-          return i.reply({ content: "You already chose!", ephemeral: true });
-        }
-        if (i.customId === 'feed') results.fed.push(i.user.id);
-        else results.fled.push(i.user.id);
-        await i.reply({ content: `🩸 Choice recorded: ${i.customId.toUpperCase()}`, ephemeral: true });
-      });
+    const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
 
-      collector.on('end', async () => {
-        await msg.edit({ components: [] });
-        const feedOutcome = results.fed.map(id => `<@${id}>`).join(', ') || "None";
-        const fleeOutcome = results.fled.map(id => `<@${id}>`).join(', ') || "None";
+    const collector = msg.createMessageComponentCollector({ time: 10000 });
+    const results = { fed: [], fled: [] };
 
-        await interaction.channel.send({
-          embeds: [
-            new EmbedBuilder()
-              .setTitle("🩸 The Maw Has Spoken")
-              .setDescription(`**Fed the Maw:** ${feedOutcome}\n**Fled:** ${fleeOutcome}`)
-              .setFooter({ text: "The Maw is... temporarily satisfied." })
-              .setColor(0x5e0000)
-          ]
-        });
-      });
-    }
-  },
-  {
-    name: "Chamber of Eyes",
-    description: "The floor is watching. Step carefully. Choose your direction: LEFT or RIGHT.",
-    async effect(interaction, gamePlayers, eliminatedPlayers) {
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('left').setLabel('LEFT').setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId('right').setLabel('RIGHT').setStyle(ButtonStyle.Primary)
-      );
-      const embed = new EmbedBuilder()
-        .setTitle("👁️ Chamber of Eyes")
-        .setDescription("The eyes twitch. Choose **LEFT** or **RIGHT** to proceed.")
-        .setColor(0x4444aa);
-      const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
+    collector.on('collect', async i => {
+      if (i.user.bot) return;
+      if (results.fed.includes(i.user.id) || results.fled.includes(i.user.id)) {
+        return i.reply({ content: "You already chose!", ephemeral: true });
+      }
+      if (i.customId === 'feed') results.fed.push(i.user.id);
+      else results.fled.push(i.user.id);
+      await i.reply({ content: `🩸 Choice recorded: ${i.customId.toUpperCase()}`, ephemeral: true });
+    });
 
-      const collector = msg.createMessageComponentCollector({ time: 10000 });
-      const results = { left: [], right: [] };
+    collector.on('end', async () => {
+      const feedOutcome = results.fed.map(id => `<@${id}>`).join(', ') || "*No one*";
+      const fleeOutcome = results.fled.map(id => `<@${id}>`).join(', ') || "*No one*";
 
-      collector.on('collect', async i => {
-        if (i.user.bot) return;
-        if (results.left.includes(i.user.id) || results.right.includes(i.user.id)) {
-          return i.reply({ content: "You've already chosen!", ephemeral: true });
-        }
-        if (i.customId === 'left') results.left.push(i.user.id);
-        else results.right.push(i.user.id);
-        await i.reply({ content: `✅ You stepped ${i.customId.toUpperCase()}`, ephemeral: true });
-      });
+      const resultEmbed = new EmbedBuilder()
+        .setTitle("🩸 The Maw Has Spoken")
+        .setDescription(`**Fed the Maw:** ${feedOutcome}\n**Fled:** ${fleeOutcome}`)
+        .setFooter({ text: "The Maw is... temporarily satisfied." })
+        .setColor(0x5e0000);
 
-      collector.on('end', async () => {
-        await msg.edit({ components: [] });
-        const safeSide = Math.random() < 0.5 ? 'left' : 'right';
-        const dead = results[safeSide === 'left' ? 'right' : 'left'];
-
-        for (const id of dead) {
-          eliminatePlayerById(id);
-        }
-
-        await interaction.channel.send({
-          embeds: [
-            new EmbedBuilder()
-              .setTitle("⚖️ Judgment Passed")
-              .setDescription(`The **${safeSide.toUpperCase()}** path was safe.\nRIP: ${dead.map(id => `<@${id}>`).join(', ') || "No one"}`)
-              .setColor(0x770000)
-          ]
-        });
-      });
-    }
+      await msg.edit({ embeds: [resultEmbed], components: [] });
+    });
   }
+},
+  {
+  name: "The Charmhole",
+  description: "A writhing vortex opens in the ground. Some are pulled in. A few emerge... changed.",
+  async effect(channel, gamePlayers, eliminatedPlayers) {
+    const chosen = gamePlayers.filter(p => !p.eliminated && Math.random() < 0.3);
+
+    const results = [];
+
+    for (const player of chosen) {
+      const roll = Math.random();
+      if (roll < 0.33) {
+        player.eliminated = true;
+        eliminatedPlayers.push(player);
+        results.push(`💀 <@${player.id}> was consumed by the Charmhole.`);
+      } else if (roll < 0.66) {
+        player.lives += 2;
+        results.push(`💫 <@${player.id}> emerged glowing with **+2 lives**.`);
+      } else {
+        results.push(`❓ <@${player.id}> returned... but seems unchanged. For now.`);
+      }
+    }
+
+    const embed = new EmbedBuilder()
+      .setTitle("🌀 The Charmhole Opens")
+      .setDescription(results.length ? results.join('\n') : "The Charmhole grumbled, but spared everyone.")
+      .setColor(0x443355);
+
+    await channel.send({ embeds: [embed] });
+  }
+},
+{
+  name: "The Mind Swap",
+  description: "Two players suddenly switch souls. Only one survives the swap.",
+  async effect(channel, gamePlayers, eliminatedPlayers) {
+    const candidates = gamePlayers.filter(p => !p.eliminated);
+    if (candidates.length < 2) return;
+
+    const [p1, p2] = candidates.sort(() => 0.5 - Math.random()).slice(0, 2);
+    const winner = Math.random() < 0.5 ? p1 : p2;
+    const loser = winner === p1 ? p2 : p1;
+
+    loser.eliminated = true;
+    eliminatedPlayers.push(loser);
+    winner.lives += 1;
+
+    const embed = new EmbedBuilder()
+      .setTitle("🧬 The Mind Swap")
+      .setDescription(`🧠 <@${p1.id}> and <@${p2.id}> had their souls switched.\n🎲 The charm allowed <@${winner.id}> to live — they gain **+1 life**.\n💀 <@${loser.id}> was lost in the void.`)
+      .setColor(0x776688);
+
+    await channel.send({ embeds: [embed] });
+  }
+},
+{
+  name: "The Coffee Curse",
+  description: "The scent of cursed coffee fills the air. Those who sip it feel the full jolt of fate.",
+  async effect(channel, gamePlayers, eliminatedPlayers) {
+    const chosen = gamePlayers.filter(p => !p.eliminated && Math.random() < 0.5);
+    const lines = [];
+
+    for (const player of chosen) {
+      const roll = Math.random();
+      if (roll < 0.25) {
+        player.eliminated = true;
+        eliminatedPlayers.push(player);
+        lines.push(`☠️ <@${player.id}> chugged the cursed ☕ and collapsed.`);
+      } else if (roll < 0.6) {
+        player.lives += 1;
+        lines.push(`⚡ <@${player.id}> felt the buzz — **+1 life**.`);
+      } else {
+        lines.push(`😐 <@${player.id}> felt nothing. Maybe it was decaf.`);
+      }
+    }
+
+    const embed = new EmbedBuilder()
+      .setTitle("☕ The Coffee Curse")
+      .setDescription(lines.join('\n') || "No one dared to sip.")
+      .setColor(0x5c4033);
+
+    await channel.send({ embeds: [embed] });
+  }
+},
+{
+  name: "The Mirror of Echoes",
+  description: "The mirror offers you power… or punishment. Only the brave step forward.",
+  async effect(channel, gamePlayers, eliminatedPlayers) {
+    const brave = gamePlayers.filter(p => !p.eliminated && Math.random() < 0.4);
+    const lines = [];
+
+    for (const player of brave) {
+      const roll = Math.random();
+      if (roll < 0.2) {
+        player.lives += 3;
+        lines.push(`🪞 <@${player.id}> mastered the reflection and gained **+3 lives**!`);
+      } else if (roll < 0.5) {
+        player.lives -= 1;
+        if (player.lives <= 0) {
+          player.eliminated = true;
+          eliminatedPlayers.push(player);
+          lines.push(`💔 <@${player.id}> was shattered by their own reflection.`);
+        } else {
+          lines.push(`⚠️ <@${player.id}> lost a life facing themselves.`);
+        }
+      } else {
+        lines.push(`👤 <@${player.id}> stared into the mirror and walked away... haunted, but untouched.`);
+      }
+    }
+
+    const embed = new EmbedBuilder()
+      .setTitle("🪞 The Mirror of Echoes")
+      .setDescription(lines.join('\n') || "No one faced the mirror. Cowards.")
+      .setColor(0x444466);
+
+    await channel.send({ embeds: [embed] });
+  }
+},
+  {
+  name: "Chamber of Eyes",
+  description: "The floor is watching. Step carefully. Choose your direction: LEFT or RIGHT.",
+  async effect(interaction, gamePlayers, eliminatedPlayers) {
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('left').setLabel('LEFT').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('right').setLabel('RIGHT').setStyle(ButtonStyle.Primary)
+    );
+
+    const embed = new EmbedBuilder()
+      .setTitle("👁️ Chamber of Eyes")
+      .setDescription("The floor is watching. Choose **LEFT** or **RIGHT** to proceed.\n\nStep wisely.")
+      .setColor(0x4444aa);
+
+    const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
+
+    const collector = msg.createMessageComponentCollector({ time: 10000 });
+    const results = { left: [], right: [] };
+
+    collector.on('collect', async i => {
+      if (i.user.bot) return;
+      if (results.left.includes(i.user.id) || results.right.includes(i.user.id)) {
+        return i.reply({ content: "You've already chosen!", ephemeral: true });
+      }
+      if (i.customId === 'left') results.left.push(i.user.id);
+      else results.right.push(i.user.id);
+      await i.reply({ content: `👣 You stepped ${i.customId.toUpperCase()}`, ephemeral: true });
+    });
+
+    collector.on('end', async () => {
+      await msg.edit({ components: [] });
+      const safeSide = Math.random() < 0.5 ? 'left' : 'right';
+      const dead = results[safeSide === 'left' ? 'right' : 'left'];
+
+      for (const id of dead) {
+        eliminatePlayerById(id);
+      }
+
+      const resultEmbed = new EmbedBuilder()
+        .setTitle("⚖️ Judgment Passed")
+        .setDescription(`The **${safeSide.toUpperCase()}** path was safe.\n\n💀 RIP: ${dead.map(id => `<@${id}>`).join(', ') || "None"}`)
+        .setColor(0x770000);
+
+      await msg.edit({ embeds: [resultEmbed] });
+    });
+  }
+}
 ];
 
 // --- Mutation Mini-Games ---
 const mutationMiniGames = [
   {
-    name: "Press the Charm",
-    description: "A single button appears. Press it... or not.",
-    async effect(interaction, gamePlayers, eliminatedPlayers) {
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('presscharm').setLabel('Press It').setStyle(ButtonStyle.Danger)
-      );
-      const embed = new EmbedBuilder()
-        .setTitle("🔴 Press the Charm")
-        .setDescription("One button. One fate. Will you press it?")
-        .setColor(0xdd2222);
-      const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
+  name: "Press the Charm",
+  description: "A single button appears. Press it... or not.",
+  async effect(interaction, gamePlayers, eliminatedPlayers) {
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('presscharm').setLabel('Press It').setStyle(ButtonStyle.Danger)
+    );
 
-      const collector = msg.createMessageComponentCollector({ time: 8000 });
+    const embed = new EmbedBuilder()
+      .setTitle("🔴 Press the Charm")
+      .setDescription("A single button appears. Press it... or not.\n\nClick fast. Someone’s gonna blow.")
+      .setColor(0xdd2222);
+
+    const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
+
+    const collector = msg.createMessageComponentCollector({ time: 8000 });
+    const results = [];
+
+    collector.on('collect', async i => {
+      if (i.user.bot || results.includes(i.user.id)) return;
+      results.push(i.user.id);
+      await i.reply({ content: "🧨 You pressed the Charm.", ephemeral: true });
+    });
+
+    collector.on('end', async () => {
+      const unlucky = results.length > 0 ? results[Math.floor(Math.random() * results.length)] : null;
+      if (unlucky) eliminatePlayerById(unlucky);
+
+      const resultEmbed = new EmbedBuilder()
+        .setTitle("💥 Boom!")
+        .setDescription(unlucky
+          ? `<@${unlucky}> pressed too hard...`
+          : "Nobody dared press it. The charm is... disappointed.")
+        .setColor(0xff0000);
+
+      await msg.edit({ embeds: [resultEmbed], components: [] });
+    });
+  }
+},
+{
+  name: "The Charm Pulse",
+  description: "The charm vibrates. You may touch it — or you may die.",
+  async effect(interaction, gamePlayers, eliminatedPlayers) {
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('pulse').setLabel('Touch the Charm').setStyle(ButtonStyle.Primary)
+    );
+
+    const embed = new EmbedBuilder()
+      .setTitle("🔵 The Charm Pulse")
+      .setDescription("A dangerous energy emits from the charm. Press at your own risk.")
+      .setColor(0x3399ff);
+
+    const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
+    const collector = msg.createMessageComponentCollector({ time: 8000 });
+
+    const results = [];
+
+    collector.on('collect', async i => {
+      if (i.user.bot || results.includes(i.user.id)) return;
+      results.push(i.user.id);
+      await i.reply({ content: "⚡ You reached for the charm...", ephemeral: true });
+    });
+
+    collector.on('end', async () => {
+      const resultLines = [];
+
+      for (const id of results) {
+        const player = gamePlayers.find(p => p.id === id);
+        if (!player || player.eliminated) continue;
+
+        const roll = Math.random();
+        if (roll < 0.25) {
+          player.lives++;
+          resultLines.push(`❤️ <@${id}> gained a life!`);
+        } else if (roll < 0.5) {
+          player.lives--;
+          if (player.lives <= 0) {
+            player.eliminated = true;
+            eliminatedPlayers.push(player);
+            resultLines.push(`💀 <@${id}> touched the wrong part. Eliminated.`);
+          } else {
+            resultLines.push(`💔 <@${id}> lost a life!`);
+          }
+        } else {
+          resultLines.push(`⚖️ <@${id}> was unaffected.`);
+        }
+      }
+
+      const resultEmbed = new EmbedBuilder()
+        .setTitle("⚡ Pulse Results")
+        .setDescription(resultLines.join('\n') || "No one dared touch it.")
+        .setColor(0x2222ff);
+
+      await msg.edit({ embeds: [resultEmbed], components: [] });
+    });
+  }
+},
+{
+  name: "Coin of Reversal",
+  description: "All eliminated players may flip the cursed coin — one side revives, the other explodes.",
+  async effect(interaction, gamePlayers, eliminatedPlayers) {
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('flipcoin').setLabel('Flip the Coin').setStyle(ButtonStyle.Secondary)
+    );
+
+    const embed = new EmbedBuilder()
+      .setTitle("🪙 Coin of Reversal")
+      .setDescription("Eliminated players only: flip the coin to gamble your soul.")
+      .setColor(0xaaaaaa);
+
+    const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
+
+    const collector = msg.createMessageComponentCollector({ time: 6000 });
+
+    const attempts = [];
+
+    collector.on('collect', async i => {
+      if (i.user.bot || attempts.includes(i.user.id)) return;
+
+      const wasDead = eliminatedPlayers.find(p => p.id === i.user.id);
+      const alreadyAlive = gamePlayers.find(p => p.id === i.user.id && !p.eliminated);
+
+      if (!wasDead || alreadyAlive) {
+        return i.reply({ content: "🧟 Only eliminated players can flip this coin.", ephemeral: true });
+      }
+
+      attempts.push(i.user.id);
+      await i.reply({ content: "🪙 You flip the cursed coin...", ephemeral: true });
+    });
+
+    collector.on('end', async () => {
       const results = [];
 
-      collector.on('collect', async i => {
-        if (i.user.bot || results.includes(i.user.id)) return;
-        results.push(i.user.id);
-        await i.reply({ content: "🧨 You pressed the Charm.", ephemeral: true });
-      });
+      for (const id of attempts) {
+        const roll = Math.random();
+        if (roll < 0.5) {
+          const player = eliminatedPlayers.find(p => p.id === id);
+          player.eliminated = false;
+          player.lives = 1;
+          results.push(`🧠 <@${id}> flipped heads and **revived**!`);
+        } else {
+          results.push(`💥 <@${id}> flipped tails and **was vaporized again.**`);
+        }
+      }
 
-      collector.on('end', async () => {
-        await msg.edit({ components: [] });
-        const unlucky = results.length > 0 ? results[Math.floor(Math.random() * results.length)] : null;
-        if (unlucky) eliminatePlayerById(unlucky);
-        await interaction.channel.send({
-          embeds: [
-            new EmbedBuilder()
-              .setTitle("💥 Boom!")
-              .setDescription(unlucky ? `<@${unlucky}> pressed too hard...` : "Nobody dared press it.")
-              .setColor(0xff0000)
-          ]
-        });
-      });
-    }
+      const resultEmbed = new EmbedBuilder()
+        .setTitle("🎲 Coin Results")
+        .setDescription(results.join('\n') || "None flipped the coin.")
+        .setColor(0xbbbbbb);
+
+      await msg.edit({ embeds: [resultEmbed], components: [] });
+    });
   }
+},
+ {
+  name: "The Split Path",
+  description: "Two identical doorways. One is a trap.",
+  async effect(interaction, gamePlayers, eliminatedPlayers) {
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('leftdoor').setLabel('Left Door').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('rightdoor').setLabel('Right Door').setStyle(ButtonStyle.Primary)
+    );
+
+    const embed = new EmbedBuilder()
+      .setTitle("🚪 The Split Path")
+      .setDescription("Two doors. One leads forward, the other to elimination.\nChoose wisely.")
+      .setColor(0x222266);
+
+    const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
+    const collector = msg.createMessageComponentCollector({ time: 9000 });
+
+    const chosen = { left: [], right: [] };
+
+    collector.on('collect', async i => {
+      if (i.user.bot || chosen.left.includes(i.user.id) || chosen.right.includes(i.user.id)) return;
+      if (i.customId === 'leftdoor') chosen.left.push(i.user.id);
+      if (i.customId === 'rightdoor') chosen.right.push(i.user.id);
+      await i.reply({ content: "🚪 You stepped through...", ephemeral: true });
+    });
+
+    collector.on('end', async () => {
+      const safeSide = Math.random() < 0.5 ? 'left' : 'right';
+      const doomed = safeSide === 'left' ? chosen.right : chosen.left;
+      const lines = [];
+
+      for (const id of doomed) {
+        const player = gamePlayers.find(p => p.id === id);
+        if (player && !player.eliminated) {
+          player.eliminated = true;
+          eliminatedPlayers.push(player);
+          lines.push(`💀 <@${id}> chose poorly.`);
+        }
+      }
+
+      const resultEmbed = new EmbedBuilder()
+        .setTitle("⚖️ The Path Chosen")
+        .setDescription(`**Safe Door:** ${safeSide.toUpperCase()}\n${lines.join('\n') || "Everyone survived!"}`)
+        .setColor(0x333388);
+
+      await msg.edit({ embeds: [resultEmbed], components: [] });
+    });
+  }
+},
+{
+  name: "The Ugly Crystal",
+  description: "A fractured crystal glows. Risk your life to overcharge it.",
+  async effect(interaction, gamePlayers, eliminatedPlayers) {
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('chargecrystal').setLabel('Charge Crystal').setStyle(ButtonStyle.Danger)
+    );
+
+    const embed = new EmbedBuilder()
+      .setTitle("🔮 The Ugly Crystal")
+      .setDescription("Click to charge it with your essence. It may reward you with **+2 lives**, or obliterate you.")
+      .setColor(0xaa00ff);
+
+    const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
+    const collector = msg.createMessageComponentCollector({ time: 9000 });
+
+    const chargers = [];
+
+    collector.on('collect', async i => {
+      if (i.user.bot || chargers.includes(i.user.id)) return;
+      chargers.push(i.user.id);
+      await i.reply({ content: "🔋 Energy absorbed...", ephemeral: true });
+    });
+
+    collector.on('end', async () => {
+      const lines = [];
+
+      for (const id of chargers) {
+        const player = gamePlayers.find(p => p.id === id);
+        if (!player || player.eliminated) continue;
+
+        const roll = Math.random();
+        if (roll < 0.33) {
+          player.eliminated = true;
+          eliminatedPlayers.push(player);
+          lines.push(`💥 <@${id}> overloaded the crystal. Eliminated.`);
+        } else {
+          player.lives += 2;
+          lines.push(`✨ <@${id}> gained **2 lives** from the charge.`);
+        }
+      }
+
+      const resultEmbed = new EmbedBuilder()
+        .setTitle("🌌 Crystal Discharge")
+        .setDescription(lines.join('\n') || "No one dared to touch it.")
+        .setColor(0xcc88ff);
+
+      await msg.edit({ embeds: [resultEmbed], components: [] });
+    });
+  }
+},
+{
+  name: "Bargain With the Charm",
+  description: "Offer part of your vitality to try and revive a fallen ally.",
+  async effect(interaction, gamePlayers, eliminatedPlayers) {
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('offerlife').setLabel('Offer Life').setStyle(ButtonStyle.Secondary)
+    );
+
+    const embed = new EmbedBuilder()
+      .setTitle("🤝 Bargain With the Charm")
+      .setDescription("You may sacrifice a life to revive someone random. The charm may accept… or ignore you.")
+      .setColor(0x888800);
+
+    const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
+    const collector = msg.createMessageComponentCollector({ time: 8000 });
+
+    const sacrificers = [];
+
+    collector.on('collect', async i => {
+      const player = gamePlayers.find(p => p.id === i.user.id);
+      if (!player || player.eliminated || player.lives < 2 || sacrificers.includes(i.user.id)) {
+        return i.reply({ content: "🩸 You don’t have enough life to offer.", ephemeral: true });
+      }
+
+      sacrificers.push(i.user.id);
+      player.lives -= 1;
+      await i.reply({ content: "☠️ You offer your life to the charm...", ephemeral: true });
+    });
+
+    collector.on('end', async () => {
+      const results = [];
+
+      for (const id of sacrificers) {
+        const player = gamePlayers.find(p => p.id === id);
+        if (!player) continue;
+
+        const candidates = eliminatedPlayers.filter(p => p.id !== id);
+        if (candidates.length === 0) continue;
+
+        const chosen = candidates[Math.floor(Math.random() * candidates.length)];
+        if (Math.random() < 0.5) {
+          chosen.eliminated = false;
+          chosen.lives = 1;
+          results.push(`💓 <@${id}> sacrificed and revived <@${chosen.id}>!`);
+        } else {
+          results.push(`🪦 <@${id}>'s sacrifice was rejected. No revival.`);
+        }
+      }
+
+      const resultEmbed = new EmbedBuilder()
+        .setTitle("🪙 The Bargain Complete")
+        .setDescription(results.join('\n') || "No one attempted a bargain.")
+        .setColor(0xcccc44);
+
+      await msg.edit({ embeds: [resultEmbed], components: [] });
+    });
+  }
+}  
 ];
 // --- Gauntlet Command Listeners (Reordered) ---
 client.on('messageCreate', async (message) => {
@@ -555,17 +947,17 @@ if (correctPlayers.length > 0) {
     }
 
     // Randomly select round type
-    const roll = Math.random();
-    if (roll < 0.4) {
-      await runEliminationRound(channel);
-    } else if (roll < 0.65) {
-      await runMutationEvent(channel);
-    } else if (roll < 0.9) {
-      await runMiniGameEvent(channel);
-    } else {
-      await channel.send("🌀 The charm hesitates... nothing happens.");
-    }
+    const eventRoll = Math.random();
 
+if (eventRoll < 0.2 && mutationCount < 4) {
+  await runMutationEvent(channel, gamePlayers, eliminatedPlayers);
+  mutationCount++;
+} else if (eventRoll < 0.35 && miniGameCount < 2) {
+  await runMiniGameEvent(channel, gamePlayers, eliminatedPlayers);
+  miniGameCount++;
+} else {
+  await runEliminationRound(channel, gamePlayers, eliminatedPlayers);
+}
     await wait(12000);
   }
 
@@ -699,6 +1091,8 @@ async function runMassRevivalEvent(channel) {
         }
       }
     }
+mutationCount = 0;
+miniGameCount = 0;
 
     const embed = new EmbedBuilder()
       .setTitle("🕯️ Totem Judgment")
