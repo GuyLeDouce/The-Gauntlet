@@ -87,11 +87,16 @@ function eliminatePlayerById(id) {
 
 function getRandomNftImage() {
   const useUgly = Math.random() < 0.5;
-  const tokenId = Math.floor(Math.random() * 700) + 1;
-  return useUgly
-    ? `https://opensea.io/assets/ethereum/0x9492505633d74451bdf3079c09ccc979588bc309/${tokenId}`
-    : `https://opensea.io/assets/ethereum/0xC38E2Ae060440c9269CcEB8C0EA8019a66Ce8927/${tokenId}`;
+
+  if (useUgly) {
+    const tokenId = Math.floor(Math.random() * 615) + 1;
+    return `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}`;
+  } else {
+    const tokenId = Math.floor(Math.random() * 126) + 1;
+    return `https://ipfs.io/ipfs/bafybeicydaui66527mumvml5ushq5ngloqklh6rh7hv3oki2ieo6q25ns4/${tokenId}.webp`;
+  }
 }
+
 // --- Lore Arrays ---
 const eliminationReasons = [
   "👟 tripped over a cursed shoelace and was never seen again.",
