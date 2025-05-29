@@ -1249,7 +1249,8 @@ async function runBossVotePhase(channel) {
     await runGauntlet(channel);
   });
 }
-
+let mutationCount = 0;
+const maxMutations = Math.floor(Math.random() * 3) + 2; // random number between 2–4
 async function runGauntlet(channel) {
   while (players.filter(p => !p.eliminated && p.lives > 0).length > 1) {
     await wait(12000); // 12-second pause between rounds
@@ -1280,18 +1281,18 @@ async function runGauntlet(channel) {
       }
     }
 
-    // 🎲 Random event type
-    const roll = Math.random();
-    if (roll < 0.4) {
-      await runEliminationRound(channel);
-    } else if (roll < 0.6) {
-      await runMutationEvent(channel, players);
-    } else if (roll < 0.8) {
-      await runMiniGameEvent(channel, players);
-    } else if (!massRevivalUsed) {
-      await triggerMassRevival(channel);
-    }
-  }
+   // 🎲 Random event type
+const roll = Math.random();
+if (roll < 0.4) {
+  await runEliminationRound(channel);
+} else if (roll < 0.6 && mutationCount < maxMutations) {
+  await runMutationEvent(channel, players);
+  mutationCount++;
+} else if (roll < 0.8) {
+  await runMiniGameEvent(channel, players);
+} else if (!massRevivalUsed) {
+  await triggerMassRevival(channel);
+}
 
   // 🎉 Game Over
   await showFinalPodium(channel);
