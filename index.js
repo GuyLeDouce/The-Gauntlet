@@ -1209,16 +1209,28 @@ const podiumEmbed = new EmbedBuilder()
   .setFooter({ text: isTrial ? "Simulation complete. Your ugliness has been noted." : "👁 Glory fades. Ugliness endures." })
   .setThumbnail('https://media.tenor.com/P0XbdLqz8c4AAAAd/death-skull.gif'); // swap for any epic/ugly gif you want
 
-await channel.send({ embeds: [podiumEmbed] });
-}
-// Save stats if not trial
-if (!isTrial) {
-  for (let i = 0; i < top3.length; i++) {
-    const player = top3[i];
-    if (!player) continue;
-    await updateStats(player.id, player.username, i === 0 ? 1 : 0, 0, 0);
+async function runGauntlet(channel, isTrial = false) {
+  // game logic here...
+
+  const top3 = [...finalists, ...eliminatedPlayers]
+    .sort((a, b) => (b.lives || 0) - (a.lives || 0))
+    .slice(0, 3);
+
+  const podiumEmbed = new EmbedBuilder()
+    .setTitle("🏆 The Gauntlet Has Ended")
+    .setDescription(`**1st:** <@${top3[0]?.id}>\n**2nd:** <@${top3[1]?.id}>\n**3rd:** <@${top3[2]?.id}>`)
+    .setColor(0x00ffcc);
+
+  await channel.send({ embeds: [podiumEmbed] });
+
+  if (!isTrial) {
+    for (let i = 0; i < top3.length; i++) {
+      const player = top3[i];
+      if (!player) continue;
+      await updateStats(player.id, player.username, i === 0 ? 1 : 0, 0, 0);
+    }
   }
-}
+
 
 // Reset game state
 gameActive = false;
@@ -1354,7 +1366,7 @@ async function runMassRevivalEvent(channel) {
     await channel.send({ embeds: [resultEmbed] });
   });
 }
-
+}
 // --- Update Stats in DB ---
 async function updateStats(userId, username, wins = 0, revives = 0, duels = 0) {
   const now = new Date();
