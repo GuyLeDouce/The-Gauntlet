@@ -77,52 +77,143 @@ function getRandomNftImage() {
 
 // --- Lore Arrays ---
 const eliminationReasons = [
-  "was swallowed by a sentient outhouse.",
-  "tripped over their own ego and fell into the abyss.",
-  "challenged a goose to a duel and lost.",
-  "thought the red button was candy. It wasn’t.",
-  "stood too close to the lorehole.",
-  "failed the vibe check and got booted.",
-  "opened the Charmhole and got sucked in.",
-  "tried to bribe the Ugly Gods with a Hot Pocket.",
-  "got rejected by every Monster... simultaneously.",
-  "poked the wrong toad and evaporated.",
-  "slipped on a pile of Squigs and disappeared.",
-  "lost a staring contest with the Void.",
-  "used their last neuron on a meme reply.",
-  "got eaten by their own echo.",
-  "wandered into the Molded Marketplace unprepared.",
-  "declared themselves 'Not Ugly' and got smited.",
-  "asked too many questions about $CHARM.",
-  "unwrapped a cursed burrito.",
-  "tried to craft a perfect Ugly and paid the price.",
-  "opened a cursed vending machine prize."
+"👟 tripped over a cursed shoelace and was never seen again.",
+"👁️‍🗨️ challenged the charm to a staring contest. Lost. Badly.",
+"🕺 mistook the ritual circle for a dance floor. The charm was not amused.",
+"🪞 stepped into a mirror and got stuck arguing with their prettier self.",
+"🔮 asked the Oracle too many questions. Was swallowed by punctuation.",
+"📧 accidentally hit 'Reply All' to the voices in their head.",
+"🪨 licked a glowing rock labeled 'Do Not Lick.'",
+"💪 tried to flex mid-round and tore reality (and themselves).",
+"🔴 pressed the charm’s big red button. Instantly gone.",
+"📊 was voted 'Most Likely to Die Next' — statistically accurate.",
+"🎲 rolled a nat 1 while attempting to survive.",
+"🕳️ opened the charmhole and fell in yelling 'YOLO!'",
+"📖 got cursed by the lore mid-sentence. Didn’t finish it.",
+"🪜 reached for glory, grabbed a trapdoor instead.",
+"🧙 told the charm they 'don’t believe in magic.' The charm believed in them.",
+"😈 accidentally summoned their sleep paralysis demon. It was punctual.",
+"📦 chose the mystery box. It contained instant regret.",
+"💨 snorted powdered $CHARM. Not how it works.",
+"🗣️ declared themselves immune. The charm took it personally.",
+"🍗 tried to eat the ritual offering. It bit back.",
+"🌑 lost a staring contest with their own shadow.",
+"👑 put on the Crown of Revivals. It fit. Too well.",
+"🧠 forgot to update their resurrection firmware.",
+"🥄 got distracted by their reflection in a spoon. It lunged first.",
+"🐉 tried to solo the lore boss. The lore boss soloed back."
+"🫀 tried to trade hearts with a Monster. Got the short end of the artery.",
+"📺 answered a call from an unplugged television. Now they’re static.",
+"🪤 walked into the charm’s trap labeled 'Free Win.'",
+"🧼 attempted to cleanse the ugliness. Got washed away.",
+"🌪️ got swept up in a lore storm and mispronounced the incantation.",
+"🧃 drank from the wrong ritual cup. It was juice… of the damned.",
+"🪚 cut a deal with fate. Forgot to read the fine print.",
+"🧌 mocked a malformed idol. It blinked. They didn’t.",
+"💣 rage quit the round. The round retaliated.",
+"📉 invested in hope. Market crashed.",
+"🍄 ate the cursed mushroom. It bit back. Twice.",
+"🔦 tried to shine light on the lore. The lore eats light.",
+"🛏️ fell asleep mid-Gauntlet. The dream took over.",
+"🧩 solved the puzzle… incorrectly.",
+"📿 wore a fake charm. Got exposed mid-round. Eliminated by shame.",
+"🚪 opened a mysterious door. Walked into their own ending.",
+"🪫 ran out of narrative energy. Battery dead. Arc collapsed.",
+"🌘 stared too long at the second moon. It noticed.",
+"📌 was pinned to the wall by fate. No refunds.",
+"🔑 unlocked forbidden knowledge. It slammed shut behind them.",
+"🥵 overheated from flexing too hard. Instant evaporation.",
+"🕳️ found a shortcut. It led directly to elimination.",
+"🔁 looped their revival too many times. The charm hit undo.",
+"🪞 tried to kiss their doppelgänger. One had to go.",
+"🪺 poked the egg of prophecy. It hatched — poorly — and claimed them."
 ];
 
 const reviveSuccessMessages = [
-  "clawed their way out of the abyss!",
-  "used an Uno Reverse card on death!",
-  "glitched back into reality.",
-  "offered a single $CHARM and was forgiven.",
-  "rode an Ugly Monster back to life.",
-  "convinced the Reaper with a knock-knock joke.",
-  "got spit out by the Charmhole.",
-  "won a revival raffle while dead.",
-  "screamed 'I’m still Ugly!' and respawned.",
-  "traded 3 memes for one more shot."
+"✨ The charm sputters, screams… then works. You’re back, somehow stronger.",
+"🩸 You claw your way through the charmhole. You emerge — uglier and alive.",
+"🫀 Your heartbeat syncs with the chant. You live again. For now.",
+"🦴 You reassemble. It’s not perfect. It’s not supposed to be.",
+"🔮 The charm rolls the dice… and favors your ugly fate. Welcome back.",
+"🌑 A shadow peels off the wall and becomes… you. Alive. Barely.",
+"🪓 You cut through the veil with pure willpower. The charm bows slightly.",
+"🌫️ The fog spits you out. It missed you, apparently.",
+"🧟 You stumble back into the realm. Death shrugs and lets you go… this time.",
+"🎭 You wear your old face like a mask. It fits just enough to survive.",
+"🔥 The charm ignites. You burn back into being.",
+"🎯 You hit the one-in-a-million shot. The charm coughs and resurrects you.",
+"📢 The void announces your return. You flex in response.",
+"👣 You step back into the world… leaving a muddy footprint on death’s chest.",
+"🧩 You were missing a piece. The charm found it. You’re whole-ish now.",
+"🕳️ You crawl out of nonexistence covered in lore juice. It works.",
+"🪙 You flipped your fate — and landed on ‘Back in it, baby.’",
+"🕯️ A candle lights itself for you. One life. One more chance.",
+"⚡ You’re zapped alive with leftover electricity from a failed ritual.",
+"🪄 Someone else’s wish went wrong… and accidentally revived you. Oops."
+"🧠 You out-think death. Barely. It still calls you occasionally.",
+"🎮 You press the right combo. The charm gives you one extra life.",
+"🪆 You unfold from within yourself. You’re back… but not alone.",
+"🩻 Your bones knit themselves while chanting. You stand. Ugly. Alive.",
+"🧵 You are stitched back together by unseen hands. The thread hums.",
+"🌪️ You return like a glitch in the wind. No one saw it coming.",
+"🥩 Your soul slaps back into your meat. It jiggles approvingly.",
+"📼 You rewind your fate like an old tape. It clicks. You breathe.",
+"🧃 The charm drinks your regret. You ooze back into being.",
+"🪰 You come back… followed by a suspicious swarm of flies. Still counts.",
+"🔋 You charge back up. Slightly unstable. Wildly determined.",
+"📡 You receive a signal from beyond. It contains resurrection instructions. You follow them. They work.",
+"🧊 You thaw out mid-sentence. The sentence was: 'I’M NOT DONE.'",
+"🪦 Dirt spits you out like a bad joke. The world groans at your return.",
+"🧲 You attract your soul like a rusty magnet. It clicks into place with a shudder.",
+"🪄 The charm hiccups. You’re standing again. Don’t question it.",
+"🫁 You gasp awake. It echoes louder than it should.",
+"🕳️ You step out of a hole in logic. Nobody dares ask how.",
+"📜 A forgotten rule in the lore grants you this one revival. Use it well.",
+"🌈 A very cursed rainbow touches you. You sparkle briefly. You’re back."
 ];
 
 const reviveFailureMessages = [
-  "tried to return, but the portal slammed shut.",
-  "nearly made it, then tripped on lore.",
-  "offered expired $COFFEE tokens.",
-  "got denied by the Totem of Lost Souls.",
-  "accidentally revived someone else.",
-  "got distracted by Monster merch.",
-  "hit 'Reply All' and vanished from time.",
-  "pushed the wrong summoning button.",
-  "tried to flex and pulled a hammy mid-respawn.",
-  "lost a debate with the Ugly Oracle."
+"🪦 The charm fizzles. You re-die in a slightly more embarrassing pose.",
+"🫠 Your soul gets stuck halfway out. Even the void winces.",
+"🐸 You croak your plea. The charm responds: ‘lol no.’",
+"🪚 You almost make it… but trip on your own legacy.",
+"🦷 The charm cracks a tooth biting into your fate. It spits you out.",
+"🪞 You see your reflection. It shrugs. You fade.",
+"🫥 Revival denied. You are deemed ‘too moist.’",
+"📦 Your resurrection request is lost in the mail. Postmarked: Never.",
+"🧃 You liquefy. The others pretend not to notice.",
+"🪰 The ritual flies away with your chances. Literally.",
+"🎯 You hit the wrong button. You come back… as dust.",
+"🔌 You almost connect… but someone pulls the plug on you again.",
+"🪓 You are chopped from the comeback list by an intern at the Charmhole.",
+"🥄 You spoon-fed the charm your hopes. It spit them out with a slurp.",
+"🧠 Your brain reboots mid-revival. You forget how to reincarnate.",
+"📴 You call out. No one answers. Revival is currently offline.",
+"🪵 You are too ugly for the afterlife, yet too dead for the Ugly. Unlucky.",
+"🐈‍⬛ You get revived… but immediately stub your toe and die again.",
+"🍽️ The charm prepares to serve you… as a side dish.",
+"🪜 You climb back to life… but the ladder is greased with irony."
+"🥔 Your comeback attempt is boiled alive in disappointment.",
+"🪤 You trigger a charm trap. All you revive as is regret.",
+"🎷 The afterlife plays you a jazz solo. You fail to revive, but it's a bop.",
+"🧻 You were summoned with the wrong incantation — now you’re just a cursed tissue.",
+"🚫 The charm denies your form. Try again in the next life. Or don’t.",
+"🩹 You almost patched reality… but slipped on your own narrative arc.",
+"🐌 You return as a slow idea and get outpaced by death itself.",
+"📡 You receive static instead of a second chance.",
+"🧂 You are seasoned but unrevived. The ritual was hungry, not generous.",
+"📘 Your story had a comeback planned. The author rage quit.",
+"🎢 You ride the rollercoaster of resurrection. It derails spectacularly.",
+"👁️ The charm sees into your soul… and quietly deletes it.",
+"🧃 You got poured into the wrong vessel. It had a leak.",
+"🔕 The charm is currently in do-not-disturb mode.",
+"🧊 You froze mid-revival. Someone is using your soul as an ice cube.",
+"🧺 You are placed in the spiritual lost-and-found. No one claims you.",
+"🔧 The resurrection mechanism jams. You're stuck in a loading screen.",
+"📆 You picked a bad day to come back. Revival is scheduled for next Tuesday.",
+"🕸️ You revive briefly… but a spider claims your corpse as property.",
+"🪗 You play the accordion of fate. The charm hates accordions."
+
 ];
 // --- Mutation Events ---
 const mutationEvents = [
@@ -263,6 +354,26 @@ const warpEchoes = [
   "💽 A voice whispers, ‘You were never meant to survive this round.’",
   "📡 Static builds. A malformed broadcast interrupts reality: **‘WE ARE SO BACK’**",
   "💀 A countdown begins. No one started it. No one knows what it’s for."
+  "🧠 The ceiling whispers your birth name backwards. No one else seems to hear it.",
+  "🪞 Every surface reflects something slightly wrong… and it’s getting closer.",
+  "🫧 Your skin forgets how to be skin. It tries on fur. Then stone. Then teeth.",
+  "🎈 A balloon floats by, pulsing like a heart. It’s labeled ‘YOU WERE WANTED.’",
+  "📞 A phone rings. You don’t have one. You answer. It’s your future sobbing.",
+  "🫀 You feel a second heartbeat. It’s not yours. It’s louder.",
+  "🎵 The music stops. It never started.",
+  "📦 A box appears. It's nailed shut and hissing softly. It knows your birthday.",
+  "🫣 Someone just blinked in Morse code. You blink back. It responds.",
+  "🪶 A feather falls upward. Then it screams.",
+  "🦴 Something knocks from the inside of your bones.",
+  "📘 A book writes itself in real time. Every page begins with your last mistake.",
+  "🚪 A door opens to a hallway made of your regrets. You’ve been here before.",
+  "🩻 Your shadow flickers. It raises a finger to its lips.",
+  "🫥 You forget your name. The floor whispers a new one.",
+  "🕳️ There’s a hole in the sky. It looks… hungry.",
+  "🎭 You feel watched. You’ve always been watched. The watchers are clapping.",
+  "📍You step where no one else has stepped. Your foot sinks into a memory.",
+  "🪰 A swarm of flies spells out a question. You understand it. You wish you didn’t.",
+  "🎮 You see a HUD appear. Health: ??? / Sanity: ! / Objective: 'Stay Ugly'"
 ];
 
 // --- Ugly Oracle Riddles ---
@@ -286,7 +397,84 @@ const uglyOracleRiddles = [
   {
     riddle: "Break me, and I am free. Hold me, and I rot. Share me, and I live. What am I?",
     answer: "Secret"
-  }
+  },
+  {
+  riddle: "I wear many faces but none are mine. You created me in haste, and now I speak in your voice. What am I?",
+  answer: "Mask"
+},
+{
+  riddle: "You abandon me when you're full, crave me when you're empty. I live in your belly and whisper at night. What am I?",
+  answer: "Hunger"
+},
+{
+  riddle: "I wait in every mirror but never blink. I age with you, but only in reverse. What am I?",
+  answer: "Reflection"
+},
+{
+  riddle: "My truth is ugly, my silence louder. I live between your questions and never leave whole. What am I?",
+  answer: "Answer"
+},
+{
+  riddle: "I die in light, thrive in shame. I wrap around your thoughts and feed on regret. What am I?",
+  answer: "Guilt"
+},
+{
+  riddle: "You drag me forward but never look back. I follow you always but never lead. What am I?",
+  answer: "Past"
+},
+{
+  riddle: "Once given, I cannot be returned. Once taken, I can’t be ignored. I hurt more when ignored. What am I?",
+  answer: "Blame"
+},
+{
+  riddle: "I was born when beauty died. I grow where rot thrives. I crown the malformed. What am I?",
+  answer: "Charm"
+},
+{
+  riddle: "No shape, no form, but you feel me claw. I haunt your calm and feast on hope. What am I?",
+  answer: "Doubt"
+},
+  {
+  riddle: "You craft me with lies, dress me in smiles, parade me in crowds. But alone, I rot. What am I?",
+  answer: "Ego"
+},
+{
+  riddle: "I scream in silence, walk without feet, and sink deepest in sleep. What am I?",
+  answer: "Nightmare"
+},
+{
+  riddle: "You hide me behind words, but I always bleed through. I stain your history. What am I?",
+  answer: "Truth"
+},
+{
+  riddle: "Broken once, I turn to ash. Touched gently, I shine. Held too tightly, I shatter. What am I?",
+  answer: "Trust"
+},
+{
+  riddle: "I am born the moment you’re seen. I die in solitude. I can lift or crush. What am I?",
+  answer: "Judgment"
+},
+{
+  riddle: "Fed by fear, I crawl beneath your skin. I am ugly, but I am yours. What am I?",
+  answer: "Insecurity"
+},
+{
+  riddle: "My voice is sweet, my cost is high. I promise everything, then take it all. What am I?",
+  answer: "Temptation"
+},
+{
+  riddle: "I carry your name but not your voice. I live forever but change with every story. What am I?",
+  answer: "Memory"
+},
+{
+  riddle: "I slither through wires, wear masks of light, and echo your worst ideas. What am I?",
+  answer: "Internet"
+},
+{
+  riddle: "I am ugly made eternal. I glow when burned. I hunger for holders. What am I?",
+  answer: "NFT"
+},
+  
 ];
 
 // --- Uglychants (Formerly Quirkling Chants) ---
@@ -383,6 +571,7 @@ async function startGauntlet(channel, trial = false) {
   rematchVotes.clear();
   eliminatedPlayers = [];
 
+
   await channel.send(trial
     ? "🧪 **Trial Mode Activated!** Mock players enter the chaos..."
     : "🌀 **The Gauntlet begins now!** Prepare to be twisted."
@@ -458,7 +647,7 @@ async function runBossVotePhase(channel) {
 }
 async function runGauntlet(channel) {
   while (players.filter(p => !p.eliminated && p.lives > 0).length > 1) {
-    await wait(8000); // 8-second pause between rounds
+    await wait(12000); // 12-second pause between rounds
 
     // 💬 Random Lore Flavor (20% chance each)
     if (Math.random() < 0.2 && warpEchoes.length) {
@@ -471,11 +660,11 @@ async function runGauntlet(channel) {
     }
     if (Math.random() < 0.1 && uglyOracleRiddles.length) {
       const oracle = shuffleArray(uglyOracleRiddles)[0];
-      await channel.send(`🔮 **The Ugly Oracle speaks:**\n_${oracle.riddle}_\n(Answer in chat within 10 seconds to survive)`);
+      await channel.send(`🔮 **The Ugly Oracle speaks:**\n_${oracle.riddle}_\n(Answer in chat within 30 seconds to survive)`);
 
       const filter = m => !m.author.bot && oracle.answer.toLowerCase() === m.content.trim().toLowerCase();
       try {
-        const response = await channel.awaitMessages({ filter, max: 1, time: 10000, errors: ["time"] });
+        const response = await channel.awaitMessages({ filter, max: 1, time: 30000, errors: ["time"] });
         const winner = players.find(p => p.id === response.first().author.id);
         if (winner) {
           winner.lives++;
@@ -519,9 +708,13 @@ async function runEliminationRound(channel) {
     lines.push(`☠️ <@${player.id}> ${reason}`);
   }
 
+  const totalPlayers = players.length;
+  const survivors = players.filter(p => !p.eliminated && p.lives > 0).length;
+  const statusLine = `🎯 Players Remaining: ${survivors} / ${totalPlayers}`;
+
   const embed = new EmbedBuilder()
     .setTitle("🩸 Elimination Round")
-    .setDescription(lines.join("\n"))
+    .setDescription(`${statusLine}\n\n${lines.join("\n")}`)
     .setImage(getRandomNftImage())
     .setColor("DarkRed");
 
