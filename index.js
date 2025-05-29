@@ -1081,10 +1081,11 @@ async function runBossVotePhase(channel) {
   });
 }
 
-// --- Main Gauntlet Loop ---
 async function runGauntlet(channel, isTrial = false) {
   let round = 0;
   const totalPlayers = gamePlayers.length;
+  mutationCount = 0;
+  miniGameCount = 0;
 
   while (gamePlayers.filter(p => !p.eliminated).length > 3) {
     round++;
@@ -1094,123 +1095,94 @@ async function runGauntlet(channel, isTrial = false) {
     await wait(8000);
     await channel.send(`🔄 **Round ${round}** begins! (${aliveCount}/${totalPlayers} remain)`);
 
-    // 20% chance: Warp Echo
     if (Math.random() < 0.4) {
       const echo = warpEchoes[Math.floor(Math.random() * warpEchoes.length)];
       await channel.send(`🌌 ${echo}`);
       await wait(3000);
     }
 
-    // 15% chance: Ugly Chant
     if (Math.random() < 0.2) {
       const chant = uglychants[Math.floor(Math.random() * uglychants.length)];
       await channel.send(`🔊 *Ugly Chant:* "${chant}"`);
       await wait(2500);
     }
 
-    // 10% chance: Ugly Oracle Riddle
     if (Math.random() < 0.2) {
       const riddle = uglyOracleRiddles[Math.floor(Math.random() * uglyOracleRiddles.length)];
       const embed = new EmbedBuilder()
         .setTitle("🔮 Ugly Oracle Riddle")
         .setDescription(`> ${riddle.question}\n\nReply with the answer in the next **30 seconds** to gain a life.`)
         .setColor(0xaa00aa);
-
       await channel.send({ embeds: [embed] });
 
-      const collected = await channel.awaitMessages({
-        filter: m => !m.author.bot,
-        time: 30000
+      const collected = await channel.awaitMessages({ filter: m => !m.author.bot, time: 30000 });
+      const correctPlayers = [];
+
+      collected.forEach(msg => {
+        if (msg.content.toLowerCase().includes(riddle.answer)) {
+          const player = gamePlayers.find(p => p.id === msg.author.id);
+          if (player && !player.eliminated) {
+            player.lives++;
+            correctPlayers.push(player);
+          }
+        }
       });
 
-     const correctPlayers = [];
-
-collected.forEach(msg => {
-  if (msg.content.toLowerCase().includes(riddle.answer)) {
-    const player = gamePlayers.find(p => p.id === msg.author.id);
-    if (player && !player.eliminated) {
-      player.lives++;
-      correctPlayers.push(player);
-    }
-  }
-});
-
-if (correctPlayers.length > 0) {
-  const list = correctPlayers.map(p => `<@${p.id}>`).join(', ');
-  await channel.send(`🧠 The charm acknowledges the clever ones: ${list} — each gains **+1 life**.`);
-} else {
-  await channel.send(`🤷‍♂️ No one solved the Oracle's riddle. The charm remains unimpressed.`);
-}
+      if (correctPlayers.length > 0) {
+        const list = correctPlayers.map(p => `<@${p.id}>`).join(', ');
+        await channel.send(`🧠 The charm acknowledges the clever ones: ${list} — each gains **+1 life**.`);
+      } else {
+        await channel.send(`🤷‍♂️ No one solved the Oracle's riddle. The charm remains unimpressed.`);
+      }
 
       await wait(2000);
-    
+    }
 
-    // Trigger Mass Revival if 50% or more eliminated and not yet done
-    if (!revivalAttempted && eliminatedPlayers.length >= totalPlayers / 2) {
-      revivalAttempted = true;
+    const roll = Math.random();
+    if (roll < 0.2 && miniGameCount < 2) {
+      await runMiniGameEvent(channel);
+      miniGameCount++;
+    } else if (roll < 0.4 && mutationCount < 4) {
+      await runMutationEvent(channel);
+      mutationCount++;
+    } else if (roll < 0.5 && gamePlayers.length > 4) {
       await runMassRevivalEvent(channel);
-      await wait(12000);
+    } else {
+      await runEliminationRound(channel);
     }
   }
-    // Randomly select round type
-    const eventRoll = Math.random();
 
-if (eventRoll < 0.2 && mutationCount < 4) {
-  await runMutationEvent(channel, gamePlayers, eliminatedPlayers);
-  mutationCount++;
-} else if (eventRoll < 0.35 && miniGameCount < 2) {
-  await runMiniGameEvent(channel, gamePlayers, eliminatedPlayers);
-  miniGameCount++;
-} else {
-  await runEliminationRound(channel, gamePlayers, eliminatedPlayers);
-}
-    await wait(12000);
+  const finalists = gamePlayers.filter(p => !p.eliminated);
+  const top3 = [...finalists, ...eliminatedPlayers]
+    .sort((a, b) => (b.lives || 0) - (a.lives || 0))
+    .slice(0, 3);
+
+  const podiumEmbed = new EmbedBuilder()
+    .setTitle(isTrial ? "🎭 Trial Gauntlet Complete" : "👑 The Gauntlet Has Crowned Its Champions")
+    .setDescription(`🏅 **1st Place:** <@${top3[0]?.id || '???'}>\n🥈 **2nd Place:** <@${top3[1]?.id || '???'}>\n🥉 **3rd Place:** <@${top3[2]?.id || '???'}>`)
+    .setColor(isTrial ? 0x888888 : 0xfcc201)
+    .setFooter({ text: isTrial ? "This was only a simulation..." : "Ugly. Eternal. Victorious." });
+
+  await channel.send({ embeds: [podiumEmbed] });
+
+  if (!isTrial) {
+    for (let i = 0; i < top3.length; i++) {
+      const player = top3[i];
+      if (!player) continue;
+      await updateStats(player.id, player.username, i === 0 ? 1 : 0, 0, 0);
+    }
   }
 
- // Game over — determine podium
-const finalists = gamePlayers.filter(p => !p.eliminated);
-const top3 = [...finalists, ...eliminatedPlayers]
-  .sort((a, b) => (b.lives || 0) - (a.lives || 0))
-  .slice(0, 3);
+  gameActive = false;
+  autoRestartCount = 0;
 
-function getFinalFlair(rank) {
-  const flair = {
-    gold: [
-      'Ascended through ugliness.',
-      'Champion of the malformed.',
-      'Crowned by the charm itself.'
-    ],
-    silver: [
-      'One lash from victory.',
-      'Still dripping with near-glory.',
-      'The charm almost chose you.'
-    ],
-    bronze: [
-      'Ugly... but not forgotten.',
-      'You clawed through the chaos.',
-      'Dragged across the charmhole.'
-    ]
-  };
-  const options = flair[rank];
-  return options[Math.floor(Math.random() * options.length)];
+  if (!isTrial) {
+    await showRematchButton(channel, gamePlayers);
+  }
 }
 
-const podiumEmbed = new EmbedBuilder()
-  .setTitle(isTrial ? "⚙️ Trial Gauntlet Complete" : "💀 The Gauntlet Has Ended")
-  .setDescription(
-    top3.length
-      ? `The charm has spoken. These three warped their way to the end:\n\n` +
-        `👑 **1st:** <@${top3[0]?.id || '???'}>\n*${getFinalFlair('gold')}*\n\n` +
-        `🥈 **2nd:** <@${top3[1]?.id || '???'}>\n*${getFinalFlair('silver')}*\n\n` +
-        `🥉 **3rd:** <@${top3[2]?.id || '???'}>\n*${getFinalFlair('bronze')}*`
-      : `Not a single Ugly survived... The charm devours all.`
-  )
-  .setColor(isTrial ? 0x888888 : 0xff0066)
-  .setFooter({ text: isTrial ? "Simulation complete. Your ugliness has been noted." : "👁 Glory fades. Ugliness endures." })
-  .setThumbnail('https://media.tenor.com/P0XbdLqz8c4AAAAd/death-skull.gif'); // swap for any epic/ugly gif you want
-
 async function runGauntlet(channel, isTrial = false) {
-  // game logic here...
+  // ... entire gauntlet game logic ...
 
   const top3 = [...finalists, ...eliminatedPlayers]
     .sort((a, b) => (b.lives || 0) - (a.lives || 0))
@@ -1231,13 +1203,13 @@ async function runGauntlet(channel, isTrial = false) {
     }
   }
 
+  // Reset game state
+  gameActive = false;
+  autoRestartCount = 0;
 
-// Reset game state
-gameActive = false;
-autoRestartCount = 0;
-
-if (!isTrial) {
-  await showRematchButton(channel, gamePlayers);
+  if (!isTrial) {
+    await showRematchButton(channel, gamePlayers);
+  }
 }
 
 // --- Elimination Round ---
@@ -1256,7 +1228,9 @@ async function runEliminationRound(channel) {
 
   const embed = new EmbedBuilder()
     .setTitle("💀 Casualties This Round")
-    .setDescription(toEliminate.map(p => `• <@${p.id}> ${eliminationReasons[Math.floor(Math.random() * eliminationReasons.length)]}`).join('\n'))
+    .setDescription(toEliminate.map(p =>
+      `• <@${p.id}> ${eliminationReasons[Math.floor(Math.random() * eliminationReasons.length)]}`
+    ).join('\n'))
     .setColor(0xff4444)
     .setImage(getRandomNftImage());
 
@@ -1365,7 +1339,6 @@ async function runMassRevivalEvent(channel) {
 
     await channel.send({ embeds: [resultEmbed] });
   });
-}
 }
 // --- Update Stats in DB ---
 async function updateStats(userId, username, wins = 0, revives = 0, duels = 0) {
