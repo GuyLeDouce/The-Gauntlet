@@ -54,12 +54,21 @@ function getRandomAlivePlayers(count) {
   return shuffleArray(players.filter(p => !p.eliminated && p.lives > 0)).slice(0, count);
 }
 
+// ID-based elimination
 function eliminatePlayerById(userId) {
   const player = players.find(p => p.id === userId);
   if (player) {
     player.eliminated = true;
     player.lives = 0;
   }
+}
+
+// Object-based elimination with reason
+function eliminatePlayer(player, reason = "eliminated.") {
+  player.lives = 0;
+  player.eliminated = true;
+  player.eliminationReason = reason;
+  eliminatedPlayers.push(player);
 }
 
 function sendGameMessage(content) {
@@ -1345,16 +1354,37 @@ async function runMutationEvent(channel, players) {
     .setColor("Purple")
     .setImage(getRandomNftImage());
 
-  await channel.send({ embeds: [embed] });
+  const message = await channel.send({ embeds: [embed] });
   await wait(4000);
 
   try {
-    await mutation.effect(channel, players);
+    const clickedUsers = new Set();
+
+    const collector = message.createMessageComponentCollector({ time: 10000 });
+
+    collector.on("collect", async interaction => {
+      if (clickedUsers.has(interaction.user.id)) {
+        await interaction.reply({ content: '❗ You already clicked!', ephemeral: true });
+        return;
+      }
+
+      clickedUsers.add(interaction.user.id);
+      await interaction.deferUpdate();
+
+      // You can pass the user and ID to the effect for processing
+      await mutation.effect(interaction, players);
+    });
+
+    collector.on("end", async () => {
+      await channel.send("☠️ Mutation event concluded.");
+    });
+
   } catch (err) {
     console.error(`❌ Error running mutation effect (${mutation.name}):`, err);
     await channel.send(`⚠️ Mutation event **${mutation.name}** glitched.`);
   }
 }
+
 
 // --- MINI-GAME EVENT ---
 async function runMiniGameEvent(channel, players) {
@@ -1366,16 +1396,37 @@ async function runMiniGameEvent(channel, players) {
     .setColor("Orange")
     .setImage(getRandomNftImage());
 
-  await channel.send({ embeds: [embed] });
+  const message = await channel.send({ embeds: [embed] });
   await wait(4000);
 
   try {
-    await game.interaction(channel, players);
+    const clickedUsers = new Set();
+
+    const collector = message.createMessageComponentCollector({ time: 10000 });
+
+    collector.on("collect", async interaction => {
+      if (clickedUsers.has(interaction.user.id)) {
+        await interaction.reply({ content: '❗ You already played this game!', ephemeral: true });
+        return;
+      }
+
+      clickedUsers.add(interaction.user.id);
+      await interaction.deferUpdate();
+
+      // Pass the interaction and player list to the game logic
+      await game.interaction(interaction, players);
+    });
+
+    collector.on("end", async () => {
+      await channel.send("🏁 Mini-game has ended.");
+    });
+
   } catch (err) {
     console.error(`❌ Error running mini-game (${game.name}):`, err);
     await channel.send(`⚠️ Mini-game **${game.name}** broke reality a little.`);
   }
 }
+
 
 // --- MASS REVIVAL EVENT ---
 async function triggerMassRevival(channel) {
