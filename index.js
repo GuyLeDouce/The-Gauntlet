@@ -117,61 +117,234 @@ const eliminationReasons = [
   "📦 opened a mystery box and got consumed by it.",
   "👻 got ghosted — literally.",
   "🌪️ summoned a wind and forgot to duck.",
-  "🐸 kissed a cursed frog. Became the frog. Was stepped on."
+  "🐸 kissed a cursed frog. Became the frog. Was stepped on.",
+  "🦴 offered a bone to the wrong altar. Got eaten by the altar.",
+  "🕯️ lit a candle that screamed. Didn’t blow it out fast enough.",
+  "📿 fumbled the incantation and summoned their own doom.",
+  "🪚 played 'Would You Rather' with the Gauntlet. Lost.",
+  "🐍 tried to speak Parseltongue. Spoke it too well.",
+  "🍄 ate a mushroom that grew upside-down. So did they.",
+  "🔔 rang the bell of endings. Didn’t read the fine print.",
+  "📼 watched a cursed VHS. Forgot to rewind.",
+  "💼 found a briefcase full of teeth. Took it. Regretted it.",
+  "👒 put on the fancy hat. Became the fancy hat.",
+  "🎩 was chosen by The Hat. The Hat was hungry.",
+  "🚪 opened a door marked 'Nope.' Went in anyway.",
+  "🛏️ laid down for a nap mid-game. Never woke up.",
+  "🎭 changed their mask and lost themselves.",
+  "🪄 tried to cast 'Revive.' Got reversed.",
+  "📎 stapled their fate to the wrong timeline.",
+  "📱 swiped left on destiny. It swiped back.",
+  "🔗 clicked an airdrop. Became the drop.",
+  "💿 played a forbidden song. Danced into the void.",
+  "🐚 listened to a conch shell. Heard their own death.",
+  "🎤 shouted “I’m invincible!” Cue dramatic irony.",
+  "🚽 flushed something sacred. Gauntlet didn’t approve.",
+  "🎮 paused the game. Gauntlet didn’t.",
+  "🛹 failed a sick trick. Got sick. Then tricked.",
+  "🩰 danced too close to the edge of logic.",
+  "🧽 scrubbed away the only rule keeping them alive.",
+  "🦷 bit into a charm biscuit. Wasn’t food.",
+  "🕰️ asked what time it was. Answer: Time to die.",
+  "🖋️ signed a contract mid-round. Didn’t read clause 666.",
+  "🔐 locked the wrong door. From the inside.",
+  "📖 skipped a lore page. Got skipped in return.",
+  "🎯 aimed for glory. Hit the floor-y."
 ];
+
 
 const reviveSuccessLines = [
-  "✨ emerged from the Charmhole, reeking of glory!",
-  "🕯️ lit the right candle — fate reconsidered.",
-  "💀 tore through the veil and screamed, 'I'm not done yet!'",
-  "📿 whispered the ancient Uglychant and was reborn.",
-  "👃 sniffed the scent of battle and couldn’t resist returning.",
-  "👣 stomped their way back in with rage and rhythm.",
-  "🫀 came back pulsing with malformed life!",
-  "🎭 faked their death. Classic move."
+  "🕯️ rose from the ashes like a confused phoenix.",
+  "🧠 remembered the cheat code to respawn.",
+  "📦 broke out of the mystery box. Slightly damaged.",
+  "🔁 glitched back into reality. Don’t question it.",
+  "🎯 hit the sweet spot on the charm. It purred.",
+  "🛏️ power-napped through death. Refreshed!",
+  "📢 yelled 'DO OVER!' loud enough. It worked.",
+  "🔮 reassembled their atoms from a bad prophecy.",
+  "🎲 gambled their soul and hit a nat 20.",
+  "🧷 held it together with one paperclip and hope.",
+  "🧛 un-died out of pure spite.",
+  "📺 watched the post-credit scene. Surprise: revival!",
+  "💉 injected with 100ccs of sheer willpower.",
+  "🎤 dropped a comeback line so hard it reversed fate.",
+  "🐾 followed a ghost dog back to the living.",
+  "🧼 cleaned up their death scene and got let off.",
+  "🪙 tossed a coin into the charm’s well. Got lucky.",
+  "🪞 reflected on their mistakes. Came back enlightened.",
+  "🫧 floated to the surface of the void like a bubble.",
+  "💡 had a bright idea. So bright it blinded Death."
 ];
+
 
 const reviveFailLines = [
-  "☠️ begged the charm for mercy. The charm laughed.",
-  "🚫 tried to re-enter but was banned by reality.",
-  "🥀 faded like a forgotten chant.",
-  "⏳ asked for time. Time declined.",
-  "🔁 attempted revival... but glitched out of existence.",
-  "🪙 flipped the coin of fate. It landed on 'nope.'",
-  "🌫️ wandered into the mist and never emerged.",
-  "🙃 almost made it. Almost."
+  "🪦 tugged at fate's sleeve. Got shrugged off.",
+  "💀 asked nicely. The charm laughed.",
+  "🚪 knocked on the door of life. It was locked.",
+  "🔮 begged the Oracle. The Oracle was on lunch break.",
+  "🛸 beamed up… to the wrong dimension.",
+  "📉 investment in reincarnation did not pay off.",
+  "🪤 baited the trap. Became the bait.",
+  "📛 name tag still said 'Eliminated.' No entry.",
+  "🧻 slipped in the underworld bathroom. Gone again.",
+  "🔋 revival battery: critically low.",
+  "🧊 tried to look cool. Froze instead.",
+  "🎭 wore the mask of life. It didn’t fit.",
+  "🧩 put the wrong soul in the wrong body.",
+  "🎰 pulled the lever. Got three skulls.",
+  "🧃 drank the wrong elixir. Felt super dead.",
+  "🪑 sat in the revival chair. It was a mimic.",
+  "📼 rewound fate too far. Erased self.",
+  "🛑 stepped on a comeback glyph. It said 'Nope.'",
+  "🔕 silence wasn't golden. It was fatal.",
+  "🌚 whispered a wish to the wrong moon."
 ];
+
 
 const warpEchoes = [
-  "*You hear a voice echo through the void…*",
-  "*Reality flickers like bad Wi-Fi…*",
-  "*Something just blinked. It wasn’t you.*",
-  "*The ground whispers forgotten names.*",
-  "*Warped time tastes like burnt marshmallows.*",
-  "*The Charm trembles. Someone important just joined.*",
-  "*Past and future collide. It's Tuesday now.*",
-  "*The echo asks: Are you even real?*"
+  "🌀 'All doors are open. None should be.'",
+  "🫧 'Reality twitches. Hold onto something soft.'",
+  "💤 'The charm is dreaming. You're the nightmare.'",
+  "🕷️ 'A hundred eyes blink at once. Then none.'",
+  "📿 'Your choices are whispers in a storm.'",
+  "📡 'Someone is watching. They don’t blink.'",
+  "🧵 'You were stitched together wrong. The thread knows.'",
+  "🔄 'The loop loops again. Was this the first time?'",
+  "🌑 'Something behind the moon just blinked back.'",
+  "💽 'Memory overwritten. You were never here.'",
+  "📯 'The horn sounds backwards. So does time.'",
+  "🐚 'The seashell whispers in reverse.'",
+  "📖 'The pages are all blank — but bleeding.'",
+  "🦴 'Bones don’t lie. But they do hum sometimes.'",
+  "🫀 'Heartbeat irregular. Rhythm divine.'",
+  "🎲 'The dice rolled before you chose.'",
+  "🔍 'The more you look, the less you see.'",
+  "🧪 'Stirred again. Spoiled again. Charm again.'",
+  "📍 'This isn’t a checkpoint. It’s a trap.'",
+  "🗝️ 'You had the key. You swallowed it.'",
+  "🛐 'Something old has noticed you.'",
+  "📺 'Channel 666 is static… or screaming?'",
+  "👣 'You’re following your own footsteps. They’re fresh.'",
+  "🌪️ 'The wind speaks. You shouldn’t answer.'",
+  "🚪 'The door breathes. Don’t knock.'",
+  "🕳️ 'The hole blinked.'",
+  "🧊 'Cold. But not temperature. Something colder.'",
+  "🎡 'Around and around. You fall off eventually.'",
+  "🩻 'Your shadow shows a different skeleton.'",
+  "🧼 'Clean hands. Guilty wrists.'"
 ];
+
 
 const uglychants = [
-  "Stay ugly, stay alive. Stay ugly, stay alive.",
-  "Malform the norm, break the charm!",
-  "Ugly is sacred. Ugly is survival.",
-  "Bend your knees. Offer the teeth.",
-  "The pretty perish. The ugly endure.",
-  "Feed the chant. Fear the flex.",
-  "Ugly, ugly, charm me swiftly!",
-  "Sing no song but the warped one!"
+  "🔮 *'Ugly born and charm-bred, one by one we fall or tread.'*",
+  "👁️ *'What is beauty but a lie? Let the lovely ones all die.'*",
+  "🧤 *'Mismatched gloves and backwards feet, only freaks survive the heat.'*",
+  "🪵 *'Wooden teeth and patchwork skin, let the malformed one begin.'*",
+  "🧂 *'Salt the charm, scar the night. Make the pretty ones take flight.'*",
+  "🪙 *'Flip a coin, roll your fate, ugly finds the ugly great.'*",
+  "👂 *'Hear the chant? Don’t respond. It’s your echo, far beyond.'*",
+  "🐀 *'Squeak and scurry, cursed and quick. The charming ones decay too quick.'*",
+  "🥫 *'Rattle the tin, ring the bell, who walks ugly walks through hell.'*",
+  "💀 *'Bones like branches, teeth like seeds — this is all the Ugly needs.'*",
+  "🎭 *'Smile crooked, blink too wide. Charm was never on your side.'*",
+  "🎻 *'Strings pulled tight, mouths sewn shut, only Ugly makes the cut.'*",
+  "🪰 *'Swarm of faces, none are real. Ugly is the only deal.'*",
+  "🕯️ *'Light the wax and chant the name — beauty burns, but Ugly stays.'*",
+  "🫀 *'Thump-thump-thump, it beats so loud. Cover it in charm and shroud.'*",
+  "🧴 *'Rub the charm into your soul, patch the cracks and lose control.'*",
+  "🪞 *'Mirror, mirror, cracked and grim, show me something malformed within.'*",
+  "📯 *'Blow the horn and split the sky, let the beautiful ones cry.'*",
+  "🪤 *'Step by step, the trap is set. Ugly eats what charm forgets.'*",
+  "🌚 *'Dark and darker still it gets — Ugly’s grace is all you’ll get.'*",
+  "🍽️ *'Forked tongues, chipped cups, we feast on misfits, never luck.'*",
+  "📜 *'Scribble a name, strike it out. Only the charm knows what it’s about.'*",
+  "🧃 *'Sip the charm and sway like ghosts — to ugly fate we make a toast!'*",
+  "📢 *'Speak not loud, speak not proud — charm prefers a broken sound.'*",
+  "🪰 *'Flies know best where charm has been.'*",
+  "👣 *'Ugly walks with quiet toes, cracking charm wherever it goes.'*"
 ];
 
+
 const uglyOracleRiddles = [
-  { question: "I speak without a mouth and hear without ears. I have no body, but I come alive with wind. What am I?", answer: "echo" },
-  { question: "The more you take, the more you leave behind. What are they?", answer: "footsteps" },
-  { question: "I’m not alive, but I grow; I don’t have lungs, but I need air. What am I?", answer: "fire" },
-  { question: "I can fill a room but take up no space. What am I?", answer: "light" },
-  { question: "I have keys but no locks. I have space but no room. You can enter, but you can’t go outside. What am I?", answer: "keyboard" },
-  { question: "What begins with T, ends with T, and has T in it?", answer: "teapot" }
+  {
+    question: "I have no mouth yet speak in screams. I haunt your sleep and drip in dreams. What am I?",
+    answer: "nightmare"
+  },
+  {
+    question: "Cracked and cold, I reflect what's false. Gaze too long, and you'll be lost. What am I?",
+    answer: "mirror"
+  },
+  {
+    question: "Devour me and you will see, visions warped and memory free. What am I?",
+    answer: "mushroom"
+  },
+  {
+    question: "Born of rot but dressed in bloom, I stink of life and hint of doom. What am I?",
+    answer: "corpseflower"
+  },
+  {
+    question: "I walk without feet, whisper without breath, and follow you to death. What am I?",
+    answer: "shadow"
+  },
+  {
+    question: "Open me and find your fear, sealed inside for countless years. What am I?",
+    answer: "chest"
+  },
+  {
+    question: "I have a face but no soul, a smile without control. I dance, I wait. What am I?",
+    answer: "mask"
+  },
+  {
+    question: "From bone and string, I rise to play — silent when you look away. What am I?",
+    answer: "puppet"
+  },
+  {
+    question: "I rot, I feed, I bloom, I hide — my teeth are roots, my breath is wide. What am I?",
+    answer: "fungus"
+  },
+  {
+    question: "A name unspoken, cursed from birth, I dwell below the charmless earth. What am I?",
+    answer: "forgotten"
+  },
+  {
+    question: "Drip by drip I carve the stone, not with blade but time alone. What am I?",
+    answer: "water"
+  },
+  {
+    question: "Tick but no clock, breath with no lungs. I chase you forward and rot the young. What am I?",
+    answer: "time"
+  },
+  {
+    question: "I sleep beneath your skin and wake with fire. You scratch, I spread. What am I?",
+    answer: "itch"
+  },
+  {
+    question: "I'm fed by loss and shaped by scars. The deeper I go, the more you are. What am I?",
+    answer: "pain"
+  },
+  {
+    question: "I am the truth in twisted tone, the voice that sounds like not your own. What am I?",
+    answer: "echo"
+  },
+  {
+    question: "Once I lived, now I stare. Empty sockets, full of care. What am I?",
+    answer: "skull"
+  },
+  {
+    question: "I ring without bell, burn without flame, and mark the moment you're not the same. What am I?",
+    answer: "curse"
+  },
+  {
+    question: "I move in silence, but not alone. My steps are many, my will unknown. What am I?",
+    answer: "herd"
+  },
+  {
+    question: "The uglier I get, the more you look. I tell no lies but am no book. What am I?",
+    answer: "face"
+  }
 ];
+
+
 // --- Mutation Events ---
 const mutationEvents = [
   {
@@ -921,21 +1094,21 @@ async function runGauntlet(channel, isTrial = false) {
     await channel.send(`🔄 **Round ${round}** begins! (${aliveCount}/${totalPlayers} remain)`);
 
     // 20% chance: Warp Echo
-    if (Math.random() < 0.2) {
+    if (Math.random() < 0.4) {
       const echo = warpEchoes[Math.floor(Math.random() * warpEchoes.length)];
       await channel.send(`🌌 ${echo}`);
       await wait(3000);
     }
 
     // 15% chance: Ugly Chant
-    if (Math.random() < 0.15) {
+    if (Math.random() < 0.2) {
       const chant = uglychants[Math.floor(Math.random() * uglychants.length)];
       await channel.send(`🔊 *Ugly Chant:* "${chant}"`);
       await wait(2500);
     }
 
     // 10% chance: Ugly Oracle Riddle
-    if (Math.random() < 0.10) {
+    if (Math.random() < 0.2) {
       const riddle = uglyOracleRiddles[Math.floor(Math.random() * uglyOracleRiddles.length)];
       const embed = new EmbedBuilder()
         .setTitle("🔮 Ugly Oracle Riddle")
