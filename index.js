@@ -388,16 +388,35 @@ async function startJoinPhase(channel, duration, isTrial = false) {
     }, ms);
   });
 
-  collector.on('end', async () => {
-    if (gamePlayers.length === 0) {
-      gameActive = false;
-      return channel.send("❌ No one joined The Gauntlet. Cancelled.");
-    }
+ collector.on('end', async () => {
+  if (isTrial) {
+    const fakeNames = [
+      "Botrick", "UglyGPT", "Charmander", "FunkStink", "NoSleep", "Uglet",
+      "HairyHag", "MalformedMike", "CrustyCarl", "SoggyWitch", "NFTBag", "TrialTroll",
+      "Flexorcist", "GasPasser", "DegenJean", "LilWart", "StankLee", "BuglyBob", "SleepySue", "RitualRandy"
+    ];
 
-    await channel.send(`🔒 Join phase ended. **${gamePlayers.length}** players are entering The Gauntlet...`);
-    return startGauntlet(gamePlayers, channel, isTrial);
-  });
-}
+    fakeNames.forEach((name, index) => {
+      gamePlayers.push({
+        id: `trial_player_${index}`,
+        username: name,
+        lives: 1,
+        eliminated: false,
+        joinedAt: Date.now(),
+        isBoss: false
+      });
+    });
+  }
+
+  if (gamePlayers.length === 0) {
+    gameActive = false;
+    return channel.send("❌ No one joined The Gauntlet. Cancelled.");
+  }
+
+  await channel.send(`🔒 Join phase ended. **${gamePlayers.length}** players are entering The Gauntlet...`);
+  return startGauntlet(gamePlayers, channel, isTrial);
+});
+
 // --- Start Game Function ---
 async function startGauntlet(players, channel, isTrial = false) {
   gamePlayers = [...players];
