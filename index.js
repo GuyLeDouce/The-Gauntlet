@@ -1218,28 +1218,21 @@ async function runBossVotePhase(channel) {
     votes.set(i.user.id, i.customId.replace("vote_boss_", ""));
   });
 
-  collector.on("end", async () => {
-    const voteCounts = {};
-    for (const votedId of votes.values()) {
-      voteCounts[votedId] = (voteCounts[votedId] || 0) + 1;
-    }
+collector.on("end", async () => {
+  const winnerId = Object.entries(voteCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+  const boss = players.find(p => p.id === winnerId);
 
-    const winnerId = Object.entries(voteCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
-    const boss = players.find(p => p.id === winnerId);
+  if (boss) {
+    boss.lives = 2;
+    await channel.send(`👑 <@${boss.id}> has been chosen as **Boss Level Ugly** and begins with **2 lives**!`);
+  } else {
+    await channel.send("😶 No Boss was chosen. The Gauntlet proceeds without a champion...");
+  }
 
-    if (boss) {
-      boss.lives = 2;
-      await channel.send(`👑 <@${boss.id}> has been chosen as **Boss Level Ugly** and begins with **2 lives**!`);
-    } else {
-      await channel.send("😶 No Boss was chosen. The Gauntlet proceeds without a champion...");
-    }
-  });
-}
+  // ✅ Proceed to game loop next
+  await runGauntlet(channel);
+});
 
-    // Proceed to game loop next
-    await runGauntlet(channel);
-  });
-}
 async function runGauntlet(channel) {
   while (players.filter(p => !p.eliminated && p.lives > 0).length > 1) {
     await wait(12000); // 12-second pause between rounds
