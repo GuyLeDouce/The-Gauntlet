@@ -360,8 +360,19 @@ async function startJoinPhase(channel, durationMinutes = 3, isTrial = false) {
   });
 
   // Ping reminders
-  setTimeout(() => channel.send("@everyone ⏳ Time’s running out! Join The Gauntlet now!"), (durationMinutes * 20 * 1000));
-  setTimeout(() => channel.send("@everyone ⚠️ Final call! Last minute to join!"), (durationMinutes * 40 * 1000));
+const gameStartTimestamp = Math.floor(Date.now() / 1000) + (durationMinutes * 60);
+
+// Reminder at 1/3 time
+setTimeout(() => {
+  channel.send(`@everyone ⏳ One third of join time has passed! [Join Here](${joinMessage.url})  
+Starts <t:${gameStartTimestamp}:R>`);
+}, (durationMinutes * 60 * 1000) / 3);
+
+// Reminder at 2/3 time
+setTimeout(() => {
+  channel.send(`@everyone ⚠️ Two thirds of join time has passed! [Join Here](${joinMessage.url})  
+Starts <t:${gameStartTimestamp}:R>`);
+}, (durationMinutes * 60 * 1000) * (2 / 3));
 }
 
 // --- START GAUNTLET ---
