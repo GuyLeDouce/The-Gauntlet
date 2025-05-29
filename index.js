@@ -1198,12 +1198,11 @@ async function runBossVotePhase(channel) {
   );
 
   const intro = bossEntryLines.length ? shuffleArray(bossEntryLines)[0] : "Who will rise as the Boss-level Ugly?";
-  const randomTokenId = Math.floor(Math.random() * 530) + 1;
-  const imageUrl = `https://opensea.io/assets/ethereum/0x9492505633D74451bDF3079c09ccc979588Bc309/${randomTokenId}`;
+  const imageUrl = getRandomNftImage(); // ✅ uses your IPFS or OpenSea logic
 
   const embed = new EmbedBuilder()
     .setTitle("👑 Boss Vote Begins")
-    .setDescription(`${intro}\n\nClick to vote for the player you fear the most. They will become the Boss-level Ugly and begin with **2 lives**.`)
+    .setDescription(`${intro}\n\nChoose your champion. The winner gains **2 lives** and becomes the Boss-level Ugly.`)
     .setImage(imageUrl)
     .setColor("Red");
 
@@ -1239,11 +1238,9 @@ async function runBossVotePhase(channel) {
       await channel.send("😶 No Boss was chosen. The Gauntlet proceeds without a champion...");
     }
 
-    // Proceed to game loop
     await runGauntlet(channel);
   });
 }
-
 
 async function runGauntlet(channel) {
   while (players.filter(p => !p.eliminated && p.lives > 0).length > 1) {
