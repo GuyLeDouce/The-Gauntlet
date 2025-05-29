@@ -682,93 +682,94 @@ const mutationMiniGames = [
       });
     }
   },
-  {
-    name: "The Smile Box",
-    description: "A box promises a smile. Open it?",
-    interaction: async (channel, players) => {
-      const [player] = getRandomAlivePlayers(1);
-      if (!player) return;
+{
+  name: "The Smile Box",
+  description: "A box promises a smile. Open it?",
+  interaction: async (channel, players) => {
+    const [player] = getRandomAlivePlayers(1);
+    if (!player) return;
 
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId(`open_smilebox_${player.id}`)
-          .setLabel("Open the Box")
-          .setStyle(ButtonStyle.Primary)
-      );
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`open_smilebox_${player.id}`)
+        .setLabel("Open the Box")
+        .setStyle(ButtonStyle.Primary)
+    );
 
-      await channel.send({
-        embeds: [new EmbedBuilder()
-          .setTitle("🎁 Mini-Game: The Smile Box")
-          .setDescription(`<@${player.id}> sees a pink box labeled “Smile Forever.”`)],
-        components: [row]
-      });
+    await channel.send({
+      embeds: [new EmbedBuilder()
+        .setTitle("🎁 Mini-Game: The Smile Box")
+        .setDescription(`<@${player.id}> sees a pink box labeled “Smile Forever.”`)],
+      components: [row]
+    });
 
-      const filter = i => i.customId === `open_smilebox_${player.id}` && i.user.id === player.id;
-      const collector = channel.createMessageComponentCollector({ filter, time: 8000 });
+    const filter = i => i.customId === `open_smilebox_${player.id}` && i.user.id === player.id;
+    const collector = channel.createMessageComponentCollector({ filter, time: 8000 });
 
-      collector.on("collect", async i => {
-        await i.deferUpdate();
-        const roll = Math.random();
-        if (roll < 0.3) {
-          eliminatePlayer(player, "opened the box and forgot how to scream.");
-        } else if (roll < 0.6) {
-          await channel.send(`🙂 <@${player.id}> got a weird doll. No effect.`);
-        } else {
-          player.lives++;
-          await channel.send(`😁 <@${player.id}> received joy serum. +1 life!`);
-        }
-      });
+    collector.on("collect", async i => {
+      await i.deferUpdate();
+      const roll = Math.random();
+      if (roll < 0.3) {
+        eliminatePlayer(player, "opened the box and forgot how to scream.");
+      } else if (roll < 0.6) {
+        await channel.send(`🙂 <@${player.id}> got a weird doll. No effect.`);
+      } else {
+        player.lives++;
+        await channel.send(`😁 <@${player.id}> received joy serum. +1 life!`);
+      }
+    });
 
-      collector.on("end", async collected => {
-        if (collected.size === 0) {
-          eliminatePlayer(player, "ignored the box, but the box didn’t ignore them.");
-        }
-      });
-    }
+    collector.on("end", async collected => {
+      if (collected.size === 0) {
+        eliminatePlayer(player, "ignored the box, but the box didn’t ignore them.");
+        await channel.send(`📦 The box opened itself. <@${player.id}> vanished with a grin.`);
+      }
+    });
   }
-],
-  {
-    name: "Snail’s Pact",
-    description: "A golden snail offers a contract. Accept it?",
-    interaction: async (channel, players) => {
-      const [player] = getRandomAlivePlayers(1);
-      if (!player) return;
+},
+{
+  name: "Snail’s Pact",
+  description: "A golden snail offers a contract. Accept it?",
+  interaction: async (channel, players) => {
+    const [player] = getRandomAlivePlayers(1);
+    if (!player) return;
 
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId(`sign_snail_${player.id}`)
-          .setLabel("Sign the Pact")
-          .setStyle(ButtonStyle.Success)
-      );
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`sign_snail_${player.id}`)
+        .setLabel("Sign the Pact")
+        .setStyle(ButtonStyle.Success)
+    );
 
-      await channel.send({
-        embeds: [new EmbedBuilder()
-          .setTitle("🐌 Mini-Game: Snail’s Pact")
-          .setDescription(`<@${player.id}> is offered a pact from a golden snail.`)],
-        components: [row]
-      });
+    await channel.send({
+      embeds: [new EmbedBuilder()
+        .setTitle("🐌 Mini-Game: Snail’s Pact")
+        .setDescription(`<@${player.id}> is offered a pact from a golden snail.`)],
+      components: [row]
+    });
 
-      const filter = i => i.customId === `sign_snail_${player.id}` && i.user.id === player.id;
-      const collector = channel.createMessageComponentCollector({ filter, time: 8000 });
+    const filter = i => i.customId === `sign_snail_${player.id}` && i.user.id === player.id;
+    const collector = channel.createMessageComponentCollector({ filter, time: 8000 });
 
-      collector.on("collect", async i => {
-        await i.deferUpdate();
-        const roll = Math.random();
-        if (roll < 0.4) {
-          eliminatePlayer(player, "signed the snail’s pact and turned to slime.");
-        } else {
-          player.lives++;
-          await channel.send(`📜 The snail whispers truths. <@${player.id}> gains +1 life.`);
-        }
-      });
+    collector.on("collect", async i => {
+      await i.deferUpdate();
+      const roll = Math.random();
+      if (roll < 0.4) {
+        eliminatePlayer(player, "signed the snail’s pact and turned to slime.");
+      } else {
+        player.lives++;
+        await channel.send(`📜 The snail whispers truths. <@${player.id}> gains +1 life.`);
+      }
+    });
 
-      collector.on("end", async collected => {
-        if (collected.size === 0) {
-          eliminatePlayer(player, "rejected the snail and became its shell.");
-        }
-      });
-    }
-  },
+    collector.on("end", async collected => {
+      if (collected.size === 0) {
+        eliminatePlayer(player, "rejected the snail and became its shell.");
+        await channel.send(`🐚 <@${player.id}> refused the pact. Now they live slow forever.`);
+      }
+    });
+  }
+},
   {
     name: "Charmhole Dive",
     description: "A charmhole opens beneath your feet. Jump in?",
