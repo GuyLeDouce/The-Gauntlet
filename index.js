@@ -216,6 +216,7 @@ const reviveFailureMessages = [
 
 ];
 // --- Mutation Events ---
+const mutationEvents = [
 {
   name: "Bone Crown",
   description: "The Bone Crown materializes. Who dares wear it?",
@@ -680,11 +681,11 @@ const reviveFailureMessages = [
     });
   }
 }
-
+];
 
 
 // --- Mini-Games ---
-// --- Mini-Game: Lever of Regret ---
+const miniGames = [
 {
   name: "Lever of Regret",
   description: "Pull the lever? It promises... something.",
@@ -917,6 +918,7 @@ const reviveFailureMessages = [
     });
   }
 }
+  ];
 
 // --- Ugly Quotes ---
 const uglyQuotes = [
