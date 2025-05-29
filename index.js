@@ -19,9 +19,56 @@ const db = new PgClient({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
+
 db.connect()
-  .then(() => console.log('✅ Connected to PostgreSQL!'))
+  .then(async () => {
+    console.log('✅ Connected to PostgreSQL!');
+
+    // Ensure player_stats table exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS player_stats (
+        id SERIAL PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        username TEXT,
+        year INT,
+        month INT,
+        wins INT DEFAULT 0,
+        revives INT DEFAULT 0,
+        duel_wins INT DEFAULT 0,
+        games_played INT DEFAULT 0
+      );
+    `);
+
+    // If duel_wins column somehow didn't exist, add it (fallback)
+    await db.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1
+          FROM information_schema.columns
+          WHERE table_name='player_stats' AND column_name='duel_wins'
+        ) THEN
+          ALTER TABLE player_stats ADD COLUMN duel_wins INT DEFAULT 0;
+        END IF;
+      END $$;
+    `);
+
+    // Ensure monthly_champions table exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS monthly_champions (
+        id SERIAL PRIMARY KEY,
+        user_id TEXT,
+        username TEXT,
+        year INT,
+        month INT,
+        category TEXT,
+        value INT
+      );
+    `);
+
+    console.log('📊 Database initialized.');
+  })
   .catch(err => console.error('❌ DB Connection Error:', err));
+
 
 // Discord Client
 const client = new Client({
