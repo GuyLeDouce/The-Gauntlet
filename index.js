@@ -736,14 +736,6 @@ client.on("messageCreate", async message => {
 
   const content = message.content.trim().toLowerCase();
 
-  // Start a normal Gauntlet
-  if (content.startsWith("!gauntlet")) {
-    const parts = content.split(" ");
-    const minutes = parseInt(parts[1]);
-    const joinDuration = isNaN(minutes) ? 3 : minutes;
-    await startJoinPhase(message.channel, joinDuration, false);
-  }
-
   // Start Trial Mode
   if (content === "!gauntlettrial") {
     players = [];
@@ -763,7 +755,13 @@ client.on("messageCreate", async message => {
   if (content === "!gauntletdev") {
     await startJoinPhase(message.channel, 0.25, true); // 15s
   }
-
+  // Start a normal Gauntlet
+  if (content.startsWith("!gauntlet")) {
+    const parts = content.split(" ");
+    const minutes = parseInt(parts[1]);
+    const joinDuration = isNaN(minutes) ? 3 : minutes;
+    await startJoinPhase(message.channel, joinDuration, false);
+  }
   // Show leaderboard
   if (content.startsWith("!leaderboard")) {
     const now = new Date();
