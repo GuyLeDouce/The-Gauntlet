@@ -525,18 +525,25 @@ async function runGauntlet(channel, isTrial = false) {
         time: 30000
       });
 
-      let correct = 0;
-      collected.forEach(msg => {
-        if (msg.content.toLowerCase().includes(riddle.answer)) {
-          const player = gamePlayers.find(p => p.id === msg.author.id);
-          if (player && !player.eliminated) {
-            player.lives++;
-            correct++;
-          }
-        }
-      });
+     const correctPlayers = [];
 
-      await channel.send(`🧠 ${correct} player${correct !== 1 ? 's' : ''} answered correctly and gained a life!`);
+collected.forEach(msg => {
+  if (msg.content.toLowerCase().includes(riddle.answer)) {
+    const player = gamePlayers.find(p => p.id === msg.author.id);
+    if (player && !player.eliminated) {
+      player.lives++;
+      correctPlayers.push(player);
+    }
+  }
+});
+
+if (correctPlayers.length > 0) {
+  const list = correctPlayers.map(p => `<@${p.id}>`).join(', ');
+  await channel.send(`🧠 The charm acknowledges the clever ones: ${list} — each gains **+1 life**.`);
+} else {
+  await channel.send(`🤷‍♂️ No one solved the Oracle's riddle. The charm remains unimpressed.`);
+}
+
       await wait(2000);
     }
 
