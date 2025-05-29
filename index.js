@@ -312,15 +312,7 @@ client.on('messageCreate', async (message) => {
 
   const content = message.content.toLowerCase();
 
-  if (content.startsWith('!gauntlet')) {
-    if (gameActive) {
-      return message.reply("⚠️ A Gauntlet is already active!");
-    }
-
-    const args = content.split(' ');
-    const minutes = parseInt(args[1]) || 2;
-    return startJoinPhase(message.channel, minutes * 60 * 1000, false);
-  }
+    
 
   if (content === '!gauntlettrial') {
     if (gameActive) return message.reply("⚠️ A Gauntlet is already active!");
@@ -331,6 +323,16 @@ client.on('messageCreate', async (message) => {
     if (gameActive) return message.reply("⚠️ A Gauntlet is already active!");
     return startJoinPhase(message.channel, 10000, false); // 10s dev window
   }
+
+  if (content.startsWith('!gauntlet')) {
+    if (gameActive) {
+      return message.reply("⚠️ A Gauntlet is already active!");
+    }
+    const args = content.split(' ');
+    const minutes = parseInt(args[1]) || 2;
+    return startJoinPhase(message.channel, minutes * 60 * 1000, false);
+  }
+  
 });
 
 // --- Join Phase Logic ---
@@ -541,30 +543,36 @@ async function runGauntlet(channel, isTrial = false) {
   }
 
   // Game over — determine podium
-  const finalists = gamePlayers.filter(p => !p.eliminated);
-  const top3 = [...finalists, ...eliminatedPlayers]
-    .sort((a, b) => (b.lives || 0) - (a.lives || 0))
-    .slice(0, 3);
+const finalists = gamePlayers.filter(p => !p.eliminated);
+const top3 = [...finalists, ...eliminatedPlayers]
+  .sort((a, b) => (b.lives || 0) - (a.lives || 0))
+  .slice(0, 3);
 
-  const podiumEmbed = new EmbedBuilder()
-    .setTitle("🏆 The Gauntlet Has Ended")
-    .setDescription(`**1st:** <@${top3[0]?.id || '???'}>\n**2nd:** <@${top3[1]?.id || '???'}>\n**3rd:** <@${top3[2]?.id || '???'}>`)
-    .setFooter({ text: "Glory is temporary. Ugliness is eternal." })
-    .setColor(0x00ffcc);
+// Only send podium in trial, skip stats
+const podiumEmbed = new EmbedBuilder()
+  .setTitle(isTrial ? "🏁 Trial Gauntlet Complete" : "🏆 The Gauntlet Has Ended")
+  .setDescription(`**1st:** <@${top3[0]?.id || '???'}>\n**2nd:** <@${top3[1]?.id || '???'}>\n**3rd:** <@${top3[2]?.id || '???'}>`)
+  .setFooter({ text: isTrial ? "This was a test run." : "Glory is temporary. Ugliness is eternal." })
+  .setColor(isTrial ? 0xaaaaaa : 0x00ffcc);
 
-  await channel.send({ embeds: [podiumEmbed] });
+await channel.send({ embeds: [podiumEmbed] });
 
-  // Mark winners
-  if (!isTrial) {
-    for (let i = 0; i < top3.length; i++) {
-      const player = top3[i];
-      if (!player) continue;
-      await updateStats(player.id, player.username, i === 0 ? 1 : 0, 0, 0);
-    }
+// 🔒 Only store stats if not trial
+if (!isTrial) {
+  for (let i = 0; i < top3.length; i++) {
+    const player = top3[i];
+    if (!player) continue;
+    await updateStats(player.id, player.username, i === 0 ? 1 : 0, 0, 0);
   }
+}
 
   gameActive = false;
-  autoRestartCount = 0;
+autoRestartCount = 0;
+
+if (!isTrial) {
+  await showRematchButton(channel, gamePlayers);
+}
+
 
   // Rematch
   await showRematchButton(channel, gamePlayers);
