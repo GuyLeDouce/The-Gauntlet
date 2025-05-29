@@ -1262,9 +1262,9 @@ async function runGauntlet(channel) {
     if (roll < 0.4) {
       await runEliminationRound(channel);
     } else if (roll < 0.6) {
-      await runMutationEvent(gameChannel, players);
+      await runMutationEvent(channel, players);
     } else if (roll < 0.8) {
-      await runMiniGameEvent(gameChannel, players);
+      await runMiniGameEvent(channel, players);
     } else if (!massRevivalUsed) {
       await triggerMassRevival(channel);
     }
