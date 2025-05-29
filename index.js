@@ -57,6 +57,8 @@ let bossPlayer = null;
 let playerLives = {};
 let rematchVotes = new Set();
 let consecutiveRestarts = 0;
+let massRevivalUsed = false;
+
 
 async function startJoinPhase(channel, durationMinutes = 3, isDevMode = false) {
   entrantIDs = new Set();
@@ -488,7 +490,7 @@ async function showFinalPodium(channel) {
 
 const MAX_CONSECUTIVE_GAMES = 4;
 
-async function showRematchButton(channel, previousPlayers, durationMinutes = 3) {
+async function showRematchButton(previousPlayers, durationMinutes = 3) {
   if (consecutiveGames >= MAX_CONSECUTIVE_GAMES) {
     await channel.send("🛑 Auto-restart limit reached. Please start a new Gauntlet manually.");
     return;
@@ -702,6 +704,356 @@ client.once("ready", async () => {
     console.error("❌ DB Connection Error:", err);
   }
 });
+
+
+async function startJoinPhase(message, duration) {
+  const joinEmbed = new EmbedBuilder()
+    .setTitle('⚔️ The Gauntlet Begins!')
+    .setDescription(`A new game is starting!\nClick the button below to join.\n\n**Start Time:** ${duration} minute(s)`)
+    .setColor('Gold')
+    .setTimestamp();
+
+  const joinButton = new ButtonBuilder()
+    .setCustomId('join_button')
+    .setLabel('Join the Gauntlet')
+    .setStyle(ButtonStyle.Success);
+
+  const row = new ActionRowBuilder().addComponents(joinButton);
+
+  const sentMessage = await message.channel.send({ embeds: [joinEmbed], components: [row] });
+
+  const totalMs = duration * 60 * 1000;
+
+  // Reminder tags at 1/3 and 2/3 marks
+  setTimeout(() => {
+    message.channel.send(`⏳ One third of the join time has passed! @everyone`);
+  }, totalMs / 3);
+
+  setTimeout(() => {
+    message.channel.send(`⚠️ Two thirds of the join time has passed! @everyone`);
+  }, (2 * totalMs) / 3);
+
+  // Game starts after countdown
+  setTimeout(() => {
+    message.channel.send(`🚨 The Gauntlet is now starting! No more entries allowed.`);
+    // Proceed to boss vote or whatever comes next
+    startBossVotePhase(message.channel); // ← make sure this function exists and works
+  }, totalMs);
+}
+function startGauntlet(players, channel, isTrial = false) {
+  activeGame = true;
+  gauntletChannel = channel;
+  gamePlayers = players.map(name => ({
+    id: name,
+    username: name,
+    lives: 1,
+    eliminated: false,
+    isTrial: isTrial
+  }));
+  eliminatedPlayers = [];
+  rematchVotes.clear();
+  consecutiveRestarts = 0;
+
+  if (isTrial) {
+    channel.send('⚔️ Trial Mode Activated! Prepare for chaos...');
+  } else {
+    channel.send('🌀 The Gauntlet begins now!');
+  }
+
+  setTimeout(() => {
+    runBossVotePhase(channel);
+  }, 3000);
+}
+
+function generateMockPlayers(count) {
+  const mockPlayers = [];
+  for (let i = 1; i <= count; i++) {
+    mockPlayers.push({
+      id: `Trial${i}`,
+      username: `Trial${i}`,
+      lives: 1
+    });
+  }
+  return mockPlayers;
+}
+function startGauntlet(players, channel, isTrial = false) {
+  activeGame = true;
+  gauntletChannel = channel;
+  gamePlayers = players.map(name => ({
+    id: name,
+    username: name,
+    lives: 1,
+    eliminated: false,
+    isTrial: isTrial
+  }));
+  eliminatedPlayers = [];
+  rematchVotes.clear();
+  consecutiveRestarts = 0;
+
+  if (isTrial) {
+    channel.send('⚔️ Trial Mode Activated! Prepare for chaos...');
+  } else {
+    channel.send('🌀 The Gauntlet begins now!');
+  }
+
+  async function runBossVotePhase(channel) {
+  const candidates = shuffleArray(gamePlayers).slice(0, 5);
+  const voteCounts = new Map();
+  const alreadyVoted = new Set();
+
+  const row = new ActionRowBuilder().addComponents(
+    candidates.map(player =>
+      new ButtonBuilder()
+        .setCustomId(`vote_${player.id}`)
+        .setLabel(player.username)
+        .setStyle(ButtonStyle.Primary)
+    )
+  );
+  
+  const voteMessage = await channel.send({
+    embeds: [new EmbedBuilder()
+      .setTitle('👑 Boss Selection Phase')
+      .setDescription('Choose who should become the Boss of this Gauntlet.\nClick a name below to cast your vote!')
+      .setColor('Red')],
+    components: [row]
+  });
+
+  const collector = voteMessage.createMessageComponentCollector({ time: 10000 });
+
+  collector.on('collect', async interaction => {
+    if (alreadyVoted.has(interaction.user.id)) {
+      try {
+        await interaction.reply({ content: '🛑 You already voted!', ephemeral: true });
+      } catch (err) {
+        console.error('Interaction reply error:', err);
+      }
+      return;
+    }
+
+    alreadyVoted.add(interaction.user.id);
+    const selectedId = interaction.customId.replace('vote_', '');
+    voteCounts.set(selectedId, (voteCounts.get(selectedId) || 0) + 1);
+    try {
+      await interaction.reply({ content: '✅ Vote recorded!', ephemeral: true });
+    } catch (err) {
+      console.error('Vote response error:', err);
+    }
+  });
+
+  collector.on('end', () => {
+    let winner = null;
+    let maxVotes = -1;
+    for (const [id, votes] of voteCounts.entries()) {
+      if (votes > maxVotes) {
+        maxVotes = votes;
+        winner = id;
+      }
+    }
+
+    const boss = gamePlayers.find(p => p.id === winner);
+    if (boss) {
+      boss.lives = 2;
+      channel.send(`👑 ${boss.username} has been chosen as the Boss Level Ugly! They start with **2 lives**!`);
+    } else {
+      channel.send('👑 No Boss selected. The game proceeds normally.');
+    }
+
+    async function runGauntlet() {
+  while (gamePlayers.filter(p => !p.eliminated).length > 1) {
+    // Pause between rounds
+    await wait(8000);
+
+    // Random choice: elimination, mutation, minigame, or revival
+    const roundType = Math.random();
+    if (roundType < 0.4) {
+      await runEliminationRound();
+    } else if (roundType < 0.6) {
+      await runMutationEvent();
+    } else if (roundType < 0.8) {
+      await runMiniGameEvent();
+    } else {
+      await runMassRevivalEvent();
+    }
+  }
+
+  // Game End Logic
+  const survivors = gamePlayers.filter(p => !p.eliminated);
+  let podium = [];
+
+  if (survivors.length >= 3) {
+    podium = survivors.slice(-3);
+  } else if (survivors.length > 0) {
+    podium = [
+      ...survivors,
+      ...eliminatedPlayers.slice(-3 + survivors.length)
+    ];
+  } else {
+    podium = eliminatedPlayers.slice(-3);
+  }
+
+  // Display Podium
+  const podiumEmbed = new EmbedBuilder()
+    .setTitle('🏆 Final Podium')
+    .setDescription(`
+🥇 1st Place — <@${podium[0]?.id || 'Unknown'}>
+🥈 2nd Place — <@${podium[1]?.id || 'Unknown'}>
+🥉 3rd Place — <@${podium[2]?.id || 'Unknown'}>
+
+🎉 Legends fall hard. Stay Ugly. 🧠
+`)
+    .setColor('#FFD700');
+  await gauntletChannel.send({ embeds: [podiumEmbed] });
+
+  // Leaderboard Tracking
+  if (!gamePlayers[0].isTrial) {
+    for (const player of gamePlayers) {
+      await updatePlayerStats(player.id, player.username, {
+        gamesPlayed: 1,
+        wins: podium[0]?.id === player.id ? 1 : 0
+      });
+    }
+  }
+
+  // Offer Rematch
+  offerRematch(gamePlayers.map(p => p.id));
+}
+ // Now continue into the elimination rounds
+  });
+}
+function runEliminationRound(channel) {
+  const alivePlayers = gamePlayers.filter(p => !p.eliminated && p.lives > 0);
+  const numToEliminate = Math.floor(Math.random() * 2) + 2; // 2 or 3
+
+  const shuffled = shuffleArray(alivePlayers);
+  const victims = shuffled.slice(0, Math.min(numToEliminate, alivePlayers.length));
+
+  victims.forEach(player => {
+    player.lives--;
+    if (player.lives <= 0) {
+      player.eliminated = true;
+      eliminatedPlayers.push(player);
+    }
+  });
+
+  const lines = victims.map(p => `☠️ ${p.username} ${getRandomEliminationReason()}`);
+  const image = getRandomNftImage();
+  const embed = new EmbedBuilder()
+    .setTitle('🩸 Elimination Round')
+    .setDescription(lines.join('\n'))
+    .setImage(image);
+
+  channel.send({ embeds: [embed] });
+}
+function runMutationEvent(channel) {
+  const alive = gamePlayers.filter(p => !p.eliminated && p.lives > 0);
+  if (alive.length === 0) return;
+
+  const target = alive[Math.floor(Math.random() * alive.length)];
+  const outcome = Math.random();
+  let resultText = '';
+  if (outcome < 0.25) {
+    target.lives++;
+    resultText = `🧪 Mutation Success! ${target.username} grew an extra limb and gained 1 life!`;
+  } else if (outcome < 0.5) {
+    target.lives--;
+    if (target.lives <= 0) {
+      target.eliminated = true;
+      eliminatedPlayers.push(target);
+      resultText = `💀 Mutation Failed! ${target.username} melted into goo and was eliminated!`;
+    } else {
+      resultText = `⚠️ Mutation Backfire! ${target.username} lost 1 life!`;
+    }
+  } else {
+    resultText = `🌀 Mutation passed over ${target.username}... this time.`;
+  }
+
+  const embed = new EmbedBuilder()
+    .setTitle('🧬 Mutation Event')
+    .setDescription(resultText)
+    .setImage(getRandomNftImage());
+
+  channel.send({ embeds: [embed] });
+}
+function runMiniGameEvent(channel) {
+  const alive = gamePlayers.filter(p => !p.eliminated && p.lives > 0);
+  if (alive.length < 2) return;
+
+  const [p1, p2] = shuffleArray(alive).slice(0, 2);
+  const winner = Math.random() < 0.5 ? p1 : p2;
+  const loser = winner === p1 ? p2 : p1;
+
+  winner.lives++;
+  loser.lives--;
+  if (loser.lives <= 0) {
+    loser.eliminated = true;
+    eliminatedPlayers.push(loser);
+  }
+
+  const embed = new EmbedBuilder()
+    .setTitle('🎲 Mini Game Duel')
+    .setDescription(`🎮 ${p1.username} vs ${p2.username}\n🏆 Winner: ${winner.username} (gains 1 life)\n💀 Loser: ${loser.username} (loses 1 life)`)
+    .setImage(getRandomNftImage());
+
+  channel.send({ embeds: [embed] });
+}
+function runMassRevivalEvent(channel) {
+  const dead = eliminatedPlayers;
+  const newPlayers = [];
+
+  const revived = dead.filter(() => Math.random() < 0.6);
+  revived.forEach(p => {
+    p.eliminated = false;
+    p.lives = 1;
+  });
+
+  const newNames = ['ReviveBot', 'UglyVamp', 'GrubGuts', 'GhostMop', 'Freakoid'];
+  newNames.forEach(name => {
+    if (Math.random() < 0.4) {
+      gamePlayers.push({ id: name, username: name, lives: 1, eliminated: false });
+      newPlayers.push(name);
+    }
+  });
+
+  eliminatedPlayers = eliminatedPlayers.filter(p => p.eliminated); // Filter those who revived
+  const embed = new EmbedBuilder()
+    .setTitle('🪦 Totem of Lost Souls — Mass Revival')
+    .setDescription(`💫 Revived: ${revived.map(p => p.username).join(', ') || 'None'}\n🧟 New Entrants: ${newPlayers.join(', ') || 'None'}`)
+    .setImage(getRandomNftImage());
+
+  channel.send({ embeds: [embed] });
+}
+
+}
+function handleTrialCommand(message) {
+  const mockPlayers = generateMockPlayers(20); // Create 20 test players
+  message.channel.send('🧪 Starting Gauntlet Trial Mode with 20 randomly generated test players...');
+  await runGauntlet(message.channel, mockPlayers); // Launch the game with mock players
+}
+function generateTrialPlayers(count) {
+  const trialPlayers = [];
+  for (let i = 1; i <= count; i++) {
+    trialPlayers.push({
+      id: `Trial${i}`,
+      username: `Trial${i}`,
+      isTrial: true,
+      lives: 1,
+    });
+  }
+  return trialPlayers;
+}
+function handleTrialCommand(message) {
+  const trialPlayers = generateTrialPlayers(20);
+  message.channel.send('⚔️ Starting Gauntlet Trial Mode with 20 randomly generated test players...');
+  startGauntlet(trialPlayers, message.channel, true); // true = isTrialMode
+}
+// Actual launch logic for dev command
+function handleDevCommand(message) {
+  const devPlayers = generateTrialPlayers(8); // Small group for quick test
+  message.channel.send('🧪 Starting Gauntlet Dev Mode with 8 test players...');
+  startGauntlet(devPlayers, message.channel, true); // true = isTrialMode or local test mode
+}
+
+
 client.on('messageCreate', async message => {
   if (message.author.bot) return;
 
