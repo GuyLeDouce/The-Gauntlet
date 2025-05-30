@@ -701,6 +701,31 @@ async function showFinalPodium(channel) {
     }
   });
 }
+client.on('messageCreate', async message => {
+  if (message.author.bot) return;
+
+  if (message.content.startsWith('!gauntlet')) {
+    const isTrial = message.content.includes('trial') || message.content.includes('dev');
+    const minutes = isTrial ? 0.1 : parseFloat(message.content.split(' ')[1]) || 1;
+    const joinDuration = Math.max(1, minutes * 60 * 1000);
+
+    const embed = new EmbedBuilder()
+      .setTitle("⚔️ The Gauntlet Begins!")
+      .setDescription(`Click below to enter the arena. Only three will survive.\n\n⏳ Game starts in **${minutes} minutes**.`)
+      .setColor(0xff0000);
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('joinGauntlet')
+        .setLabel('Join the Gauntlet')
+        .setStyle(ButtonStyle.Primary)
+    );
+
+    const joinMsg = await message.channel.send({ content: '@everyone A new Gauntlet is forming!', embeds: [embed], components: [row] });
+
+    // ... rest of your join logic
+  }
+});
 
 // === Client Login ===
 client.once('ready', () => {
