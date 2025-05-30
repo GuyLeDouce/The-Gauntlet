@@ -69,11 +69,6 @@ let autoRestartCount = 0;
 let mutationCount = 0;
 let miniGameCount = 0;
 let massRevivalTriggered = false;
-let mutationUsed = 0;
-let miniGameUsed = 0;
-let usedMutations = new Set();
-let usedMiniGames = new Set();
-
 
 function shuffleArray(array) {
   return [...array].sort(() => Math.random() - 0.5);
@@ -605,7 +600,7 @@ const mutationMiniGames = [
   {
   name: "Press the Charm",
   description: "A single button appears. Press it... or not.",
-  async effect({ channel }, gamePlayers, eliminatedPlayers) {
+  async effect(interaction, gamePlayers, eliminatedPlayers) {
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('presscharm').setLabel('Press It').setStyle(ButtonStyle.Danger)
     );
@@ -615,7 +610,7 @@ const mutationMiniGames = [
       .setDescription("A single button appears. Press it... or not.\n\nClick fast. Someone’s gonna blow.")
       .setColor(0xdd2222);
 
-    const msg = await channel.send({ embeds: [embed], components: [row] });
+    const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
 
     const collector = msg.createMessageComponentCollector({ time: 8000 });
     const results = [];
@@ -644,7 +639,7 @@ const mutationMiniGames = [
 {
   name: "The Charm Pulse",
   description: "The charm vibrates. You may touch it — or you may die.",
-  async effect({ channel }, gamePlayers, eliminatedPlayers) {
+  async effect(interaction, gamePlayers, eliminatedPlayers) {
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('pulse').setLabel('Touch the Charm').setStyle(ButtonStyle.Primary)
     );
@@ -654,7 +649,7 @@ const mutationMiniGames = [
       .setDescription("A dangerous energy emits from the charm. Press at your own risk.")
       .setColor(0x3399ff);
 
-    const msg = await channel.send({ embeds: [embed], components: [row] });
+    const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
     const collector = msg.createMessageComponentCollector({ time: 8000 });
 
     const results = [];
@@ -702,7 +697,7 @@ const mutationMiniGames = [
 {
   name: "Coin of Reversal",
   description: "All eliminated players may flip the cursed coin — one side revives, the other explodes.",
-  async effect({ channel }, gamePlayers, eliminatedPlayers) {
+  async effect(interaction, gamePlayers, eliminatedPlayers) {
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('flipcoin').setLabel('Flip the Coin').setStyle(ButtonStyle.Secondary)
     );
@@ -712,7 +707,7 @@ const mutationMiniGames = [
       .setDescription("Eliminated players only: flip the coin to gamble your soul.")
       .setColor(0xaaaaaa);
 
-    const msg = await channel.send({ embeds: [embed], components: [row] });
+    const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
 
     const collector = msg.createMessageComponentCollector({ time: 6000 });
 
@@ -759,7 +754,7 @@ const mutationMiniGames = [
  {
   name: "The Split Path",
   description: "Two identical doorways. One is a trap.",
-  async effect({ channel }, gamePlayers, eliminatedPlayers) {
+  async effect(interaction, gamePlayers, eliminatedPlayers) {
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('leftdoor').setLabel('Left Door').setStyle(ButtonStyle.Primary),
       new ButtonBuilder().setCustomId('rightdoor').setLabel('Right Door').setStyle(ButtonStyle.Primary)
@@ -770,7 +765,7 @@ const mutationMiniGames = [
       .setDescription("Two doors. One leads forward, the other to elimination.\nChoose wisely.")
       .setColor(0x222266);
 
-    const msg = await channel.send({ embeds: [embed], components: [row] });
+    const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
     const collector = msg.createMessageComponentCollector({ time: 9000 });
 
     const chosen = { left: [], right: [] };
@@ -808,7 +803,7 @@ const mutationMiniGames = [
 {
   name: "The Ugly Crystal",
   description: "A fractured crystal glows. Risk your life to overcharge it.",
-  async effect({ channel }, gamePlayers, eliminatedPlayers) {
+  async effect(interaction, gamePlayers, eliminatedPlayers) {
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('chargecrystal').setLabel('Charge Crystal').setStyle(ButtonStyle.Danger)
     );
@@ -818,7 +813,7 @@ const mutationMiniGames = [
       .setDescription("Click to charge it with your essence. It may reward you with **+2 lives**, or obliterate you.")
       .setColor(0xaa00ff);
 
-    const msg = await channel.send({ embeds: [embed], components: [row] });
+    const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
     const collector = msg.createMessageComponentCollector({ time: 9000 });
 
     const chargers = [];
@@ -859,7 +854,7 @@ const mutationMiniGames = [
 {
   name: "Bargain With the Charm",
   description: "Offer part of your vitality to try and revive a fallen ally.",
-  async effect({ channel }, gamePlayers, eliminatedPlayers) {
+  async effect(interaction, gamePlayers, eliminatedPlayers) {
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('offerlife').setLabel('Offer Life').setStyle(ButtonStyle.Secondary)
     );
@@ -869,7 +864,7 @@ const mutationMiniGames = [
       .setDescription("You may sacrifice a life to revive someone random. The charm may accept… or ignore you.")
       .setColor(0x888800);
 
-    const msg = await channel.send({ embeds: [embed], components: [row] });
+    const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
     const collector = msg.createMessageComponentCollector({ time: 8000 });
 
     const sacrificers = [];
@@ -976,8 +971,7 @@ client.on('messageCreate', async (message) => {
     return message.channel.send(`💀 **${username}** ${failLine}`);
   }
 });
-client.once('ready', async () => {
-  console.log(`✅ Logged in as ${client.user.tag}`);
+
 // --- Join Phase Logic ---
 async function startJoinPhase(channel, duration, isTrial = false) {
   gameActive = true;
@@ -1127,119 +1121,110 @@ async function runBossVotePhase(channel) {
   });
 }
 async function runGauntlet(channel, isTrial = false) {
-  const totalPlayers = gamePlayers.length;
   let round = 0;
-  mutationUsed = 0;
-  miniGameUsed = 0;
-  massRevivalTriggered = false;
-  usedMutations = new Set();
-  usedMiniGames = new Set();
+  const totalPlayers = gamePlayers.length;
+let mutationUsed = 0;
+let miniGameUsed = 0;
 
-  while (gamePlayers.filter(p => !p.eliminated).length > 3) {
-    round++;
+while (gamePlayers.filter(p => !p.eliminated).length > 3) {
+  round++;
+  const alive = gamePlayers.filter(p => !p.eliminated);
+  const aliveCount = alive.length;
 
-    const alive = gamePlayers.filter(p => !p.eliminated);
-    const aliveCount = alive.length;
+  await wait(8000);
+  await channel.send(`🔄 **Round ${round}** begins! (${aliveCount}/${totalPlayers} remain)`);
 
-    await channel.send(`🎲 **Round ${round} begins!** (${aliveCount}/${totalPlayers} remain)`);
+  // Lore: Warp Echo
+  if (Math.random() < 0.4) {
+    const echo = warpEchoes[Math.floor(Math.random() * warpEchoes.length)];
+    await channel.send(`🌌 ${echo}`);
     await wait(3000);
-
-    // Lore Drop (optional)
-    if (Math.random() < 0.2) {
-      const lore = loreDrops[Math.floor(Math.random() * loreDrops.length)];
-      await channel.send(`📜 **Lore Drop:** ${lore}`);
-      await wait(3000);
-    }
-
-    // Ugly Chant (optional)
-    if (Math.random() < 0.2) {
-      const chant = uglychants[Math.floor(Math.random() * uglychants.length)];
-      await channel.send(`🔊 **Ugly Chant:** ${chant}`);
-      await wait(3000);
-    }
-
-    // Oracle Riddle (optional)
-    if (Math.random() < 0.2) {
-      const riddle = uglyOracleRiddles[Math.floor(Math.random() * uglyOracleRiddles.length)];
-      const embed = new EmbedBuilder()
-        .setTitle("🔮 Ugly Oracle Riddle")
-        .setDescription(`> ${riddle.question}\n\nReply with the answer in the next **30 seconds** to gain a life.`)
-        .setColor(0xaa00aa);
-      await channel.send({ embeds: [embed] });
-
-      const collected = await channel.awaitMessages({ filter: m => !m.author.bot, time: 30000 });
-      const correct = [];
-
-      collected.forEach(msg => {
-        if (msg.content.toLowerCase().includes(riddle.answer)) {
-          const player = gamePlayers.find(p => p.id === msg.author.id);
-          if (player && !player.eliminated) {
-            player.lives++;
-            correct.push(player);
-          }
-        }
-      });
-
-      if (correct.length > 0) {
-        const list = correct.map(p => `<@${p.id}>`).join(', ');
-        await channel.send(`🧠 The charm acknowledges the clever ones: ${list} — each gains **+1 life**.`);
-      } else {
-        await channel.send(`😐 No one solved the Oracle's riddle. The charm remains unimpressed.`);
-      }
-
-      await showPlayerCount(channel);
-      await wait(3000);
-    }
-
-    // 🔪 Elimination Round (always)
-    await runEliminationRound(channel);
-    await showPlayerCount(channel);
-    await wait(5000);
-
-    // 🧬 Mutation (optional, max 2)
-    if (mutationUsed < 2 && Math.random() < 0.5 && aliveCount > 4) {
-      const available = mutationEvents.filter(m => !usedMutations.has(m.name));
-      if (available.length > 0) {
-        const mutation = available[Math.floor(Math.random() * available.length)];
-        usedMutations.add(mutation.name);
-        await runMutationEvent(channel, mutation);
-        mutationUsed++;
-        await showPlayerCount(channel);
-        await wait(5000);
-      }
-    }
-
-    // 🎮 Mini-Game (optional, max 2)
-    if (miniGameUsed < 2 && Math.random() < 0.5 && aliveCount > 4) {
-      const available = mutationMiniGames.filter(m => !usedMiniGames.has(m.name));
-      if (available.length > 0) {
-        const mini = available[Math.floor(Math.random() * available.length)];
-        usedMiniGames.add(mini.name);
-        await runMiniGameEvent(channel, mini);
-        miniGameUsed++;
-        await showPlayerCount(channel);
-        await wait(5000);
-      }
-    }
-
-    // 💫 Mass Revival: Trigger once at >50% eliminated
-    if (!massRevivalTriggered && eliminatedPlayers.length > totalPlayers / 2) {
-      await (channel);
-      massRevivalTriggered = true;
-      await showPlayerCount(channel);
-      await wait(5000);
-    }
   }
 
-  // Final Elimination to drop to 3 or less
+  // Lore: Ugly Chant
+  if (Math.random() < 0.2) {
+    const chant = uglychants[Math.floor(Math.random() * uglychants.length)];
+    await channel.send(`🔊 *Ugly Chant:* "${chant}"`);
+    await wait(2500);
+  }
+
+  // Lore: Oracle Riddle
+  if (Math.random() < 0.2) {
+    const riddle = uglyOracleRiddles[Math.floor(Math.random() * uglyOracleRiddles.length)];
+    const embed = new EmbedBuilder()
+      .setTitle("🔮 Ugly Oracle Riddle")
+      .setDescription(`> ${riddle.question}\n\nReply with the answer in the next **30 seconds** to gain a life.`)
+      .setColor(0xaa00aa);
+    await channel.send({ embeds: [embed] });
+
+    const collected = await channel.awaitMessages({
+      filter: m => !m.author.bot,
+      time: 30000
+    });
+
+    const correctPlayers = [];
+
+    collected.forEach(msg => {
+      if (msg.content.toLowerCase().includes(riddle.answer)) {
+        const player = gamePlayers.find(p => p.id === msg.author.id);
+        if (player && !player.eliminated) {
+          player.lives++;
+          correctPlayers.push(player);
+        }
+      }
+    });
+
+    if (correctPlayers.length > 0) {
+      const list = correctPlayers.map(p => `<@${p.id}>`).join(', ');
+      await channel.send(`🧠 The charm acknowledges the clever ones: ${list} — each gains **+1 life**.`);
+    } else {
+      await channel.send(`🤷‍♂️ No one solved the Oracle's riddle. The charm remains unimpressed.`);
+    }
+
+    await wait(2000);
+  }
+
+  // 🧟 Always run an elimination round
   await runEliminationRound(channel);
-  await showPlayerCount(channel);
-  await wait(4000);
 
-  // Wrap it up
-  await endGameSequence(channel, isTrial);
+  // 🧬 Mutation Events: Random chance, max 2
+  if (mutationUsed < 2 && Math.random() < 0.5 && aliveCount > 4) {
+    await runMutationEvent(channel);
+    mutationUsed++;
+    await wait(3000);
+  }
+
+  // 🎮 Mini-Games: Random chance, max 2
+  if (miniGameUsed < 2 && Math.random() < 0.5 && aliveCount > 4) {
+    await runMiniGameEvent(channel);
+    miniGameUsed++;
+    await wait(3000);
+  }
+
+  // 💫 Mass Revival: Trigger once at >50% eliminated
+  if (!massRevivalTriggered && eliminatedPlayers.length > totalPlayers / 2) {
+    await wait(3000);
+    await runMassRevivalEvent(channel);
+    massRevivalTriggered = true;
+  }
 }
+  await runEliminationRound(channel);
 
+  if (gamePlayers.filter(p => !p.eliminated).length > 4) {
+    await runMutationEvent(channel);
+    await wait(3000);
+    await runMutationEvent(channel);
+
+    await runMiniGameEvent(channel);
+    await wait(3000);
+    await runMiniGameEvent(channel);
+  }
+
+  if (!massRevivalTriggered && eliminatedPlayers.length > totalPlayers / 2) {
+    await wait(3000);
+    await runMassRevivalEvent(channel);
+    massRevivalTriggered = true;
+  }
 
 // ✅ End of main while loop — now the game ends
 const finalists = gamePlayers.filter(p => !p.eliminated);
@@ -1257,6 +1242,8 @@ const podiumEmbed = new EmbedBuilder()
   .setFooter({ text: isTrial ? "This was a test run." : "Glory is temporary. Ugliness is eternal." })
   .setColor(isTrial ? 0xaaaaaa : 0x00ffcc)
   .setThumbnail('https://cdn.discordapp.com/emojis/1120652421982847017.gif?size=96&quality=lossless');
+
+await channel.send({ embeds: [podiumEmbed] });
 
 // Wrap up stats and rematch
 if (!isTrial) {
@@ -1302,8 +1289,8 @@ async function runEliminationRound(channel) {
 }
 
 // --- Mutation Event ---
-async function runMutationEvent(channel, mutation) {
-
+async function runMutationEvent(channel) {
+  const mutation = mutationEvents[Math.floor(Math.random() * mutationEvents.length)];
   
   const embed = new EmbedBuilder()
     .setTitle(`🧬 Mutation Event: ${mutation.name}`)
@@ -1317,9 +1304,9 @@ async function runMutationEvent(channel, mutation) {
 }
 
 
-async function runMiniGameEvent(channel, miniGame) {
+async function runMiniGameEvent(channel) {
   const embed = new EmbedBuilder()
-    .setTitle(`🎮 ${miniGame.name}`)
+    .setTitle("🎮 Mini-Game Time")
     .setDescription("Click the right button. You have 5 seconds. One will save you. One will not.")
     .setColor(0x00ccff);
 
@@ -1377,12 +1364,6 @@ async function runMassRevivalEvent(channel) {
       .setLabel('Touch the Totem')
       .setStyle(ButtonStyle.Secondary)
   );
-async function showPlayerCount(channel) {
-  const embed = new EmbedBuilder()
-    .setDescription(`🧍 **Players Remaining:** ${gamePlayers.filter(p => !p.eliminated).length} / ${gamePlayers.length}`)
-    .setColor(0x888888);
-  await channel.send({ embeds: [embed] });
-}
 
   const msg = await channel.send({ embeds: [embed], components: [button] });
 
@@ -1561,4 +1542,10 @@ client.on('messageCreate', async (message) => {
     await message.channel.send({ embeds: [embed] });
   }
 });
-client.login(process.env.DISCORD_TOKEN);
+// --- Bot Ready Handler ---
+client.once('ready', () => {
+  console.log(`✅ Logged in as ${client.user.tag}`);
+});
+
+// --- Launch Bot ---
+client.login(process.env.TOKEN);
