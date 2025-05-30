@@ -403,11 +403,6 @@ mutationEvents = [
     return `The Maw appeared... Players were given the chance to FEED or FLEE. Results unknown in silent log mode.`;
   }
 },
-// ... [next events will follow in next messages to stay within limits]
-];
-
-// --- Mutation Mini-Games ---
-const mutationMiniGames = [
   {
   name: "Press the Charm",
   description: "A single button appears. Press it... or not.",
