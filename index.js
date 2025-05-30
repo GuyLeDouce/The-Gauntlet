@@ -1257,8 +1257,6 @@ const podiumEmbed = new EmbedBuilder()
   .setColor(isTrial ? 0xaaaaaa : 0x00ffcc)
   .setThumbnail('https://cdn.discordapp.com/emojis/1120652421982847017.gif?size=96&quality=lossless');
 
-await channel.send({ embeds: [podiumEmbed] });
-
 // Wrap up stats and rematch
 if (!isTrial) {
   for (let i = 0; i < top3.length; i++) {
