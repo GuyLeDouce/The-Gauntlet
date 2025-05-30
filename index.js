@@ -1195,20 +1195,57 @@ if (Math.random() < 0.2 && usedRiddleIndexes.size < uglyOracleRiddles.length) {
 }
 
 
-    // 🎲 Decide which event to run
-    const roll = Math.random();
+// ✴️ Always run an elimination round first
+await runEliminationRound(channel);
+await wait(2500);
 
-    if (roll < 0.3) {
-      await runEliminationRound(channel);
-    } else if (roll < 0.6 && mutationUsed < 2 && aliveCount > 4) {
-      await runMutationEvent(channel);
-      mutationUsed++;
-    } else if (roll < 0.9 && miniGameUsed < 2 && aliveCount > 4) {
-      await runMiniGameEvent(channel);
-      miniGameUsed++;
-    } else {
-      await channel.send("👁️ Nothing stirs this round... the charm watches in silence.");
+// 🔀 Then optionally run one other event
+const roll = Math.random();
+if (roll < 0.33 && mutationUsed < 2 && aliveCount > 4) {
+  await runMutationEvent(channel);
+  mutationUsed++;
+} else if (roll < 0.66 && miniGameUsed < 2 && aliveCount > 4) {
+  await runMiniGameEvent(channel);
+  miniGameUsed++;
+} else if (roll < 0.9 && usedRiddleIndexes.size < uglyOracleRiddles.length) {
+  // Oracle Riddle (copied logic from above)
+  let index;
+  do {
+    index = Math.floor(Math.random() * uglyOracleRiddles.length);
+  } while (usedRiddleIndexes.has(index));
+  usedRiddleIndexes.add(index);
+  const riddle = uglyOracleRiddles[index];
+
+  const embed = new EmbedBuilder()
+    .setTitle("🔮 Ugly Oracle Riddle")
+    .setDescription(`> ${riddle.question}\n\nReply with the answer in the next **30 seconds** to gain a life.`)
+    .setColor(0xaa00aa);
+  await channel.send({ embeds: [embed] });
+
+  const collected = await channel.awaitMessages({ filter: m => !m.author.bot, time: 30000 });
+  const correctPlayers = [];
+
+  collected.forEach(msg => {
+    if (msg.content.toLowerCase().includes(riddle.answer)) {
+      const player = gamePlayers.find(p => p.id === msg.author.id);
+      if (player && !player.eliminated) {
+        player.lives++;
+        correctPlayers.push(player);
+      }
     }
+  });
+
+  if (correctPlayers.length > 0) {
+    const list = correctPlayers.map(p => `<@${p.id}>`).join(', ');
+    await channel.send(`🧠 The charm acknowledges the clever ones: ${list} — each gains **+1 life**.`);
+  } else {
+    await channel.send(`🤷‍♂️ No one solved the Oracle's riddle. The charm remains unimpressed.`);
+  }
+  await wait(2500);
+} else {
+  await channel.send("👁️ Nothing stirs this round... the charm watches in silence.");
+}
+
 
     // Recap survivors
     const survivors = gamePlayers.filter(p => !p.eliminated).length;
