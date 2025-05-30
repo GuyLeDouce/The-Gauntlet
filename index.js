@@ -1123,6 +1123,8 @@ async function runBossVotePhase(channel) {
 async function runGauntlet(channel, isTrial = false) {
   let round = 0;
   const totalPlayers = gamePlayers.length;
+let mutationUsed = 0;
+let miniGameUsed = 0;
 
 while (gamePlayers.filter(p => !p.eliminated).length > 3) {
   round++;
@@ -1185,20 +1187,21 @@ while (gamePlayers.filter(p => !p.eliminated).length > 3) {
   // 🧟 Always run an elimination round
   await runEliminationRound(channel);
 
-  // 🧬 Two Mutation Events
-  if (gamePlayers.filter(p => !p.eliminated).length > 4) {
+  // 🧬 Mutation Events: Random chance, max 2
+  if (mutationUsed < 2 && Math.random() < 0.5 && aliveCount > 4) {
     await runMutationEvent(channel);
+    mutationUsed++;
     await wait(3000);
-    await runMutationEvent(channel);
   }
 
-  // 🎮 Two Mini-Games
-  if (gamePlayers.filter(p => !p.eliminated).length > 4) {
+  // 🎮 Mini-Games: Random chance, max 2
+  if (miniGameUsed < 2 && Math.random() < 0.5 && aliveCount > 4) {
     await runMiniGameEvent(channel);
+    miniGameUsed++;
     await wait(3000);
-    await runMiniGameEvent(channel);
   }
-  // 💫 One Mass Revival if >50% eliminated and not yet triggered
+
+  // 💫 Mass Revival: Trigger once at >50% eliminated
   if (!massRevivalTriggered && eliminatedPlayers.length > totalPlayers / 2) {
     await wait(3000);
     await runMassRevivalEvent(channel);
