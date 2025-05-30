@@ -1176,99 +1176,67 @@ async function runBossVotePhase(channel) {
 async function runGauntlet(channel, isTrial = false) {
   let eventCount = 0;
   const totalPlayers = gamePlayers.length;
+  const usedRiddleIndexes = new Set();
   let mutationUsed = 0;
   let miniGameUsed = 0;
-  const usedRiddleIndexes = new Set();
   massRevivalTriggered = false;
 
   while (gamePlayers.filter(p => !p.eliminated).length > 3) {
     eventCount++;
     const alive = gamePlayers.filter(p => !p.eliminated);
     const aliveCount = alive.length;
-    let roundText = `🎲 **${aliveCount}/${totalPlayers} remain**\n`;
 
+    await wait(3000);
+
+    // --- Embed 1: Lore ---
+    const loreEmbed = await generateLoreEmbed(eventCount);
+    await channel.send({ embeds: [loreEmbed] });
+
+    // --- Embed 2: Interaction (Mutation or MiniGame) ---
     await wait(2000);
-    await channel.send(`🎬 **Event ${eventCount} begins...**`);
-    await wait(1500);
-
-    // 🌌 Warp Echo
-    if (Math.random() < 0.4) {
-      const echo = warpEchoes[Math.floor(Math.random() * warpEchoes.length)];
-      roundText += `🌌 *WARP Echo:* "${echo}"\n`;
-    }
-
-    // 🔊 Ugly Chant
-    if (Math.random() < 0.2) {
-      const chant = uglychants[Math.floor(Math.random() * uglychants.length)];
-      roundText += `🔊 *Ugly Chant:* "${chant}"\n`;
-    }
-
-    // 🔮 Oracle Riddle
-    if (Math.random() < 0.2 && usedRiddleIndexes.size < uglyOracleRiddles.length) {
-      let index;
-      do {
-        index = Math.floor(Math.random() * uglyOracleRiddles.length);
-      } while (usedRiddleIndexes.has(index));
-      usedRiddleIndexes.add(index);
-      const riddle = uglyOracleRiddles[index];
-
-      const embed = new EmbedBuilder()
-        .setTitle("🔮 Ugly Oracle Riddle")
-        .setDescription(`> ${riddle.question}\n\nReply with the answer in the next **30 seconds** to gain a life.`)
-        .setColor(0xaa00aa);
-      await channel.send({ embeds: [embed] });
-
-      const collected = await channel.awaitMessages({ filter: m => !m.author.bot, time: 30000 });
-      const correctPlayers = [];
-
-      collected.forEach(msg => {
-        if (msg.content.toLowerCase().includes(riddle.answer)) {
-          const player = gamePlayers.find(p => p.id === msg.author.id);
-          if (player && !player.eliminated) {
-            player.lives++;
-            correctPlayers.push(player);
-          }
-        }
-      });
-
-      if (correctPlayers.length > 0) {
-        const list = correctPlayers.map(p => `<@${p.id}>`).join(', ');
-        roundText += `🧠 Oracle answered by ${list}. Gained +1 life.\n`;
-      } else {
-        roundText += `🤷‍♂️ The riddle went unanswered.\n`;
-      }
-    }
-
-    // 💀 Elimination Round
-    const preElim = gamePlayers.filter(p => !p.eliminated);
-    await runEliminationRound(channel, true);
-    const eliminatedThisRound = preElim.filter(p => p.eliminated);
-    if (eliminatedThisRound.length > 0) {
-      const lines = eliminatedThisRound.map(p => `• <@${p.id}> ${eliminationReasons[Math.floor(Math.random() * eliminationReasons.length)]}`);
-      roundText += `\n💀 **Eliminations:**\n${lines.join('\n')}\n`;
-    } else {
-      roundText += `\n💀 No eliminations this round.\n`;
-    }
-
-    // 🧬 OR 🎮 Extra Event
+    let eventType = '';
+    let eventResult = '';
     const roll = Math.random();
-    if (roll < 0.33 && mutationUsed < 2 && aliveCount > 4) {
-      const mutationText = await runMutationEvent(channel, true);
-      if (mutationText) roundText += `\n🧬 **Mutation Effect:**\n${mutationText}\n`;
+    if (roll < 0.5 && mutationUsed < 2 && aliveCount > 4) {
+      eventType = 'mutation';
       mutationUsed++;
-    } else if (roll < 0.66 && miniGameUsed < 2 && aliveCount > 4) {
-      const gameText = await runMiniGameEvent(channel, true);
-      if (gameText) roundText += `\n🎮 **Mini-Game Result:**\n${gameText}\n`;
+    } else if (miniGameUsed < 2 && aliveCount > 4) {
+      eventType = 'miniGame';
       miniGameUsed++;
-    } else {
-      roundText += `\n👁️ No extra event triggered.\n`;
     }
 
-    const roundEmbed = new EmbedBuilder()
-      .setTitle(`⚔️ Event ${eventCount}`)
-      .setDescription(roundText)
+    if (eventType) {
+      eventResult = await showEventInteraction(channel, eventType);
+    }
+
+    // --- Oracle Riddle ---
+    await wait(500);
+    const riddleResult = await awaitRiddleAnswer(channel, usedRiddleIndexes);
+
+    // --- Elimination Round ---
+    const preElim = gamePlayers.filter(p => !p.eliminated);
+    await runEliminationRound(channel, true); // suppress embed
+    const eliminatedThisRound = preElim.filter(p => p.eliminated);
+    const eliminationLines = eliminatedThisRound.length > 0
+      ? eliminatedThisRound.map(p =>
+          `• <@${p.id}> ${eliminationReasons[Math.floor(Math.random() * eliminationReasons.length)]}`
+        ).join('\n')
+      : '*No eliminations this round.*';
+
+    const roundRatio = `🎲 **${aliveCount}/${totalPlayers} remain**`;
+
+    // --- Embed 3: Round Summary ---
+    const summaryEmbed = new EmbedBuilder()
+      .setTitle(`📜 Event ${eventCount} Summary`)
+      .setDescription([
+        eventResult,
+        `💀 **Eliminations:**\n${eliminationLines}`,
+        riddleResult,
+        roundRatio
+      ].filter(Boolean).join('\n\n'))
       .setColor(0xff99cc);
-    await channel.send({ embeds: [roundEmbed] });
+
+    await channel.send({ embeds: [summaryEmbed] });
 
     // 💫 Mass Revival Trigger
     if (!massRevivalTriggered && eliminatedPlayers.length > totalPlayers / 2) {
@@ -1277,20 +1245,18 @@ async function runGauntlet(channel, isTrial = false) {
       massRevivalTriggered = true;
     }
 
-    await wait(5000);
+    await wait(3000);
   }
 
-  // Final shakeup
+  // FINAL SHAKEUP
   await runEliminationRound(channel);
   await wait(3000);
-
   if (gamePlayers.filter(p => !p.eliminated).length > 4) {
     await runMutationEvent(channel);
     await wait(2500);
     await runMiniGameEvent(channel);
     await wait(2500);
   }
-
   if (!massRevivalTriggered && eliminatedPlayers.length > totalPlayers / 2) {
     await wait(3000);
     await runMassRevivalEvent(channel);
@@ -1301,12 +1267,12 @@ async function runGauntlet(channel, isTrial = false) {
   await channel.send("🕯️ The charm pulses... Final fate will now be decided.");
   await wait(2000);
 
-  const alive = gamePlayers.filter(p => !p.eliminated);
-  if (alive.length > 1) {
+  const aliveFinal = gamePlayers.filter(p => !p.eliminated);
+  if (aliveFinal.length > 1) {
     await channel.send("⚔️ The charm demands one last offering...");
     await runEliminationRound(channel);
     await wait(3000);
-  } else if (alive.length === 0) {
+  } else if (aliveFinal.length === 0) {
     await channel.send("💀 All are gone. The charm devoured every soul.");
     await wait(2000);
   }
@@ -1348,6 +1314,88 @@ async function runGauntlet(channel, isTrial = false) {
     await showRematchButton(channel, gamePlayers);
   }
 }
+
+async function generateLoreEmbed(eventCount) {
+  const loreOptions = [];
+
+  if (Math.random() < 0.4) {
+    const echo = warpEchoes[Math.floor(Math.random() * warpEchoes.length)];
+    loreOptions.push(`🌌 *"${echo}"*`);
+  }
+
+  if (Math.random() < 0.3) {
+    const chant = uglychants[Math.floor(Math.random() * uglychants.length)];
+    loreOptions.push(`🔊 *"${chant}"*`);
+  }
+
+  const embed = new EmbedBuilder()
+    .setTitle(`⚔️ Event ${eventCount}`)
+    .setDescription(loreOptions.length > 0 ? loreOptions.join('\n') : '*The charm is quiet...*')
+    .setColor(0xff66aa);
+
+  return embed;
+}
+async function showEventInteraction(channel, eventType) {
+  if (eventType === 'mutation') {
+    const mutation = mutationEvents[Math.floor(Math.random() * mutationEvents.length)];
+    const embed = new EmbedBuilder()
+      .setTitle(`🧬 Mutation: ${mutation.name}`)
+      .setDescription(mutation.description)
+      .setColor(0x9933ff);
+
+    await channel.send({ embeds: [embed] });
+    const result = await mutation.effect(channel, gamePlayers, eliminatedPlayers);
+    return result || '';
+  } else {
+    const miniGame = mutationMiniGames[Math.floor(Math.random() * mutationMiniGames.length)];
+    const embed = new EmbedBuilder()
+      .setTitle(`🎯 Mini-Game: ${miniGame.name}`)
+      .setDescription(miniGame.description)
+      .setColor(0x00ccff);
+
+    await channel.send({ embeds: [embed] });
+    const result = await miniGame.effect(channel, gamePlayers, eliminatedPlayers);
+    return result || '';
+  }
+}
+
+
+
+async function awaitRiddleAnswer(channel, usedRiddleIndexes) {
+  if (usedRiddleIndexes.size >= uglyOracleRiddles.length || Math.random() > 0.3) return '';
+
+  let index;
+  do {
+    index = Math.floor(Math.random() * uglyOracleRiddles.length);
+  } while (usedRiddleIndexes.has(index));
+  usedRiddleIndexes.add(index);
+
+  const riddle = uglyOracleRiddles[index];
+  const embed = new EmbedBuilder()
+    .setTitle("🔮 Ugly Oracle Riddle")
+    .setDescription(`> ${riddle.question}\n\nReply in **30 seconds** to gain a life.`)
+    .setColor(0xaa00aa);
+
+  await channel.send({ embeds: [embed] });
+
+  const collected = await channel.awaitMessages({ filter: m => !m.author.bot, time: 30000 });
+  const winners = [];
+
+  collected.forEach(msg => {
+    if (msg.content.toLowerCase().includes(riddle.answer)) {
+      const player = gamePlayers.find(p => p.id === msg.author.id);
+      if (player && !player.eliminated) {
+        player.lives++;
+        winners.push(`<@${player.id}>`);
+      }
+    }
+  });
+
+  return winners.length > 0
+    ? `🧠 Riddle answered by ${winners.join(', ')}. +1 life.`
+    : `🤷‍♂️ The Oracle went unanswered.`;
+}
+
 
 // --- Elimination Round ---
 async function runEliminationRound(channel, logOnly = false) {
