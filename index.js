@@ -1742,6 +1742,7 @@ client.on('messageCreate', async (message) => {
     await message.channel.send({ embeds: [embed] });
   }
 });
+
 // --- Bot Ready Handler ---
 client.once('ready', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
