@@ -346,7 +346,7 @@ const uglyOracleRiddles = [
 
 
 // --- Mutation Events ---
-const mutationEvents = [
+Events = [
   {
     name: "The Maw Opens",
     description: "A gaping mouth forms in the sky. It hungers. Choose to FEED it or FLEE.",
@@ -1287,14 +1287,18 @@ async function runEliminationRound(channel) {
 // --- Mutation Event ---
 async function runMutationEvent(channel) {
   const mutation = mutationEvents[Math.floor(Math.random() * mutationEvents.length)];
+  
   const embed = new EmbedBuilder()
     .setTitle(`🧬 Mutation Event: ${mutation.name}`)
     .setDescription(mutation.description)
     .setColor(0x9933ff);
+
   await channel.send({ embeds: [embed] });
 
-  await mutation.effect({ channel }, gamePlayers, eliminatedPlayers);
+  // Pass just channel directly (not wrapped in an object)
+  await mutation.effect(channel, gamePlayers, eliminatedPlayers);
 }
+
 
 async function runMiniGameEvent(channel) {
   const embed = new EmbedBuilder()
