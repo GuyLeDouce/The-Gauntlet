@@ -1142,13 +1142,14 @@ async function runGauntlet(channel, isTrial = false) {
 
       await wait(2000);
     }
-
+await runCoreEvent(channel);
+}
     // Run a core event (mutation, mini-game, elimination, or mass revive)
     // --- Core Event Chooser ---
 async function runCoreEvent(channel) {
   const roll = Math.random();
 
-  if (roll < 0.25) {
+  if (roll = 1) {
     await runMutationEvent(channel);
   } else if (roll < 0.5) {
     await runMiniGameEvent(channel);
@@ -1158,9 +1159,6 @@ async function runCoreEvent(channel) {
     await runEliminationRound(channel);
   }
 }
-
-  }
-
   // End game and show podium
   const finalists = gamePlayers.filter(p => !p.eliminated);
   const top3 = [...finalists, ...eliminatedPlayers]
