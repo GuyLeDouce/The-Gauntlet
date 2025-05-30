@@ -1561,7 +1561,4 @@ client.on('messageCreate', async (message) => {
     await message.channel.send({ embeds: [embed] });
   }
 });
-
-});
-
 client.login(process.env.DISCORD_TOKEN);
