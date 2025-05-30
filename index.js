@@ -348,134 +348,132 @@ const uglyOracleRiddles = [
 // --- Mutation Events ---
 const mutationEvents = [
   {
-  name: "The Maw Opens",
-  description: "A gaping mouth forms in the sky. It hungers. Choose to FEED it or FLEE.",
-  async effect(interaction, gamePlayers, eliminatedPlayers) {
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('feed').setLabel('FEED').setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId('flee').setLabel('FLEE').setStyle(ButtonStyle.Secondary)
-    );
+    name: "The Maw Opens",
+    description: "A gaping mouth forms in the sky. It hungers. Choose to FEED it or FLEE.",
+    async effect(channel, gamePlayers, eliminatedPlayers) {
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('feed').setLabel('FEED').setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId('flee').setLabel('FLEE').setStyle(ButtonStyle.Secondary)
+      );
 
-    const embed = new EmbedBuilder()
-      .setTitle("🕳️ The Maw Opens")
-      .setDescription("A gaping mouth forms in the sky. It hungers.\n\nYou may **FEED** the Maw with part of your soul... or attempt to **FLEE**.")
-      .setColor(0x8B0000);
+      const embed = new EmbedBuilder()
+        .setTitle("🕳️ The Maw Opens")
+        .setDescription("A gaping mouth forms in the sky. It hungers.\n\nYou may **FEED** the Maw with part of your soul... or attempt to **FLEE**.")
+        .setColor(0x8B0000);
 
-    const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
+      const msg = await channel.send({ embeds: [embed], components: [row] });
+      const collector = msg.createMessageComponentCollector({ time: 10000 });
+      const results = { fed: [], fled: [] };
 
-    const collector = msg.createMessageComponentCollector({ time: 10000 });
-    const results = { fed: [], fled: [] };
+      collector.on('collect', async i => {
+        if (i.user.bot) return;
+        if (results.fed.includes(i.user.id) || results.fled.includes(i.user.id)) {
+          return i.reply({ content: "You already chose!", ephemeral: true });
+        }
+        if (i.customId === 'feed') results.fed.push(i.user.id);
+        else results.fled.push(i.user.id);
+        await i.reply({ content: `🩸 Choice recorded: ${i.customId.toUpperCase()}`, ephemeral: true });
+      });
 
-    collector.on('collect', async i => {
-      if (i.user.bot) return;
-      if (results.fed.includes(i.user.id) || results.fled.includes(i.user.id)) {
-        return i.reply({ content: "You already chose!", ephemeral: true });
-      }
-      if (i.customId === 'feed') results.fed.push(i.user.id);
-      else results.fled.push(i.user.id);
-      await i.reply({ content: `🩸 Choice recorded: ${i.customId.toUpperCase()}`, ephemeral: true });
-    });
+      collector.on('end', async () => {
+        const feedOutcome = results.fed.map(id => `<@${id}>`).join(', ') || "*No one*";
+        const fleeOutcome = results.fled.map(id => `<@${id}>`).join(', ') || "*No one*";
 
-    collector.on('end', async () => {
-      const feedOutcome = results.fed.map(id => `<@${id}>`).join(', ') || "*No one*";
-      const fleeOutcome = results.fled.map(id => `<@${id}>`).join(', ') || "*No one*";
+        const resultEmbed = new EmbedBuilder()
+          .setTitle("🩸 The Maw Has Spoken")
+          .setDescription(`**Fed the Maw:** ${feedOutcome}\n**Fled:** ${fleeOutcome}`)
+          .setFooter({ text: "The Maw is... temporarily satisfied." })
+          .setColor(0x5e0000);
 
-      const resultEmbed = new EmbedBuilder()
-        .setTitle("🩸 The Maw Has Spoken")
-        .setDescription(`**Fed the Maw:** ${feedOutcome}\n**Fled:** ${fleeOutcome}`)
-        .setFooter({ text: "The Maw is... temporarily satisfied." })
-        .setColor(0x5e0000);
-
-      await msg.edit({ embeds: [resultEmbed], components: [] });
-    });
-  }
-},
+        await msg.edit({ embeds: [resultEmbed], components: [] });
+      });
+    }
+  },
   {
-  name: "The Charmhole",
-  description: "A writhing vortex opens in the ground. Some are pulled in. A few emerge... changed.",
-  async effect(channel, gamePlayers, eliminatedPlayers) {
-    const chosen = gamePlayers.filter(p => !p.eliminated && Math.random() < 0.3);
+    name: "The Charmhole",
+    description: "A writhing vortex opens in the ground. Some are pulled in. A few emerge... changed.",
+    async effect(channel, gamePlayers, eliminatedPlayers) {
+      const chosen = gamePlayers.filter(p => !p.eliminated && Math.random() < 0.3);
+      const results = [];
 
-    const results = [];
-
-    for (const player of chosen) {
-      const roll = Math.random();
-      if (roll < 0.33) {
-        player.eliminated = true;
-        eliminatedPlayers.push(player);
-        results.push(`💀 <@${player.id}> was consumed by the Charmhole.`);
-      } else if (roll < 0.66) {
-        player.lives += 2;
-        results.push(`💫 <@${player.id}> emerged glowing with **+2 lives**.`);
-      } else {
-        results.push(`❓ <@${player.id}> returned... but seems unchanged. For now.`);
+      for (const player of chosen) {
+        const roll = Math.random();
+        if (roll < 0.33) {
+          player.eliminated = true;
+          eliminatedPlayers.push(player);
+          results.push(`💀 <@${player.id}> was consumed by the Charmhole.`);
+        } else if (roll < 0.66) {
+          player.lives += 2;
+          results.push(`💫 <@${player.id}> emerged glowing with **+2 lives**.`);
+        } else {
+          results.push(`❓ <@${player.id}> returned... but seems unchanged. For now.`);
+        }
       }
+
+      const embed = new EmbedBuilder()
+        .setTitle("🌀 The Charmhole Opens")
+        .setDescription(results.length ? results.join('\n') : "The Charmhole grumbled, but spared everyone.")
+        .setColor(0x443355);
+
+      await channel.send({ embeds: [embed] });
     }
+  },
+  {
+    name: "The Mind Swap",
+    description: "Two players suddenly switch souls. Only one survives the swap.",
+    async effect(channel, gamePlayers, eliminatedPlayers) {
+      const candidates = gamePlayers.filter(p => !p.eliminated);
+      if (candidates.length < 2) return;
 
-    const embed = new EmbedBuilder()
-      .setTitle("🌀 The Charmhole Opens")
-      .setDescription(results.length ? results.join('\n') : "The Charmhole grumbled, but spared everyone.")
-      .setColor(0x443355);
+      const [p1, p2] = candidates.sort(() => 0.5 - Math.random()).slice(0, 2);
+      const winner = Math.random() < 0.5 ? p1 : p2;
+      const loser = winner === p1 ? p2 : p1;
 
-    await channel.send({ embeds: [embed] });
-  }
-},
-{
-  name: "The Mind Swap",
-  description: "Two players suddenly switch souls. Only one survives the swap.",
-  async effect(channel, gamePlayers, eliminatedPlayers) {
-    const candidates = gamePlayers.filter(p => !p.eliminated);
-    if (candidates.length < 2) return;
+      loser.eliminated = true;
+      eliminatedPlayers.push(loser);
+      winner.lives += 1;
 
-    const [p1, p2] = candidates.sort(() => 0.5 - Math.random()).slice(0, 2);
-    const winner = Math.random() < 0.5 ? p1 : p2;
-    const loser = winner === p1 ? p2 : p1;
+      const embed = new EmbedBuilder()
+        .setTitle("🧬 The Mind Swap")
+        .setDescription(`🧠 <@${p1.id}> and <@${p2.id}> had their souls switched.\n🎲 The charm allowed <@${winner.id}> to live — they gain **+1 life**.\n💀 <@${loser.id}> was lost in the void.`)
+        .setColor(0x776688);
 
-    loser.eliminated = true;
-    eliminatedPlayers.push(loser);
-    winner.lives += 1;
+      await channel.send({ embeds: [embed] });
+    }
+  },
+  {
+    name: "The Coffee Curse",
+    description: "The scent of cursed coffee fills the air. Those who sip it feel the full jolt of fate.",
+    async effect(channel, gamePlayers, eliminatedPlayers) {
+      const chosen = gamePlayers.filter(p => !p.eliminated && Math.random() < 0.5);
+      const lines = [];
 
-    const embed = new EmbedBuilder()
-      .setTitle("🧬 The Mind Swap")
-      .setDescription(`🧠 <@${p1.id}> and <@${p2.id}> had their souls switched.\n🎲 The charm allowed <@${winner.id}> to live — they gain **+1 life**.\n💀 <@${loser.id}> was lost in the void.`)
-      .setColor(0x776688);
-
-    await channel.send({ embeds: [embed] });
-  }
-},
-{
-  name: "The Coffee Curse",
-  description: "The scent of cursed coffee fills the air. Those who sip it feel the full jolt of fate.",
-  async effect(channel, gamePlayers, eliminatedPlayers) {
-    const chosen = gamePlayers.filter(p => !p.eliminated && Math.random() < 0.5);
-    const lines = [];
-
-    for (const player of chosen) {
-      const roll = Math.random();
-      if (roll < 0.25) {
-        player.eliminated = true;
-        eliminatedPlayers.push(player);
-        lines.push(`☠️ <@${player.id}> chugged the cursed ☕ and collapsed.`);
-      } else if (roll < 0.6) {
-        player.lives += 1;
-        lines.push(`⚡ <@${player.id}> felt the buzz — **+1 life**.`);
-      } else {
-        lines.push(`😐 <@${player.id}> felt nothing. Maybe it was decaf.`);
+      for (const player of chosen) {
+        const roll = Math.random();
+        if (roll < 0.25) {
+          player.eliminated = true;
+          eliminatedPlayers.push(player);
+          lines.push(`☠️ <@${player.id}> chugged the cursed ☕ and collapsed.`);
+        } else if (roll < 0.6) {
+          player.lives += 1;
+          lines.push(`⚡ <@${player.id}> felt the buzz — **+1 life**.`);
+        } else {
+          lines.push(`😐 <@${player.id}> felt nothing. Maybe it was decaf.`);
+        }
       }
+
+      const embed = new EmbedBuilder()
+        .setTitle("☕ The Coffee Curse")
+        .setDescription(lines.join('\n') || "No one dared to sip.")
+        .setColor(0x5c4033);
+
+      await channel.send({ embeds: [embed] });
     }
-
-    const embed = new EmbedBuilder()
-      .setTitle("☕ The Coffee Curse")
-      .setDescription(lines.join('\n') || "No one dared to sip.")
-      .setColor(0x5c4033);
-
-    await channel.send({ embeds: [embed] });
-  }
-},
+  },
 {
   name: "The Mirror of Echoes",
   description: "The mirror offers you power… or punishment. Only the brave step forward.",
-  async effect(channel, gamePlayers, eliminatedPlayers) {
+  async effect(channel) {
     const brave = gamePlayers.filter(p => !p.eliminated && Math.random() < 0.4);
     const lines = [];
 
@@ -506,54 +504,95 @@ const mutationEvents = [
     await channel.send({ embeds: [embed] });
   }
 },
-  {
-  name: "Chamber of Eyes",
-  description: "The floor is watching. Step carefully. Choose your direction: LEFT or RIGHT.",
-  async effect(interaction, gamePlayers, eliminatedPlayers) {
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('left').setLabel('LEFT').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId('right').setLabel('RIGHT').setStyle(ButtonStyle.Primary)
-    );
+{
+  name: "The Spiral Bloom",
+  description: "A monstrous flower blooms, releasing spores that twist fate. Risk touching it?",
+  async effect(channel) {
+    const touched = gamePlayers.filter(p => !p.eliminated && Math.random() < 0.5);
+    const outcomes = [];
+
+    for (const player of touched) {
+      const fate = Math.random();
+      if (fate < 0.2) {
+        player.eliminated = true;
+        eliminatedPlayers.push(player);
+        outcomes.push(`🌺 <@${player.id}> inhaled deeply and was twisted into mulch.`);
+      } else if (fate < 0.6) {
+        player.lives += 2;
+        outcomes.push(`🌼 <@${player.id}> gained clarity — **+2 lives**.`);
+      } else {
+        outcomes.push(`🌸 <@${player.id}> was kissed by pollen. No change… yet.`);
+      }
+    }
 
     const embed = new EmbedBuilder()
-      .setTitle("👁️ Chamber of Eyes")
-      .setDescription("The floor is watching. Choose **LEFT** or **RIGHT** to proceed.\n\nStep wisely.")
-      .setColor(0x4444aa);
+      .setTitle("🌺 The Spiral Bloom")
+      .setDescription(outcomes.join('\n') || "The flower wilted, unnoticed.")
+      .setColor(0x9900cc);
 
-    const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
-
-    const collector = msg.createMessageComponentCollector({ time: 10000 });
-    const results = { left: [], right: [] };
-
-    collector.on('collect', async i => {
-      if (i.user.bot) return;
-      if (results.left.includes(i.user.id) || results.right.includes(i.user.id)) {
-        return i.reply({ content: "You've already chosen!", ephemeral: true });
-      }
-      if (i.customId === 'left') results.left.push(i.user.id);
-      else results.right.push(i.user.id);
-      await i.reply({ content: `👣 You stepped ${i.customId.toUpperCase()}`, ephemeral: true });
-    });
-
-    collector.on('end', async () => {
-      await msg.edit({ components: [] });
-      const safeSide = Math.random() < 0.5 ? 'left' : 'right';
-      const dead = results[safeSide === 'left' ? 'right' : 'left'];
-
-      for (const id of dead) {
-        eliminatePlayerById(id);
-      }
-
-      const resultEmbed = new EmbedBuilder()
-        .setTitle("⚖️ Judgment Passed")
-        .setDescription(`The **${safeSide.toUpperCase()}** path was safe.\n\n💀 RIP: ${dead.map(id => `<@${id}>`).join(', ') || "None"}`)
-        .setColor(0x770000);
-
-      await msg.edit({ embeds: [resultEmbed] });
-    });
+    await channel.send({ embeds: [embed] });
   }
-}
+},
+{
+  name: "The Thought Leech",
+  description: "A shimmering parasite hovers, offering knowledge… for a cost.",
+  async effect(channel) {
+    const chosen = gamePlayers.filter(p => !p.eliminated && Math.random() < 0.5);
+    const lines = [];
+
+    for (const player of chosen) {
+      const roll = Math.random();
+      if (roll < 0.25) {
+        player.eliminated = true;
+        eliminatedPlayers.push(player);
+        lines.push(`🧠 <@${player.id}> learned the truth — and their mind imploded.`);
+      } else if (roll < 0.6) {
+        player.lives += 1;
+        lines.push(`📘 <@${player.id}> absorbed forbidden wisdom. **+1 life.**`);
+      } else {
+        lines.push(`💤 <@${player.id}> resisted the leech's call and slept through the event.`);
+      }
+    }
+
+    const embed = new EmbedBuilder()
+      .setTitle("🧠 The Thought Leech")
+      .setDescription(lines.join('\n') || "None accepted the Leech. It hovers... waiting.")
+      .setColor(0x222299);
+
+    await channel.send({ embeds: [embed] });
+  }
+},
+{
+  name: "The Masquerade",
+  description: "Masks fall from the sky. Wear one, and your fate may shift.",
+  async effect(channel) {
+    const participants = gamePlayers.filter(p => !p.eliminated && Math.random() < 0.6);
+    const results = [];
+
+    for (const player of participants) {
+      const roll = Math.random();
+      if (roll < 0.2) {
+        player.eliminated = true;
+        eliminatedPlayers.push(player);
+        results.push(`🎭 <@${player.id}> wore the mask of lies. It consumed them.`);
+      } else if (roll < 0.5) {
+        player.lives += 2;
+        results.push(`🎭 <@${player.id}> chose the mask of valor. **+2 lives!**`);
+      } else {
+        results.push(`🎭 <@${player.id}> donned the mask of mystery. Nothing happened… yet.`);
+      }
+    }
+
+    const embed = new EmbedBuilder()
+      .setTitle("🎭 The Masquerade")
+      .setDescription(results.join('\n') || "No one touched the masks. They now drift away on the wind.")
+      .setColor(0x660066);
+
+    await channel.send({ embeds: [embed] });
+  }
+}  
 ];
+
 
 // --- Mutation Mini-Games ---
 const mutationMiniGames = [
