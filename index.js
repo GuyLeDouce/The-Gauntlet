@@ -976,7 +976,8 @@ client.on('messageCreate', async (message) => {
     return message.channel.send(`💀 **${username}** ${failLine}`);
   }
 });
-
+client.once('ready', async () => {
+  console.log(`✅ Logged in as ${client.user.tag}`);
 // --- Join Phase Logic ---
 async function startJoinPhase(channel, duration, isTrial = false) {
   gameActive = true;
@@ -1560,10 +1561,7 @@ client.on('messageCreate', async (message) => {
     await message.channel.send({ embeds: [embed] });
   }
 });
-// --- Bot Ready Handler ---
-client.once('ready', () => {
-  console.log(`✅ Logged in as ${client.user.tag}`);
+
 });
 
-// --- Launch Bot ---
-client.login(process.env.TOKEN);
+client.login(process.env.DISCORD_TOKEN);
