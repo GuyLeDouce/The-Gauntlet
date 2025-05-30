@@ -69,6 +69,11 @@ let autoRestartCount = 0;
 let mutationCount = 0;
 let miniGameCount = 0;
 let massRevivalTriggered = false;
+let mutationUsed = 0;
+let miniGameUsed = 0;
+let usedMutations = new Set();
+let usedMiniGames = new Set();
+
 
 function shuffleArray(array) {
   return [...array].sort(() => Math.random() - 0.5);
@@ -600,7 +605,7 @@ const mutationMiniGames = [
   {
   name: "Press the Charm",
   description: "A single button appears. Press it... or not.",
-  async effect(interaction, gamePlayers, eliminatedPlayers) {
+  async effect({ channel }, gamePlayers, eliminatedPlayers) {
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('presscharm').setLabel('Press It').setStyle(ButtonStyle.Danger)
     );
@@ -610,7 +615,7 @@ const mutationMiniGames = [
       .setDescription("A single button appears. Press it... or not.\n\nClick fast. Someone’s gonna blow.")
       .setColor(0xdd2222);
 
-    const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
+    const msg = await channel.send({ embeds: [embed], components: [row] });
 
     const collector = msg.createMessageComponentCollector({ time: 8000 });
     const results = [];
@@ -639,7 +644,7 @@ const mutationMiniGames = [
 {
   name: "The Charm Pulse",
   description: "The charm vibrates. You may touch it — or you may die.",
-  async effect(interaction, gamePlayers, eliminatedPlayers) {
+  async effect({ channel }, gamePlayers, eliminatedPlayers) {
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('pulse').setLabel('Touch the Charm').setStyle(ButtonStyle.Primary)
     );
@@ -649,7 +654,7 @@ const mutationMiniGames = [
       .setDescription("A dangerous energy emits from the charm. Press at your own risk.")
       .setColor(0x3399ff);
 
-    const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
+    const msg = await channel.send({ embeds: [embed], components: [row] });
     const collector = msg.createMessageComponentCollector({ time: 8000 });
 
     const results = [];
@@ -697,7 +702,7 @@ const mutationMiniGames = [
 {
   name: "Coin of Reversal",
   description: "All eliminated players may flip the cursed coin — one side revives, the other explodes.",
-  async effect(interaction, gamePlayers, eliminatedPlayers) {
+  async effect({ channel }, gamePlayers, eliminatedPlayers) {
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('flipcoin').setLabel('Flip the Coin').setStyle(ButtonStyle.Secondary)
     );
@@ -707,7 +712,7 @@ const mutationMiniGames = [
       .setDescription("Eliminated players only: flip the coin to gamble your soul.")
       .setColor(0xaaaaaa);
 
-    const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
+    const msg = await channel.send({ embeds: [embed], components: [row] });
 
     const collector = msg.createMessageComponentCollector({ time: 6000 });
 
@@ -754,7 +759,7 @@ const mutationMiniGames = [
  {
   name: "The Split Path",
   description: "Two identical doorways. One is a trap.",
-  async effect(interaction, gamePlayers, eliminatedPlayers) {
+  async effect({ channel }, gamePlayers, eliminatedPlayers) {
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('leftdoor').setLabel('Left Door').setStyle(ButtonStyle.Primary),
       new ButtonBuilder().setCustomId('rightdoor').setLabel('Right Door').setStyle(ButtonStyle.Primary)
@@ -765,7 +770,7 @@ const mutationMiniGames = [
       .setDescription("Two doors. One leads forward, the other to elimination.\nChoose wisely.")
       .setColor(0x222266);
 
-    const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
+    const msg = await channel.send({ embeds: [embed], components: [row] });
     const collector = msg.createMessageComponentCollector({ time: 9000 });
 
     const chosen = { left: [], right: [] };
@@ -803,7 +808,7 @@ const mutationMiniGames = [
 {
   name: "The Ugly Crystal",
   description: "A fractured crystal glows. Risk your life to overcharge it.",
-  async effect(interaction, gamePlayers, eliminatedPlayers) {
+  async effect({ channel }, gamePlayers, eliminatedPlayers) {
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('chargecrystal').setLabel('Charge Crystal').setStyle(ButtonStyle.Danger)
     );
@@ -813,7 +818,7 @@ const mutationMiniGames = [
       .setDescription("Click to charge it with your essence. It may reward you with **+2 lives**, or obliterate you.")
       .setColor(0xaa00ff);
 
-    const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
+    const msg = await channel.send({ embeds: [embed], components: [row] });
     const collector = msg.createMessageComponentCollector({ time: 9000 });
 
     const chargers = [];
@@ -854,7 +859,7 @@ const mutationMiniGames = [
 {
   name: "Bargain With the Charm",
   description: "Offer part of your vitality to try and revive a fallen ally.",
-  async effect(interaction, gamePlayers, eliminatedPlayers) {
+  async effect({ channel }, gamePlayers, eliminatedPlayers) {
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('offerlife').setLabel('Offer Life').setStyle(ButtonStyle.Secondary)
     );
@@ -864,7 +869,7 @@ const mutationMiniGames = [
       .setDescription("You may sacrifice a life to revive someone random. The charm may accept… or ignore you.")
       .setColor(0x888800);
 
-    const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
+    const msg = await channel.send({ embeds: [embed], components: [row] });
     const collector = msg.createMessageComponentCollector({ time: 8000 });
 
     const sacrificers = [];
@@ -1189,17 +1194,28 @@ while (gamePlayers.filter(p => !p.eliminated).length > 3) {
 
   // 🧬 Mutation Events: Random chance, max 2
   if (mutationUsed < 2 && Math.random() < 0.5 && aliveCount > 4) {
-    await runMutationEvent(channel);
+  const available = mutationEvents.filter(m => !usedMutations.has(m.name));
+  if (available.length > 0) {
+    const mutation = available[Math.floor(Math.random() * available.length)];
+    usedMutations.add(mutation.name);
+    await runMutationEvent(channel, mutation);
     mutationUsed++;
     await wait(3000);
   }
+}
+
 
   // 🎮 Mini-Games: Random chance, max 2
-  if (miniGameUsed < 2 && Math.random() < 0.5 && aliveCount > 4) {
-    await runMiniGameEvent(channel);
+if (miniGameUsed < 2 && Math.random() < 0.5 && aliveCount > 4) {
+  const available = mutationMiniGames.filter(m => !usedMiniGames.has(m.name));
+  if (available.length > 0) {
+    const miniGame = available[Math.floor(Math.random() * available.length)];
+    usedMiniGames.add(miniGame.name);
+    await runMiniGameEvent(channel, miniGame);
     miniGameUsed++;
     await wait(3000);
   }
+}
 
   // 💫 Mass Revival: Trigger once at >50% eliminated
   if (!massRevivalTriggered && eliminatedPlayers.length > totalPlayers / 2) {
@@ -1289,8 +1305,8 @@ async function runEliminationRound(channel) {
 }
 
 // --- Mutation Event ---
-async function runMutationEvent(channel) {
-  const mutation = mutationEvents[Math.floor(Math.random() * mutationEvents.length)];
+async function runMutationEvent(channel, mutation) {
+
   
   const embed = new EmbedBuilder()
     .setTitle(`🧬 Mutation Event: ${mutation.name}`)
@@ -1304,9 +1320,9 @@ async function runMutationEvent(channel) {
 }
 
 
-async function runMiniGameEvent(channel) {
+async function runMiniGameEvent(channel, miniGame) {
   const embed = new EmbedBuilder()
-    .setTitle("🎮 Mini-Game Time")
+    .setTitle(`🎮 ${miniGame.name}`)
     .setDescription("Click the right button. You have 5 seconds. One will save you. One will not.")
     .setColor(0x00ccff);
 
