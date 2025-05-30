@@ -1149,7 +1149,7 @@ await runCoreEvent(channel);
 async function runCoreEvent(channel) {
   const roll = Math.random();
 
-  if (roll = 1) {
+  if (roll < 0.25) {
     await runMutationEvent(channel);
   } else if (roll < 0.5) {
     await runMiniGameEvent(channel);
