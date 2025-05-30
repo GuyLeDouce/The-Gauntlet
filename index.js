@@ -346,7 +346,7 @@ const uglyOracleRiddles = [
 
 
 // --- Mutation Events ---
-Events = [
+mutationEvents = [
   {
     name: "The Maw Opens",
     description: "A gaping mouth forms in the sky. It hungers. Choose to FEED it or FLEE.",
