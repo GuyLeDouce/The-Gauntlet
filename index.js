@@ -1122,6 +1122,7 @@ async function runBossVotePhase(channel) {
 }
 async function runGauntlet(channel, isTrial = false) {
   let eventCount = 0;
+  const usedRiddleIndexes = new Set();
   const totalPlayers = gamePlayers.length;
   let mutationUsed = 0;
   let miniGameUsed = 0;
@@ -1149,41 +1150,50 @@ async function runGauntlet(channel, isTrial = false) {
       await wait(2000);
     }
 
-    // Lore: Oracle Riddle
-    if (Math.random() < 0.2) {
-      const riddle = uglyOracleRiddles[Math.floor(Math.random() * uglyOracleRiddles.length)];
-      const embed = new EmbedBuilder()
-        .setTitle("🔮 Ugly Oracle Riddle")
-        .setDescription(`> ${riddle.question}\n\nReply with the answer in the next **30 seconds** to gain a life.`)
-        .setColor(0xaa00aa);
-      await channel.send({ embeds: [embed] });
+// Lore: Oracle Riddle
+if (Math.random() < 0.2 && usedRiddleIndexes.size < uglyOracleRiddles.length) {
+  let index;
+  do {
+    index = Math.floor(Math.random() * uglyOracleRiddles.length);
+  } while (usedRiddleIndexes.has(index));
 
-      const collected = await channel.awaitMessages({
-        filter: m => !m.author.bot,
-        time: 30000
-      });
+  usedRiddleIndexes.add(index);
+  const riddle = uglyOracleRiddles[index];
 
-      const correctPlayers = [];
+  const embed = new EmbedBuilder()
+    .setTitle("🔮 Ugly Oracle Riddle")
+    .setDescription(`> ${riddle.question}\n\nReply with the answer in the next **30 seconds** to gain a life.`)
+    .setColor(0xaa00aa);
 
-      collected.forEach(msg => {
-        if (msg.content.toLowerCase().includes(riddle.answer)) {
-          const player = gamePlayers.find(p => p.id === msg.author.id);
-          if (player && !player.eliminated) {
-            player.lives++;
-            correctPlayers.push(player);
-          }
-        }
-      });
+  await channel.send({ embeds: [embed] });
 
-      if (correctPlayers.length > 0) {
-        const list = correctPlayers.map(p => `<@${p.id}>`).join(', ');
-        await channel.send(`🧠 The charm acknowledges the clever ones: ${list} — each gains **+1 life**.`);
-      } else {
-        await channel.send(`🤷‍♂️ No one solved the Oracle's riddle. The charm remains unimpressed.`);
+  const collected = await channel.awaitMessages({
+    filter: m => !m.author.bot,
+    time: 30000
+  });
+
+  const correctPlayers = [];
+
+  collected.forEach(msg => {
+    if (msg.content.toLowerCase().includes(riddle.answer)) {
+      const player = gamePlayers.find(p => p.id === msg.author.id);
+      if (player && !player.eliminated) {
+        player.lives++;
+        correctPlayers.push(player);
       }
-
-      await wait(2500);
     }
+  });
+
+  if (correctPlayers.length > 0) {
+    const list = correctPlayers.map(p => `<@${p.id}>`).join(', ');
+    await channel.send(`🧠 The charm acknowledges the clever ones: ${list} — each gains **+1 life**.`);
+  } else {
+    await channel.send(`🤷‍♂️ No one solved the Oracle's riddle. The charm remains unimpressed.`);
+  }
+
+  await wait(2500);
+}
+
 
     // 🎲 Decide which event to run
     const roll = Math.random();
