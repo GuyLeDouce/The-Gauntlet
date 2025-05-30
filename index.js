@@ -1279,42 +1279,59 @@ if (roll < 0.33 && mutationUsed < 2 && aliveCount > 4) {
     massRevivalTriggered = true;
   }
 
-  // Game ends
-  const finalists = gamePlayers.filter(p => !p.eliminated);
-  const top3 = [...finalists, ...eliminatedPlayers]
-    .sort((a, b) => (b.lives || 0) - (a.lives || 0))
-    .slice(0, 3);
+// Final FATE Phase
+await wait(3000);
+await channel.send("🕯️ The charm pulses... Final fate will now be decided.");
+await wait(2000);
 
-  const podiumEmbed = new EmbedBuilder()
-    .setTitle(isTrial ? "🏁 Trial Gauntlet Complete" : "🏆 The Gauntlet Has Ended")
-    .setDescription(`
-🥇 **1st:** ${top3[0] ? `<@${top3[0].id}> with ${top3[0].lives} lives` : 'Unknown'}
-🥈 **2nd:** ${top3[1] ? `<@${top3[1].id}> with ${top3[1].lives} lives` : 'Unknown'}
-🥉 **3rd:** ${top3[2] ? `<@${top3[2].id}> with ${top3[2].lives} lives` : 'Unknown'}
-    `)
-    .setFooter({ text: isTrial ? "This was a test run." : "Glory is temporary. Ugliness is eternal." })
-    .setColor(isTrial ? 0xaaaaaa : 0x00ffcc)
-    .setThumbnail('https://cdn.discordapp.com/emojis/1120652421982847017.gif?size=96&quality=lossless');
+const alive = gamePlayers.filter(p => !p.eliminated);
+if (alive.length > 1) {
+  await channel.send("⚔️ The charm demands one last offering...");
+  await runEliminationRound(channel);
+  await wait(3000);
+} else if (alive.length === 0) {
+  await channel.send("💀 All are gone. The charm devoured every soul.");
+  await wait(2000);
+}
 
-  await channel.send({ embeds: [podiumEmbed] });
+const finalists = gamePlayers.filter(p => !p.eliminated);
+const top3 = [...finalists, ...eliminatedPlayers]
+  .sort((a, b) => (b.lives || 0) - (a.lives || 0))
+  .slice(0, 3);
 
-  // Record stats
-  if (!isTrial) {
-    for (let i = 0; i < top3.length; i++) {
-      const player = top3[i];
-      if (!player) continue;
-      await updateStats(player.id, player.username, i === 0 ? 1 : 0, 0, 0);
-    }
+const winner = top3[0];
+const runnerUp = top3[1];
+const third = top3[2];
+
+const podiumEmbed = new EmbedBuilder()
+  .setTitle("🔥 THE GAUNTLET IS OVER 🔥")
+  .setDescription(`
+🏆 **Champion:** ${winner ? `<@${winner.id}>` : 'Nobody'} — ${winner?.lives || 0} lives remain
+🥈 **Runner-Up:** ${runnerUp ? `<@${runnerUp.id}>` : 'Unknown'} — ${runnerUp?.lives || 0} lives
+🥉 **Third Place:** ${third ? `<@${third.id}>` : 'Unknown'} — ${third?.lives || 0} lives
+`)
+  .setFooter({ text: "The charm sleeps... for now." })
+  .setColor(0xff2266)
+  .setThumbnail('https://media.tenor.com/fAjdHbBtWyEAAAAj/fire-skull-burning.gif');
+
+await channel.send({ embeds: [podiumEmbed] });
+
+// Record stats
+if (!isTrial) {
+  for (let i = 0; i < top3.length; i++) {
+    const player = top3[i];
+    if (!player) continue;
+    await updateStats(player.id, player.username, i === 0 ? 1 : 0, 0, 0);
   }
+}
 
-  // Reset state
-  gameActive = false;
-  autoRestartCount = 0;
+// Reset & Rematch
+gameActive = false;
+autoRestartCount = 0;
 
-  // Show rematch button
-  if (!isTrial) {
-    await showRematchButton(channel, gamePlayers);
-  }
+if (!isTrial) {
+  await showRematchButton(channel, gamePlayers);
+}
 }
 
 
