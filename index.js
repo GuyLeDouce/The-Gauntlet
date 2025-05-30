@@ -1381,74 +1381,34 @@ async function runEliminationRound(channel, logOnly = false) {
 }
 
 
-// --- Mutation Event ---
 async function runMutationEvent(channel, logOnly = false) {
   const mutation = mutationEvents[Math.floor(Math.random() * mutationEvents.length)];
-  let output = `\n🧬 **Mutation: ${mutation.name}**\n`;
+  if (logOnly) return `\n🧬 **Mutation: ${mutation.name}**\n${mutation.description}\n`;
 
-  if (!logOnly) {
-    const embed = new EmbedBuilder()
-      .setTitle(`🧬 Mutation Event: ${mutation.name}`)
-      .setDescription(mutation.description)
-      .setColor(0x9933ff);
-    await channel.send({ embeds: [embed] });
-  }
+  const embed = new EmbedBuilder()
+    .setTitle(`🧬 Mutation Event: ${mutation.name}`)
+    .setDescription(mutation.description)
+    .setColor(0x9933ff);
 
-  const resultText = await mutation.effect(channel, gamePlayers, eliminatedPlayers, logOnly);
-  output += resultText ? `${resultText}\n` : '';
-  return output;
+  await channel.send({ embeds: [embed] });
+
+  const resultText = await mutation.effect(channel, gamePlayers, eliminatedPlayers);
+  return `\n🧬 **Mutation: ${mutation.name}**\n${resultText || 'No major effects occurred.'}\n`;
 }
-
-
-
 async function runMiniGameEvent(channel, logOnly = false) {
   const miniGame = mutationMiniGames[Math.floor(Math.random() * mutationMiniGames.length)];
-  let output = `\n🎯 **Mini-Game: ${miniGame.name}**\n`;
+  if (logOnly) return `\n🎯 **Mini-Game: ${miniGame.name}**\n${miniGame.description}\n`;
 
-  if (!logOnly) {
-    const embed = new EmbedBuilder()
-      .setTitle(`🎯 Mini-Game: ${miniGame.name}`)
-      .setDescription(miniGame.description)
-      .setColor(0x00ccff);
-    await channel.send({ embeds: [embed] });
-  }
+  const embed = new EmbedBuilder()
+    .setTitle(`🎯 Mini-Game: ${miniGame.name}`)
+    .setDescription(miniGame.description)
+    .setColor(0x00ccff);
 
-  const resultText = await miniGame.effect(channel, gamePlayers, eliminatedPlayers, logOnly);
-  output += resultText ? `${resultText}\n` : '';
-  return output;
+  await channel.send({ embeds: [embed] });
+
+  const resultText = await miniGame.effect(channel, gamePlayers, eliminatedPlayers);
+  return `\n🎯 **Mini-Game: ${miniGame.name}**\n${resultText || 'No clear winners...'}\n`;
 }
-
-  const msg = await channel.send({ embeds: [embed], components: [row] });
-
-  const clicked = [];
-
-  const collector = msg.createMessageComponentCollector({ time: 5000 });
-
-  collector.on('collect', async i => {
-    if (clicked.includes(i.user.id)) return;
-    clicked.push(i.user.id);
-
-    if (i.customId === 'trap_button') {
-      const player = gamePlayers.find(p => p.id === i.user.id);
-      if (player && !player.eliminated) {
-        player.lives--;
-        if (player.lives <= 0) {
-          player.eliminated = true;
-          eliminatedPlayers.push(player);
-        }
-        await i.reply({ content: "💥 You clicked the trap! You lose a life.", ephemeral: true });
-      }
-    } else {
-      await i.reply({ content: "✅ You survived the mini-game!", ephemeral: true });
-    }
-  });
-
-  collector.on('end', async () => {
-    await msg.edit({ components: [] });
-  });
-}
-
-
 async function runMassRevivalEvent(channel) {
   const embed = new EmbedBuilder()
     .setTitle("💫 Totem of Lost Souls")
@@ -1492,7 +1452,7 @@ async function runMassRevivalEvent(channel) {
           revived.push(`<@${id}>`);
         } else {
           const member = await channel.guild.members.fetch(id);
-          const player = {
+          const newPlayer = {
             id: id,
             username: member.user.username,
             lives: 1,
@@ -1500,7 +1460,7 @@ async function runMassRevivalEvent(channel) {
             joinedAt: Date.now(),
             isBoss: false
           };
-          gamePlayers.push(player);
+          gamePlayers.push(newPlayer);
           revived.push(`<@${id}>`);
         }
       } else {
@@ -1510,12 +1470,107 @@ async function runMassRevivalEvent(channel) {
 
     const resultEmbed = new EmbedBuilder()
       .setTitle("🕯️ Totem Judgment")
-      .setDescription(`**Revived:** ${revived.length > 0 ? revived.join(', ') : '*None*'}\n**Failed:** ${failed.length > 0 ? failed.join(', ') : '*None*'}`)
+      .setDescription(`**Revived:** ${revived.length ? revived.join(', ') : '*None*'}\n**Failed:** ${failed.length ? failed.join(', ') : '*None*'}`)
       .setColor(revived.length ? 0x33cc99 : 0x333333);
 
     await channel.send({ embeds: [resultEmbed] });
   });
 }
+async function runDuelEvent(channel) {
+  const alivePlayers = gamePlayers.filter(p => !p.eliminated);
+  if (alivePlayers.length < 2) return "🪦 Not enough players alive to duel.\n";
+
+  const [p1, p2] = shuffleArray(alivePlayers).slice(0, 2);
+
+  const embed = new EmbedBuilder()
+    .setTitle("⚔️ Duel of Fates")
+    .setDescription(`Only one shall survive...\n\n🟥 **${p1.username}** vs 🟦 **${p2.username}**\nClick your button fast!`)
+    .setColor(0xff4444);
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(`duel_${p1.id}`).setLabel(`${p1.username}`).setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId(`duel_${p2.id}`).setLabel(`${p2.username}`).setStyle(ButtonStyle.Primary)
+  );
+
+  const msg = await channel.send({ embeds: [embed], components: [row] });
+
+  const collector = msg.createMessageComponentCollector({ time: 5000 });
+  const pressed = new Set();
+
+  collector.on('collect', async i => {
+    if (pressed.has(i.user.id)) return;
+    if (i.customId === `duel_${p1.id}` || i.customId === `duel_${p2.id}`) {
+      pressed.add(i.user.id);
+      await i.reply({ content: "⚔️ Duel initiated!", ephemeral: true });
+      collector.stop(i.customId); // End with winner's button
+    }
+  });
+
+  collector.on('end', async (_, reason) => {
+    await msg.edit({ components: [] });
+
+    let winner, loser;
+    if (reason === `duel_${p1.id}`) {
+      winner = p1;
+      loser = p2;
+    } else if (reason === `duel_${p2.id}`) {
+      winner = p2;
+      loser = p1;
+    } else {
+      // No one clicked
+      return await channel.send("🤷 Nobody dueled. The charm is disappointed.");
+    }
+
+    winner.lives++;
+    loser.lives--;
+    if (loser.lives <= 0) {
+      loser.eliminated = true;
+      eliminatedPlayers.push(loser);
+    }
+
+    await channel.send(`🏅 <@${winner.id}> wins the duel and gains +1 life.\n💀 <@${loser.id}> loses the duel and ${loser.eliminated ? 'is eliminated!' : 'loses 1 life.'}`);
+  });
+
+  return "🗡️ A duel was fought.";
+}
+async function runOracleRiddle(channel, usedRiddleIndexes) {
+  if (usedRiddleIndexes.size >= uglyOracleRiddles.length) return "";
+
+  let index;
+  do {
+    index = Math.floor(Math.random() * uglyOracleRiddles.length);
+  } while (usedRiddleIndexes.has(index));
+
+  usedRiddleIndexes.add(index);
+  const riddle = uglyOracleRiddles[index];
+
+  const embed = new EmbedBuilder()
+    .setTitle("🔮 Ugly Oracle Riddle")
+    .setDescription(`> ${riddle.question}\n\nReply in the next **30 seconds** to gain a life.`)
+    .setColor(0xaa00aa);
+  await channel.send({ embeds: [embed] });
+
+  const collected = await channel.awaitMessages({ filter: m => !m.author.bot, time: 30000 });
+  const correctPlayers = [];
+
+  collected.forEach(msg => {
+    if (msg.content.toLowerCase().includes(riddle.answer)) {
+      const player = gamePlayers.find(p => p.id === msg.author.id);
+      if (player && !player.eliminated && !correctPlayers.includes(player)) {
+        player.lives++;
+        correctPlayers.push(player);
+      }
+    }
+  });
+
+  if (correctPlayers.length > 0) {
+    const list = correctPlayers.map(p => `<@${p.id}>`).join(', ');
+    return `🧠 Oracle answered by ${list}. Gained +1 life.\n`;
+  } else {
+    return `🤷‍♂️ The riddle went unanswered.\n`;
+  }
+}
+
 
 // --- Update Stats in DB ---
 async function updateStats(userId, username, wins = 0, revives = 0, duels = 0) {
