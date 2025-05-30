@@ -1126,121 +1126,119 @@ async function runBossVotePhase(channel) {
   });
 }
 async function runGauntlet(channel, isTrial = false) {
-  let round = 0;
   const totalPlayers = gamePlayers.length;
-let mutationUsed = 0;
-let miniGameUsed = 0;
+  let round = 0;
+  mutationUsed = 0;
+  miniGameUsed = 0;
+  massRevivalTriggered = false;
+  usedMutations = new Set();
+  usedMiniGames = new Set();
 
-while (gamePlayers.filter(p => !p.eliminated).length > 3) {
-  round++;
-  const alive = gamePlayers.filter(p => !p.eliminated);
-  const aliveCount = alive.length;
+  while (gamePlayers.filter(p => !p.eliminated).length > 3) {
+    round++;
 
-  await wait(8000);
-  await channel.send(`🔄 **Round ${round}** begins! (${aliveCount}/${totalPlayers} remain)`);
+    const alive = gamePlayers.filter(p => !p.eliminated);
+    const aliveCount = alive.length;
 
-  // Lore: Warp Echo
-  if (Math.random() < 0.4) {
-    const echo = warpEchoes[Math.floor(Math.random() * warpEchoes.length)];
-    await channel.send(`🌌 ${echo}`);
+    await channel.send(`🎲 **Round ${round} begins!** (${aliveCount}/${totalPlayers} remain)`);
     await wait(3000);
-  }
 
-  // Lore: Ugly Chant
-  if (Math.random() < 0.2) {
-    const chant = uglychants[Math.floor(Math.random() * uglychants.length)];
-    await channel.send(`🔊 *Ugly Chant:* "${chant}"`);
-    await wait(2500);
-  }
-
-  // Lore: Oracle Riddle
-  if (Math.random() < 0.2) {
-    const riddle = uglyOracleRiddles[Math.floor(Math.random() * uglyOracleRiddles.length)];
-    const embed = new EmbedBuilder()
-      .setTitle("🔮 Ugly Oracle Riddle")
-      .setDescription(`> ${riddle.question}\n\nReply with the answer in the next **30 seconds** to gain a life.`)
-      .setColor(0xaa00aa);
-    await channel.send({ embeds: [embed] });
-
-    const collected = await channel.awaitMessages({
-      filter: m => !m.author.bot,
-      time: 30000
-    });
-
-    const correctPlayers = [];
-
-    collected.forEach(msg => {
-      if (msg.content.toLowerCase().includes(riddle.answer)) {
-        const player = gamePlayers.find(p => p.id === msg.author.id);
-        if (player && !player.eliminated) {
-          player.lives++;
-          correctPlayers.push(player);
-        }
-      }
-    });
-
-    if (correctPlayers.length > 0) {
-      const list = correctPlayers.map(p => `<@${p.id}>`).join(', ');
-      await channel.send(`🧠 The charm acknowledges the clever ones: ${list} — each gains **+1 life**.`);
-    } else {
-      await channel.send(`🤷‍♂️ No one solved the Oracle's riddle. The charm remains unimpressed.`);
+    // Lore Drop (optional)
+    if (Math.random() < 0.2) {
+      const lore = loreDrops[Math.floor(Math.random() * loreDrops.length)];
+      await channel.send(`📜 **Lore Drop:** ${lore}`);
+      await wait(3000);
     }
 
-    await wait(2000);
+    // Ugly Chant (optional)
+    if (Math.random() < 0.2) {
+      const chant = uglychants[Math.floor(Math.random() * uglychants.length)];
+      await channel.send(`🔊 **Ugly Chant:** ${chant}`);
+      await wait(3000);
+    }
+
+    // Oracle Riddle (optional)
+    if (Math.random() < 0.2) {
+      const riddle = uglyOracleRiddles[Math.floor(Math.random() * uglyOracleRiddles.length)];
+      const embed = new EmbedBuilder()
+        .setTitle("🔮 Ugly Oracle Riddle")
+        .setDescription(`> ${riddle.question}\n\nReply with the answer in the next **30 seconds** to gain a life.`)
+        .setColor(0xaa00aa);
+      await channel.send({ embeds: [embed] });
+
+      const collected = await channel.awaitMessages({ filter: m => !m.author.bot, time: 30000 });
+      const correct = [];
+
+      collected.forEach(msg => {
+        if (msg.content.toLowerCase().includes(riddle.answer)) {
+          const player = gamePlayers.find(p => p.id === msg.author.id);
+          if (player && !player.eliminated) {
+            player.lives++;
+            correct.push(player);
+          }
+        }
+      });
+
+      if (correct.length > 0) {
+        const list = correct.map(p => `<@${p.id}>`).join(', ');
+        await channel.send(`🧠 The charm acknowledges the clever ones: ${list} — each gains **+1 life**.`);
+      } else {
+        await channel.send(`😐 No one solved the Oracle's riddle. The charm remains unimpressed.`);
+      }
+
+      await showPlayerCount(channel);
+      await wait(3000);
+    }
+
+    // 🔪 Elimination Round (always)
+    await runEliminationRound(channel);
+    await showPlayerCount(channel);
+    await wait(5000);
+
+    // 🧬 Mutation (optional, max 2)
+    if (mutationUsed < 2 && Math.random() < 0.5 && aliveCount > 4) {
+      const available = mutationEvents.filter(m => !usedMutations.has(m.name));
+      if (available.length > 0) {
+        const mutation = available[Math.floor(Math.random() * available.length)];
+        usedMutations.add(mutation.name);
+        await runMutationEvent(channel, mutation);
+        mutationUsed++;
+        await showPlayerCount(channel);
+        await wait(5000);
+      }
+    }
+
+    // 🎮 Mini-Game (optional, max 2)
+    if (miniGameUsed < 2 && Math.random() < 0.5 && aliveCount > 4) {
+      const available = mutationMiniGames.filter(m => !usedMiniGames.has(m.name));
+      if (available.length > 0) {
+        const mini = available[Math.floor(Math.random() * available.length)];
+        usedMiniGames.add(mini.name);
+        await runMiniGameEvent(channel, mini);
+        miniGameUsed++;
+        await showPlayerCount(channel);
+        await wait(5000);
+      }
+    }
+
+    // 💫 Mass Revival: Trigger once at >50% eliminated
+    if (!massRevivalTriggered && eliminatedPlayers.length > totalPlayers / 2) {
+      await (channel);
+      massRevivalTriggered = true;
+      await showPlayerCount(channel);
+      await wait(5000);
+    }
   }
 
-  // 🧟 Always run an elimination round
+  // Final Elimination to drop to 3 or less
   await runEliminationRound(channel);
+  await showPlayerCount(channel);
+  await wait(4000);
 
-  // 🧬 Mutation Events: Random chance, max 2
-  if (mutationUsed < 2 && Math.random() < 0.5 && aliveCount > 4) {
-  const available = mutationEvents.filter(m => !usedMutations.has(m.name));
-  if (available.length > 0) {
-    const mutation = available[Math.floor(Math.random() * available.length)];
-    usedMutations.add(mutation.name);
-    await runMutationEvent(channel, mutation);
-    mutationUsed++;
-    await wait(3000);
-  }
+  // Wrap it up
+  await endGameSequence(channel, isTrial);
 }
 
-
-  // 🎮 Mini-Games: Random chance, max 2
-if (miniGameUsed < 2 && Math.random() < 0.5 && aliveCount > 4) {
-  const available = mutationMiniGames.filter(m => !usedMiniGames.has(m.name));
-  if (available.length > 0) {
-    const miniGame = available[Math.floor(Math.random() * available.length)];
-    usedMiniGames.add(miniGame.name);
-    await runMiniGameEvent(channel, miniGame);
-    miniGameUsed++;
-    await wait(3000);
-  }
-}
-
-  // 💫 Mass Revival: Trigger once at >50% eliminated
-  if (!massRevivalTriggered && eliminatedPlayers.length > totalPlayers / 2) {
-    await wait(3000);
-    await runMassRevivalEvent(channel);
-    massRevivalTriggered = true;
-  }
-}
-  await runEliminationRound(channel);
-
-  if (gamePlayers.filter(p => !p.eliminated).length > 4) {
-    await runMutationEvent(channel);
-    await wait(3000);
-    await runMutationEvent(channel);
-
-    await runMiniGameEvent(channel);
-    await wait(3000);
-    await runMiniGameEvent(channel);
-  }
-
-  if (!massRevivalTriggered && eliminatedPlayers.length > totalPlayers / 2) {
-    await wait(3000);
-    await runMassRevivalEvent(channel);
-    massRevivalTriggered = true;
-  }
 
 // ✅ End of main while loop — now the game ends
 const finalists = gamePlayers.filter(p => !p.eliminated);
@@ -1380,6 +1378,12 @@ async function runMassRevivalEvent(channel) {
       .setLabel('Touch the Totem')
       .setStyle(ButtonStyle.Secondary)
   );
+async function showPlayerCount(channel) {
+  const embed = new EmbedBuilder()
+    .setDescription(`🧍 **Players Remaining:** ${gamePlayers.filter(p => !p.eliminated).length} / ${gamePlayers.length}`)
+    .setColor(0x888888);
+  await channel.send({ embeds: [embed] });
+}
 
   const msg = await channel.send({ embeds: [embed], components: [button] });
 
