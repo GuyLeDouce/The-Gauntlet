@@ -1182,7 +1182,6 @@ while (gamePlayers.filter(p => !p.eliminated).length > 3) {
     await runMassRevivalEvent(channel);
     massRevivalTriggered = true;
   }
-}
 
 // ✅ End of main while loop — now the game ends
 const finalists = gamePlayers.filter(p => !p.eliminated);
