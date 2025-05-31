@@ -650,6 +650,7 @@ async function runMiniGameEvent(players, channel, eventNumber) {
     await message.edit({ embeds: [embed] });
   }
 
+  const clickedPlayers = new Set();
   const collector = message.createMessageComponentCollector({ time: 5000 });
 
   collector.on('collect', async i => {
@@ -661,6 +662,7 @@ async function runMiniGameEvent(players, channel, eventNumber) {
     const labelIndex = buttons.indexOf(label);
     const displayText = chosenLore.buttons[labelIndex];
 
+    clickedPlayers.add(i.user.id);
     resultMap.set(i.user.id, outcome);
     let player = players.find(p => p.id === i.user.id);
 
@@ -692,12 +694,36 @@ async function runMiniGameEvent(players, channel, eventNumber) {
 
   await wait(5000);
 
+  // Players who didn't click
+  const nonResponders = [];
   for (let player of players) {
-    if (!resultMap.has(player.id)) {
+    if (!clickedPlayers.has(player.id)) {
       const eliminated = Math.random() < 0.5;
       resultMap.set(player.id, eliminated ? 'eliminate' : 'ignored');
       if (eliminated) player.lives = 0;
+      nonResponders.push({ username: player.username, eliminated });
     }
+  }
+
+  // Show "frozen in indecision" embed
+  if (nonResponders.length > 0) {
+    const lore = [
+      "❄️ Froze mid-click and vanished.",
+      "🪞 Stared too long at the buttons and became one.",
+      "🐌 Moved too slow for the charm to care.",
+      "🕳️ Hesitated and fell through a logic hole.",
+      "🔕 Ignored fate's whisper. Ignored forever."
+    ];
+    const descriptions = nonResponders.map(p =>
+      `**${p.username}** - ${lore[Math.floor(Math.random() * lore.length)]} ${p.eliminated ? '💀 Eliminated!' : '😐 Spared... for now.'}`
+    );
+
+    const frozenEmbed = new EmbedBuilder()
+      .setTitle("🧊 Frozen in Indecision")
+      .setDescription(descriptions.join('\n'))
+      .setColor(0x3399ff);
+
+    await channel.send({ embeds: [frozenEmbed] });
   }
 
   return resultMap;
