@@ -64,8 +64,8 @@ db.connect()
 let activeGame = null;
 let rematchCount = 0;
 const maxRematches = 4;
-const currentPlayers = new Map(); // userID => { username, lives }
-const eliminatedPlayers = new Map(); // userID => { username, eliminatedAt }
+const currentPlayers = new Map(); // userId => { username, lives }
+const eliminatedPlayers = new Map(); // userId => { username, eliminatedAt }
 const trialMode = false;
 let gameChannel = null;
 let joinMessageLink = null;
@@ -82,7 +82,11 @@ const funnyEliminations = [
   "flexed too hard and broke their reality bubble.",
   "tried to revive by unplugging the bot. Banished.",
   "pressed every button at once. The Gauntlet chose violence.",
-  "ignored the warnings. Ignored the signs. Got yeeted."
+  "ignored the warnings. Ignored the signs. Got yeeted.",
+  "offered CHARM to the Oracle. The Oracle was allergic.",
+  "tried to cast a spell with the wrong emoji.",
+  "thought it was trivia night. It wasn’t.",
+  "accidentally opened a portal to customer support."
 ];
 
 const riddles = [
@@ -91,7 +95,11 @@ const riddles = [
   { riddle: "What has to be broken before you can use it?", answer: "egg" },
   { riddle: "What runs but never walks, has a bed but never sleeps?", answer: "river" },
   { riddle: "I am always hungry, must always be fed. What am I?", answer: "fire" },
-  // Add 45 more later...
+  { riddle: "I shrink smaller every time I take a bath. What am I?", answer: "soap" },
+  { riddle: "The more you remove, the bigger I get. What am I?", answer: "hole" },
+  { riddle: "I come once in a minute, twice in a moment, but never in a thousand years. What am I?", answer: "m" },
+  { riddle: "What invention lets you look through walls?", answer: "window" },
+  { riddle: "What can travel around the world while staying in the corner?", answer: "stamp" }
 ];
 
 // === NFT Image Fetching ===
@@ -114,7 +122,7 @@ function getCurrentMonthYear() {
   const now = new Date();
   return { year: now.getFullYear(), month: now.getMonth() + 1 };
 }
-// === Gauntlet Command: Join Phase ===
+// === Gauntlet Command: Public Join Phase ===
 client.on('messageCreate', async (message) => {
   if (message.content.startsWith('!gauntlet')) {
     const minutes = parseFloat(message.content.split(' ')[1]) || 1;
@@ -226,7 +234,7 @@ async function runBossVotePhase(players, channel) {
     runGauntlet(players, channel);
   });
 }
-// === Gauntlet Game Loop ===
+// === Main Gauntlet Game Loop ===
 async function runGauntlet(players, channel) {
   const playerMap = new Map(players);
   let eliminated = new Map();
@@ -239,26 +247,26 @@ async function runGauntlet(players, channel) {
     const loreIntro = `🌀 *The warp churns... new horrors rise...*`;
     const nftImg = getUglyImageUrl();
 
-    // === First Embed: Lore + Image ===
+    // === Embed 1: Lore & Ugly Image ===
     const introEmbed = new EmbedBuilder()
       .setTitle(eventTitle)
       .setDescription(loreIntro)
       .setImage(nftImg)
       .setColor(0xaa00ff);
+
     await channel.send({ embeds: [introEmbed] });
     await wait(2000);
 
-    // === Second Embed: Run Mini Game Event ===
+    // === Embed 2: Run Mini-Game (with countdown) ===
     const miniGameResults = await runMiniGameEvent(active, channel, eventNumber);
 
-    // === Third Embed: Result Summary + Riddle ===
-    const resultEmbed = await buildResultEmbed(miniGameResults, eventNumber);
-    await channel.send({ embeds: [resultEmbed] });
+    // === Embed 3: Show Elimination Results One-by-One ===
+    await displayEliminations(miniGameResults, channel);
 
-    // === Riddle Event ===
+    // === Riddle Phase with Countdown and Pause ===
     await runRiddleEvent(channel, active);
 
-    // === Remove dead players ===
+    // === Remove Dead Players ===
     for (let player of active) {
       if (player.lives <= 0 && !eliminated.has(player.id)) {
         eliminated.set(player.id, player);
@@ -276,158 +284,146 @@ async function runGauntlet(players, channel) {
   rematchCount++;
   if (rematchCount < maxRematches) await showRematchButton(channel, [...playerMap.values()]);
 }
-// === Mini-Game Event ===
+// === Mini-Game Event with Countdown and Secret Outcome ===
 async function runMiniGameEvent(players, channel, eventNumber) {
   const buttons = ['A', 'B', 'C', 'D'];
-  const outcomes = ['lose', 'gain', 'eliminate', 'safe']; // random outcomes per round
-
+  const outcomes = ['lose', 'gain', 'eliminate', 'safe'];
   const randomOutcome = () => outcomes[Math.floor(Math.random() * outcomes.length)];
-  const resultMap = new Map(); // userId => outcome
 
-  const shuffled = buttons.map(label => ({
-    label,
-    effect: randomOutcome()
-  }));
+  const outcomeMap = new Map(); // A → lose, B → gain, etc.
+  buttons.forEach(label => outcomeMap.set(label, randomOutcome()));
+
+  const resultMap = new Map(); // userId → outcome
 
   const row = new ActionRowBuilder();
-  shuffled.forEach(btn => {
+  buttons.forEach(label => {
     row.addComponents(
       new ButtonBuilder()
-        .setCustomId(`mini_${btn.label}`)
-        .setLabel(`Option ${btn.label}`)
+        .setCustomId(`mini_${label}`)
+        .setLabel(`Option ${label}`)
         .setStyle(ButtonStyle.Secondary)
-    );
+      );
   });
-
-  const description = `Choose wisely.\nEach option hides a fate: 💀 **Eliminate**, ❤️ **Gain Life**, 💢 **Lose Life**, or 😶 **Safe**.\n\n⏳ You have **20 seconds** to decide...`;
 
   const embed = new EmbedBuilder()
     .setTitle(`🎲 Event #${eventNumber} — Choose Your Fate`)
-    .setDescription(description)
+    .setDescription(`Pick your option below.\nEach hides a fate: 💀 **Eliminate**, ❤️ **Gain**, 💢 **Lose**, 😶 **Safe**.\n\n⏳ Time left: **20 seconds**`)
     .setColor(0xff4499);
 
   const message = await channel.send({ embeds: [embed], components: [row] });
 
-  const choiceMap = new Map(); // userId => buttonLabel
+  // Live countdown updater (edit embed every 5s)
+  for (let i of [15, 10, 5]) {
+    await wait(5000);
+    embed.setDescription(`Pick your option below.\nEach hides a fate: 💀 **Eliminate**, ❤️ **Gain**, 💢 **Lose**, 😶 **Safe**.\n\n⏳ Time left: **${i} seconds**`);
+    await message.edit({ embeds: [embed] });
+  }
 
-  const collector = message.createMessageComponentCollector({ time: 20000 });
+  // 20-second collector
+  const choiceMap = new Map(); // userId → label
+  const collector = message.createMessageComponentCollector({ time: 5000 });
 
   collector.on('collect', async i => {
     if (!players.find(p => p.id === i.user.id)) {
-      return i.reply({ content: '❌ You’re not a player in this Gauntlet.', ephemeral: true });
+      return i.reply({ content: '⛔ You’re not in this Gauntlet.', ephemeral: true });
+    }
+    if (choiceMap.has(i.user.id)) {
+      return i.reply({ content: '⏳ You already chose.', ephemeral: true });
     }
 
-    if (!choiceMap.has(i.user.id)) {
-      const label = i.customId.replace('mini_', '');
-      choiceMap.set(i.user.id, label);
-      await i.reply({ content: `🔘 You picked **${label}**`, ephemeral: true });
-    } else {
-      await i.reply({ content: '⏳ You already chose this round.', ephemeral: true });
-    }
+    const label = i.customId.replace('mini_', '');
+    const outcome = outcomeMap.get(label);
+    choiceMap.set(i.user.id, label);
+    resultMap.set(i.user.id, outcome);
+
+    // Apply result
+    const player = players.find(p => p.id === i.user.id);
+    if (outcome === 'eliminate') player.lives = 0;
+    else if (outcome === 'lose') player.lives -= 1;
+    else if (outcome === 'gain') player.lives += 1;
+
+    // Send ephemeral outcome message
+    const emojiMap = {
+      gain: '❤️ You gained a life!',
+      lose: '💢 You lost a life!',
+      eliminate: '💀 You were instantly eliminated!',
+      safe: '😶 You survived untouched.'
+    };
+    await i.reply({ content: `🔘 You chose **${label}** → ${emojiMap[outcome]}`, ephemeral: true });
   });
 
-  return new Promise((resolve) => {
-    collector.on('end', async () => {
-      // Assign outcomes and apply them to players
-      for (const player of players) {
-        const label = choiceMap.get(player.id);
-        if (!label) {
-          const eliminated = Math.random() < 0.5;
-          resultMap.set(player.id, eliminated ? 'eliminate' : 'ignored');
-          if (eliminated) player.lives = 0;
-        } else {
-          const btn = shuffled.find(b => b.label === label);
-          resultMap.set(player.id, btn.effect);
-
-          if (btn.effect === 'eliminate') {
-            player.lives = 0;
-          } else if (btn.effect === 'lose') {
-            player.lives -= 1;
-          } else if (btn.effect === 'gain') {
-            player.lives += 1;
-          }
-        }
-      }
-
-      resolve(resultMap);
-    });
-  });
-}
-// === Build Result Embed with Lore and Monster Image ===
-async function buildResultEmbed(resultMap, eventNumber) {
-  let eliminatedList = [];
-  let summaryLines = [];
-
-  for (let [userId, outcome] of resultMap.entries()) {
-    let icon = '';
-    let resultText = '';
-
-    switch (outcome) {
-      case 'gain':
-        icon = '❤️';
-        resultText = 'gained a life.';
-        break;
-      case 'lose':
-        icon = '💢';
-        resultText = 'lost a life.';
-        break;
-      case 'eliminate':
-        icon = '💀';
-        resultText = 'was eliminated!';
-        eliminatedList.push(userId);
-        break;
-      case 'ignored':
-        icon = '🌀';
-        resultText = 'did nothing... and paid the price.';
-        eliminatedList.push(userId);
-        break;
-      default:
-        icon = '😶';
-        resultText = 'escaped this round untouched.';
+  // Wait full timer and eliminate 50% of idle players
+  await wait(5000);
+  for (let player of players) {
+    if (!choiceMap.has(player.id)) {
+      const eliminated = Math.random() < 0.5;
+      resultMap.set(player.id, eliminated ? 'eliminate' : 'ignored');
+      if (eliminated) player.lives = 0;
     }
-
-    summaryLines.push(`${icon} <@${userId}> ${resultText}`);
   }
 
-  // Add a funny lore line for each eliminated player
-  const eliminationLore = eliminatedList.map(id => {
-    const line = funnyEliminations[Math.floor(Math.random() * funnyEliminations.length)];
-    return `💀 <@${id}> ${line}`;
-  });
+  return resultMap;
+}
+// === Display Eliminations One at a Time ===
+async function displayEliminations(resultMap, channel) {
+  const eliminatedList = [];
+  for (let [userId, outcome] of resultMap.entries()) {
+    if (outcome === 'eliminate') {
+      eliminatedList.push(userId);
+    }
+  }
+
+  if (eliminatedList.length === 0) {
+    const embed = new EmbedBuilder()
+      .setTitle('🛡️ All Survived...')
+      .setDescription('No one was eliminated this round. The charm waits.')
+      .setColor(0x99ff99);
+    await channel.send({ embeds: [embed] });
+    return;
+  }
 
   const embed = new EmbedBuilder()
-    .setTitle(`🩸 Event #${eventNumber} — Results`)
-    .setDescription(`**Mini-Game Outcome:**\n${summaryLines.join('\n')}\n\n**Eliminated this round:**\n${eliminationLore.join('\n') || 'None'}`)
-    .setImage(getMonsterImageUrl())
-    .setColor(0xff0033);
+    .setTitle('☠️ Eliminated This Round')
+    .setDescription('The Gauntlet has spoken...\n\n')
+    .setColor(0xdd2222);
 
-  return embed;
+  const msg = await channel.send({ embeds: [embed] });
+
+  for (let i = 0; i < eliminatedList.length; i++) {
+    const id = eliminatedList[i];
+    const lore = funnyEliminations[Math.floor(Math.random() * funnyEliminations.length)];
+    embed.setDescription(embed.data.description + `💀 <@${id}> ${lore}\n`);
+    await msg.edit({ embeds: [embed] });
+    await wait(1000);
+  }
 }
-// === Riddle Challenge ===
+// === Riddle Phase with Countdown & Monster Image ===
 async function runRiddleEvent(channel, players) {
   const { riddle, answer } = riddles[Math.floor(Math.random() * riddles.length)];
+  const monsterImg = getMonsterImageUrl();
 
+  let countdown = 30;
   const embed = new EmbedBuilder()
-    .setTitle('🧩 Ugly Oracle Riddle')
-    .setDescription(`**“${riddle}”**\n\nYou have **30 seconds** to answer in chat.`)
+    .setTitle('🧠 Ugly Oracle Riddle')
+    .setDescription(`**“${riddle}”**\n\nType the correct answer in chat.\n⏳ Time left: **${countdown} seconds**`)
+    .setImage(monsterImg)
     .setColor(0x00ffaa)
-    .setFooter({ text: `Only one shall earn the Oracle's favor...` });
+    .setFooter({ text: `Only one may earn the Oracle's favor...` });
 
-  const riddleMsg = await channel.send({ embeds: [embed] });
+  const msg = await channel.send({ embeds: [embed] });
 
   const filter = m => {
     return players.some(p => p.id === m.author.id) && m.content.toLowerCase().includes(answer.toLowerCase());
   };
 
-  const collector = channel.createMessageCollector({ filter, time: 30_000 });
-
+  const collector = channel.createMessageCollector({ filter, time: countdown * 1000 });
   let winnerAnnounced = false;
 
   collector.on('collect', async msg => {
     if (!winnerAnnounced) {
       winnerAnnounced = true;
       try {
-        await msg.author.send(`🔮 You answered correctly in the riddle event!\nYou’ve been touched by the Oracle’s favor.`);
+        await msg.author.send(`🔮 You answered correctly: **${answer}**\nYou’ve been touched by the Oracle’s favor.`);
       } catch (e) {
         console.warn(`Could not DM ${msg.author.username}`);
       }
@@ -438,18 +434,29 @@ async function runRiddleEvent(channel, players) {
     }
   });
 
+  // Update the countdown inside the embed every 5s
+  const countdownIntervals = [25, 20, 15, 10, 5];
+  for (const secondsLeft of countdownIntervals) {
+    await wait(5000);
+    embed.setDescription(`**“${riddle}”**\n\nType the correct answer in chat.\n⏳ Time left: **${secondsLeft} seconds**`);
+    await msg.edit({ embeds: [embed] });
+  }
+
   collector.on('end', collected => {
     if (!winnerAnnounced) {
-      channel.send(`⏳ The Oracle received no answer this round...`);
+      channel.send(`⏳ The Oracle received no answer...`);
     }
   });
+
+  // Final pause before moving on
+  await wait(5000);
 }
 // === Show Final Podium ===
 async function showPodium(channel, players) {
   const alive = players.filter(p => p.lives > 0);
   const ranked = [...alive].sort((a, b) => b.lives - a.lives);
 
-  // Fallback: If fewer than 3 survivors, pull top 3 by participation
+  // Fallback: If fewer than 3 survivors, fill with longest survivors
   while (ranked.length < 3) {
     const fillers = players.filter(p => !ranked.includes(p)).slice(0, 3 - ranked.length);
     ranked.push(...fillers);
@@ -470,7 +477,7 @@ async function showPodium(channel, players) {
 
   await channel.send({ embeds: [embed] });
 
-  // === Optional Tiebreaker if lives tied ===
+  // === Sudden Death if tied ===
   const [a, b, c] = ranked;
   if (a && b && a.lives === b.lives) {
     await channel.send(`⚖️ Tiebreaker required! ${a.username} vs ${b.username}!`);
@@ -562,21 +569,18 @@ async function showRematchButton(channel, finalPlayers) {
     }
   });
 }
-// === Revive Command ===
+// === Revive Command (25% chance) ===
 client.on('messageCreate', async (message) => {
   if (message.content === '!revive') {
-    const game = activeGame;
-    if (!game) return message.reply('⚠️ No Gauntlet is currently running.');
-
-    const wasEliminated = !game.players.has(message.author.id);
-    if (!wasEliminated) return message.reply('😎 You’re not eliminated.');
+    if (!activeGame || !activeGame.players) return message.reply('⚠️ No Gauntlet is currently running.');
+    if (activeGame.players.has(message.author.id)) return message.reply('😎 You’re not eliminated.');
 
     const chance = Math.random();
     if (chance <= 0.25) {
       const revived = { id: message.author.id, username: message.author.username, lives: 1 };
-      game.players.set(message.author.id, revived);
+      activeGame.players.set(message.author.id, revived);
       currentPlayers.set(message.author.id, revived);
-      await message.reply(`💫 You’ve returned to the Gauntlet!`);
+      await message.reply(`💫 You’ve returned to The Gauntlet!`);
     } else {
       await message.reply(`💀 The charm rejected your plea. You're still dead.`);
     }
@@ -631,5 +635,5 @@ client.once('ready', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
-// === Login ===
+// === Start Bot ===
 client.login(TOKEN);
