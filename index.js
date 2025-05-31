@@ -149,7 +149,7 @@ const eliminationLore = [
   "🎲 gambled everything on a 7-sided die. Rolled despair.",
   "📎 challenged reality with a paperclip. Paperclip won."
 ];
-  const frozenLore = [
+  const frozenLoreLines = [
   "❄️ Froze mid-click and vanished.",
   "🪞 Stared too long at the buttons and became one.",
   "🐌 Moved too slow for the charm to care.",
