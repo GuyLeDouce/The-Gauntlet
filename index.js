@@ -70,6 +70,7 @@ const trialMode = false;
 let gameChannel = null;
 let joinMessageLink = null;
 
+
 // === Lore Arrays ===
 const funnyEliminations = [
   "🩴 tripped over their own sandal and fell into the Charmhole.",
@@ -426,9 +427,9 @@ const joinEmbed = new EmbedBuilder()
 
         await msg.edit({ embeds: [updatedEmbed], components: [joinRow] });
 
-        await i.reply({ content: '⚔️ You’ve joined The Gauntlet!', ephemeral: true });
+        await i.reply({ content: '⚔️ You’ve joined The Gauntlet!', flags: 64 });
       } else {
-        await i.reply({ content: '🌀 You’re already in!', ephemeral: true });
+        await i.reply({ content: '🌀 You’re already in!', flags: 64 });
       }
     });
 
@@ -475,13 +476,13 @@ client.on('messageCreate', async (message) => {
     collector.on('collect', async i => {
       if (!players.has(i.user.id)) {
         players.set(i.user.id, { id: i.user.id, username: i.user.username, lives: 1 });
-        await i.reply({ content: `✅ You're in!`, ephemeral: true });
+        await i.reply({ content: `✅ You're in!`, flags: 64 });
 
         // Update embed with new player count
         joinEmbed.setDescription(`Click below to enter!\n\n⏳ Starts in **8 seconds**\n\n**Players Joined: ${players.size}**`);
         await msg.edit({ embeds: [joinEmbed] });
       } else {
-        await i.reply({ content: `🌀 Already joined.`, ephemeral: true });
+        await i.reply({ content: `🌀 Already joined.`, flags: 64 });
       }
     });
 
@@ -525,9 +526,9 @@ async function runBossVotePhase(players, channel) {
     if (!votes[i.user.id]) {
       const voted = i.customId.replace('bossvote_', '');
       votes[i.user.id] = voted;
-      i.reply({ content: '🗳️ Vote cast!', ephemeral: true });
+      i.reply({ content: '🗳️ Vote cast!', flags: 64 });
     } else {
-      i.reply({ content: '❌ You already voted!', ephemeral: true });
+      i.reply({ content: '❌ You already voted!', flags: 64 });
     }
   });
 
@@ -609,6 +610,7 @@ if (!incentiveTriggered && active.length <= Math.floor(originalCount / 2)) {
 async function runMiniGameEvent(players, channel, eventNumber) {
   const outcomeTypes = ['lose', 'gain', 'eliminate', 'safe'];
   const randomOutcome = () => outcomeTypes[Math.floor(Math.random() * outcomeTypes.length)];
+  const clickedPlayers = new Set();
   const randomStyle = () => [
     ButtonStyle.Primary,
     ButtonStyle.Danger,
@@ -672,9 +674,9 @@ for (let i of [15, 10, 5]) {
         players.push(revived);
         activeGame.players.set(i.user.id, revived);
         currentPlayers.set(i.user.id, revived);
-        await i.reply({ content: `💫 You selected **${displayText}** and were PULLED INTO THE GAUNTLET!`, ephemeral: true });
+        await i.reply({ content: `💫 You selected **${displayText}** and were PULLED INTO THE GAUNTLET!`, flags: 64 });
       } else {
-        return i.reply({ content: `❌ You selected **${displayText}** but fate denied your re-entry.`, ephemeral: true });
+        return i.reply({ content: `❌ You selected **${displayText}** but fate denied your re-entry.`, flags: 64 });
       }
     } else {
       if (outcome === 'eliminate') player.lives = 0;
@@ -688,7 +690,7 @@ for (let i of [15, 10, 5]) {
         safe: '😶 You survived untouched.'
       };
 
-      await i.reply({ content: `🔘 You selected **${displayText}** → ${emojiMap[outcome]}`, ephemeral: true });
+      await i.reply({ content: `🔘 You selected **${displayText}** → ${emojiMap[outcome]}`, flags: 64 });
     }
   });
 
@@ -882,7 +884,7 @@ async function runRiddleEvent(channel, players) {
       // Ephemeral confirmation
       await channel.send({
         content: `🔮 You answered correctly — the Oracle grants you **+1 life**.`,
-        ephemeral: true,
+        flags: 64,
         allowedMentions: { users: [msg.author.id] },
         embeds: [],
         components: []
@@ -975,7 +977,7 @@ async function runTiebreaker(channel, tiedPlayers) {
 
   collector.on('collect', async i => {
     if (alreadyClicked.has(i.user.id)) {
-      return i.reply({ content: '⏳ You already acted!', ephemeral: true });
+      return i.reply({ content: '⏳ You already acted!', flags: 64 });
     }
 
     const winner = tiedPlayers.find(p => `tie_${p.id}` === i.customId);
@@ -1013,15 +1015,15 @@ async function showRematchButton(channel, finalPlayers) {
 
   collector.on('collect', async i => {
     if (!finalPlayers.find(p => p.id === i.user.id)) {
-      return i.reply({ content: `⛔ Only final players can vote.`, ephemeral: true });
+      return i.reply({ content: `⛔ Only final players can vote.`, flags: 64 });
     }
 
     if (votes.has(i.user.id)) {
-      return i.reply({ content: `✅ Already voted!`, ephemeral: true });
+      return i.reply({ content: `✅ Already voted!`, flags: 64 });
     }
 
     votes.add(i.user.id);
-    await i.reply({ content: `🔁 You're in for another round!`, ephemeral: true });
+    await i.reply({ content: `🔁 You're in for another round!`, flags: 64 });
 
     const newButton = ButtonBuilder.from(voteButton)
       .setLabel(`🔁 Run It Back (${votes.size}/${requiredVotes})`);
