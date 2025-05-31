@@ -465,6 +465,7 @@ client.on('messageCreate', async (message) => {
     let joinEmbed = new EmbedBuilder()
       .setTitle('⚔️ Test Gauntlet Forming...')
       .setDescription(`Click below to enter!\n\n⏳ Starts in **8 seconds**\n\n**Players Joined: 0**`)
+      .setImage('https://media.discordapp.net/attachments/1086418283131048156/1378206999421915187/The_Gauntlet.png?ex=683bc2ca&is=683a714a&hm=f9ca4a5ebcb5a636b7ce2946fd3c4779f58809b183ea1720a44d04f45c3b8b36&=&format=webp&quality=lossless&width=930&height=930')
       .setColor(0x0077ff);
 
     const msg = await message.channel.send({ content: '🧪 Test Gauntlet is forming!', embeds: [joinEmbed], components: [joinRow] });
