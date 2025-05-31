@@ -618,7 +618,7 @@ async function runMiniGameEvent(players, channel, eventNumber) {
   ][Math.floor(Math.random() * 4)];
 
   const resultMap = new Map();
-  const clickedPlayers = new Set();
+  const clickedPlayers = new Set(); // ✅ declared early
   const chosenLore = miniGameLorePool[Math.floor(Math.random() * miniGameLorePool.length)];
   const fateLine = miniGameFateDescriptions[Math.floor(Math.random() * miniGameFateDescriptions.length)];
   const buttonLabels = chosenLore.buttons;
@@ -646,15 +646,8 @@ async function runMiniGameEvent(players, channel, eventNumber) {
 
   const message = await channel.send({ embeds: [embed], components: [row] });
 
-  // ✅ Start collector IMMEDIATELY
+  // ✅ Start collector IMMEDIATELY after sending message
   const collector = message.createMessageComponentCollector({ time: 20000 });
-
-  // ⏳ Countdown
-  for (let i of [15, 10, 5]) {
-    await wait(5000);
-    embed.setDescription(`${chosenLore.lore}\n\n${fateLine}\n\n⏳ Time left: **${i} seconds**`);
-    await message.edit({ embeds: [embed] });
-  }
 
   collector.on('collect', async i => {
     const labelMatch = i.customId.match(/mini_([A-D])_evt/);
@@ -677,7 +670,7 @@ async function runMiniGameEvent(players, channel, eventNumber) {
         currentPlayers.set(i.user.id, revived);
         await i.reply({ content: `💫 You selected **${displayText}** and were PULLED INTO THE GAUNTLET!`, flags: 64 });
       } else {
-        await i.reply({ content: `❌ You selected **${displayText}** but fate denied your re-entry.`, flags: 64 });
+        return i.reply({ content: `❌ You selected **${displayText}** but fate denied your re-entry.`, flags: 64 });
       }
     } else {
       if (outcome === 'eliminate') player.lives = 0;
@@ -695,10 +688,16 @@ async function runMiniGameEvent(players, channel, eventNumber) {
     }
   });
 
-  // ⏱️ Wait for collector to finish
-  await wait(20000);
+  // 🕒 Update countdown display
+  for (let i of [15, 10, 5]) {
+    await wait(5000);
+    embed.setDescription(`${chosenLore.lore}\n\n${fateLine}\n\n⏳ Time left: **${i} seconds**`);
+    await message.edit({ embeds: [embed] });
+  }
 
-  // 🧊 Handle players who didn't interact
+  await wait(5000); // wait final 5s (total = 20s)
+
+  // 💀 Players who didn't click
   const nonResponders = [];
   for (let player of players) {
     if (!clickedPlayers.has(player.id)) {
