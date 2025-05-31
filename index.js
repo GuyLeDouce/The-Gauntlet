@@ -90,27 +90,58 @@ const funnyEliminations = [
 ];
 // === Mini-Game Lore Pool (20 Variants) ===
 const miniGameLorePool = [
-  { title: "🌪️ Vortex of Options", lore: "The wind howls with malice. Choose a button and face the storm." },
-  { title: "🕯️ Candle of Fate", lore: "Each flame flickers with a different destiny. Which light do you trust?" },
-  { title: "🎭 Masked Choices", lore: "Behind each mask lies your fate. Will it smile or snuff you out?" },
-  { title: "🧪 Potions of Peril", lore: "Four vials shimmer before you. Sip one... if you dare." },
-  { title: "📜 Scrolls of the Unknown", lore: "Ancient scrolls rustle with secrets. One holds salvation." },
-  { title: "🧲 Magnetic Mayhem", lore: "Each choice draws you to a different end. Or beginning." },
-  { title: "🔮 Crystal Collapse", lore: "The orb pulses. You must touch one facet. One will shatter you." },
-  { title: "🧃 Sip or Suffer", lore: "A thirst only fate can quench. Which bottle will burn?" },
-  { title: "📦 Boxes from Beyond", lore: "Each box hums softly. One hums... wrongly." },
-  { title: "🕰️ Echoes of Time", lore: "Your choice echoes backward and forward. But mostly... downward." },
-  { title: "🛸 Alien Algorithm", lore: "The pattern is unclear. So is survival." },
-  { title: "🧵 Threads of Reality", lore: "Pluck a thread. One unravels your mind." },
-  { title: "📍 Pins of Probability", lore: "Four pins. Only one will not explode." },
-  { title: "🍳 Breakfast of Doom", lore: "One of these is eggs. One is... not eggs." },
-  { title: "🎈 Balloon Trial", lore: "Pop one. Pray it’s not yours." },
-  { title: "🪤 Trap Teasers", lore: "One option is safe. The others... definitely not." },
-  { title: "🕳️ Charmholes", lore: "Jump into one. Guess what’s on the other side." },
-  { title: "🐌 Slime Slalom", lore: "Touch a trail. Not all are harmless." },
-  { title: "🎁 Ugly Gift Bags", lore: "They jiggle ominously. That’s probably fine." },
-  { title: "🍀 Misfortune Cookies", lore: "Crack one open. Let’s hope it’s dessert and not doom." }
+  {
+    title: "🌪️ Vortex of Options",
+    lore: "The wind howls with malice. Choose a button and face the storm.",
+    buttons: ["Step into the gale", "Anchor to stone", "Whisper to the wind", "Leap toward the eye"]
+  },
+  {
+    title: "🕯️ Candle of Fate",
+    lore: "Each flame flickers with a different destiny. Which light do you trust?",
+    buttons: ["Snuff the tall wick", "Light the blue flame", "Shield the flicker", "Blow gently"]
+  },
+  {
+    title: "🎭 Masked Choices",
+    lore: "Behind each mask lies your fate. Will it smile or snuff you out?",
+    buttons: ["Put on the grin", "Don the blank face", "Hide behind sorrow", "Try the gold mask"]
+  },
+  {
+    title: "🧪 Potions of Peril",
+    lore: "Four vials shimmer before you. Sip one... if you dare.",
+    buttons: ["Drink the red vial", "Smell the green fizz", "Lick the black ooze", "Swirl the gold dust"]
+  },
+  {
+    title: "📜 Scrolls of the Unknown",
+    lore: "Ancient scrolls rustle with secrets. One holds salvation.",
+    buttons: ["Read the blood-stained scroll", "Unravel the burning one", "Touch the invisible ink", "Seal the parchment"]
+  },
+  {
+    title: "🔮 Crystal Collapse",
+    lore: "The orb pulses. You must touch one facet. One will shatter you.",
+    buttons: ["Tap the violet shard", "Crack the green gleam", "Polish the smooth blue", "Peer into the cracked one"]
+  },
+  {
+    title: "🎁 Ugly Gift Bags",
+    lore: "They jiggle ominously. That’s probably fine.",
+    buttons: ["Open the spotted sack", "Shake the slimy gift", "Reach in blind", "Sniff it first"]
+  },
+  {
+    title: "🍀 Misfortune Cookies",
+    lore: "Crack one open. Let’s hope it’s dessert and not doom.",
+    buttons: ["Eat the broken one", "Crack the largest", "Pick the burnt edge", "Snap the clean shell"]
+  },
+  {
+    title: "🧲 Magnetic Mayhem",
+    lore: "Each choice draws you to a different end. Or beginning.",
+    buttons: ["Choose north pull", "Align with chaos", "Countercharge fate", "Invert polarity"]
+  },
+  {
+    title: "🕳️ Charmholes",
+    lore: "Jump into one. Guess what’s on the other side.",
+    buttons: ["Dive into the swirl", "Step into shadows", "Slide into the green glow", "Fall with eyes closed"]
+  }
 ];
+
 // === Fate Lore Intros ===
 const miniGameFateDescriptions = [
   "The charm stirs. Only one choice uplifts, the rest consume.",
@@ -364,13 +395,14 @@ async function runMiniGameEvent(players, channel, eventNumber) {
 
   const chosenLore = miniGameLorePool[Math.floor(Math.random() * miniGameLorePool.length)];
   const fateLine = miniGameFateDescriptions[Math.floor(Math.random() * miniGameFateDescriptions.length)];
+  const buttonLabels = chosenLore.buttons;
 
   const row = new ActionRowBuilder();
-  buttons.forEach(label => {
+  buttons.forEach((label, index) => {
     row.addComponents(
       new ButtonBuilder()
         .setCustomId(`mini_${label}`)
-        .setLabel(`Option ${label}`)
+        .setLabel(buttonLabels[index])
         .setStyle(randomStyle())
     );
   });
@@ -404,19 +436,19 @@ async function runMiniGameEvent(players, channel, eventNumber) {
 
     let player = players.find(p => p.id === i.user.id);
 
-    // === Revival Logic: outsider or eliminated user hits "gain"
+    // === Outsider or eliminated revival logic
     if (!player) {
       if (outcome === 'gain') {
         const revived = { id: i.user.id, username: i.user.username, lives: 1 };
         players.push(revived);
         activeGame.players.set(i.user.id, revived);
         currentPlayers.set(i.user.id, revived);
-        await i.reply({ content: `💫 You clicked **${label}** and were PULLED INTO THE GAUNTLET!`, ephemeral: true });
+        await i.reply({ content: `💫 You selected **${buttonLabels[buttons.indexOf(label)]}** and were PULLED INTO THE GAUNTLET!`, ephemeral: true });
       } else {
-        return i.reply({ content: `❌ You clicked **${label}** but fate denied your re-entry.`, ephemeral: true });
+        return i.reply({ content: `❌ You selected **${buttonLabels[buttons.indexOf(label)]}** but fate denied your re-entry.`, ephemeral: true });
       }
     } else {
-      // === Outcome for regular players
+      // === Apply result to live player
       if (outcome === 'eliminate') player.lives = 0;
       else if (outcome === 'lose') player.lives -= 1;
       else if (outcome === 'gain') player.lives += 1;
@@ -427,14 +459,14 @@ async function runMiniGameEvent(players, channel, eventNumber) {
         eliminate: '💀 You were instantly eliminated!',
         safe: '😶 You survived untouched.'
       };
-      await i.reply({ content: `🔘 You chose **${label}** → ${emojiMap[outcome]}`, ephemeral: true });
+
+      await i.reply({ content: `🔘 You selected **${buttonLabels[buttons.indexOf(label)]}** → ${emojiMap[outcome]}`, ephemeral: true });
     }
   });
 
-  // Final 5 seconds wait
   await wait(5000);
 
-  // Eliminate 50% of those who didn’t click
+  // Eliminate 50% of players who didn’t click
   for (let player of players) {
     if (!choiceMap.has(player.id)) {
       const eliminated = Math.random() < 0.5;
@@ -513,19 +545,31 @@ async function runRiddleEvent(channel, players) {
   collector.on('collect', async msg => {
     if (!winnerAnnounced) {
       winnerAnnounced = true;
+
       try {
-        await msg.author.send(`🔮 You answered correctly: **${answer}**\nYou’ve been touched by the Oracle’s favor.`);
+        // Delete the message publicly
+        await msg.delete().catch(() => {});
+
+        // Send ephemeral reply in-channel
+        await channel.send({
+          content: `🔮 You answered correctly: **${answer}** — the Oracle has blessed you.`,
+          ephemeral: true,
+          allowedMentions: { users: [msg.author.id] },
+          components: [],
+          embeds: [],
+          reply: { messageReference: msg.id }
+        }).catch(() => {});
       } catch (e) {
-        console.warn(`Could not DM ${msg.author.username}`);
+        console.warn(`Failed to deliver Oracle response to ${msg.author.username}`);
       }
-      await msg.delete().catch(() => {});
+
       collector.stop();
     } else {
       await msg.delete().catch(() => {});
     }
   });
 
-  // Update the countdown inside the embed every 5s
+  // Countdown timer
   const countdownIntervals = [25, 20, 15, 10, 5];
   for (const secondsLeft of countdownIntervals) {
     await wait(5000);
@@ -533,13 +577,12 @@ async function runRiddleEvent(channel, players) {
     await msg.edit({ embeds: [embed] });
   }
 
-  collector.on('end', collected => {
+  collector.on('end', () => {
     if (!winnerAnnounced) {
       channel.send(`⏳ The Oracle received no answer...`);
     }
   });
 
-  // Final pause before moving on
   await wait(5000);
 }
 // === Show Final Podium ===
