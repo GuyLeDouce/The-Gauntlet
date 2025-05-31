@@ -149,6 +149,47 @@ const funnyEliminations = [
   "🎲 gambled everything on a 7-sided die. Rolled despair.",
   "📎 challenged reality with a paperclip. Paperclip won."
 ];
+const lore = [
+  "❄️ Froze mid-click and vanished.",
+  "🪞 Stared too long at the buttons and became one.",
+  "🐌 Moved too slow for the charm to care.",
+  "🕳️ Hesitated and fell through a logic hole.",
+  "🔕 Ignored fate's whisper. Ignored forever.",
+  "⏳ Stalled out. The charm had no patience.",
+  "🫥 Looked away for one moment too long.",
+  "📵 No signal... or fate just declined the call.",
+  "🪰 Swatted a bug instead of clicking. Guess who got squished.",
+  "🔮 Got distracted gazing at the Oracle’s toes. Don’t ask.",
+  "🐸 Thought they had more time. They were wrong.",
+  "🧻 Went to grab toilet paper. Came back to a different timeline.",
+  "🎈 Floated away while deciding.",
+  "🥴 Got caught buffering mid-thought.",
+  "🧼 Slipped on charm goo and never recovered.",
+  "📺 Was watching a tutorial on ‘how to choose wisely.’ Too late.",
+  "🪑 Got comfy and turned into a chair.",
+  "🧊 Literally froze. Not metaphorical. Just ice now.",
+  "🧃 Tried to hydrate mid-event. Absorbed by the charm instead.",
+  "🎲 Rolled a dice to choose. It rolled off the world.",
+  "🥽 Adjusted their VR headset… right into the void.",
+  "🧻 Missed their chance while crafting the perfect reply.",
+  "🎧 Was vibing to the Gauntlet soundtrack. Missed everything.",
+  "🧠 Overthought it. Brain melted.",
+  "🥸 Tried to disguise themselves as a button.",
+  "📦 Took too long unboxing their fate.",
+  "📿 Whispered a prayer. Got muted.",
+  "💤 Took a micro-nap. Entered a macro-death.",
+  "🐍 Asked the Oracle for advice. The Oracle blinked.",
+  "🪤 Distracted by a trap that wasn’t even meant for them.",
+  "🔌 Forgot to plug in their fate.",
+  "🖲️ Hovered too long over the wrong choice.",
+  "🕯️ Lit a candle for clarity. Got summoned instead.",
+  "🕷️ Noticed something crawling on their screen. That was the Oracle.",
+  "🫧 Popped a bubble of hope. It screamed.",
+  "📿 Tried a ritual mid-round. It backfired with glitter.",
+  "📘 Checked the Gauntlet manual. It wrote back.",
+  "🎤 Said 'Wait, wait!' The charm didn’t.",
+  "💽 Buffering… still buffering…"
+];
 
 // === Mini-Game Lore Pool (20 Variants) ===
 const miniGameLorePool = [
@@ -618,7 +659,7 @@ async function runMiniGameEvent(players, channel, eventNumber) {
   ][Math.floor(Math.random() * 4)];
 
   const resultMap = new Map();
-  const clickedPlayers = new Set(); // ✅ declared early
+  const clickedPlayers = new Set();
   const chosenLore = miniGameLorePool[Math.floor(Math.random() * miniGameLorePool.length)];
   const fateLine = miniGameFateDescriptions[Math.floor(Math.random() * miniGameFateDescriptions.length)];
   const buttonLabels = chosenLore.buttons;
@@ -646,8 +687,15 @@ async function runMiniGameEvent(players, channel, eventNumber) {
 
   const message = await channel.send({ embeds: [embed], components: [row] });
 
-  // ✅ Start collector IMMEDIATELY after sending message
-  const collector = message.createMessageComponentCollector({ time: 20000 });
+  // Countdown updates
+  for (let i of [15, 10, 5]) {
+    await wait(5000);
+    embed.setDescription(`${chosenLore.lore}\n\n${fateLine}\n\n⏳ Time left: **${i} seconds**`);
+    await message.edit({ embeds: [embed] });
+  }
+
+  // Interaction Collector (20s total)
+  const collector = message.createMessageComponentCollector({ time: 5000 });
 
   collector.on('collect', async i => {
     const labelMatch = i.customId.match(/mini_([A-D])_evt/);
@@ -656,7 +704,7 @@ async function runMiniGameEvent(players, channel, eventNumber) {
     const label = labelMatch[1];
     const outcome = outcomeMap.get(label);
     const labelIndex = buttons.indexOf(label);
-    const displayText = chosenLore.buttons[labelIndex];
+    const displayText = buttonLabels[labelIndex];
 
     clickedPlayers.add(i.user.id);
     resultMap.set(i.user.id, outcome);
@@ -688,87 +736,55 @@ async function runMiniGameEvent(players, channel, eventNumber) {
     }
   });
 
-  // 🕒 Update countdown display
-  for (let i of [15, 10, 5]) {
-    await wait(5000);
-    embed.setDescription(`${chosenLore.lore}\n\n${fateLine}\n\n⏳ Time left: **${i} seconds**`);
-    await message.edit({ embeds: [embed] });
-  }
+  await wait(5000);
 
-  await wait(5000); // wait final 5s (total = 20s)
-
-  // 💀 Players who didn't click
-  const nonResponders = [];
+  // Players who didn’t click
+  const frozenPlayers = [];
   for (let player of players) {
     if (!clickedPlayers.has(player.id)) {
       const eliminated = Math.random() < 0.5;
       resultMap.set(player.id, eliminated ? 'eliminate' : 'ignored');
       if (eliminated) player.lives = 0;
-      nonResponders.push({ username: player.username, eliminated });
+
+      frozenPlayers.push({
+        username: player.username,
+        eliminated,
+        lore: frozenLoreLines[Math.floor(Math.random() * frozenLoreLines.length)]
+      });
     }
   }
 
-if (nonResponders.length > 0) {
-  const lore = [
-  "❄️ Froze mid-click and vanished.",
-  "🪞 Stared too long at the buttons and became one.",
-  "🐌 Moved too slow for the charm to care.",
-  "🕳️ Hesitated and fell through a logic hole.",
-  "🔕 Ignored fate's whisper. Ignored forever.",
-  "⏳ Stalled out. The charm had no patience.",
-  "🫥 Looked away for one moment too long.",
-  "📵 No signal... or fate just declined the call.",
-  "🪰 Swatted a bug instead of clicking. Guess who got squished.",
-  "🔮 Got distracted gazing at the Oracle’s toes. Don’t ask.",
-  "🐸 Thought they had more time. They were wrong.",
-  "🧻 Went to grab toilet paper. Came back to a different timeline.",
-  "🎈 Floated away while deciding.",
-  "🥴 Got caught buffering mid-thought.",
-  "🧼 Slipped on charm goo and never recovered.",
-  "📺 Was watching a tutorial on ‘how to choose wisely.’ Too late.",
-  "🪑 Got comfy and turned into a chair.",
-  "🧊 Literally froze. Not metaphorical. Just ice now.",
-  "🧃 Tried to hydrate mid-event. Absorbed by the charm instead.",
-  "🎲 Rolled a dice to choose. It rolled off the world.",
-  "🥽 Adjusted their VR headset… right into the void.",
-  "🧻 Missed their chance while crafting the perfect reply.",
-  "🎧 Was vibing to the Gauntlet soundtrack. Missed everything.",
-  "🧠 Overthought it. Brain melted.",
-  "🥸 Tried to disguise themselves as a button.",
-  "📦 Took too long unboxing their fate.",
-  "📿 Whispered a prayer. Got muted.",
-  "💤 Took a micro-nap. Entered a macro-death.",
-  "🐍 Asked the Oracle for advice. The Oracle blinked.",
-  "🪤 Distracted by a trap that wasn’t even meant for them.",
-  "🔌 Forgot to plug in their fate.",
-  "🖲️ Hovered too long over the wrong choice.",
-  "🕯️ Lit a candle for clarity. Got summoned instead.",
-  "🕷️ Noticed something crawling on their screen. That was the Oracle.",
-  "🫧 Popped a bubble of hope. It screamed.",
-  "📿 Tried a ritual mid-round. It backfired with glitter.",
-  "📘 Checked the Gauntlet manual. It wrote back.",
-  "🎤 Said 'Wait, wait!' The charm didn’t.",
-  "💽 Buffering… still buffering…"
-];
+  // Combined Results
+  const resultDescriptions = [];
 
-  let frozenText = "";
-  const frozenEmbed = new EmbedBuilder()
-    .setTitle("🧊 Frozen in Indecision")
-    .setColor(0x3399ff);
-
-  const frozenMessage = await channel.send({ embeds: [frozenEmbed] });
-
-  for (const p of nonResponders) {
-    const line = `**${p.username}** - ${lore[Math.floor(Math.random() * lore.length)]} ${p.eliminated ? '💀 Eliminated!' : '😐 Spared... for now.'}`;
-    frozenText += line + "\n";
-    frozenEmbed.setDescription(frozenText);
-    await frozenMessage.edit({ embeds: [frozenEmbed] });
-    await wait(400); // 0.4 second delay between each
+  for (let [userId, result] of resultMap) {
+    const player = players.find(p => p.id === userId);
+    if (!player) continue;
+    if (clickedPlayers.has(userId)) {
+      const outcomeText = {
+        gain: '❤️ gained a life!',
+        lose: '💢 lost a life!',
+        eliminate: '💀 was eliminated!',
+        safe: '😶 was untouched.'
+      }[result];
+      resultDescriptions.push(`**${player.username}** ${outcomeText}`);
+    }
   }
-}
+
+  for (let frozen of frozenPlayers) {
+    resultDescriptions.push(`**${frozen.username}** ${frozen.lore} ${frozen.eliminated ? '💀 Eliminated!' : '😐 Spared... for now.'}`);
+  }
+
+  const resultEmbed = new EmbedBuilder()
+    .setTitle(`📜 Results Round`)
+    .setDescription(resultDescriptions.join('\n'))
+    .setColor(0xffcc00);
+
+  await channel.send({ embeds: [resultEmbed] });
 
   return resultMap;
 }
+
 // === Mint Incentive Ops ===
 async function runIncentiveUnlock(channel) {
   const targetNumber = Math.floor(Math.random() * 50) + 1;
