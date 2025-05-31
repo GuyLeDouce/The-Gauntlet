@@ -714,7 +714,16 @@ if (!incentiveTriggered && active.length <= Math.floor(originalCount / 2)) {
     await wait(3000);
   }
 
-  await showPodium(channel, [...playerMap.values()]);
+  // Check for a tie in the final 2
+const finalists = [...playerMap.values()].filter(p => p.lives > 0);
+if (finalists.length === 2 && finalists[0].lives === finalists[1].lives) {
+  await channel.send("⚔️ It's a tie between the final two! Commencing sudden death duel...");
+  await runFinalDuel(finalists, channel); // You can rename this as needed
+}
+
+// Once tiebreaker resolves or if no tie, show the podium
+await showPodium(channel, [...playerMap.values()]);
+
   activeGame = null;
   rematchCount++;
   if (rematchCount < maxRematches) await showRematchButton(channel, [...playerMap.values()]);
