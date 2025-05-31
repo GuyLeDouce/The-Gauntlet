@@ -197,28 +197,41 @@ client.on('messageCreate', async (message) => {
 
     const players = new Map();
     gameChannel = message.channel;
-    const joinRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('join_gauntlet')
-        .setLabel('Join the Gauntlet')
-        .setStyle(ButtonStyle.Primary)
-    );
+
+    const joinButton = new ButtonBuilder()
+      .setCustomId('join_gauntlet')
+      .setLabel('Join the Gauntlet')
+      .setStyle(ButtonStyle.Primary);
+
+    const joinRow = new ActionRowBuilder().addComponents(joinButton);
 
     const joinEmbed = new EmbedBuilder()
       .setTitle('⚔️ A New Gauntlet Is Forming...')
-      .setDescription(`Click the button below to enter the arena!\n\n⏳ Starts in **${minutes} minute(s)**`)
+      .setDescription(`Click the button below to enter the arena!\n\n⏳ Starts in **${minutes} minute(s)**\n👥 Joined: **0** players`)
       .setColor(0x880088);
 
-    const msg = await message.channel.send({ content: '@everyone ⚔️ A new Gauntlet is forming!', embeds: [joinEmbed], components: [joinRow] });
+    const msg = await message.channel.send({
+      content: '@everyone ⚔️ A new Gauntlet is forming!',
+      embeds: [joinEmbed],
+      components: [joinRow]
+    });
+
     joinMessageLink = msg.url;
 
     const collector = msg.createMessageComponentCollector({ time: minutes * 60_000 });
-    collector.on('collect', i => {
+
+    collector.on('collect', async i => {
       if (!players.has(i.user.id)) {
         players.set(i.user.id, { id: i.user.id, username: i.user.username, lives: 1 });
-        i.reply({ content: '⚔️ You’ve joined The Gauntlet!', ephemeral: true });
+
+        const updatedEmbed = EmbedBuilder.from(joinEmbed)
+          .setDescription(`Click the button below to enter the arena!\n\n⏳ Starts in **${minutes} minute(s)**\n👥 Joined: **${players.size}** players`);
+
+        await msg.edit({ embeds: [updatedEmbed], components: [joinRow] });
+
+        await i.reply({ content: '⚔️ You’ve joined The Gauntlet!', ephemeral: true });
       } else {
-        i.reply({ content: '🌀 You’re already in!', ephemeral: true });
+        await i.reply({ content: '🌀 You’re already in!', ephemeral: true });
       }
     });
 
@@ -231,6 +244,7 @@ client.on('messageCreate', async (message) => {
 
     setTimeout(async () => {
       if (players.size < 3) return message.channel.send('❌ Not enough players to run the Gauntlet.');
+
       activeGame = { players: new Map(players), startTime: Date.now() };
       message.channel.send(`🎮 Join phase ended. **${players.size}** players are entering The Gauntlet...`);
       await runBossVotePhase(players, message.channel);
@@ -240,45 +254,54 @@ client.on('messageCreate', async (message) => {
 client.on('messageCreate', async (message) => {
   if (message.content === '!testgauntlet') {
     if (activeGame) return message.reply('⛔ A Gauntlet is already running!');
+
     const players = new Map();
     gameChannel = message.channel;
 
-    const joinRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('join_gauntlet_test')
-        .setLabel('Join the Gauntlet')
-        .setStyle(ButtonStyle.Primary)
-    );
+    const joinButton = new ButtonBuilder()
+      .setCustomId('join_gauntlet_test')
+      .setLabel('Join the Gauntlet')
+      .setStyle(ButtonStyle.Primary);
 
-    const joinEmbed = new EmbedBuilder()
-      .setTitle('🧪 Test Gauntlet Join Phase')
-      .setDescription('Click to join manually before mock players enter!')
-      .setColor(0xccccff);
+    const joinRow = new ActionRowBuilder().addComponents(joinButton);
 
-    const msg = await message.channel.send({ embeds: [joinEmbed], components: [joinRow] });
+    let joinEmbed = new EmbedBuilder()
+      .setTitle('⚔️ Test Gauntlet Forming...')
+      .setDescription(`Click below to enter!\n\n⏳ Starts in **8 seconds**\n\n**Players Joined: 0**`)
+      .setColor(0x0077ff);
+
+    const msg = await message.channel.send({ content: '🧪 Test Gauntlet is forming!', embeds: [joinEmbed], components: [joinRow] });
 
     const collector = msg.createMessageComponentCollector({ time: 8000 });
+
     collector.on('collect', async i => {
       if (!players.has(i.user.id)) {
         players.set(i.user.id, { id: i.user.id, username: i.user.username, lives: 1 });
-        await i.reply({ content: '✅ You joined the test Gauntlet!', ephemeral: true });
+        await i.reply({ content: `✅ You're in!`, ephemeral: true });
+
+        // Update embed with new player count
+        joinEmbed.setDescription(`Click below to enter!\n\n⏳ Starts in **8 seconds**\n\n**Players Joined: ${players.size}**`);
+        await msg.edit({ embeds: [joinEmbed] });
+      } else {
+        await i.reply({ content: `🌀 Already joined.`, ephemeral: true });
       }
     });
 
-    setTimeout(async () => {
-      for (let i = 1; i <= 20; i++) {
-        const fakeId = `test_user_${i}`;
-        if (!players.has(fakeId)) {
-          players.set(fakeId, { id: fakeId, username: `TestUser${i}`, lives: 1 });
-        }
+    collector.on('end', async () => {
+      // Add mock players to hit 20 total
+      const needed = 20 - players.size;
+      for (let i = 0; i < needed; i++) {
+        const id = `mock_${i}`;
+        players.set(id, { id, username: `Mock${i + 1}`, lives: 1 });
       }
 
-      activeGame = { players, trial: true };
-      await message.channel.send(`✅ Mock players added. Total: ${players.size}`);
+      activeGame = { players: new Map(players), startTime: Date.now() };
+      await message.channel.send(`🎮 Join phase ended. **${players.size}** players are entering The Gauntlet...`);
       await runBossVotePhase(players, message.channel);
-    }, 8000);
+    });
   }
 });
+
 async function runBossVotePhase(players, channel) {
   const candidates = [...players.values()].sort(() => 0.5 - Math.random()).slice(0, 5);
   const row = new ActionRowBuilder();
@@ -639,7 +662,7 @@ async function runRiddleEvent(channel, players) {
 
       // Ephemeral confirmation
       await channel.send({
-        content: `🔮 You answered correctly: **${answer}** — the Oracle grants you **+1 life**.`,
+        content: `🔮 You answered correctly — the Oracle grants you **+1 life**.`,
         ephemeral: true,
         allowedMentions: { users: [msg.author.id] },
         embeds: [],
@@ -752,32 +775,40 @@ async function runTiebreaker(channel, tiedPlayers) {
 }
 // === Show Rematch Button & Wait for Votes ===
 async function showRematchButton(channel, finalPlayers) {
-  const rematchRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('rematch_vote')
-      .setLabel('🔁 Run It Back')
-      .setStyle(ButtonStyle.Success)
-  );
+  const requiredVotes = Math.ceil(finalPlayers.length * 0.75);
+  const votes = new Set();
+
+  const voteButton = new ButtonBuilder()
+    .setCustomId('rematch_vote')
+    .setLabel(`🔁 Run It Back (0/${requiredVotes})`)
+    .setStyle(ButtonStyle.Success);
+
+  const rematchRow = new ActionRowBuilder().addComponents(voteButton);
 
   const msg = await channel.send({
-    content: `The Gauntlet has ended. Want to play again?\nAt least **75%** must click to rematch. (${finalPlayers.length} total)`,
+    content: `🏁 The Gauntlet has ended. Want to play again?\nAt least **75%** of players must vote to rematch.\nFinal players: **${finalPlayers.length}**`,
     components: [rematchRow]
   });
 
   const collector = msg.createMessageComponentCollector({ time: 30_000 });
-  const votes = new Set();
 
   collector.on('collect', async i => {
-    if (finalPlayers.find(p => p.id === i.user.id)) {
-      if (!votes.has(i.user.id)) {
-        votes.add(i.user.id);
-        await i.reply({ content: `🔁 You're in for another round!`, ephemeral: true });
-      } else {
-        await i.reply({ content: `✅ Already voted!`, ephemeral: true });
-      }
-    } else {
-      await i.reply({ content: `⛔ Only final players can vote.`, ephemeral: true });
+    if (!finalPlayers.find(p => p.id === i.user.id)) {
+      return i.reply({ content: `⛔ Only final players can vote.`, ephemeral: true });
     }
+
+    if (votes.has(i.user.id)) {
+      return i.reply({ content: `✅ Already voted!`, ephemeral: true });
+    }
+
+    votes.add(i.user.id);
+    await i.reply({ content: `🔁 You're in for another round!`, ephemeral: true });
+
+    const newButton = ButtonBuilder.from(voteButton)
+      .setLabel(`🔁 Run It Back (${votes.size}/${requiredVotes})`);
+
+    const newRow = new ActionRowBuilder().addComponents(newButton);
+    await msg.edit({ components: [newRow] });
   });
 
   collector.on('end', async () => {
@@ -796,23 +827,7 @@ async function showRematchButton(channel, finalPlayers) {
     }
   });
 }
-// === Revive Command (25% chance) ===
-client.on('messageCreate', async (message) => {
-  if (message.content === '!revive') {
-    if (!activeGame || !activeGame.players) return message.reply('⚠️ No Gauntlet is currently running.');
-    if (activeGame.players.has(message.author.id)) return message.reply('😎 You’re not eliminated.');
 
-    const chance = Math.random();
-    if (chance <= 0.25) {
-      const revived = { id: message.author.id, username: message.author.username, lives: 1 };
-      activeGame.players.set(message.author.id, revived);
-      currentPlayers.set(message.author.id, revived);
-      await message.reply(`💫 You’ve returned to The Gauntlet!`);
-    } else {
-      await message.reply(`💀 The charm rejected your plea. You're still dead.`);
-    }
-  }
-});
 // === Leaderboard Command ===
 client.on('messageCreate', async (message) => {
   if (message.content === '!leaderboard') {
