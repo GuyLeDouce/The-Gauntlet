@@ -610,7 +610,6 @@ if (!incentiveTriggered && active.length <= Math.floor(originalCount / 2)) {
 async function runMiniGameEvent(players, channel, eventNumber) {
   const outcomeTypes = ['lose', 'gain', 'eliminate', 'safe'];
   const randomOutcome = () => outcomeTypes[Math.floor(Math.random() * outcomeTypes.length)];
-  const clickedPlayers = new Set();
   const randomStyle = () => [
     ButtonStyle.Primary,
     ButtonStyle.Danger,
@@ -619,6 +618,7 @@ async function runMiniGameEvent(players, channel, eventNumber) {
   ][Math.floor(Math.random() * 4)];
 
   const resultMap = new Map();
+  const clickedPlayers = new Set();
   const chosenLore = miniGameLorePool[Math.floor(Math.random() * miniGameLorePool.length)];
   const fateLine = miniGameFateDescriptions[Math.floor(Math.random() * miniGameFateDescriptions.length)];
   const buttonLabels = chosenLore.buttons;
@@ -646,14 +646,15 @@ async function runMiniGameEvent(players, channel, eventNumber) {
 
   const message = await channel.send({ embeds: [embed], components: [row] });
 
-const collector = message.createMessageComponentCollector({ time: 20000 }); // 20 seconds
+  // ✅ Start collector IMMEDIATELY
+  const collector = message.createMessageComponentCollector({ time: 20000 });
 
-for (let i of [15, 10, 5]) {
-  await wait(5000);
-  embed.setDescription(`${chosenLore.lore}\n\n${fateLine}\n\n⏳ Time left: **${i} seconds**`);
-  await message.edit({ embeds: [embed] });
-}
-
+  // ⏳ Countdown
+  for (let i of [15, 10, 5]) {
+    await wait(5000);
+    embed.setDescription(`${chosenLore.lore}\n\n${fateLine}\n\n⏳ Time left: **${i} seconds**`);
+    await message.edit({ embeds: [embed] });
+  }
 
   collector.on('collect', async i => {
     const labelMatch = i.customId.match(/mini_([A-D])_evt/);
@@ -676,7 +677,7 @@ for (let i of [15, 10, 5]) {
         currentPlayers.set(i.user.id, revived);
         await i.reply({ content: `💫 You selected **${displayText}** and were PULLED INTO THE GAUNTLET!`, flags: 64 });
       } else {
-        return i.reply({ content: `❌ You selected **${displayText}** but fate denied your re-entry.`, flags: 64 });
+        await i.reply({ content: `❌ You selected **${displayText}** but fate denied your re-entry.`, flags: 64 });
       }
     } else {
       if (outcome === 'eliminate') player.lives = 0;
@@ -694,9 +695,10 @@ for (let i of [15, 10, 5]) {
     }
   });
 
-  await wait(5000);
+  // ⏱️ Wait for collector to finish
+  await wait(20000);
 
-  // Players who didn't click
+  // 🧊 Handle players who didn't interact
   const nonResponders = [];
   for (let player of players) {
     if (!clickedPlayers.has(player.id)) {
@@ -707,7 +709,6 @@ for (let i of [15, 10, 5]) {
     }
   }
 
-  // Show "frozen in indecision" embed
   if (nonResponders.length > 0) {
     const lore = [
       "❄️ Froze mid-click and vanished.",
