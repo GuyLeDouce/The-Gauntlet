@@ -111,6 +111,19 @@ const miniGameLorePool = [
   { title: "🎁 Ugly Gift Bags", lore: "They jiggle ominously. That’s probably fine." },
   { title: "🍀 Misfortune Cookies", lore: "Crack one open. Let’s hope it’s dessert and not doom." }
 ];
+// === Fate Lore Intros ===
+const miniGameFateDescriptions = [
+  "The charm stirs. Only one choice uplifts, the rest consume.",
+  "Fate is sealed by your fingertip. Pick wrong and be erased.",
+  "One button saves. The rest… echo with screams.",
+  "The Oracle whispers: ‘Only one path leads back.’",
+  "Choose quickly. The floor is melting.",
+  "Pick a glyph. The charm decides who returns and who burns.",
+  "Some paths heal. Others hex. All shimmer with deceit.",
+  "Every option beckons. Not all forgive.",
+  "Whispers curl around your ear: 'Click... and suffer.'",
+  "A hum builds behind the buttons. One pulses with power."
+];
 
 const riddles = [
   { riddle: "I speak without a mouth and hear without ears. What am I?", answer: "echo" },
@@ -199,14 +212,40 @@ client.on('messageCreate', async (message) => {
     const players = new Map();
     gameChannel = message.channel;
 
-    for (let i = 1; i <= 20; i++) {
-      const fakeId = `test_user_${i}`;
-      players.set(fakeId, { id: fakeId, username: `TestUser${i}`, lives: 1 });
-    }
+    const joinRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('join_gauntlet_test')
+        .setLabel('Join the Gauntlet')
+        .setStyle(ButtonStyle.Primary)
+    );
 
-    activeGame = { players, trial: true };
-    message.channel.send(`🧪 Trial mode started with 20 mock players.`);
-    await runBossVotePhase(players, message.channel);
+    const joinEmbed = new EmbedBuilder()
+      .setTitle('🧪 Test Gauntlet Join Phase')
+      .setDescription('Click to join manually before mock players enter!')
+      .setColor(0xccccff);
+
+    const msg = await message.channel.send({ embeds: [joinEmbed], components: [joinRow] });
+
+    const collector = msg.createMessageComponentCollector({ time: 8000 });
+    collector.on('collect', async i => {
+      if (!players.has(i.user.id)) {
+        players.set(i.user.id, { id: i.user.id, username: i.user.username, lives: 1 });
+        await i.reply({ content: '✅ You joined the test Gauntlet!', ephemeral: true });
+      }
+    });
+
+    setTimeout(async () => {
+      for (let i = 1; i <= 20; i++) {
+        const fakeId = `test_user_${i}`;
+        if (!players.has(fakeId)) {
+          players.set(fakeId, { id: fakeId, username: `TestUser${i}`, lives: 1 });
+        }
+      }
+
+      activeGame = { players, trial: true };
+      await message.channel.send(`✅ Mock players added. Total: ${players.size}`);
+      await runBossVotePhase(players, message.channel);
+    }, 8000);
   }
 });
 async function runBossVotePhase(players, channel) {
@@ -321,9 +360,10 @@ async function runMiniGameEvent(players, channel, eventNumber) {
 
   const outcomeMap = new Map();
   buttons.forEach(label => outcomeMap.set(label, randomOutcome()));
-
   const resultMap = new Map();
+
   const chosenLore = miniGameLorePool[Math.floor(Math.random() * miniGameLorePool.length)];
+  const fateLine = miniGameFateDescriptions[Math.floor(Math.random() * miniGameFateDescriptions.length)];
 
   const row = new ActionRowBuilder();
   buttons.forEach(label => {
@@ -337,26 +377,22 @@ async function runMiniGameEvent(players, channel, eventNumber) {
 
   const embed = new EmbedBuilder()
     .setTitle(`🎲 Event #${eventNumber}: ${chosenLore.title}`)
-    .setDescription(`${chosenLore.lore}\n\n💠 Each option hides: 💀 Eliminate • 💢 Lose • ❤️ Gain • 😶 Safe\n⏳ Time left: **20 seconds**`)
+    .setDescription(`${chosenLore.lore}\n\n${fateLine}\n\n⏳ Time left: **20 seconds**`)
     .setColor(0xff66cc);
 
   const message = await channel.send({ embeds: [embed], components: [row] });
 
-  // Live countdown updater (edit embed every 5s)
+  // Live countdown
   for (let i of [15, 10, 5]) {
     await wait(5000);
-    embed.setDescription(`Pick your option below.\nEach hides a fate: 💀 **Eliminate**, ❤️ **Gain**, 💢 **Lose**, 😶 **Safe**.\n\n⏳ Time left: **${i} seconds**`);
+    embed.setDescription(`${chosenLore.lore}\n\n${fateLine}\n\n⏳ Time left: **${i} seconds**`);
     await message.edit({ embeds: [embed] });
   }
 
-  // 20-second collector
-  const choiceMap = new Map(); // userId → label
+  const choiceMap = new Map();
   const collector = message.createMessageComponentCollector({ time: 5000 });
 
   collector.on('collect', async i => {
-    if (!players.find(p => p.id === i.user.id)) {
-      return i.reply({ content: '⛔ You’re not in this Gauntlet.', ephemeral: true });
-    }
     if (choiceMap.has(i.user.id)) {
       return i.reply({ content: '⏳ You already chose.', ephemeral: true });
     }
@@ -366,24 +402,39 @@ async function runMiniGameEvent(players, channel, eventNumber) {
     choiceMap.set(i.user.id, label);
     resultMap.set(i.user.id, outcome);
 
-    // Apply result
-    const player = players.find(p => p.id === i.user.id);
-    if (outcome === 'eliminate') player.lives = 0;
-    else if (outcome === 'lose') player.lives -= 1;
-    else if (outcome === 'gain') player.lives += 1;
+    let player = players.find(p => p.id === i.user.id);
 
-    // Send ephemeral outcome message
-    const emojiMap = {
-      gain: '❤️ You gained a life!',
-      lose: '💢 You lost a life!',
-      eliminate: '💀 You were instantly eliminated!',
-      safe: '😶 You survived untouched.'
-    };
-    await i.reply({ content: `🔘 You chose **${label}** → ${emojiMap[outcome]}`, ephemeral: true });
+    // === Revival Logic: outsider or eliminated user hits "gain"
+    if (!player) {
+      if (outcome === 'gain') {
+        const revived = { id: i.user.id, username: i.user.username, lives: 1 };
+        players.push(revived);
+        activeGame.players.set(i.user.id, revived);
+        currentPlayers.set(i.user.id, revived);
+        await i.reply({ content: `💫 You clicked **${label}** and were PULLED INTO THE GAUNTLET!`, ephemeral: true });
+      } else {
+        return i.reply({ content: `❌ You clicked **${label}** but fate denied your re-entry.`, ephemeral: true });
+      }
+    } else {
+      // === Outcome for regular players
+      if (outcome === 'eliminate') player.lives = 0;
+      else if (outcome === 'lose') player.lives -= 1;
+      else if (outcome === 'gain') player.lives += 1;
+
+      const emojiMap = {
+        gain: '❤️ You gained a life!',
+        lose: '💢 You lost a life!',
+        eliminate: '💀 You were instantly eliminated!',
+        safe: '😶 You survived untouched.'
+      };
+      await i.reply({ content: `🔘 You chose **${label}** → ${emojiMap[outcome]}`, ephemeral: true });
+    }
   });
 
-  // Wait full timer and eliminate 50% of idle players
+  // Final 5 seconds wait
   await wait(5000);
+
+  // Eliminate 50% of those who didn’t click
   for (let player of players) {
     if (!choiceMap.has(player.id)) {
       const eliminated = Math.random() < 0.5;
@@ -397,25 +448,22 @@ async function runMiniGameEvent(players, channel, eventNumber) {
 // === Display Eliminations One at a Time ===
 async function displayEliminations(resultMap, channel) {
   const eliminatedList = [];
+  const revivedList = [];
+
   for (let [userId, outcome] of resultMap.entries()) {
     if (outcome === 'eliminate') {
       eliminatedList.push(userId);
     }
-  }
-
-  if (eliminatedList.length === 0) {
-    const embed = new EmbedBuilder()
-      .setTitle('🛡️ All Survived...')
-      .setDescription('No one was eliminated this round. The charm waits.')
-      .setColor(0x99ff99);
-    await channel.send({ embeds: [embed] });
-    return;
+    if (outcome === 'gain' && !activeGame.players.has(userId)) {
+      // User joined from outside or returned from death
+      revivedList.push(userId);
+    }
   }
 
   const embed = new EmbedBuilder()
-    .setTitle('☠️ Eliminated This Round')
-    .setDescription('The Gauntlet has spoken...\n\n')
-    .setColor(0xdd2222);
+    .setTitle('📜 Results Round')
+    .setDescription('Processing the outcome of this trial...\n')
+    .setColor(0xff5588);
 
   const msg = await channel.send({ embeds: [embed] });
 
@@ -425,6 +473,19 @@ async function displayEliminations(resultMap, channel) {
     embed.setDescription(embed.data.description + `💀 <@${id}> ${lore}\n`);
     await msg.edit({ embeds: [embed] });
     await wait(1000);
+  }
+
+  for (let i = 0; i < revivedList.length; i++) {
+    const id = revivedList[i];
+    const line = `💫 <@${id}> clawed their way back in! The charm smiled... this time.`;
+    embed.setDescription(embed.data.description + `${line}\n`);
+    await msg.edit({ embeds: [embed] });
+    await wait(1000);
+  }
+
+  if (eliminatedList.length === 0 && revivedList.length === 0) {
+    embed.setDescription('The charm is silent. No one was claimed, no one returned.');
+    await msg.edit({ embeds: [embed] });
   }
 }
 // === Riddle Phase with Countdown & Monster Image ===
