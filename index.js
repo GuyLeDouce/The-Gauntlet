@@ -687,15 +687,8 @@ async function runMiniGameEvent(players, channel, eventNumber) {
 
   const message = await channel.send({ embeds: [embed], components: [row] });
 
-  // Countdown updates
-  for (let i of [15, 10, 5]) {
-    await wait(5000);
-    embed.setDescription(`${chosenLore.lore}\n\n${fateLine}\n\n⏳ Time left: **${i} seconds**`);
-    await message.edit({ embeds: [embed] });
-  }
-
-  // Interaction Collector (20s total)
-  const collector = message.createMessageComponentCollector({ time: 5000 });
+  // === Start the collector immediately for 20 seconds ===
+  const collector = message.createMessageComponentCollector({ time: 20000 });
 
   collector.on('collect', async i => {
     const labelMatch = i.customId.match(/mini_([A-D])_evt/);
@@ -736,9 +729,16 @@ async function runMiniGameEvent(players, channel, eventNumber) {
     }
   });
 
-  await wait(5000);
+  // === Countdown UI updates ===
+  for (let timeLeft of [15, 10, 5]) {
+    await wait(5000);
+    embed.setDescription(`${chosenLore.lore}\n\n${fateLine}\n\n⏳ Time left: **${timeLeft} seconds**`);
+    await message.edit({ embeds: [embed] });
+  }
 
-  // Players who didn’t click
+  await wait(5000); // Final 5 seconds
+
+  // === Collector ends after 20s; now evaluate non-clickers ===
   const frozenPlayers = [];
   for (let player of players) {
     if (!clickedPlayers.has(player.id)) {
@@ -754,7 +754,7 @@ async function runMiniGameEvent(players, channel, eventNumber) {
     }
   }
 
-  // Combined Results
+  // === Combined results embed ===
   const resultDescriptions = [];
 
   for (let [userId, result] of resultMap) {
@@ -784,6 +784,7 @@ async function runMiniGameEvent(players, channel, eventNumber) {
 
   return resultMap;
 }
+
 
 // === Mint Incentive Ops ===
 async function runIncentiveUnlock(channel) {
