@@ -69,6 +69,7 @@ const eliminatedPlayers = new Map(); // userId => { username, eliminatedAt }
 const trialMode = false;
 let gameChannel = null;
 let joinMessageLink = null;
+const authorizedUsers = ['826581856400179210', '1288107772248064044'];
 
 
 // === Lore Arrays ===
@@ -493,6 +494,10 @@ function getCurrentMonthYear() {
 // === Gauntlet Command: Public Join Phase ===
 client.on('messageCreate', async (message) => {
   if (message.content.startsWith('!gauntlet')) {
+  if (!authorizedUsers.includes(message.author.id)) {
+    return message.reply("⛔ Only authorized users can start the Gauntlet.");
+  }
+
     const minutes = parseFloat(message.content.split(' ')[1]) || 1;
     if (activeGame) return message.reply('⛔ A Gauntlet is already running!');
 
@@ -556,6 +561,9 @@ const joinEmbed = new EmbedBuilder()
 });
 client.on('messageCreate', async (message) => {
   if (message.content === '!testgauntlet') {
+  if (!authorizedUsers.includes(message.author.id)) {
+    return message.reply("⛔ You don't have permission to run test Gauntlets.");
+  }
     if (activeGame) return message.reply('⛔ A Gauntlet is already running!');
 
     const players = new Map();
