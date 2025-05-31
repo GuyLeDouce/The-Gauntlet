@@ -379,9 +379,8 @@ async function runGauntlet(players, channel) {
 }
 // === Mini-Game Event with Countdown and Secret Outcome ===
 async function runMiniGameEvent(players, channel, eventNumber) {
-  const buttons = ['A', 'B', 'C', 'D'];
-  const outcomes = ['lose', 'gain', 'eliminate', 'safe'];
-  const randomOutcome = () => outcomes[Math.floor(Math.random() * outcomes.length)];
+  const outcomeTypes = ['lose', 'gain', 'eliminate', 'safe'];
+  const randomOutcome = () => outcomeTypes[Math.floor(Math.random() * outcomeTypes.length)];
   const randomStyle = () => [
     ButtonStyle.Primary,
     ButtonStyle.Danger,
@@ -390,18 +389,22 @@ async function runMiniGameEvent(players, channel, eventNumber) {
   ][Math.floor(Math.random() * 4)];
 
   const outcomeMap = new Map();
-  buttons.forEach(label => outcomeMap.set(label, randomOutcome()));
   const resultMap = new Map();
 
   const chosenLore = miniGameLorePool[Math.floor(Math.random() * miniGameLorePool.length)];
   const fateLine = miniGameFateDescriptions[Math.floor(Math.random() * miniGameFateDescriptions.length)];
   const buttonLabels = chosenLore.buttons;
 
+  // Map label (A, B, C, D) to outcome
+  const buttons = ['A', 'B', 'C', 'D'];
+  buttons.forEach(label => outcomeMap.set(label, randomOutcome()));
+
   const row = new ActionRowBuilder();
   buttons.forEach((label, index) => {
+    const customId = `mini_${label}_evt${eventNumber}`;
     row.addComponents(
       new ButtonBuilder()
-        .setCustomId(`mini_${label}`)
+        .setCustomId(customId)
         .setLabel(buttonLabels[index])
         .setStyle(randomStyle())
     );
@@ -414,7 +417,6 @@ async function runMiniGameEvent(players, channel, eventNumber) {
 
   const message = await channel.send({ embeds: [embed], components: [row] });
 
-  // Live countdown
   for (let i of [15, 10, 5]) {
     await wait(5000);
     embed.setDescription(`${chosenLore.lore}\n\n${fateLine}\n\n⏳ Time left: **${i} seconds**`);
@@ -429,14 +431,14 @@ async function runMiniGameEvent(players, channel, eventNumber) {
       return i.reply({ content: '⏳ You already chose.', ephemeral: true });
     }
 
-    const label = i.customId.replace('mini_', '');
+    const label = i.customId.split('_')[1]; // A, B, C, D
     const outcome = outcomeMap.get(label);
     choiceMap.set(i.user.id, label);
     resultMap.set(i.user.id, outcome);
 
     let player = players.find(p => p.id === i.user.id);
 
-    // === Outsider or eliminated revival logic
+    // === Outsider or eliminated player revival
     if (!player) {
       if (outcome === 'gain') {
         const revived = { id: i.user.id, username: i.user.username, lives: 1 };
@@ -448,7 +450,7 @@ async function runMiniGameEvent(players, channel, eventNumber) {
         return i.reply({ content: `❌ You selected **${buttonLabels[buttons.indexOf(label)]}** but fate denied your re-entry.`, ephemeral: true });
       }
     } else {
-      // === Apply result to live player
+      // === Apply result
       if (outcome === 'eliminate') player.lives = 0;
       else if (outcome === 'lose') player.lives -= 1;
       else if (outcome === 'gain') player.lives += 1;
@@ -466,7 +468,7 @@ async function runMiniGameEvent(players, channel, eventNumber) {
 
   await wait(5000);
 
-  // Eliminate 50% of players who didn’t click
+  // Eliminate 50% of idle players
   for (let player of players) {
     if (!choiceMap.has(player.id)) {
       const eliminated = Math.random() < 0.5;
@@ -477,6 +479,7 @@ async function runMiniGameEvent(players, channel, eventNumber) {
 
   return resultMap;
 }
+
 // === Display Eliminations One at a Time ===
 async function displayEliminations(resultMap, channel) {
   const eliminatedList = [];
@@ -535,41 +538,37 @@ async function runRiddleEvent(channel, players) {
 
   const msg = await channel.send({ embeds: [embed] });
 
+  const correctPlayers = new Set();
   const filter = m => {
     return players.some(p => p.id === m.author.id) && m.content.toLowerCase().includes(answer.toLowerCase());
   };
 
   const collector = channel.createMessageCollector({ filter, time: countdown * 1000 });
-  let winnerAnnounced = false;
 
   collector.on('collect', async msg => {
-    if (!winnerAnnounced) {
-      winnerAnnounced = true;
+    if (!correctPlayers.has(msg.author.id)) {
+      correctPlayers.add(msg.author.id);
 
-      try {
-        // Delete the message publicly
-        await msg.delete().catch(() => {});
+      const player = players.find(p => p.id === msg.author.id);
+      if (player) player.lives += 1;
 
-        // Send ephemeral reply in-channel
-        await channel.send({
-          content: `🔮 You answered correctly: **${answer}** — the Oracle has blessed you.`,
-          ephemeral: true,
-          allowedMentions: { users: [msg.author.id] },
-          components: [],
-          embeds: [],
-          reply: { messageReference: msg.id }
-        }).catch(() => {});
-      } catch (e) {
-        console.warn(`Failed to deliver Oracle response to ${msg.author.username}`);
-      }
+      // Delete answer to keep it hidden
+      await msg.delete().catch(() => {});
 
-      collector.stop();
+      // Ephemeral confirmation
+      await channel.send({
+        content: `🔮 You answered correctly: **${answer}** — the Oracle grants you **+1 life**.`,
+        ephemeral: true,
+        allowedMentions: { users: [msg.author.id] },
+        embeds: [],
+        components: []
+      }).catch(() => {});
     } else {
       await msg.delete().catch(() => {});
     }
   });
 
-  // Countdown timer
+  // Countdown embed updater
   const countdownIntervals = [25, 20, 15, 10, 5];
   for (const secondsLeft of countdownIntervals) {
     await wait(5000);
@@ -577,14 +576,18 @@ async function runRiddleEvent(channel, players) {
     await msg.edit({ embeds: [embed] });
   }
 
-  collector.on('end', () => {
-    if (!winnerAnnounced) {
-      channel.send(`⏳ The Oracle received no answer...`);
+  collector.on('end', async () => {
+    if (correctPlayers.size === 0) {
+      await channel.send(`⏳ The Oracle received no answer this time...`);
+    } else {
+      const summary = [...correctPlayers].map(id => `<@${id}>`).join(', ');
+      await channel.send(`🌟 The Oracle blesses ${summary} with +1 life.`);
     }
   });
 
   await wait(5000);
 }
+
 // === Show Final Podium ===
 async function showPodium(channel, players) {
   const alive = players.filter(p => p.lives > 0);
@@ -745,6 +748,21 @@ client.on('messageCreate', async (message) => {
       .setColor(0x00ccff);
 
     message.channel.send({ embeds: [embed] });
+  }
+});
+// === Check Lives Remaining ===
+client.on('messageCreate', async (message) => {
+  if (message.content === '!life') {
+    if (!activeGame || !activeGame.players) {
+      return message.reply('⚠️ No Gauntlet is currently running.');
+    }
+
+    const player = activeGame.players.get(message.author.id);
+    if (!player) {
+      return message.reply('💀 You are not currently in the Gauntlet or have been eliminated.');
+    }
+
+    return message.reply(`❤️ You currently have **${player.lives}** life${player.lives === 1 ? '' : 's'}.`);
   }
 });
 
