@@ -72,22 +72,83 @@ let joinMessageLink = null;
 
 // === Lore Arrays ===
 const funnyEliminations = [
-  "tried to moonwalk into the void. It worked too well.",
-  "thought the CHARM was edible. It wasn’t.",
-  "answered the riddle with ‘42’. Classic mistake.",
-  "insisted they could out-stare the Oracle. They lost.",
-  "chose option D. There was no option D.",
-  "called the Monster ‘cute’. It took offense.",
-  "rolled a nat 1 and faceplanted into nonexistence.",
-  "flexed too hard and broke their reality bubble.",
-  "tried to revive by unplugging the bot. Banished.",
-  "pressed every button at once. The Gauntlet chose violence.",
-  "ignored the warnings. Ignored the signs. Got yeeted.",
-  "offered CHARM to the Oracle. The Oracle was allergic.",
-  "tried to cast a spell with the wrong emoji.",
-  "thought it was trivia night. It wasn’t.",
-  "accidentally opened a portal to customer support."
+  "🩴 tripped over their own sandal and fell into the Charmhole.",
+  "🧠 tried to outthink the Oracle. Brain exploded like 🍉.",
+  "🦴 challenged a Monster to a dance battle. Got breakdanced to death.",
+  "🥴 mistook the ritual circle for a beanbag chair. Instant regret.",
+  "🔮 stared into the CHARM too long. Now they're a riddle.",
+  "🪑 pulled the wrong lever and got chaired into another dimension.",
+  "🧻 wrapped themselves in toilet paper for protection. It backfired. Badly.",
+  "🦍 tried to arm wrestle a ghost. Lost both arms. Then lost.",
+  "🫠 melted after saying 'It’s just a game'. The Gauntlet heard.",
+  "🧄 ate the sacred garlic. Became delicious. Then disappeared.",
+  "📸 tried to selfie with a Monster. Got photobombed into oblivion.",
+  "🪞 challenged their reflection to a duel. Lost. Twice.",
+  "👅 licked a cursed toad. Now lives as a sticker on a rock.",
+  "🥸 thought they were safe in disguise. The CHARM saw through.",
+  "🐸 ribbited once too loud. Summoned something froggier.",
+  "🤡 misread the prophecy. Showed up in clown shoes. Slipped. Gone.",
+  "📦 hid in a box labeled 'DO NOT OPEN'. Someone opened it.",
+  "🍕 offered the Monster a slice. Monster hates pineapple. Rage ensued.",
+  "🌶️ thought a hot pepper was a life elixir. It wasn’t.",
+  "🪨 tried to skip a sacred rock across the charm pool. It skipped back.",
+  "💅 paused mid-event to do their nails. Got glamor-blasted into dust.",
+  "🕺 breakdanced too hard during a riddle. Snapped into the ether.",
+  "🐔 mocked the Chicken Oracle. Turned into a nugget.",
+  "🫧 tried to bathe in the sacred bubbles. Became foam.",
+  "📞 called tech support mid-trial. Got put on eternal hold.",
+  "🕳️ fell in a pit of expired CHARM tokens. Suffocated on cringe.",
+  "🥁 brought a drum to the silent round. Got booted by lore acoustics.",
+  "🩰 wore ballet shoes to the Ritual. Pirouetted into non-being.",
+  "🧃 drank the Monster’s juice box. Violated ancient lunch law.",
+  "🎈 floated off while chanting 'I am the one!' — They weren’t.",
+  "🧀 used cheese instead of logic. Rodents summoned. No survivors.",
+  "📚 read the fine print. Realized too late: *You already lost*.",
+  "🧟‍♂️ fake revived themselves. The bot sued for impersonation.",
+  "🩹 tried to patch the charmhole with band-aids. Got sucked in.",
+  "🕳️ misidentified a riddle as a pothole. Tried to fill it with sand. Disappeared.",
+  "🧤 wore oven mitts to press a fate button. Pressed the wrong one. Twice.",
+  "📀 tried to play a cursed VHS tape backwards. Got rewinded out of existence.",
+  "💨 farted during a solemn chant. The Gauntlet has no chill.",
+  "🎨 painted themselves into the corner. Lore took the brush.",
+  "🦷 flossed too aggressively. Opened a dental void.",
+  "🧊 slipped on spilled CHARM and slid into 3 alternate timelines. Eliminated in all.",
+  "🎃 brought a pumpkin to a Monster fight. Became soup.",
+  "🧼 washed their hands during the ritual. Summoned Hygiene Beast. Devoured.",
+  "🐌 challenged the Oracle to a race. Lost, obviously.",
+  "👃 sniffed the wrong scroll. Nose exploded. Shameful.",
+  "🪤 followed a trail of CHARM crumbs. Walked into a giant metaphor.",
+  "🧸 hugged the trap. The trap hugged back. Forever.",
+  "🪕 sang a folk song at the wrong time. The Ballad of 'Oops'.",
+  "🪦 read their own name in the Book of Losses. Spontaneously combusted.",
+  "🦀 chose 'scuttle left' instead of 'face your fate'. Got snipped.",
+  "🧃 drank expired charmjuice. Became part of the drink.",
+  "🛸 looked up and said 'Hey, what’s that—'. Abducted mid-sentence.",
+  "🛼 rolled through the event like it was a joke. Tripped on fate.",
+  "🎳 bowled with a Monster skull. The pins were ancestors. Bad idea.",
+  "🦄 chased a shiny illusion. It chased back.",
+  "💬 said the secret word. Out loud. In all caps.",
+  "🩰 got caught doing interpretive dance during the Riddle. Eliminated for artistic reasons.",
+  "📉 invested all their CHARM in rugcoin. Eliminated by market crash.",
+  "🪱 misread the prophecy as a menu. Ordered worm salad.",
+  "🎒 opened their inventory mid-fight. Got looted.",
+  "📿 wore counterfeit lore beads. Instantly banished by the Lore Bouncer.",
+  "🧯 tried to put out the fire of fate. Became steam.",
+  "🎥 paused for a cinematic entrance. Got skipped like a cutscene.",
+  "🧽 absorbed too much mystery. Squeezed by reality.",
+  "🎤 dropped the mic. On their own foot. Eliminated by embarrassment.",
+  "🎺 tooted the forbidden horn. The consequences were brass.",
+  "🕰️ turned back time. Only for themselves. The Gauntlet disagreed.",
+  "🧞‍♂️ wished to win. Genie replied, ‘lol no’.",
+  "🦷 tried to bite fate. Broke a tooth. Fate bit back.",
+  "🪚 sawed the branch they were standing on. Classic.",
+  "🧻 summoned a monster with a tissue. Blown away.",
+  "🧲 magnetized themselves to the wrong outcome.",
+  "🧃 tried to bottle the CHARM. Bottled themselves instead.",
+  "🎲 gambled everything on a 7-sided die. Rolled despair.",
+  "📎 challenged reality with a paperclip. Paperclip won."
 ];
+
 // === Mini-Game Lore Pool (20 Variants) ===
 const miniGameLorePool = [
   {
@@ -139,7 +200,59 @@ const miniGameLorePool = [
     title: "🕳️ Charmholes",
     lore: "Jump into one. Guess what’s on the other side.",
     buttons: ["Dive into the swirl", "Step into shadows", "Slide into the green glow", "Fall with eyes closed"]
-  }
+  },
+{
+  title: "🧸 Twisted Toybox",
+  lore: "An old toybox creaks open. Inside: relics from a forgotten childhood. Some bite.",
+  buttons: ["Hug the patched bear", "Wind the rusty clown", "Pull the doll's string", "Open the music box"]
+},
+{
+  title: "🪓 The Chopping Block",
+  lore: "A game of choices—four levers, one blade. Will you kneel or rebel?",
+  buttons: ["Pull the green lever", "Smash the red one", "Whisper to the white", "Yank the black cord"]
+},
+{
+  title: "🐌 Slime Shrine",
+  lore: "The goo bubbles and beckons. The shrine demands tribute.",
+  buttons: ["Offer a tooth", "Touch the core", "Kiss the slime", "Throw in your shoe"]
+},
+{
+  title: "🖼️ Living Portraits",
+  lore: "Each painting shifts when you blink. Step into one… if you dare.",
+  buttons: ["Enter the storm scene", "Crawl through the fire", "Climb the spiral stairs", "Stand on the floating rock"]
+},
+{
+  title: "💤 Dream Shards",
+  lore: "You are half-asleep. Four doors appear in your dream. One leads home.",
+  buttons: ["Open the door of laughter", "Walk into the fog", "Slide beneath the mirror", "Fly into the crackling void"]
+},
+{
+  title: "🧤 Gloves of Fate",
+  lore: "These gloves don’t fit. They choose *you*. Which one will you wear?",
+  buttons: ["Glove of thorns", "Glove of whispers", "Glove of ink", "Glove of eyes"]
+},
+{
+  title: "🐀 Lab Maze",
+  lore: "The lights flicker. You are the experiment. Time to run.",
+  buttons: ["Turn left at the scratching", "Climb the air vent", "Follow the cheese", "Kick open the trapdoor"]
+},
+{
+  title: "🎓 Cursed Classroom",
+  lore: "A bell rings. You’re late. Four desks. One assignment. All graded by the charm.",
+  buttons: ["Read the dark textbook", "Sharpen the floating pencil", "Copy from the pale kid", "Hide under the desk"]
+},
+{
+  title: "🛁 Bathtub of Secrets",
+  lore: "It’s full. It’s warm. Something is… breathing inside.",
+  buttons: ["Reach below the foam", "Turn on the red tap", "Light the candle", "Whistle a lullaby"]
+},
+{
+  title: "🧵 Thread of Destiny",
+  lore: "Four threads dangle before you. Snip one, and weave your fate anew.",
+  buttons: ["Snip the gold thread", "Tie the frayed black", "Untangle the red spiral", "Burn the green loop"]
+}
+
+  
 ];
 
 // === Fate Lore Intros ===
@@ -153,8 +266,24 @@ const miniGameFateDescriptions = [
   "Some paths heal. Others hex. All shimmer with deceit.",
   "Every option beckons. Not all forgive.",
   "Whispers curl around your ear: 'Click... and suffer.'",
-  "A hum builds behind the buttons. One pulses with power."
+  "A hum builds behind the buttons. One pulses with power.",
+  "The charm watches silently. It hungers for bold choices.",
+  "You feel eyes behind the veil. One choice opens them wider.",
+  "They say minting guards you... They say a lot of things.",
+  "A hidden rune glows brighter the more you've sacrificed.",
+  "The Monster shifts in its slumber. Choose before it wakes.",
+  "Three options lie. One offers a path to the next phase.",
+  "The charm marks the faithful. Are you marked?",
+  "Even the cursed may be spared... if they mint wisely.",
+  "One path leads to the Malformed Market. The others, oblivion.",
+  "If you've minted, the charm might show mercy.",
+  "The air warps. The charm is testing your worthiness.",
+  "Minted souls leave deeper footprints. One trail is safe.",
+  "The buttons pulse in rhythm with your mint count.",
+  "The more you've given, the more the charm may grant.",
+  "Those who hoard CHARM may lose it. Those who spend, may rise."
 ];
+
 
 const riddles = [
   { riddle: "I speak without a mouth and hear without ears. What am I?", answer: "echo" },
@@ -166,8 +295,74 @@ const riddles = [
   { riddle: "The more you remove, the bigger I get. What am I?", answer: "hole" },
   { riddle: "I come once in a minute, twice in a moment, but never in a thousand years. What am I?", answer: "m" },
   { riddle: "What invention lets you look through walls?", answer: "window" },
-  { riddle: "What can travel around the world while staying in the corner?", answer: "stamp" }
+  { riddle: "What can travel around the world while staying in the corner?", answer: "stamp" },
+  { riddle: "I have cities but no houses, forests but no trees, and rivers but no water. What am I?", answer: "map" },
+  { riddle: "What has a head, a tail, but no body?", answer: "coin" },
+  { riddle: "What has hands but can’t clap?", answer: "clock" },
+  { riddle: "The more you take away from me, the bigger I get. What am I?", answer: "hole" },
+  { riddle: "What has one eye but can’t see?", answer: "needle" },
+  { riddle: "What gets wetter as it dries?", answer: "towel" },
+  { riddle: "What belongs to you but other people use it more than you do?", answer: "your name" },
+  { riddle: "What has a neck but no head?", answer: "bottle" },
+  { riddle: "What can you catch but not throw?", answer: "cold" },
+  { riddle: "What has an eye but cannot see?", answer: "hurricane" },
+  { riddle: "What goes up but never comes down?", answer: "age" },
+  { riddle: "What comes once in a year, twice in a week, but never in a day?", answer: "e" },
+  { riddle: "What gets broken without being held?", answer: "promise" },
+  { riddle: "What kind of room has no doors or windows?", answer: "mushroom" },
+  { riddle: "What can fill a room but takes up no space?", answer: "light" },
+  { riddle: "What has many keys but can’t open a single lock?", answer: "piano" },
+  { riddle: "If you drop me, I’m sure to crack, but give me a smile and I’ll always smile back. What am I?", answer: "mirror" },
+  { riddle: "What can be cracked, made, told, and played?", answer: "joke" },
+  { riddle: "What can you break, even if you never pick it up or touch it?", answer: "promise" },
+  { riddle: "Where does today come before yesterday?", answer: "dictionary" },
+  { riddle: "What begins with T, ends with T, and has T in it?", answer: "teapot" },
+  { riddle: "What kind of band never plays music?", answer: "rubber band" },
+  { riddle: "What goes through cities and fields, but never moves?", answer: "road" },
+  { riddle: "What kind of tree can you carry in your hand?", answer: "palm" },
+  { riddle: "What has four wheels and flies?", answer: "garbage truck" },
+  { riddle: "What is full of holes but still holds water?", answer: "sponge" },
+  { riddle: "If you have me, you want to share me. If you share me, you don’t have me. What am I?", answer: "secret" },
+  { riddle: "What comes down but never goes up?", answer: "rain" },
+  { riddle: "What has a thumb and four fingers but is not alive?", answer: "glove" },
+  { riddle: "What begins with an E, but only contains one letter?", answer: "envelope" },
+  { riddle: "What do you throw out when you want to use it but take in when you don’t want to use it?", answer: "anchor" },
+  { riddle: "What has teeth but can’t bite?", answer: "comb" },
+  { riddle: "The more there is, the less you see. What is it?", answer: "darkness" },
+  { riddle: "What can run but never walks, has a mouth but never talks?", answer: "river" },
+  { riddle: "What has legs but doesn’t walk?", answer: "table" },
+  { riddle: "What kind of coat is best put on wet?", answer: "paint" },
+  { riddle: "What flies without wings?", answer: "time" },
+  { riddle: "What has roots as nobody sees, is taller than trees, up, up it goes, and yet never grows?", answer: "mountain" },
+  { riddle: "What can't be used until it is broken?", answer: "egg" },
+  { riddle: "What is so fragile that saying its name breaks it?", answer: "silence" },
+  { riddle: "What has a bottom at the top?", answer: "leg" },
+  { riddle: "What is easy to lift but hard to throw?", answer: "feather" },
+  { riddle: "What runs all around a backyard, yet never moves?", answer: "fence" },
+  { riddle: "What kind of cup can’t hold water?", answer: "cupcake" },
+  { riddle: "What has ears but cannot hear?", answer: "corn" },
+  { riddle: "What comes in many colors and is a favorite of children all over the world, yet it can’t be eaten?", answer: "crayon" },
+  { riddle: "What gets sharper the more you use it?", answer: "brain" },
+  { riddle: "What kind of ship has two mates but no captain?", answer: "relationship" },
+  { riddle: "What disappears the moment you say its name?", answer: "silence" },
+  { riddle: "What has a ring but no finger?", answer: "telephone" },
+  { riddle: "What goes up and down but never moves?", answer: "staircase" },
+  { riddle: "What can’t talk but will reply when spoken to?", answer: "echo" },
+  { riddle: "What can be seen once in a minute, twice in a moment, and never in a thousand years?", answer: "m" },
+  { riddle: "What has words but never speaks?", answer: "book" },
+  { riddle: "What has a spine but no bones?", answer: "book" },
+  { riddle: "I’m tall when I’m young, and I’m short when I’m old. What am I?", answer: "candle" },
+  { riddle: "What comes after thunder?", answer: "lightning" },
+  { riddle: "You buy me to eat but never eat me. What am I?", answer: "plate" },
+  { riddle: "What lives if fed, but dies if you give it a drink?", answer: "fire" },
+  { riddle: "What two things can you never eat for breakfast?", answer: "lunch and dinner" },
+  { riddle: "What travels faster: heat or cold?", answer: "heat" },
+  { riddle: "What has a face and two hands but no arms or legs?", answer: "clock" },
+  { riddle: "I’m always in front of you but can’t be seen. What am I?", answer: "future" },
+  { riddle: "What can you hold in your left hand but not your right?", answer: "your right elbow" },
+  { riddle: "What comes once in a minute, twice in a moment, but never in a thousand years?", answer: "m" }
 ];
+
 
 // === NFT Image Fetching ===
 function getUglyImageUrl() {
@@ -420,23 +615,22 @@ async function runMiniGameEvent(players, channel, eventNumber) {
     ButtonStyle.Success
   ][Math.floor(Math.random() * 4)];
 
-  const outcomeMap = new Map();
   const resultMap = new Map();
-
   const chosenLore = miniGameLorePool[Math.floor(Math.random() * miniGameLorePool.length)];
   const fateLine = miniGameFateDescriptions[Math.floor(Math.random() * miniGameFateDescriptions.length)];
   const buttonLabels = chosenLore.buttons;
-
-  // Map label (A, B, C, D) to outcome
   const buttons = ['A', 'B', 'C', 'D'];
+  const outcomeMap = new Map();
+
   buttons.forEach(label => outcomeMap.set(label, randomOutcome()));
 
+  const timestamp = Date.now();
   const row = new ActionRowBuilder();
   buttons.forEach((label, index) => {
-    const customId = `mini_${label}_evt${eventNumber}`;
+    const uniqueId = `mini_${label}_evt${eventNumber}_${timestamp}`;
     row.addComponents(
       new ButtonBuilder()
-        .setCustomId(customId)
+        .setCustomId(uniqueId)
         .setLabel(buttonLabels[index])
         .setStyle(randomStyle())
     );
@@ -455,34 +649,31 @@ async function runMiniGameEvent(players, channel, eventNumber) {
     await message.edit({ embeds: [embed] });
   }
 
-  const choiceMap = new Map();
   const collector = message.createMessageComponentCollector({ time: 5000 });
 
   collector.on('collect', async i => {
-    if (choiceMap.has(i.user.id)) {
-      return i.reply({ content: '⏳ You already chose.', ephemeral: true });
-    }
+    const labelMatch = i.customId.match(/mini_([A-D])_evt/);
+    if (!labelMatch) return;
 
-    const label = i.customId.split('_')[1]; // A, B, C, D
+    const label = labelMatch[1];
     const outcome = outcomeMap.get(label);
-    choiceMap.set(i.user.id, label);
-    resultMap.set(i.user.id, outcome);
+    const labelIndex = buttons.indexOf(label);
+    const displayText = chosenLore.buttons[labelIndex];
 
+    resultMap.set(i.user.id, outcome);
     let player = players.find(p => p.id === i.user.id);
 
-    // === Outsider or eliminated player revival
     if (!player) {
       if (outcome === 'gain') {
         const revived = { id: i.user.id, username: i.user.username, lives: 1 };
         players.push(revived);
         activeGame.players.set(i.user.id, revived);
         currentPlayers.set(i.user.id, revived);
-        await i.reply({ content: `💫 You selected **${buttonLabels[buttons.indexOf(label)]}** and were PULLED INTO THE GAUNTLET!`, ephemeral: true });
+        await i.reply({ content: `💫 You selected **${displayText}** and were PULLED INTO THE GAUNTLET!`, ephemeral: true });
       } else {
-        return i.reply({ content: `❌ You selected **${buttonLabels[buttons.indexOf(label)]}** but fate denied your re-entry.`, ephemeral: true });
+        return i.reply({ content: `❌ You selected **${displayText}** but fate denied your re-entry.`, ephemeral: true });
       }
     } else {
-      // === Apply result
       if (outcome === 'eliminate') player.lives = 0;
       else if (outcome === 'lose') player.lives -= 1;
       else if (outcome === 'gain') player.lives += 1;
@@ -494,15 +685,14 @@ async function runMiniGameEvent(players, channel, eventNumber) {
         safe: '😶 You survived untouched.'
       };
 
-      await i.reply({ content: `🔘 You selected **${buttonLabels[buttons.indexOf(label)]}** → ${emojiMap[outcome]}`, ephemeral: true });
+      await i.reply({ content: `🔘 You selected **${displayText}** → ${emojiMap[outcome]}`, ephemeral: true });
     }
   });
 
   await wait(5000);
 
-  // Eliminate 50% of idle players
   for (let player of players) {
-    if (!choiceMap.has(player.id)) {
+    if (!resultMap.has(player.id)) {
       const eliminated = Math.random() < 0.5;
       resultMap.set(player.id, eliminated ? 'eliminate' : 'ignored');
       if (eliminated) player.lives = 0;
