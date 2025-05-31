@@ -72,7 +72,7 @@ let joinMessageLink = null;
 
 
 // === Lore Arrays ===
-const eliminationLore = [
+const funnyEliminations = [
   "🩴 tripped over their own sandal and fell into the Charmhole.",
   "🧠 tried to outthink the Oracle. Brain exploded like 🍉.",
   "🦴 challenged a Monster to a dance battle. Got breakdanced to death.",
