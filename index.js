@@ -149,7 +149,7 @@ const funnyEliminations = [
   "🎲 gambled everything on a 7-sided die. Rolled despair.",
   "📎 challenged reality with a paperclip. Paperclip won."
 ];
-  const frozenResultsLore = [
+  const frozenLore = [
   "❄️ Froze mid-click and vanished.",
   "🪞 Stared too long at the buttons and became one.",
   "🐌 Moved too slow for the charm to care.",
@@ -813,7 +813,7 @@ async function runMiniGameEvent(players, channel, eventNumber) {
       frozenPlayers.push({
         username: player.username,
         eliminated,
-        lore: frozenResultsLore[Math.floor(Math.random() * frozenResultsLore.length)]
+        lore: frozenLore[Math.floor(Math.random() * frozenLore.length)]
       });
     }
   }
