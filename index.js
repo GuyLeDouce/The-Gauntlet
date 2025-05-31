@@ -72,7 +72,7 @@ let joinMessageLink = null;
 
 
 // === Lore Arrays ===
-const funnyEliminations = [
+const eliminationLore = [
   "🩴 tripped over their own sandal and fell into the Charmhole.",
   "🧠 tried to outthink the Oracle. Brain exploded like 🍉.",
   "🦴 challenged a Monster to a dance battle. Got breakdanced to death.",
@@ -149,7 +149,7 @@ const funnyEliminations = [
   "🎲 gambled everything on a 7-sided die. Rolled despair.",
   "📎 challenged reality with a paperclip. Paperclip won."
 ];
-const frozenLoreLines = [
+  const frozenLore = [
   "❄️ Froze mid-click and vanished.",
   "🪞 Stared too long at the buttons and became one.",
   "🐌 Moved too slow for the charm to care.",
@@ -189,6 +189,70 @@ const frozenLoreLines = [
   "📘 Checked the Gauntlet manual. It wrote back.",
   "🎤 Said 'Wait, wait!' The charm didn’t.",
   "💽 Buffering… still buffering…"
+];
+const gainLifeLore = [
+  "✨ absorbed ambient CHARM and gained a life!",
+  "🫀 stole fate’s heartbeat. +1 life.",
+  "🍀 rubbed a lucky token. It pulsed with life.",
+  "🧃 drank from the forbidden juice box. It was… rejuvenating.",
+  "🪄 caught a stray buff spell meant for someone else.",
+  "🫧 bathed in glitchwater and came out stronger.",
+  "📼 rewound their timeline by one frame. Gained a breath.",
+  "🕯️ relit an extinguished wick deep within.",
+  "🌪️ inhaled a tornado. Don’t ask how. It worked.",
+  "🔁 undid their last mistake via obscure button.",
+  "📦 opened a mystery box and found a heartbeat inside.",
+  "🎲 rolled triple sevens on cursed dice. Lucky glitch!",
+  "👅 licked a glowing rock *correctly* this time.",
+  "🔋 recharged by hugging a Monster while it snored.",
+  "👻 high-fived a ghost and felt alive again.",
+  "📚 pronounced an ancient word right. The charm approved.",
+  "💌 received a love letter from reality. It sparked vitality.",
+  "🦴 reassembled themselves slightly better than before.",
+  "🎤 dropped a sick verse. The crowd gave life back.",
+  "🦠 embraced a charming virus. Side effect: extra life.",
+  "💡 solved a riddle retroactively. Life refund granted.",
+  "🫧 chewed air bubblegum. Popped into a bonus life.",
+  "🛠️ duct taped their spirit back together. Surprisingly effective.",
+  "🌕 howled at the moon and got a power-up.",
+  "👀 stared into the void until it blinked first.",
+  "📀 found a save point. Hit continue.",
+  "🪑 sat in the right chair. +1 existential point.",
+  "💿 pirated vitality.exe from a cursed mirror.",
+  "🧼 cleaned their aura. Found a spare life behind it.",
+  "🪞 out-negotiated their reflection. Took its life instead."
+];
+const reviveLore = [
+  "🌪️ twisted their fate and returned to the arena!",
+  "🌱 bloomed from the grave like a cursed daisy.",
+  "💥 broke back in through pure chaos energy.",
+  "🪦 kicked open their own tombstone and climbed out.",
+  "🐍 shed their skin… and reappeared stronger.",
+  "🧟‍♂️ returned mid-sentence. Death was mid-convo too.",
+  "🚪 knocked three times on the wrong door — it opened.",
+  "💫 was whispered back to life by a charm chant.",
+  "🕳️ reverse-fell out of the void. Somehow intact.",
+  "🪞 tricked a mirror into reviving them instead.",
+  "🎯 landed a lucky hit on destiny’s reset button.",
+  "📜 found an expired resurrection scroll. Still worked.",
+  "🦷 bit into a cursed relic and got jolted back.",
+  "🩸 bled into the sigil and it answered.",
+  "📟 paged the charm from the underworld. Got through.",
+  "🧶 unraveled themselves from oblivion. Very itchy.",
+  "🧃 drank expired CHARM concentrate. Side effect: rebirth.",
+  "👁‍🗨 was seen by the Oracle — and reborn out of pity.",
+  "🎩 pulled themselves out of a hat.",
+  "🧿 dodged finality with an off-brand evil eye.",
+  "🔁 glitched through the timeline. Now they’re back.",
+  "💿 hit CTRL+Z on death itself.",
+  "🕯️ stole someone else’s candlelight. Typical move.",
+  "📦 emerged from a shipping box marked ‘Return to Sender’.",
+  "🗡️ stabbed their shadow and took its place.",
+  "🫧 bubbled up through memory foam and lived again.",
+  "🪤 escaped a trap — by switching roles with fate.",
+  "🧷 patched their spirit with leftover CHARM tape.",
+  "🔮 guessed the future wrong, but came back anyway.",
+  "🧼 scrubbed off the afterlife like it was mold."
 ];
 
 // === Mini-Game Lore Pool (20 Variants) ===
@@ -755,32 +819,62 @@ async function runMiniGameEvent(players, channel, eventNumber) {
   }
 
   // === Combined results embed ===
-  const resultDescriptions = [];
+  const eliminatedLines = [];
+  const gainLines = [];
+  const reviveLines = [];
+  const frozenLines = [];
 
   for (let [userId, result] of resultMap) {
     const player = players.find(p => p.id === userId);
     if (!player) continue;
+
     if (clickedPlayers.has(userId)) {
-      const outcomeText = {
-        gain: '❤️ gained a life!',
-        lose: '💢 lost a life!',
-        eliminate: '💀 was eliminated!',
-        safe: '😶 was untouched.'
-      }[result];
-      resultDescriptions.push(`**${player.username}** ${outcomeText}`);
+      if (result === 'eliminate') {
+        const lore = funnyEliminations[Math.floor(Math.random() * funnyEliminations.length)];
+        eliminatedLines.push(`**${player.username}** ${lore}`);
+      } else if (result === 'gain') {
+        if (player.lives === 1) {
+          const lore = reviveLore[Math.floor(Math.random() * reviveLore.length)];
+          reviveLines.push(`**${player.username}** ${lore}`);
+        } else {
+          const lore = gainLifeLore[Math.floor(Math.random() * gainLifeLore.length)];
+          gainLines.push(`**${player.username}** ${lore}`);
+        }
+      } else if (result === 'lose') {
+        eliminatedLines.push(`**${player.username}** 💢 lost a life!`);
+      }
     }
   }
 
   for (let frozen of frozenPlayers) {
-    resultDescriptions.push(`**${frozen.username}** ${frozen.lore} ${frozen.eliminated ? '💀 Eliminated!' : '😐 Spared... for now.'}`);
+    frozenLines.push(`**${frozen.username}** ${frozen.lore} ${frozen.eliminated ? '💀 Eliminated!' : '😐 Spared... for now.'}`);
   }
 
   const resultEmbed = new EmbedBuilder()
     .setTitle(`📜 Results Round`)
-    .setDescription(resultDescriptions.join('\n'))
+    .setDescription(``)
     .setColor(0xffcc00);
 
-  await channel.send({ embeds: [resultEmbed] });
+  const msg = await channel.send({ embeds: [resultEmbed] });
+
+  const categories = [
+    { label: '**__Mini Game Eliminations__**', list: eliminatedLines },
+    { label: '**__Revives / New Players__**', list: reviveLines },
+    { label: '**__Additional Lives__**', list: gainLines },
+    { label: '**__Frozen in Indecision__**', list: frozenLines }
+  ];
+
+  for (let { label, list } of categories) {
+    if (list.length === 0) continue;
+    resultEmbed.setDescription(resultEmbed.data.description + `\n${label}\n`);
+    await msg.edit({ embeds: [resultEmbed] });
+
+    for (let line of list) {
+      resultEmbed.setDescription(resultEmbed.data.description + `${line}\n`);
+      await msg.edit({ embeds: [resultEmbed] });
+      await wait(400);
+    }
+  }
 
   return resultMap;
 }
@@ -862,49 +956,72 @@ async function runIncentiveUnlock(channel) {
 }
 
 
-// === Display Eliminations One at a Time ===
+// === Display Unified Results ===
 async function displayEliminations(resultMap, channel) {
-  const eliminatedList = [];
-  const revivedList = [];
+  const eliminated = [];
+  const revived = [];
+  const gainedLife = [];
+  const inactiveEliminations = [];
 
-  for (let [userId, outcome] of resultMap.entries()) {
-    if (outcome === 'eliminate') {
-      eliminatedList.push(userId);
-    }
-    if (outcome === 'gain' && !activeGame.players.has(userId)) {
-      // User joined from outside or returned from death
-      revivedList.push(userId);
+  // Track who didn't click
+  const players = [...activeGame.players.values()];
+  const clickedIds = [...resultMap.keys()];
+
+  for (let player of players) {
+    if (!clickedIds.includes(player.id)) {
+      const eliminatedByInactivity = Math.random() < 0.5;
+      resultMap.set(player.id, eliminatedByInactivity ? 'frozen' : 'ignored');
+      if (eliminatedByInactivity) {
+        player.lives = 0;
+        inactiveEliminations.push(player);
+      }
     }
   }
 
+  for (let [userId, outcome] of resultMap.entries()) {
+    const player = activeGame.players.get(userId);
+    if (!player) continue;
+
+    if (outcome === 'eliminate') eliminated.push(player);
+    else if (outcome === 'gain' && player.lives === 1) revived.push(player); // Revived from dead
+    else if (outcome === 'gain') gainedLife.push(player);
+    else if (outcome === 'frozen') inactiveEliminations.push(player);
+  }
+
+  // Prepare sections (randomized order)
+  const categories = [
+    { title: "__Mini Game Eliminations__", data: eliminated, emoji: "💀", lore: eliminationLore },
+    { title: "__Revived Players__", data: revived, emoji: "💫", lore: reviveLore },
+    { title: "__Additional Lives__", data: gainedLife, emoji: "❤️", lore: gainLifeLore },
+    { title: "__Inactive Eliminations__", data: inactiveEliminations, emoji: "🧊", lore: frozenLore }
+  ].sort(() => Math.random() - 0.5);
+
   const embed = new EmbedBuilder()
     .setTitle('📜 Results Round')
-    .setDescription('Processing the outcome of this trial...\n')
+    .setDescription('Processing the outcome of this trial...')
     .setColor(0xff5588);
 
   const msg = await channel.send({ embeds: [embed] });
 
-  for (let i = 0; i < eliminatedList.length; i++) {
-    const id = eliminatedList[i];
-    const lore = funnyEliminations[Math.floor(Math.random() * funnyEliminations.length)];
-    embed.setDescription(embed.data.description + `💀 <@${id}> ${lore}\n`);
-    await msg.edit({ embeds: [embed] });
-    await wait(1000);
+  for (const cat of categories) {
+    if (cat.data.length === 0) continue;
+
+    embed.data.description += `\n\n**${cat.title}**\n`;
+
+    for (let p of cat.data) {
+      const line = `${cat.emoji} <@${p.id}> ${cat.lore[Math.floor(Math.random() * cat.lore.length)]}`;
+      embed.data.description += line + `\n`;
+      await msg.edit({ embeds: [embed] });
+      await wait(400);
+    }
   }
 
-  for (let i = 0; i < revivedList.length; i++) {
-    const id = revivedList[i];
-    const line = `💫 <@${id}> clawed their way back in! The charm smiled... this time.`;
-    embed.setDescription(embed.data.description + `${line}\n`);
-    await msg.edit({ embeds: [embed] });
-    await wait(1000);
-  }
-
-  if (eliminatedList.length === 0 && revivedList.length === 0) {
+  if (embed.data.description.trim() === 'Processing the outcome of this trial...') {
     embed.setDescription('The charm is silent. No one was claimed, no one returned.');
     await msg.edit({ embeds: [embed] });
   }
 }
+
 // === Riddle Phase with Countdown & Monster Image ===
 async function runRiddleEvent(channel, players) {
   const { riddle, answer } = riddles[Math.floor(Math.random() * riddles.length)];
