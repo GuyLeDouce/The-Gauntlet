@@ -818,35 +818,6 @@ async function runMiniGameEvent(players, channel, eventNumber) {
     }
   }
 
-  // === Combined results embed ===
-  const resultDescriptions = [];
-
-  for (let [userId, result] of resultMap) {
-    const player = players.find(p => p.id === userId);
-    if (!player) continue;
-    if (clickedPlayers.has(userId)) {
-      const outcomeText = {
-        gain: '❤️ gained a life!',
-        lose: '💢 lost a life!',
-        eliminate: '💀 was eliminated!',
-        safe: '😶 was untouched.'
-      }[result];
-      resultDescriptions.push(`**${player.username}** ${outcomeText}`);
-    }
-  }
-
-  for (let frozen of frozenPlayers) {
-    resultDescriptions.push(`**${frozen.username}** ${frozen.lore} ${frozen.eliminated ? '💀 Eliminated!' : '😐 Spared... for now.'}`);
-  }
-
-  const descriptionText = resultDescriptions.join('\n') || 'The charm watched… but nothing happened.';
-  const resultEmbed = new EmbedBuilder()
-    .setTitle(`📜 Results Round`)
-    .setDescription(descriptionText)
-    .setColor(0xffcc00);
-
-  await channel.send({ embeds: [resultEmbed] });
-
   return resultMap;
 }
 
