@@ -88,6 +88,29 @@ const funnyEliminations = [
   "thought it was trivia night. It wasn’t.",
   "accidentally opened a portal to customer support."
 ];
+// === Mini-Game Lore Pool (20 Variants) ===
+const miniGameLorePool = [
+  { title: "🌪️ Vortex of Options", lore: "The wind howls with malice. Choose a button and face the storm." },
+  { title: "🕯️ Candle of Fate", lore: "Each flame flickers with a different destiny. Which light do you trust?" },
+  { title: "🎭 Masked Choices", lore: "Behind each mask lies your fate. Will it smile or snuff you out?" },
+  { title: "🧪 Potions of Peril", lore: "Four vials shimmer before you. Sip one... if you dare." },
+  { title: "📜 Scrolls of the Unknown", lore: "Ancient scrolls rustle with secrets. One holds salvation." },
+  { title: "🧲 Magnetic Mayhem", lore: "Each choice draws you to a different end. Or beginning." },
+  { title: "🔮 Crystal Collapse", lore: "The orb pulses. You must touch one facet. One will shatter you." },
+  { title: "🧃 Sip or Suffer", lore: "A thirst only fate can quench. Which bottle will burn?" },
+  { title: "📦 Boxes from Beyond", lore: "Each box hums softly. One hums... wrongly." },
+  { title: "🕰️ Echoes of Time", lore: "Your choice echoes backward and forward. But mostly... downward." },
+  { title: "🛸 Alien Algorithm", lore: "The pattern is unclear. So is survival." },
+  { title: "🧵 Threads of Reality", lore: "Pluck a thread. One unravels your mind." },
+  { title: "📍 Pins of Probability", lore: "Four pins. Only one will not explode." },
+  { title: "🍳 Breakfast of Doom", lore: "One of these is eggs. One is... not eggs." },
+  { title: "🎈 Balloon Trial", lore: "Pop one. Pray it’s not yours." },
+  { title: "🪤 Trap Teasers", lore: "One option is safe. The others... definitely not." },
+  { title: "🕳️ Charmholes", lore: "Jump into one. Guess what’s on the other side." },
+  { title: "🐌 Slime Slalom", lore: "Touch a trail. Not all are harmless." },
+  { title: "🎁 Ugly Gift Bags", lore: "They jiggle ominously. That’s probably fine." },
+  { title: "🍀 Misfortune Cookies", lore: "Crack one open. Let’s hope it’s dessert and not doom." }
+];
 
 const riddles = [
   { riddle: "I speak without a mouth and hear without ears. What am I?", answer: "echo" },
@@ -289,11 +312,18 @@ async function runMiniGameEvent(players, channel, eventNumber) {
   const buttons = ['A', 'B', 'C', 'D'];
   const outcomes = ['lose', 'gain', 'eliminate', 'safe'];
   const randomOutcome = () => outcomes[Math.floor(Math.random() * outcomes.length)];
+  const randomStyle = () => [
+    ButtonStyle.Primary,
+    ButtonStyle.Danger,
+    ButtonStyle.Secondary,
+    ButtonStyle.Success
+  ][Math.floor(Math.random() * 4)];
 
-  const outcomeMap = new Map(); // A → lose, B → gain, etc.
+  const outcomeMap = new Map();
   buttons.forEach(label => outcomeMap.set(label, randomOutcome()));
 
-  const resultMap = new Map(); // userId → outcome
+  const resultMap = new Map();
+  const chosenLore = miniGameLorePool[Math.floor(Math.random() * miniGameLorePool.length)];
 
   const row = new ActionRowBuilder();
   buttons.forEach(label => {
@@ -301,14 +331,14 @@ async function runMiniGameEvent(players, channel, eventNumber) {
       new ButtonBuilder()
         .setCustomId(`mini_${label}`)
         .setLabel(`Option ${label}`)
-        .setStyle(ButtonStyle.Secondary)
-      );
+        .setStyle(randomStyle())
+    );
   });
 
   const embed = new EmbedBuilder()
-    .setTitle(`🎲 Event #${eventNumber} — Choose Your Fate`)
-    .setDescription(`Pick your option below.\nEach hides a fate: 💀 **Eliminate**, ❤️ **Gain**, 💢 **Lose**, 😶 **Safe**.\n\n⏳ Time left: **20 seconds**`)
-    .setColor(0xff4499);
+    .setTitle(`🎲 Event #${eventNumber}: ${chosenLore.title}`)
+    .setDescription(`${chosenLore.lore}\n\n💠 Each option hides: 💀 Eliminate • 💢 Lose • ❤️ Gain • 😶 Safe\n⏳ Time left: **20 seconds**`)
+    .setColor(0xff66cc);
 
   const message = await channel.send({ embeds: [embed], components: [row] });
 
@@ -456,14 +486,19 @@ async function showPodium(channel, players) {
   const alive = players.filter(p => p.lives > 0);
   const ranked = [...alive].sort((a, b) => b.lives - a.lives);
 
-  // Fallback: If fewer than 3 survivors, fill with longest survivors
+  // Fill up to 3 if fewer than 3 survived
   while (ranked.length < 3) {
     const fillers = players.filter(p => !ranked.includes(p)).slice(0, 3 - ranked.length);
     ranked.push(...fillers);
   }
 
+  // Determine top 3 by lives
+  const top3 = ranked.slice(0, 3);
+  const maxLives = top3[0]?.lives || 0;
+  const tied = top3.filter(p => p.lives === maxLives);
+
   const medals = ['🥇', '🥈', '🥉'];
-  const fields = ranked.slice(0, 3).map((p, i) => ({
+  const fields = top3.map((p, i) => ({
     name: `${medals[i]} ${p.username}`,
     value: `Lives remaining: **${p.lives}**`,
     inline: true
@@ -477,49 +512,52 @@ async function showPodium(channel, players) {
 
   await channel.send({ embeds: [embed] });
 
-  // === Sudden Death if tied ===
-  const [a, b, c] = ranked;
-  if (a && b && a.lives === b.lives) {
-    await channel.send(`⚖️ Tiebreaker required! ${a.username} vs ${b.username}!`);
-    await runTiebreaker(channel, [a, b]);
-  } else if (b && c && b.lives === c.lives) {
-    await channel.send(`⚖️ Tiebreaker required! ${b.username} vs ${c.username}!`);
-    await runTiebreaker(channel, [b, c]);
+  // If there’s a full tie for first (2 or 3 players), do a sudden death round
+  if (tied.length > 1) {
+    await channel.send(`⚖️ Tiebreaker required! ${tied.map(p => p.username).join(', ')} all have ${maxLives} lives!`);
+    await runTiebreaker(channel, tied);
   }
 }
 
+
 // === Sudden Death Button Duel ===
-async function runTiebreaker(channel, players) {
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('tie_a')
-      .setLabel(players[0].username)
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId('tie_b')
-      .setLabel(players[1].username)
-      .setStyle(ButtonStyle.Secondary)
-  );
+async function runTiebreaker(channel, tiedPlayers) {
+  const row = new ActionRowBuilder();
+  tiedPlayers.forEach((p, i) => {
+    row.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`tie_${p.id}`)
+        .setLabel(p.username)
+        .setStyle([ButtonStyle.Primary, ButtonStyle.Danger, ButtonStyle.Success][i % 3])
+    );
+  });
 
   const embed = new EmbedBuilder()
     .setTitle('⚔️ Sudden Death!')
-    .setDescription(`Both have equal lives...\nClick your name first to survive!`)
+    .setDescription(`All tied players must act! Click your name first to survive.\nOnly one will move on...`)
     .setColor(0xdd2222);
 
   const msg = await channel.send({ embeds: [embed], components: [row] });
 
   const collector = msg.createMessageComponentCollector({ time: 10_000 });
+  const alreadyClicked = new Set();
+
   collector.on('collect', async i => {
-    const winner = players.find(p => i.customId.includes(p.username.toLowerCase()));
+    if (alreadyClicked.has(i.user.id)) {
+      return i.reply({ content: '⏳ You already acted!', ephemeral: true });
+    }
+
+    const winner = tiedPlayers.find(p => `tie_${p.id}` === i.customId);
     if (winner) {
-      await channel.send(`🎉 **${winner.username}** won the sudden death!`);
+      alreadyClicked.add(i.user.id);
+      await channel.send(`🎉 **${winner.username}** wins the sudden death tiebreaker!`);
       collector.stop();
     }
   });
 
-  collector.on('end', collected => {
+  collector.on('end', async collected => {
     if (!collected.size) {
-      channel.send(`💤 No one clicked. The Gauntlet claims them both.`);
+      await channel.send(`💤 No one clicked in time. The Gauntlet claims all the tied souls.`);
     }
   });
 }
