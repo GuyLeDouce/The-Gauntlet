@@ -850,10 +850,12 @@ async function runMiniGameEvent(players, channel, eventNumber) {
     frozenLines.push(`**${frozen.username}** ${frozen.lore} ${frozen.eliminated ? '💀 Eliminated!' : '😐 Spared... for now.'}`);
   }
 
-  const resultEmbed = new EmbedBuilder()
-    .setTitle(`📜 Results Round`)
-    .setDescription(``)
-    .setColor(0xffcc00);
+const descriptionText = resultDescriptions.join('\n') || 'The charm watched… but nothing happened.';
+const resultEmbed = new EmbedBuilder()
+  .setTitle(`📜 Results Round`)
+  .setDescription(descriptionText)
+  .setColor(0xffcc00);
+
 
   const msg = await channel.send({ embeds: [resultEmbed] });
 
