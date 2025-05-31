@@ -708,25 +708,64 @@ async function runMiniGameEvent(players, channel, eventNumber) {
     }
   }
 
-  if (nonResponders.length > 0) {
-    const lore = [
-      "❄️ Froze mid-click and vanished.",
-      "🪞 Stared too long at the buttons and became one.",
-      "🐌 Moved too slow for the charm to care.",
-      "🕳️ Hesitated and fell through a logic hole.",
-      "🔕 Ignored fate's whisper. Ignored forever."
-    ];
-    const descriptions = nonResponders.map(p =>
-      `**${p.username}** - ${lore[Math.floor(Math.random() * lore.length)]} ${p.eliminated ? '💀 Eliminated!' : '😐 Spared... for now.'}`
-    );
+if (nonResponders.length > 0) {
+  const lore = [
+  "❄️ Froze mid-click and vanished.",
+  "🪞 Stared too long at the buttons and became one.",
+  "🐌 Moved too slow for the charm to care.",
+  "🕳️ Hesitated and fell through a logic hole.",
+  "🔕 Ignored fate's whisper. Ignored forever.",
+  "⏳ Stalled out. The charm had no patience.",
+  "🫥 Looked away for one moment too long.",
+  "📵 No signal... or fate just declined the call.",
+  "🪰 Swatted a bug instead of clicking. Guess who got squished.",
+  "🔮 Got distracted gazing at the Oracle’s toes. Don’t ask.",
+  "🐸 Thought they had more time. They were wrong.",
+  "🧻 Went to grab toilet paper. Came back to a different timeline.",
+  "🎈 Floated away while deciding.",
+  "🥴 Got caught buffering mid-thought.",
+  "🧼 Slipped on charm goo and never recovered.",
+  "📺 Was watching a tutorial on ‘how to choose wisely.’ Too late.",
+  "🪑 Got comfy and turned into a chair.",
+  "🧊 Literally froze. Not metaphorical. Just ice now.",
+  "🧃 Tried to hydrate mid-event. Absorbed by the charm instead.",
+  "🎲 Rolled a dice to choose. It rolled off the world.",
+  "🥽 Adjusted their VR headset… right into the void.",
+  "🧻 Missed their chance while crafting the perfect reply.",
+  "🎧 Was vibing to the Gauntlet soundtrack. Missed everything.",
+  "🧠 Overthought it. Brain melted.",
+  "🥸 Tried to disguise themselves as a button.",
+  "📦 Took too long unboxing their fate.",
+  "📿 Whispered a prayer. Got muted.",
+  "💤 Took a micro-nap. Entered a macro-death.",
+  "🐍 Asked the Oracle for advice. The Oracle blinked.",
+  "🪤 Distracted by a trap that wasn’t even meant for them.",
+  "🔌 Forgot to plug in their fate.",
+  "🖲️ Hovered too long over the wrong choice.",
+  "🕯️ Lit a candle for clarity. Got summoned instead.",
+  "🕷️ Noticed something crawling on their screen. That was the Oracle.",
+  "🫧 Popped a bubble of hope. It screamed.",
+  "📿 Tried a ritual mid-round. It backfired with glitter.",
+  "📘 Checked the Gauntlet manual. It wrote back.",
+  "🎤 Said 'Wait, wait!' The charm didn’t.",
+  "💽 Buffering… still buffering…"
+];
 
-    const frozenEmbed = new EmbedBuilder()
-      .setTitle("🧊 Frozen in Indecision")
-      .setDescription(descriptions.join('\n'))
-      .setColor(0x3399ff);
+  let frozenText = "";
+  const frozenEmbed = new EmbedBuilder()
+    .setTitle("🧊 Frozen in Indecision")
+    .setColor(0x3399ff);
 
-    await channel.send({ embeds: [frozenEmbed] });
+  const frozenMessage = await channel.send({ embeds: [frozenEmbed] });
+
+  for (const p of nonResponders) {
+    const line = `**${p.username}** - ${lore[Math.floor(Math.random() * lore.length)]} ${p.eliminated ? '💀 Eliminated!' : '😐 Spared... for now.'}`;
+    frozenText += line + "\n";
+    frozenEmbed.setDescription(frozenText);
+    await frozenMessage.edit({ embeds: [frozenEmbed] });
+    await wait(400); // 0.4 second delay between each
   }
+}
 
   return resultMap;
 }
