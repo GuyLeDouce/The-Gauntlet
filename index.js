@@ -332,6 +332,7 @@ async function runGauntlet(players, channel) {
   const playerMap = new Map(players);
   let eliminated = new Map();
   let eventNumber = 1;
+  let incentiveTriggered = false;
   let active = [...playerMap.values()];
   const maxEvents = 100;
 
@@ -368,6 +369,12 @@ async function runGauntlet(players, channel) {
     }
 
     active = [...playerMap.values()].filter(p => !eliminated.has(p.id));
+// === Incentive Unlock Trigger ===
+const originalCount = players.length;
+if (!incentiveTriggered && active.length <= Math.floor(originalCount / 2)) {
+  incentiveTriggered = true;
+  await runIncentiveUnlock(channel);
+}
     eventNumber++;
     await wait(3000);
   }
@@ -479,6 +486,81 @@ async function runMiniGameEvent(players, channel, eventNumber) {
 
   return resultMap;
 }
+// === Mint Incentive Ops ===
+async function runIncentiveUnlock(channel) {
+  const targetNumber = Math.floor(Math.random() * 50) + 1;
+  const guesses = new Map(); // user.id => guessed number
+
+  const incentiveRewards = [
+    '🎁 Mint 3 Uglys → Get 1 Free!',
+    '💸 Every mint earns **double $CHARM**!',
+    '👹 Only 2 burns needed to summon a Monster!',
+    ];
+
+  const monsterImg = getMonsterImageUrl();
+
+  // --- Initial prompt
+  const embed = new EmbedBuilder()
+    .setTitle('🧠 Incentive Unlock Challenge')
+    .setDescription(
+      `An eerie silence falls over the arena... but the air tingles with potential.\n\n` +
+      `**Guess a number between 1 and 50.**\n` +
+      `If ANYONE gets it right, a global community incentive will be unlocked!\n\n` +
+      `⏳ You have 10 seconds...`
+    )
+    .setImage(monsterImg)
+    .setColor(0xff6600)
+    .setFooter({ text: 'Type your number in the chat now. Only 1 try!' });
+
+  await channel.send({ embeds: [embed] });
+
+  const filter = m => {
+    const guess = parseInt(m.content.trim());
+    return !isNaN(guess) && guess >= 1 && guess <= 50 && !guesses.has(m.author.id);
+  };
+
+  const collector = channel.createMessageCollector({ filter, time: 10000 });
+
+  collector.on('collect', msg => {
+    guesses.set(msg.author.id, parseInt(msg.content.trim()));
+  });
+
+  collector.on('end', async () => {
+    const winners = [...guesses.entries()].filter(([_, num]) => num === targetNumber).map(([id]) => `<@${id}>`);
+
+    if (winners.length > 0) {
+      const incentive = incentiveRewards[Math.floor(Math.random() * incentiveRewards.length)];
+
+      const winEmbed = new EmbedBuilder()
+        .setTitle('🎉 Incentive Unlocked!')
+        .setDescription(
+          `🧠 The magic number was **${targetNumber}**.\n` +
+          `✅ ${winners.join(', ')} guessed correctly!\n\n` +
+          `🎁 **New Community Incentive Unlocked:**\n${incentive}\n\n` +
+          `📩 Open a ticket to claim. This expires in **24 hours** — act fast!`
+        )
+        .setImage(monsterImg)
+        .setColor(0x33ff66)
+        .setFooter({ text: 'Unlocked by the power of the malformed minds.' });
+
+      await channel.send({ embeds: [winEmbed] });
+
+    } else {
+      const failEmbed = new EmbedBuilder()
+        .setTitle('🧤 The Offer Remains Sealed...')
+        .setDescription(
+          `No one guessed the correct number (**${targetNumber}**).\n\n` +
+          `The incentive stays locked, its power fading into the void... for now.`
+        )
+        .setImage(monsterImg)
+        .setColor(0x990000)
+        .setFooter({ text: 'The Charm rewards those who dare... and guess well.' });
+
+      await channel.send({ embeds: [failEmbed] });
+    }
+  });
+}
+
 
 // === Display Eliminations One at a Time ===
 async function displayEliminations(resultMap, channel) {
