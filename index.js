@@ -961,7 +961,7 @@ async function displayEliminations(resultMap, channel) {
 
   // Prepare sections (randomized order)
   const categories = [
-    { title: "__Mini Game Eliminations__", data: eliminated, emoji: "💀", lore: eliminationLore },
+    { title: "__Mini Game Eliminations__", data: eliminated, emoji: "💀", lore: funnyEliminations },
     { title: "__Revived Players__", data: revived, emoji: "💫", lore: reviveLore },
     { title: "__Additional Lives__", data: gainedLife, emoji: "❤️", lore: gainLifeLore },
     { title: "__Inactive Eliminations__", data: inactiveEliminations, emoji: "🧊", lore: frozenLore }
