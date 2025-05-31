@@ -1,3 +1,4 @@
+/ index.js
 require('dotenv').config();
 const {
   Client,
@@ -12,13 +13,14 @@ const {
 } = require('discord.js');
 const axios = require('axios');
 const { Client: PgClient } = require('pg');
+const TOKEN = process.env.BOT_TOKEN;
 
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMessageReactions
+    GatewayIntentBits.GuildMessageReactions,
+    GatewayIntentBits.MessageContent
   ],
   partials: [Partials.Message, Partials.Channel, Partials.Reaction]
 });
@@ -58,678 +60,576 @@ db.connect()
     `);
   })
   .catch(err => console.error('❌ DB Connection Error:', err));
-// === Configurable Defaults ===
-const DEFAULT_IMAGE_BASE_URL = 'https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/';
-const MONSTER_COLLECTION = 'ugly-monsters';
-const UGLY_COLLECTION = 'charm-of-the-ugly';
-
-// === Game State ===
-let currentGame = null;
-let gauntletActive = false;
-let joinMessageLink = '';
-let consecutiveRematches = 0;
-const MAX_REMATCHES = 4;
-
-// === Utility ===
-const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-const shuffleArray = arr => arr.sort(() => Math.random() - 0.5);
-const getRandom = arr => arr[Math.floor(Math.random() * arr.length)];
-
-function formatRatio(current, total) {
-  return `**${current}** remain out of **${total}**`;
-}
-
-function getImageUrl(tokenId, isMonster = false) {
-  return `https://opensea.io/assets/ethereum/${isMonster ? '0xMONSTER_CONTRACT' : '0x9492505633D74451bDF3079c09ccc979588Bc309'}/${tokenId}`;
-}
+// === Global Game State ===
+let activeGame = null;
+let rematchCount = 0;
+const maxRematches = 4;
+const currentPlayers = new Map(); // userID => { username, lives }
+const eliminatedPlayers = new Map(); // userID => { username, eliminatedAt }
+const trialMode = false;
+let gameChannel = null;
+let joinMessageLink = null;
 
 // === Lore Arrays ===
-const eliminationReasons = [
-  "👟 tripped over a cursed shoelace and was never seen again.",
-  "👁️‍🗨️ challenged the charm to a staring contest. Lost. Badly.",
-  "🕺 mistook the ritual circle for a dance floor. The charm was not amused.",
-  "🪞 stepped into a mirror and got stuck arguing with their prettier self.",
-  "🔮 asked the Oracle too many questions. Was swallowed by punctuation.",
-  "📧 accidentally hit 'Reply All' to the voices in their head.",
-  "🪨 licked a glowing rock labeled 'Do Not Lick.'",
-  "💪 tried to flex mid-round and tore reality (and themselves).",
-  "🔴 pressed the charm’s big red button. Instantly gone.",
-  "📊 was voted 'Most Likely to Die Next' — statistically accurate.",
-  "🎲 rolled a one and met a gruesome fate.",
-  "🦴 got gnawed by something that used to be a pet.",
-  "🚪 opened a forbidden door and vanished with a shriek.",
-  "🌪️ was caught in a spontaneous charmstorm.",
-  "📜 read the Gauntlet’s fine print and disappeared in legalese.",
-  "🧼 slipped on a bar of cursed soap. Comically fatal.",
-  "🐔 challenged the Chicken Oracle. It did not end well.",
-  "🎭 was mistaken for the Boss and eliminated ceremoniously.",
-  "🕳️ fell into the lorehole and never climbed back out.",
-  "👻 blinked. The charm didn’t."
+const funnyEliminations = [
+  "tried to moonwalk into the void. It worked too well.",
+  "thought the CHARM was edible. It wasn’t.",
+  "answered the riddle with ‘42’. Classic mistake.",
+  "insisted they could out-stare the Oracle. They lost.",
+  "chose option D. There was no option D.",
+  "called the Monster ‘cute’. It took offense.",
+  "rolled a nat 1 and faceplanted into nonexistence.",
+  "flexed too hard and broke their reality bubble.",
+  "tried to revive by unplugging the bot. Banished.",
+  "pressed every button at once. The Gauntlet chose violence.",
+  "ignored the warnings. Ignored the signs. Got yeeted."
 ];
 
-const reviveSuccessLines = [
-  "💫 A rift tears open, and you're spat back into the world — alive!",
-  "🌿 You feel the malformed magic course through you. Welcome back.",
-  "🪄 The Oracle’s gamble pays off. You return... changed.",
-  "⚡ A bolt of CHARM energy jolts your soul. You’re back!",
-  "🎉 Against all odds, you're back on your grotesque little feet."
+const riddles = [
+  { riddle: "I speak without a mouth and hear without ears. What am I?", answer: "echo" },
+  { riddle: "The more you take, the more you leave behind. What are they?", answer: "footsteps" },
+  { riddle: "What has to be broken before you can use it?", answer: "egg" },
+  { riddle: "What runs but never walks, has a bed but never sleeps?", answer: "river" },
+  { riddle: "I am always hungry, must always be fed. What am I?", answer: "fire" },
+  // Add 45 more later...
 ];
 
-const reviveFailLines = [
-  "☠️ The charm laughs. You're not worthy — not yet.",
-  "🪦 Nothing happens. Just the sound of your own desperation.",
-  "⏳ The Oracle ignores you. Maybe next time.",
-  "🫥 You dissolve into vibes and disappointment.",
-  "🔕 The ritual fizzles. The crowd shrugs. Brutal."
-];
-
-const warpEchoes = [
-  "🌀 *“Not all who wander are lost… some are just very, very twisted.”*",
-  "🌫️ *“The charm remembers everything. Even you.”*",
-  "🌙 *“A shadow passed over the moon. Something changed.”*",
-  "📯 *“The call goes out. Few answer. Fewer return.”*",
-  "🧬 *“Blood remembers. Bones echo. The Gauntlet listens.”*"
-];
-
-const uglychants = [
-  "🔊 *“Ugly in, Ugly out. The malformed route.”*",
-  "📢 *“One CHARM to burn, one CHARM to break, one CHARM to lure the fake.”*",
-  "🎶 *“They chanted ‘Flex or Die.’ They died.”*",
-  "📜 *“Winners write lore. Losers become it.”*",
-  "🥁 *“Beat the charm. Or it beats you.”*"
-];
-
-const uglyOracleRiddles = [
-  "🧠 *“What walks on four legs in the morning, two legs at noon, and three legs at night?”*",
-  "🔮 *“The more you take, the more you leave behind. What am I?”*",
-  "🦴 *“I am not alive, but I grow. I have no lungs, but I need air. What am I?”*",
-  "🕳️ *“The more you remove from me, the bigger I become. What am I?”*",
-  "⚖️ *“I weigh nothing, but you can’t hold me for long. What am I?”*"
-];
-// === Mutation Events ===
-const mutationEvents = [
-  {
-    name: "The Mirror Maze",
-    description: "A twisted hall of reflections appears. Some see their truth. Some vanish into it.",
-    async effect(interaction, gamePlayers, eliminatedPlayers) {
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId('mirrormaze')
-          .setLabel('Enter the Maze')
-          .setStyle(ButtonStyle.Secondary)
-      );
-
-      const embed = new EmbedBuilder()
-        .setTitle("🪞 The Mirror Maze")
-        .setDescription("Will you enter the shifting mirrors? Only some return.")
-        .setColor(0x6600cc);
-
-      const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
-
-      const collector = msg.createMessageComponentCollector({ time: 8000 });
-      const results = [];
-
-      collector.on('collect', async i => {
-        if (i.user.bot || results.includes(i.user.id)) return;
-        results.push(i.user.id);
-        await i.reply({ content: `🪞 ${i.user.username} stepped into the mirror... we’ll see what returns.` , ephemeral: true });
-      });
-
-      collector.on('end', async () => {
-        const outcomes = results.map(userId => {
-          const revived = Math.random() < 0.4;
-          return { userId, revived };
-        });
-
-        const summary = outcomes.map(r => `• <@${r.userId}> ${r.revived ? 'found their way back ✨' : 'was lost forever 💀'}`).join('\n');
-
-        await interaction.channel.send({
-          embeds: [new EmbedBuilder()
-            .setTitle("🪞 Mirror Maze Results")
-            .setDescription(summary)
-            .setColor(0xaa44ff)]
-        });
-      });
-    }
-  },
-  {
-    name: "The Leeching Pool",
-    description: "A boiling pool of charm fluid beckons. Touch it to gain power... or pain.",
-    async effect(interaction, gamePlayers, eliminatedPlayers) {
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId('leechingpool')
-          .setLabel('Touch the Fluid')
-          .setStyle(ButtonStyle.Danger)
-      );
-
-      const embed = new EmbedBuilder()
-        .setTitle("🩸 The Leeching Pool")
-        .setDescription("Some say it grants strength. Others, a slow demise.")
-        .setColor(0xdd2222);
-
-      const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
-
-      const collector = msg.createMessageComponentCollector({ time: 8000 });
-      const results = [];
-
-      collector.on('collect', async i => {
-        if (i.user.bot || results.includes(i.user.id)) return;
-        results.push(i.user.id);
-        await i.reply({ content: `🩸 ${i.user.username} reached in... what did they find?`, ephemeral: true });
-      });
-
-      collector.on('end', async () => {
-        const summary = results.map(id => {
-          const blessed = Math.random() < 0.3;
-          return `• <@${id}> ${blessed ? 'absorbed power ⚡' : 'was drained to the bone☠️'}`;
-        }).join('\n');
-
-        await interaction.channel.send({
-          embeds: [new EmbedBuilder()
-            .setTitle("🩸 Leeching Pool Outcomes")
-            .setDescription(summary)
-            .setColor(0xcc0000)]
-        });
-      });
-    }
-  }
-];
-
-// === Mini-Games ===
-const mutationMiniGames = [
-  {
-    name: "Press the Charm",
-    description: "A single red button glows. Will you press it? Will you survive?",
-    async effect(interaction, gamePlayers, eliminatedPlayers) {
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId('presscharm')
-          .setLabel('Press It')
-          .setStyle(ButtonStyle.Danger)
-      );
-
-      const embed = new EmbedBuilder()
-        .setTitle("🔴 Press the Charm")
-        .setDescription("Someone’s gonna blow. Click fast.")
-        .setColor(0xdd0000);
-
-      const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
-
-      const collector = msg.createMessageComponentCollector({ time: 8000 });
-      const results = [];
-
-      collector.on('collect', async i => {
-        if (i.user.bot || results.includes(i.user.id)) return;
-        results.push(i.user.id);
-        await i.reply({ content: `💥 ${i.user.username} pressed it. The fuse is lit...`, ephemeral: true });
-      });
-
-      collector.on('end', async () => {
-        const summary = results.map(id => {
-          const survived = Math.random() < 0.5;
-          return `• <@${id}> ${survived ? 'survived the blast 😅' : 'was atomized 💀'}`;
-        }).join('\n');
-
-        await interaction.channel.send({
-          embeds: [new EmbedBuilder()
-            .setTitle("💥 Charm Detonation Results")
-            .setDescription(summary)
-            .setColor(0xcc1111)]
-        });
-      });
-    }
-  }
-];
-// === Gauntlet Starter ===
-if (message.content.startsWith('!gauntlet')) {
-  if (gauntletActive) return message.reply("⚔️ A Gauntlet is already running!");
-
-
-  const isTrial = message.content.includes('trial') || message.content.includes('dev');
-  const minutes = isTrial ? 0.1 : parseFloat(message.content.split(' ')[1]) || 1;
-  const joinDuration = Math.max(1, minutes * 60 * 1000);
-
-  const embed = new EmbedBuilder()
-    .setTitle("⚔️ The Gauntlet Begins!")
-    .setDescription(`Click below to enter the arena. Only three will survive.\n\n⏳ Game starts in **${minutes} minutes**.`)
-    .setColor(0xff0000);
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('joinGauntlet')
-      .setLabel('Join the Gauntlet')
-      .setStyle(ButtonStyle.Primary)
-  );
-
-  const joinMsg = await message.channel.send({ content: '@everyone A new Gauntlet is forming!', embeds: [embed], components: [row] });
-  joinMessageLink = joinMsg.url;
-
-  currentGame = {
-    players: [],
-    eliminated: [],
-    originalCount: 0,
-    lives: new Map(),
-    channel: message.channel,
-    startTime: Date.now(),
-    trial: isTrial
-  };
-
-  gauntletActive = true;
-
-  // Auto-fill 20 mock players for trial/dev
-  if (isTrial) {
-    for (let i = 1; i <= 20; i++) {
-      const id = `test${i}`;
-      currentGame.players.push({ id, username: `MockPlayer${i}` });
-      currentGame.lives.set(id, 1);
-    }
-    currentGame.originalCount = currentGame.players.length;
-    message.channel.send(`🔧 Trial mode: Preloaded 20 mock players.\nStarting The Gauntlet...`);
-    return startGauntlet(currentGame.players, message.channel, true);
-  }
-
-  // Collector for Join Phase
-  const collector = joinMsg.createMessageComponentCollector({ time: joinDuration });
-  collector.on('collect', i => {
-    if (i.customId === 'joinGauntlet') {
-      if (!currentGame.players.find(p => p.id === i.user.id)) {
-        currentGame.players.push({ id: i.user.id, username: i.user.username });
-        currentGame.lives.set(i.user.id, 1);
-      }
-      i.reply({ content: `You're in, <@${i.user.id}>!`, ephemeral: true });
-    }
-  });
-
-  const thirds = [joinDuration / 3, (joinDuration * 2) / 3];
-  for (const t of thirds) {
-    setTimeout(() => {
-      message.channel.send(`<@everyone> Only ${Math.round((joinDuration - t) / 60000)} minutes left to join! [Join here](${joinMessageLink})`);
-    }, t);
-  }
-
-  collector.on('end', async () => {
-    if (!currentGame.players.length) {
-      gauntletActive = false;
-      return message.channel.send("No players joined. The charm fades.");
-    }
-
-    currentGame.originalCount = currentGame.players.length;
-    message.channel.send(`Join phase ended. ${currentGame.originalCount} players are entering The Gauntlet...`);
-    startGauntlet(currentGame.players, message.channel, false);
-  });
-}
-async function startGauntlet(players, channel, isTrial = false) {
-  currentGame.channel = channel;
-  currentGame.players = players;
-  currentGame.originalCount = players.length;
-  currentGame.eliminated = [];
-  currentGame.trial = isTrial;
-
-  let roundNumber = 1;
-
-  // === Boss Vote Phase ===
-  const bossCandidates = shuffleArray(players).slice(0, 5);
-  const row = new ActionRowBuilder().addComponents(
-    bossCandidates.map((p, i) =>
-      new ButtonBuilder()
-        .setCustomId(`bossvote_${p.id}`)
-        .setLabel(p.username)
-        .setStyle(ButtonStyle.Secondary)
-    )
-  );
-
-  const bossEmbed = new EmbedBuilder()
-    .setTitle("🧟 BOSS VOTE")
-    .setDescription("Choose a Boss for this Gauntlet. They will gain an extra life and wear the crown.")
-    .setColor(0x8844ee);
-
-  const voteMsg = await channel.send({ embeds: [bossEmbed], components: [row] });
-
-  const voteCollector = voteMsg.createMessageComponentCollector({ time: 10000 });
-  const voteTally = new Map();
-
-  voteCollector.on('collect', async i => {
-    if (!voteTally.has(i.user.id)) {
-      const choice = i.customId.split('_')[1];
-      voteTally.set(i.user.id, choice);
-      await i.reply({ content: `You voted for <@${choice}> as Boss!`, ephemeral: true });
-    }
-  });
-
-  voteCollector.on('end', async () => {
-    const counts = {};
-    for (const vote of voteTally.values()) {
-      counts[vote] = (counts[vote] || 0) + 1;
-    }
-
-    const winnerId = Object.keys(counts).reduce((a, b) => (counts[a] > counts[b] ? a : b));
-    const winner = players.find(p => p.id === winnerId);
-
-    if (winner) {
-      const oldLives = currentGame.lives.get(winner.id) || 1;
-      currentGame.lives.set(winner.id, oldLives + 1);
-
-      await channel.send({
-        embeds: [new EmbedBuilder()
-          .setTitle("👑 Boss Crowned")
-          .setDescription(`<@${winner.id}> has been crowned Boss and now has **${oldLives + 1} lives**.`)
-          .setColor(0xff66cc)]
-      });
-    } else {
-      await channel.send("🌀 No Boss crowned. The charm frowns.");
-    }
-
-    // Begin the main game loop
-    runGauntlet(roundNumber, isTrial);
-  });
-}
-async function runGauntlet(round = 1, isTrial = false) {
-  const channel = currentGame.channel;
-
-  while (currentGame.players.length > 3 && gauntletActive) {
-    const total = currentGame.originalCount;
-    const remaining = currentGame.players.length;
-
-    // === Embed 1: Lore Intro ===
-    const loreType = Math.random() < 0.5 ? uglychants : warpEchoes;
-    const lore = getRandom(loreType);
-    const loreEmbed = new EmbedBuilder()
-      .setTitle(`🌀 Event ${round}`)
-      .setDescription(lore)
-      .setColor(0x663399);
-    await channel.send({ embeds: [loreEmbed] });
-
-    await sleep(1500);
-
-    // === Embed 2: Interactive Event ===
-    const isMutation = Math.random() < 0.5;
-    if (isMutation) {
-      const event = getRandom(mutationEvents);
-      const mutationEmbed = new EmbedBuilder()
-        .setTitle(`🧬 Mutation: ${event.name}`)
-        .setDescription(event.description)
-        .setColor(0x9933ff);
-      await channel.send({ embeds: [mutationEmbed] });
-      await sleep(1000);
-      await event.effect({ channel }, currentGame.players, currentGame.eliminated);
-    } else {
-      const miniGame = getRandom(mutationMiniGames);
-      const miniEmbed = new EmbedBuilder()
-        .setTitle(`🎮 Mini-Game: ${miniGame.name}`)
-        .setDescription(miniGame.description)
-        .setColor(0x33ccff);
-      await channel.send({ embeds: [miniEmbed] });
-      await sleep(1000);
-      await miniGame.effect({ channel }, currentGame.players, currentGame.eliminated);
-    }
-
-    await sleep(2500);
-
-    // === Embed 3: Oracle Riddle + Player Count Ratio ===
-    const riddle = getRandom(uglyOracleRiddles);
-    const ratioEmbed = new EmbedBuilder()
-      .setTitle("🔮 Ugly Oracle Riddle + Status")
-      .setDescription(`${riddle}\n\n**${formatRatio(currentGame.players.length, total)}** remain.`)
-      .setColor(0xffff66);
-    await channel.send({ embeds: [ratioEmbed] });
-
-    await sleep(3000);
-
-    // === Elimination Round ===
-    const shuffled = shuffleArray(currentGame.players);
-    const deaths = Math.min(2, Math.floor(Math.random() * 2) + 1);
-    const eliminated = [];
-
-    for (let i = 0; i < deaths && shuffled[i]; i++) {
-      const target = shuffled[i];
-      const currentLives = currentGame.lives.get(target.id) || 1;
-
-      if (currentLives > 1) {
-        currentGame.lives.set(target.id, currentLives - 1);
-      } else {
-        currentGame.players = currentGame.players.filter(p => p.id !== target.id);
-        currentGame.eliminated.push(target.id);
-        eliminated.push(`☠️ <@${target.id}> ${getRandom(eliminationReasons)}`);
-      }
-    }
-
-    if (eliminated.length) {
-      const elimEmbed = new EmbedBuilder()
-        .setTitle("💀 Eliminated This Round")
-        .setDescription(eliminated.join('\n'))
-        .setColor(0xaa0000);
-      await channel.send({ embeds: [elimEmbed] });
-    }
-
-    // === Mass Revival Phase ===
-    const eliminatedRatio = currentGame.eliminated.length / total;
-    if (eliminatedRatio >= 0.5 && !currentGame.massRevived) {
-      currentGame.massRevived = true;
-      await runMassRevivalEvent(channel);
-    }
-
-    // === Head-to-Head Duel ===
-    if (currentGame.players.length > 3 && Math.random() < 0.3) {
-      await runDuel(channel);
-    }
-
-    round++;
-    await sleep(4000);
-  }
-
-  // === Final Podium ===
-  await showFinalPodium(channel);
-  gauntletActive = false;
-}
-async function runMassRevivalEvent(channel) {
-  const embed = new EmbedBuilder()
-    .setTitle("🕯️ Totem of Lost Souls")
-    .setDescription("A malformed totem rises. Eliminated souls may now return...\nClick the button within 5 seconds to make your plea.")
-    .setColor(0xccccff);
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('reviveButton')
-      .setLabel('Plead for Revival')
-      .setStyle(ButtonStyle.Success)
-  );
-
-  const msg = await channel.send({ embeds: [embed], components: [row] });
-
-  const attempted = new Set();
-  const revived = [];
-  const notChosen = [];
-
-  const collector = msg.createMessageComponentCollector({ time: 5000 });
-
-  collector.on('collect', async i => {
-    if (i.user.bot || attempted.has(i.user.id)) return;
-    attempted.add(i.user.id);
-
-    const wasEliminated = currentGame.eliminated.includes(i.user.id);
-    const chance = wasEliminated ? 0.6 : 0.4;
-
-    if (Math.random() < chance) {
-      currentGame.players.push({ id: i.user.id, username: i.user.username });
-      currentGame.lives.set(i.user.id, 1);
-      currentGame.eliminated = currentGame.eliminated.filter(id => id !== i.user.id);
-      revived.push(i.user.id);
-    } else {
-      notChosen.push(i.user.id);
-    }
-
-    await i.reply({ content: "⏳ The totem heard you. Judgement falls soon...", ephemeral: true });
-  });
-
-  collector.on('end', async () => {
-    const lines = [
-      ...revived.map(id => `✨ <@${id}> was restored to life.`),
-      ...notChosen.map(id => `💀 <@${id}> was rejected by the totem.`)
-    ];
-
-    const resultEmbed = new EmbedBuilder()
-      .setTitle("🕯️ Totem Judgement")
-      .setDescription(lines.length ? lines.join('\n') : "No one dared the totem.")
-      .setColor(0x9999ff);
-
-    await channel.send({ embeds: [resultEmbed] });
-  });
+// === NFT Image Fetching ===
+function getUglyImageUrl() {
+  const tokenId = Math.floor(Math.random() * 615) + 1;
+  return `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}`;
 }
 
-async function runDuel(channel) {
-  const shuffled = shuffleArray(currentGame.players);
-  const [a, b] = shuffled;
-
-  if (!a || !b || a.id === b.id) return;
-
-  const embed = new EmbedBuilder()
-    .setTitle("⚔️ Head-to-Head Duel")
-    .setDescription(`<@${a.id}> vs <@${b.id}>\nClick to survive. One wins, one dies.`)
-    .setColor(0xff9999);
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`duel_${a.id}`).setLabel(`${a.username}`).setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId(`duel_${b.id}`).setLabel(`${b.username}`).setStyle(ButtonStyle.Secondary)
-  );
-
-  const msg = await channel.send({ embeds: [embed], components: [row] });
-
-  const clicked = new Set();
-  const collector = msg.createMessageComponentCollector({ time: 8000 });
-
-  collector.on('collect', async i => {
-    if (!clicked.has(i.user.id)) {
-      clicked.add(i.user.id);
-      await i.reply({ content: "⚡ The charm registers your vote.", ephemeral: true });
-    }
-  });
-
-  collector.on('end', async () => {
-    const winner = Math.random() < 0.5 ? a : b;
-    const loser = winner.id === a.id ? b : a;
-
-    currentGame.lives.set(winner.id, (currentGame.lives.get(winner.id) || 1) + 1);
-    currentGame.players = currentGame.players.filter(p => p.id !== loser.id);
-    currentGame.eliminated.push(loser.id);
-
-    const resultEmbed = new EmbedBuilder()
-      .setTitle("🏁 Duel Outcome")
-      .setDescription(`🛡️ <@${winner.id}> survived and gains +1 life.\n☠️ <@${loser.id}> has been eliminated.`)
-      .setColor(0xffccaa);
-
-    await channel.send({ embeds: [resultEmbed] });
-  });
+function getMonsterImageUrl() {
+  const tokenId = Math.floor(Math.random() * 126) + 1;
+  return `https://ipfs.io/ipfs/bafybeicydaui66527mumvml5ushq5ngloqklh6rh7hv3oki2ieo6q25ns4/${tokenId}.webp`;
 }
 
-async function showFinalPodium(channel) {
-  const podium = [...currentGame.players]
-    .sort((a, b) => (currentGame.lives.get(b.id) || 1) - (currentGame.lives.get(a.id) || 1))
-    .slice(0, 3);
+// === Utility ===
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
-  const medals = ["🥇", "🥈", "🥉"];
-  const lines = podium.map((p, i) =>
-    `${medals[i]} <@${p.id}> — ${currentGame.lives.get(p.id) || 1} lives`
-  );
-
-  const embed = new EmbedBuilder()
-    .setTitle("🏆 Final Podium")
-    .setDescription(lines.join('\n') || "No survivors.")
-    .setColor(0xffff00);
-
-  await channel.send({ embeds: [embed] });
-
-  // === Save Stats ===
+function getCurrentMonthYear() {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-
-  for (const p of currentGame.players) {
-    await db.query(`
-      INSERT INTO player_stats (user_id, username, year, month, wins, games_played)
-      VALUES ($1, $2, $3, $4, 1, 1)
-      ON CONFLICT (user_id, year, month) DO UPDATE
-      SET wins = player_stats.wins + 1,
-          games_played = player_stats.games_played + 1,
-          username = EXCLUDED.username
-    `, [p.id, p.username, year, month]);
-  }
-
-  for (const id of currentGame.eliminated) {
-    await db.query(`
-      INSERT INTO player_stats (user_id, username, year, month, revives, games_played)
-      VALUES ($1, $2, $3, $4, 0, 1)
-      ON CONFLICT (user_id, year, month) DO UPDATE
-      SET games_played = player_stats.games_played + 1
-    `, [id, id.startsWith("test") ? id : "Unknown", year, month]);
-  }
-
-  // === Rematch Button ===
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('rematch')
-      .setLabel('Run It Back')
-      .setStyle(ButtonStyle.Success)
-  );
-
-  const rematchMsg = await channel.send({
-    content: "Want to go again? Click below! We need 75% to restart.",
-    components: [row]
-  });
-
-  const needed = Math.ceil(currentGame.players.length * 0.75);
-  const clicked = new Set();
-
-  const collector = rematchMsg.createMessageComponentCollector({ time: 20000 });
-  collector.on('collect', async i => {
-    if (!clicked.has(i.user.id)) {
-      clicked.add(i.user.id);
-      await i.reply({ content: "You’ve voted to rematch!", ephemeral: true });
-    }
-
-    if (clicked.size >= needed && consecutiveRematches < MAX_REMATCHES) {
-      consecutiveRematches++;
-      await channel.send("🔥 Enough votes! Starting again...");
-      return startGauntlet(currentGame.players, channel, false);
-    }
-  });
-
-  collector.on('end', () => {
-    if (clicked.size < needed || consecutiveRematches >= MAX_REMATCHES) {
-      channel.send("💤 No rematch this time.");
-      consecutiveRematches = 0;
-    }
-  });
+  return { year: now.getFullYear(), month: now.getMonth() + 1 };
 }
-client.on('messageCreate', async message => {
-  if (message.author.bot) return;
-
+// === Gauntlet Command: Join Phase ===
+client.on('messageCreate', async (message) => {
   if (message.content.startsWith('!gauntlet')) {
-    const isTrial = message.content.includes('trial') || message.content.includes('dev');
-    const minutes = isTrial ? 0.1 : parseFloat(message.content.split(' ')[1]) || 1;
-    const joinDuration = Math.max(1, minutes * 60 * 1000);
+    const minutes = parseFloat(message.content.split(' ')[1]) || 1;
+    if (activeGame) return message.reply('⛔ A Gauntlet is already running!');
 
-    const embed = new EmbedBuilder()
-      .setTitle("⚔️ The Gauntlet Begins!")
-      .setDescription(`Click below to enter the arena. Only three will survive.\n\n⏳ Game starts in **${minutes} minutes**.`)
-      .setColor(0xff0000);
-
-    const row = new ActionRowBuilder().addComponents(
+    const players = new Map();
+    gameChannel = message.channel;
+    const joinRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId('joinGauntlet')
+        .setCustomId('join_gauntlet')
         .setLabel('Join the Gauntlet')
         .setStyle(ButtonStyle.Primary)
     );
 
-    const joinMsg = await message.channel.send({ content: '@everyone A new Gauntlet is forming!', embeds: [embed], components: [row] });
+    const joinEmbed = new EmbedBuilder()
+      .setTitle('⚔️ A New Gauntlet Is Forming...')
+      .setDescription(`Click the button below to enter the arena!\n\n⏳ Starts in **${minutes} minute(s)**`)
+      .setColor(0x880088);
 
-    // ... rest of your join logic
+    const msg = await message.channel.send({ content: '@everyone ⚔️ A new Gauntlet is forming!', embeds: [joinEmbed], components: [joinRow] });
+    joinMessageLink = msg.url;
+
+    const collector = msg.createMessageComponentCollector({ time: minutes * 60_000 });
+    collector.on('collect', i => {
+      if (!players.has(i.user.id)) {
+        players.set(i.user.id, { id: i.user.id, username: i.user.username, lives: 1 });
+        i.reply({ content: '⚔️ You’ve joined The Gauntlet!', ephemeral: true });
+      } else {
+        i.reply({ content: '🌀 You’re already in!', ephemeral: true });
+      }
+    });
+
+    const reminderTimes = [1 / 3, 2 / 3].map(f => Math.floor(minutes * 60_000 * f));
+    for (const t of reminderTimes) {
+      setTimeout(() => {
+        message.channel.send(`@everyone ⏳ Still time to join The Gauntlet! ${joinMessageLink}`);
+      }, t);
+    }
+
+    setTimeout(async () => {
+      if (players.size < 3) return message.channel.send('❌ Not enough players to run the Gauntlet.');
+      activeGame = { players: new Map(players), startTime: Date.now() };
+      message.channel.send(`🎮 Join phase ended. **${players.size}** players are entering The Gauntlet...`);
+      await runBossVotePhase(players, message.channel);
+    }, minutes * 60_000);
+  }
+});
+client.on('messageCreate', async (message) => {
+  if (message.content === '!testgauntlet') {
+    if (activeGame) return message.reply('⛔ A Gauntlet is already running!');
+    const players = new Map();
+    gameChannel = message.channel;
+
+    for (let i = 1; i <= 20; i++) {
+      const fakeId = `test_user_${i}`;
+      players.set(fakeId, { id: fakeId, username: `TestUser${i}`, lives: 1 });
+    }
+
+    activeGame = { players, trial: true };
+    message.channel.send(`🧪 Trial mode started with 20 mock players.`);
+    await runBossVotePhase(players, message.channel);
+  }
+});
+async function runBossVotePhase(players, channel) {
+  const candidates = [...players.values()].sort(() => 0.5 - Math.random()).slice(0, 5);
+  const row = new ActionRowBuilder();
+  candidates.forEach(p => {
+    row.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`bossvote_${p.id}`)
+        .setLabel(p.username)
+        .setStyle(ButtonStyle.Secondary)
+    );
+  });
+
+  const embed = new EmbedBuilder()
+    .setTitle('👁️ BOSS VOTE!')
+    .setDescription('Choose who should become **Extra Ugly** and earn 1 bonus life.\nVote wisely...')
+    .setColor(0xff00ff);
+
+  const msg = await channel.send({ embeds: [embed], components: [row] });
+
+  const votes = {};
+  const collector = msg.createMessageComponentCollector({ time: 10_000 });
+  collector.on('collect', i => {
+    if (!votes[i.user.id]) {
+      const voted = i.customId.replace('bossvote_', '');
+      votes[i.user.id] = voted;
+      i.reply({ content: '🗳️ Vote cast!', ephemeral: true });
+    } else {
+      i.reply({ content: '❌ You already voted!', ephemeral: true });
+    }
+  });
+
+  collector.on('end', async () => {
+    const tally = {};
+    Object.values(votes).forEach(v => tally[v] = (tally[v] || 0) + 1);
+    const winnerId = Object.entries(tally).sort((a, b) => b[1] - a[1])[0]?.[0] || candidates[0].id;
+    const winner = players.get(winnerId);
+    winner.lives += 1;
+
+    const announce = new EmbedBuilder()
+      .setTitle('👑 The Extra Ugly Is Chosen!')
+      .setDescription(`🎉 **${winner.username}** was voted the Boss and now has **2 lives!**`)
+      .setColor(0xff66ff);
+
+    await channel.send({ embeds: [announce] });
+    await wait(2000);
+    runGauntlet(players, channel);
+  });
+}
+// === Gauntlet Game Loop ===
+async function runGauntlet(players, channel) {
+  const playerMap = new Map(players);
+  let eliminated = new Map();
+  let eventNumber = 1;
+  let active = [...playerMap.values()];
+  const maxEvents = 100;
+
+  while (active.length > 3 && eventNumber <= maxEvents) {
+    const eventTitle = `⚔️ Event #${eventNumber}`;
+    const loreIntro = `🌀 *The warp churns... new horrors rise...*`;
+    const nftImg = getUglyImageUrl();
+
+    // === First Embed: Lore + Image ===
+    const introEmbed = new EmbedBuilder()
+      .setTitle(eventTitle)
+      .setDescription(loreIntro)
+      .setImage(nftImg)
+      .setColor(0xaa00ff);
+    await channel.send({ embeds: [introEmbed] });
+    await wait(2000);
+
+    // === Second Embed: Run Mini Game Event ===
+    const miniGameResults = await runMiniGameEvent(active, channel, eventNumber);
+
+    // === Third Embed: Result Summary + Riddle ===
+    const resultEmbed = await buildResultEmbed(miniGameResults, eventNumber);
+    await channel.send({ embeds: [resultEmbed] });
+
+    // === Riddle Event ===
+    await runRiddleEvent(channel, active);
+
+    // === Remove dead players ===
+    for (let player of active) {
+      if (player.lives <= 0 && !eliminated.has(player.id)) {
+        eliminated.set(player.id, player);
+        currentPlayers.delete(player.id);
+      }
+    }
+
+    active = [...playerMap.values()].filter(p => !eliminated.has(p.id));
+    eventNumber++;
+    await wait(3000);
+  }
+
+  await showPodium(channel, [...playerMap.values()]);
+  activeGame = null;
+  rematchCount++;
+  if (rematchCount < maxRematches) await showRematchButton(channel, [...playerMap.values()]);
+}
+// === Mini-Game Event ===
+async function runMiniGameEvent(players, channel, eventNumber) {
+  const buttons = ['A', 'B', 'C', 'D'];
+  const outcomes = ['lose', 'gain', 'eliminate', 'safe']; // random outcomes per round
+
+  const randomOutcome = () => outcomes[Math.floor(Math.random() * outcomes.length)];
+  const resultMap = new Map(); // userId => outcome
+
+  const shuffled = buttons.map(label => ({
+    label,
+    effect: randomOutcome()
+  }));
+
+  const row = new ActionRowBuilder();
+  shuffled.forEach(btn => {
+    row.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`mini_${btn.label}`)
+        .setLabel(`Option ${btn.label}`)
+        .setStyle(ButtonStyle.Secondary)
+    );
+  });
+
+  const description = `Choose wisely.\nEach option hides a fate: 💀 **Eliminate**, ❤️ **Gain Life**, 💢 **Lose Life**, or 😶 **Safe**.\n\n⏳ You have **20 seconds** to decide...`;
+
+  const embed = new EmbedBuilder()
+    .setTitle(`🎲 Event #${eventNumber} — Choose Your Fate`)
+    .setDescription(description)
+    .setColor(0xff4499);
+
+  const message = await channel.send({ embeds: [embed], components: [row] });
+
+  const choiceMap = new Map(); // userId => buttonLabel
+
+  const collector = message.createMessageComponentCollector({ time: 20000 });
+
+  collector.on('collect', async i => {
+    if (!players.find(p => p.id === i.user.id)) {
+      return i.reply({ content: '❌ You’re not a player in this Gauntlet.', ephemeral: true });
+    }
+
+    if (!choiceMap.has(i.user.id)) {
+      const label = i.customId.replace('mini_', '');
+      choiceMap.set(i.user.id, label);
+      await i.reply({ content: `🔘 You picked **${label}**`, ephemeral: true });
+    } else {
+      await i.reply({ content: '⏳ You already chose this round.', ephemeral: true });
+    }
+  });
+
+  return new Promise((resolve) => {
+    collector.on('end', async () => {
+      // Assign outcomes and apply them to players
+      for (const player of players) {
+        const label = choiceMap.get(player.id);
+        if (!label) {
+          const eliminated = Math.random() < 0.5;
+          resultMap.set(player.id, eliminated ? 'eliminate' : 'ignored');
+          if (eliminated) player.lives = 0;
+        } else {
+          const btn = shuffled.find(b => b.label === label);
+          resultMap.set(player.id, btn.effect);
+
+          if (btn.effect === 'eliminate') {
+            player.lives = 0;
+          } else if (btn.effect === 'lose') {
+            player.lives -= 1;
+          } else if (btn.effect === 'gain') {
+            player.lives += 1;
+          }
+        }
+      }
+
+      resolve(resultMap);
+    });
+  });
+}
+// === Build Result Embed with Lore and Monster Image ===
+async function buildResultEmbed(resultMap, eventNumber) {
+  let eliminatedList = [];
+  let summaryLines = [];
+
+  for (let [userId, outcome] of resultMap.entries()) {
+    let icon = '';
+    let resultText = '';
+
+    switch (outcome) {
+      case 'gain':
+        icon = '❤️';
+        resultText = 'gained a life.';
+        break;
+      case 'lose':
+        icon = '💢';
+        resultText = 'lost a life.';
+        break;
+      case 'eliminate':
+        icon = '💀';
+        resultText = 'was eliminated!';
+        eliminatedList.push(userId);
+        break;
+      case 'ignored':
+        icon = '🌀';
+        resultText = 'did nothing... and paid the price.';
+        eliminatedList.push(userId);
+        break;
+      default:
+        icon = '😶';
+        resultText = 'escaped this round untouched.';
+    }
+
+    summaryLines.push(`${icon} <@${userId}> ${resultText}`);
+  }
+
+  // Add a funny lore line for each eliminated player
+  const eliminationLore = eliminatedList.map(id => {
+    const line = funnyEliminations[Math.floor(Math.random() * funnyEliminations.length)];
+    return `💀 <@${id}> ${line}`;
+  });
+
+  const embed = new EmbedBuilder()
+    .setTitle(`🩸 Event #${eventNumber} — Results`)
+    .setDescription(`**Mini-Game Outcome:**\n${summaryLines.join('\n')}\n\n**Eliminated this round:**\n${eliminationLore.join('\n') || 'None'}`)
+    .setImage(getMonsterImageUrl())
+    .setColor(0xff0033);
+
+  return embed;
+}
+// === Riddle Challenge ===
+async function runRiddleEvent(channel, players) {
+  const { riddle, answer } = riddles[Math.floor(Math.random() * riddles.length)];
+
+  const embed = new EmbedBuilder()
+    .setTitle('🧩 Ugly Oracle Riddle')
+    .setDescription(`**“${riddle}”**\n\nYou have **30 seconds** to answer in chat.`)
+    .setColor(0x00ffaa)
+    .setFooter({ text: `Only one shall earn the Oracle's favor...` });
+
+  const riddleMsg = await channel.send({ embeds: [embed] });
+
+  const filter = m => {
+    return players.some(p => p.id === m.author.id) && m.content.toLowerCase().includes(answer.toLowerCase());
+  };
+
+  const collector = channel.createMessageCollector({ filter, time: 30_000 });
+
+  let winnerAnnounced = false;
+
+  collector.on('collect', async msg => {
+    if (!winnerAnnounced) {
+      winnerAnnounced = true;
+      try {
+        await msg.author.send(`🔮 You answered correctly in the riddle event!\nYou’ve been touched by the Oracle’s favor.`);
+      } catch (e) {
+        console.warn(`Could not DM ${msg.author.username}`);
+      }
+      await msg.delete().catch(() => {});
+      collector.stop();
+    } else {
+      await msg.delete().catch(() => {});
+    }
+  });
+
+  collector.on('end', collected => {
+    if (!winnerAnnounced) {
+      channel.send(`⏳ The Oracle received no answer this round...`);
+    }
+  });
+}
+// === Show Final Podium ===
+async function showPodium(channel, players) {
+  const alive = players.filter(p => p.lives > 0);
+  const ranked = [...alive].sort((a, b) => b.lives - a.lives);
+
+  // Fallback: If fewer than 3 survivors, pull top 3 by participation
+  while (ranked.length < 3) {
+    const fillers = players.filter(p => !ranked.includes(p)).slice(0, 3 - ranked.length);
+    ranked.push(...fillers);
+  }
+
+  const medals = ['🥇', '🥈', '🥉'];
+  const fields = ranked.slice(0, 3).map((p, i) => ({
+    name: `${medals[i]} ${p.username}`,
+    value: `Lives remaining: **${p.lives}**`,
+    inline: true
+  }));
+
+  const embed = new EmbedBuilder()
+    .setTitle('🏁 The Gauntlet Has Ended!')
+    .setDescription('Here are the Top 3 survivors of the Ugly Trials:')
+    .addFields(fields)
+    .setColor(0xf5c518);
+
+  await channel.send({ embeds: [embed] });
+
+  // === Optional Tiebreaker if lives tied ===
+  const [a, b, c] = ranked;
+  if (a && b && a.lives === b.lives) {
+    await channel.send(`⚖️ Tiebreaker required! ${a.username} vs ${b.username}!`);
+    await runTiebreaker(channel, [a, b]);
+  } else if (b && c && b.lives === c.lives) {
+    await channel.send(`⚖️ Tiebreaker required! ${b.username} vs ${c.username}!`);
+    await runTiebreaker(channel, [b, c]);
+  }
+}
+
+// === Sudden Death Button Duel ===
+async function runTiebreaker(channel, players) {
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('tie_a')
+      .setLabel(players[0].username)
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId('tie_b')
+      .setLabel(players[1].username)
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  const embed = new EmbedBuilder()
+    .setTitle('⚔️ Sudden Death!')
+    .setDescription(`Both have equal lives...\nClick your name first to survive!`)
+    .setColor(0xdd2222);
+
+  const msg = await channel.send({ embeds: [embed], components: [row] });
+
+  const collector = msg.createMessageComponentCollector({ time: 10_000 });
+  collector.on('collect', async i => {
+    const winner = players.find(p => i.customId.includes(p.username.toLowerCase()));
+    if (winner) {
+      await channel.send(`🎉 **${winner.username}** won the sudden death!`);
+      collector.stop();
+    }
+  });
+
+  collector.on('end', collected => {
+    if (!collected.size) {
+      channel.send(`💤 No one clicked. The Gauntlet claims them both.`);
+    }
+  });
+}
+// === Show Rematch Button & Wait for Votes ===
+async function showRematchButton(channel, finalPlayers) {
+  const rematchRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('rematch_vote')
+      .setLabel('🔁 Run It Back')
+      .setStyle(ButtonStyle.Success)
+  );
+
+  const msg = await channel.send({
+    content: `The Gauntlet has ended. Want to play again?\nAt least **75%** must click to rematch. (${finalPlayers.length} total)`,
+    components: [rematchRow]
+  });
+
+  const collector = msg.createMessageComponentCollector({ time: 30_000 });
+  const votes = new Set();
+
+  collector.on('collect', async i => {
+    if (finalPlayers.find(p => p.id === i.user.id)) {
+      if (!votes.has(i.user.id)) {
+        votes.add(i.user.id);
+        await i.reply({ content: `🔁 You're in for another round!`, ephemeral: true });
+      } else {
+        await i.reply({ content: `✅ Already voted!`, ephemeral: true });
+      }
+    } else {
+      await i.reply({ content: `⛔ Only final players can vote.`, ephemeral: true });
+    }
+  });
+
+  collector.on('end', async () => {
+    const percent = (votes.size / finalPlayers.length) * 100;
+    if (percent >= 75 && rematchCount < maxRematches) {
+      channel.send(`✅ **${votes.size}** voted to restart! The Gauntlet begins anew...`);
+      const playerMap = new Map();
+      finalPlayers.forEach(p => {
+        playerMap.set(p.id, { id: p.id, username: p.username, lives: 1 });
+      });
+      activeGame = { players: playerMap, rematch: true };
+      await runBossVotePhase(playerMap, channel);
+    } else {
+      rematchCount = 0;
+      channel.send(`🛑 Rematch cancelled or max streak reached. Rest well, warriors.`);
+    }
+  });
+}
+// === Revive Command ===
+client.on('messageCreate', async (message) => {
+  if (message.content === '!revive') {
+    const game = activeGame;
+    if (!game) return message.reply('⚠️ No Gauntlet is currently running.');
+
+    const wasEliminated = !game.players.has(message.author.id);
+    if (!wasEliminated) return message.reply('😎 You’re not eliminated.');
+
+    const chance = Math.random();
+    if (chance <= 0.25) {
+      const revived = { id: message.author.id, username: message.author.username, lives: 1 };
+      game.players.set(message.author.id, revived);
+      currentPlayers.set(message.author.id, revived);
+      await message.reply(`💫 You’ve returned to the Gauntlet!`);
+    } else {
+      await message.reply(`💀 The charm rejected your plea. You're still dead.`);
+    }
+  }
+});
+// === Leaderboard Command ===
+client.on('messageCreate', async (message) => {
+  if (message.content === '!leaderboard') {
+    const result = await db.query(`
+      SELECT username, wins FROM player_stats
+      ORDER BY wins DESC
+      LIMIT 10;
+    `);
+
+    const top = result.rows.map((row, i) => `**#${i + 1}** ${row.username} — ${row.wins} wins`).join('\n');
+
+    const embed = new EmbedBuilder()
+      .setTitle('🏆 Gauntlet Leaderboard')
+      .setDescription(top || 'No games played yet!')
+      .setColor(0x00ccff);
+
+    message.channel.send({ embeds: [embed] });
   }
 });
 
-// === Client Login ===
+// === Stats Command ===
+client.on('messageCreate', async (message) => {
+  if (message.content.startsWith('!stats')) {
+    const target = message.mentions.users.first() || message.author;
+
+    const { rows } = await db.query(`
+      SELECT * FROM player_stats
+      WHERE user_id = $1
+      LIMIT 1;
+    `, [target.id]);
+
+    if (!rows.length) {
+      return message.reply(`No stats found for ${target.username}.`);
+    }
+
+    const stats = rows[0];
+    const embed = new EmbedBuilder()
+      .setTitle(`📊 Stats for ${stats.username}`)
+      .setDescription(`Wins: ${stats.wins}\nRevives: ${stats.revives}\nDuels Won: ${stats.duels_won}\nGames Played: ${stats.games_played}`)
+      .setColor(0xdddd00);
+
+    message.channel.send({ embeds: [embed] });
+  }
+});
+// === On Bot Ready ===
 client.once('ready', () => {
-  console.log(`🟢 Logged in as ${client.user.tag}`);
+  console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
-client.login(process.env.TOKEN);
+// === Login ===
+client.login(TOKEN);
