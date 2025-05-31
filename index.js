@@ -205,10 +205,12 @@ client.on('messageCreate', async (message) => {
 
     const joinRow = new ActionRowBuilder().addComponents(joinButton);
 
-    const joinEmbed = new EmbedBuilder()
-      .setTitle('⚔️ A New Gauntlet Is Forming...')
-      .setDescription(`Click the button below to enter the arena!\n\n⏳ Starts in **${minutes} minute(s)**\n👥 Joined: **0** players`)
-      .setColor(0x880088);
+const joinEmbed = new EmbedBuilder()
+  .setTitle('⚔️ A New Gauntlet Is Forming...')
+  .setDescription(`Click the button below to enter the arena!\n\n⏳ Starts in **${minutes} minute(s)**\n👥 Joined: **0** players`)
+  .setImage('https://media.discordapp.net/attachments/1086418283131048156/1378206999421915187/The_Gauntlet.png?ex=683bc2ca&is=683a714a&hm=f9ca4a5ebcb5a636b7ce2946fd3c4779f58809b183ea1720a44d04f45c3b8b36&=&format=webp&quality=lossless&width=930&height=930') // ⬅️ Update this URL
+  .setColor(0x880088);
+
 
     const msg = await message.channel.send({
       content: '@everyone ⚔️ A new Gauntlet is forming!',
