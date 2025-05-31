@@ -644,14 +644,14 @@ async function runMiniGameEvent(players, channel, eventNumber) {
 
   const message = await channel.send({ embeds: [embed], components: [row] });
 
-  for (let i of [15, 10, 5]) {
-    await wait(5000);
-    embed.setDescription(`${chosenLore.lore}\n\n${fateLine}\n\n⏳ Time left: **${i} seconds**`);
-    await message.edit({ embeds: [embed] });
-  }
+const collector = message.createMessageComponentCollector({ time: 20000 }); // 20 seconds
 
-  const clickedPlayers = new Set();
-  const collector = message.createMessageComponentCollector({ time: 5000 });
+for (let i of [15, 10, 5]) {
+  await wait(5000);
+  embed.setDescription(`${chosenLore.lore}\n\n${fateLine}\n\n⏳ Time left: **${i} seconds**`);
+  await message.edit({ embeds: [embed] });
+}
+
 
   collector.on('collect', async i => {
     const labelMatch = i.customId.match(/mini_([A-D])_evt/);
