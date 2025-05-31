@@ -813,70 +813,39 @@ async function runMiniGameEvent(players, channel, eventNumber) {
       frozenPlayers.push({
         username: player.username,
         eliminated,
-        lore: frozenLoreLines[Math.floor(Math.random() * frozenLoreLines.length)]
+        lore: frozenResultsLore[Math.floor(Math.random() * frozenResultsLore.length)]
       });
     }
   }
 
   // === Combined results embed ===
-  const eliminatedLines = [];
-  const gainLines = [];
-  const reviveLines = [];
-  const frozenLines = [];
+  const resultDescriptions = [];
 
   for (let [userId, result] of resultMap) {
     const player = players.find(p => p.id === userId);
     if (!player) continue;
-
     if (clickedPlayers.has(userId)) {
-      if (result === 'eliminate') {
-        const lore = funnyEliminations[Math.floor(Math.random() * funnyEliminations.length)];
-        eliminatedLines.push(`**${player.username}** ${lore}`);
-      } else if (result === 'gain') {
-        if (player.lives === 1) {
-          const lore = reviveLore[Math.floor(Math.random() * reviveLore.length)];
-          reviveLines.push(`**${player.username}** ${lore}`);
-        } else {
-          const lore = gainLifeLore[Math.floor(Math.random() * gainLifeLore.length)];
-          gainLines.push(`**${player.username}** ${lore}`);
-        }
-      } else if (result === 'lose') {
-        eliminatedLines.push(`**${player.username}** 💢 lost a life!`);
-      }
+      const outcomeText = {
+        gain: '❤️ gained a life!',
+        lose: '💢 lost a life!',
+        eliminate: '💀 was eliminated!',
+        safe: '😶 was untouched.'
+      }[result];
+      resultDescriptions.push(`**${player.username}** ${outcomeText}`);
     }
   }
 
   for (let frozen of frozenPlayers) {
-    frozenLines.push(`**${frozen.username}** ${frozen.lore} ${frozen.eliminated ? '💀 Eliminated!' : '😐 Spared... for now.'}`);
+    resultDescriptions.push(`**${frozen.username}** ${frozen.lore} ${frozen.eliminated ? '💀 Eliminated!' : '😐 Spared... for now.'}`);
   }
 
-const descriptionText = resultDescriptions.join('\n') || 'The charm watched… but nothing happened.';
-const resultEmbed = new EmbedBuilder()
-  .setTitle(`📜 Results Round`)
-  .setDescription(descriptionText)
-  .setColor(0xffcc00);
+  const descriptionText = resultDescriptions.join('\n') || 'The charm watched… but nothing happened.';
+  const resultEmbed = new EmbedBuilder()
+    .setTitle(`📜 Results Round`)
+    .setDescription(descriptionText)
+    .setColor(0xffcc00);
 
-
-  const msg = await channel.send({ embeds: [resultEmbed] });
-
-  const categories = [
-    { label: '**__Mini Game Eliminations__**', list: eliminatedLines },
-    { label: '**__Revives / New Players__**', list: reviveLines },
-    { label: '**__Additional Lives__**', list: gainLines },
-    { label: '**__Frozen in Indecision__**', list: frozenLines }
-  ];
-
-  for (let { label, list } of categories) {
-    if (list.length === 0) continue;
-    resultEmbed.setDescription(resultEmbed.data.description + `\n${label}\n`);
-    await msg.edit({ embeds: [resultEmbed] });
-
-    for (let line of list) {
-      resultEmbed.setDescription(resultEmbed.data.description + `${line}\n`);
-      await msg.edit({ embeds: [resultEmbed] });
-      await wait(400);
-    }
-  }
+  await channel.send({ embeds: [resultEmbed] });
 
   return resultMap;
 }
