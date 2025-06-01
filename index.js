@@ -73,7 +73,7 @@ let joinMessageLink = null;
 
 
 // === Lore Arrays ===
- funnyEliminations = [
+const funnyEliminations = [
   "🩴 tripped over their own sandal and fell into the Charmhole.",
   "🧠 tried to outthink the Oracle. Brain exploded like 🍉.",
   "🦴 challenged a Monster to a dance battle. Got breakdanced to death.",
@@ -150,7 +150,7 @@ let joinMessageLink = null;
   "🎲 gambled everything on a 7-sided die. Rolled despair.",
   "📎 challenged reality with a paperclip. Paperclip won."
 ];
-   frozenLore = [
+ const frozenLore = [
   "❄️ Froze mid-click and vanished.",
   "🪞 Stared too long at the buttons and became one.",
   "🐌 Moved too slow for the charm to care.",
@@ -191,7 +191,7 @@ let joinMessageLink = null;
   "🎤 Said 'Wait, wait!' The charm didn’t.",
   "💽 Buffering… still buffering…"
 ];
- gainLifeLore = [
+ const gainLifeLore = [
   "✨ absorbed ambient CHARM and gained a life!",
   "🫀 stole fate’s heartbeat. +1 life.",
   "🍀 rubbed a lucky token. It pulsed with life.",
@@ -223,7 +223,7 @@ let joinMessageLink = null;
   "🧼 cleaned their aura. Found a spare life behind it.",
   "🪞 out-negotiated their reflection. Took its life instead."
 ];
- reviveLore = [
+ const reviveLore = [
   "🌪️ twisted their fate and returned to the arena!",
   "🌱 bloomed from the grave like a cursed daisy.",
   "💥 broke back in through pure chaos energy.",
@@ -361,7 +361,7 @@ let joinMessageLink = null;
 ];
 
 // === Fate Lore Intros ===
- miniGameFateDescriptions = [
+ const miniGameFateDescriptions = [
   "The charm stirs. Only one choice uplifts, the rest consume.",
   "Fate is sealed by your fingertip. Pick wrong and be erased.",
   "One button saves. The rest… echo with screams.",
@@ -390,45 +390,45 @@ let joinMessageLink = null;
 ];
 
 
- riddles = [
-  { riddle: "I crawl inside your house without legs. I eat your time but never your food. What am I?", answer: "phone" },
-  { riddle: "The more you look, the less you see. Stare too long, and I stare back. What am I?", answer: "mirror" },
-  { riddle: "My breath is silent. My body is cold. I follow you home, but I was never born. What am I?", answer: "shadow" },
-  { riddle: "I was made to hold stories, but I never speak. I’ve got a spine, but I break easily. What am I?", answer: "book" },
-  { riddle: "I sit in corners but see the world. I never blink, but I always watch. What am I?", answer: "camera" },
-  { riddle: "I’m not food, but I’m fed. I’m not alive, but I grow. What am I?", answer: "fire" },
-  { riddle: "My words aren’t spoken, but they echo forever. You trust me with your secrets. What am I?", answer: "diary" },
-  { riddle: "Break me, and I vanish. Speak, and I die. What am I?", answer: "silence" },
-  { riddle: "You’ll find me in the pit, but I’m not a peach. I take your breath and whisper lies. What am I?", answer: "despair" },
-  { riddle: "I appear when you forget me. I vanish when you name me. What am I?", answer: "dream" },
-  { riddle: "I am not yours, but I wear your face. I know your steps before you take them. What am I?", answer: "reflection" },
-  { riddle: "You chase me in the morning and curse me at night. I slow time but never stop it. What am I?", answer: "fatigue" },
-  { riddle: "I never existed, but everyone remembers me. I change shape when you look away. What am I?", answer: "memory" },
-  { riddle: "I bleed numbers and eat seconds. My hands move but I don’t. What am I?", answer: "clock" },
-  { riddle: "I’m lighter than air, but I crush the soul. I haunt your quiet moments. What am I?", answer: "thought" },
-  { riddle: "I arrive with panic, stay without warning, and leave you shaking. What am I?", answer: "anxiety" },
-  { riddle: "I fill rooms but have no shape. I hide monsters behind me. What am I?", answer: "darkness" },
-  { riddle: "I drip when ignored, roar when angered, and leave nothing behind. What am I?", answer: "leak" },
-  { riddle: "You pull me from your mind and wear me like armor. I’m never real, but I protect you. What am I?", answer: "lie" },
-  { riddle: "You open me in anger. You close me in regret. I am silent but sharp. What am I?", answer: "mouth" },
-  { riddle: "I wait in your attic, creak in your walls, and appear when you're alone. What am I?", answer: "house" },
-  { riddle: "You cannot see me, but I change what you are. I seep into your voice. What am I?", answer: "emotion" },
-  { riddle: "I float above graves and whisper to the dirt. I’m not alive, but I linger. What am I?", answer: "ghost" },
-  { riddle: "I twist the truth and sharpen the tongue. I wear many masks. What am I?", answer: "gossip" },
-  { riddle: "I go up but never down. I grow old with you, but I’m invisible. What am I?", answers: ["age", "time"]},
-  { riddle: "I’m not alive, but I grow. I don’t have lungs, but I need air. I destroy everything I touch. What am I?", answers: ["fire", "flame"]},
-  { riddle: "I reflect but never speak. I crack under pressure. What am I?", answers: ["mirror", "glass"]},
-  { riddle: "I’m full of holes, yet I hold water. What am I?", answers: ["sponge", "net"]},
-  { riddle: "I have arms and hands but no fingers. I show your schedule but never the time. What am I?", answers: ["clock", "watch", "calendar"]},
-  { riddle: "You can find me on walls and faces. I tick but never talk. What am I?", answers: ["clock", "watch"]},
-  { riddle: "I never stop moving, but I never go anywhere. I flow, but I’m not alive. What am I?", answers: ["time", "river"]},
-  { riddle: "I come in many colors. Kids love me. I snap easily. What am I?", answers: ["crayon", "chalk", "colored pencil"]},
-  { riddle: "I travel around the world but always stay in the same place. What am I?", answers: ["stamp", "postage stamp"]},
-  { riddle: "I get sharper the more you use me. What am I?", answers: ["brain", "mind", "pencil"]},
-  { riddle: "I fall but never rise. I soften the world. What am I?", answers: ["snow", "rain"]},
-  { riddle: "What is never seen but always ahead? It can be shaped, but not held.", answers: ["future", "tomorrow"]},
-  { riddle: "What has a tail and may flick, but isn’t alive? It’s in your hand but isn’t your friend.", answers: ["coin", "comet"]},
-  { riddle: "You use me to eat, but you never eat me. What am I?", answers: ["plate", "fork", "spoon"]}
+const riddles = [
+  { riddle: "I crawl inside your house without legs. I eat your time but never your food. What am I?", answers: ["phone"] },
+  { riddle: "The more you look, the less you see. Stare too long, and I stare back. What am I?", answers: ["mirror"] },
+  { riddle: "My breath is silent. My body is cold. I follow you home, but I was never born. What am I?", answers: ["shadow"] },
+  { riddle: "I was made to hold stories, but I never speak. I’ve got a spine, but I break easily. What am I?", answers: ["book"] },
+  { riddle: "I sit in corners but see the world. I never blink, but I always watch. What am I?", answers: ["camera"] },
+  { riddle: "I’m not food, but I’m fed. I’m not alive, but I grow. What am I?", answers: ["fire"] },
+  { riddle: "My words aren’t spoken, but they echo forever. You trust me with your secrets. What am I?", answers: ["diary"] },
+  { riddle: "Break me, and I vanish. Speak, and I die. What am I?", answers: ["silence"] },
+  { riddle: "You’ll find me in the pit, but I’m not a peach. I take your breath and whisper lies. What am I?", answers: ["despair"] },
+  { riddle: "I appear when you forget me. I vanish when you name me. What am I?", answers: ["dream"] },
+  { riddle: "I am not yours, but I wear your face. I know your steps before you take them. What am I?", answers: ["reflection"] },
+  { riddle: "You chase me in the morning and curse me at night. I slow time but never stop it. What am I?", answers: ["fatigue"] },
+  { riddle: "I never existed, but everyone remembers me. I change shape when you look away. What am I?", answers: ["memory"] },
+  { riddle: "I bleed numbers and eat seconds. My hands move but I don’t. What am I?", answers: ["clock"] },
+  { riddle: "I’m lighter than air, but I crush the soul. I haunt your quiet moments. What am I?", answers: ["thought"] },
+  { riddle: "I arrive with panic, stay without warning, and leave you shaking. What am I?", answers: ["anxiety"] },
+  { riddle: "I fill rooms but have no shape. I hide monsters behind me. What am I?", answers: ["darkness"] },
+  { riddle: "I drip when ignored, roar when angered, and leave nothing behind. What am I?", answers: ["leak"] },
+  { riddle: "You pull me from your mind and wear me like armor. I’m never real, but I protect you. What am I?", answers: ["lie"] },
+  { riddle: "You open me in anger. You close me in regret. I am silent but sharp. What am I?", answers: ["mouth"] },
+  { riddle: "I wait in your attic, creak in your walls, and appear when you're alone. What am I?", answers: ["house"] },
+  { riddle: "You cannot see me, but I change what you are. I seep into your voice. What am I?", answers: ["emotion"] },
+  { riddle: "I float above graves and whisper to the dirt. I’m not alive, but I linger. What am I?", answers: ["ghost"] },
+  { riddle: "I twist the truth and sharpen the tongue. I wear many masks. What am I?", answers: ["gossip"] },
+  { riddle: "I go up but never down. I grow old with you, but I’m invisible. What am I?", answers: ["age", "time"] },
+  { riddle: "I’m not alive, but I grow. I don’t have lungs, but I need air. I destroy everything I touch. What am I?", answers: ["fire", "flame"] },
+  { riddle: "I reflect but never speak. I crack under pressure. What am I?", answers: ["mirror", "glass"] },
+  { riddle: "I’m full of holes, yet I hold water. What am I?", answers: ["sponge", "net"] },
+  { riddle: "I have arms and hands but no fingers. I show your schedule but never the time. What am I?", answers: ["clock", "watch", "calendar"] },
+  { riddle: "You can find me on walls and faces. I tick but never talk. What am I?", answers: ["clock", "watch"] },
+  { riddle: "I never stop moving, but I never go anywhere. I flow, but I’m not alive. What am I?", answers: ["time", "river"] },
+  { riddle: "I come in many colors. Kids love me. I snap easily. What am I?", answers: ["crayon", "chalk", "colored pencil"] },
+  { riddle: "I travel around the world but always stay in the same place. What am I?", answers: ["stamp", "postage stamp"] },
+  { riddle: "I get sharper the more you use me. What am I?", answers: ["brain", "mind", "pencil"] },
+  { riddle: "I fall but never rise. I soften the world. What am I?", answers: ["snow", "rain"] },
+  { riddle: "What is never seen but always ahead? It can be shaped, but not held.", answers: ["future", "tomorrow"] },
+  { riddle: "What has a tail and may flick, but isn’t alive? It’s in your hand but isn’t your friend.", answers: ["coin", "comet"] },
+  { riddle: "You use me to eat, but you never eat me. What am I?", answers: ["plate", "fork", "spoon"] }
 ];
 
 
