@@ -679,6 +679,7 @@ async function runGauntlet(players, channel) {
   let incentiveTriggered = false;
   let active = [...playerMap.values()];
   const maxEvents = 100;
+  const originalCount = players.length;
 
   while (active.length > 3 && eventNumber <= maxEvents) {
     const eventTitle = `⚔️ Event #${eventNumber}`;
@@ -713,12 +714,13 @@ async function runGauntlet(players, channel) {
     }
 
     active = [...playerMap.values()].filter(p => !eliminated.has(p.id));
-// === Incentive Unlock Trigger ===
-const originalCount = players.length;
-if (!incentiveTriggered && active.length <= Math.floor(originalCount / 2)) {
-  incentiveTriggered = true;
-  await runIncentiveUnlock(channel);
-}
+
+    // === Incentive Unlock Trigger ===
+    if (!incentiveTriggered && active.length <= Math.floor(originalCount / 2)) {
+      incentiveTriggered = true;
+      await runIncentiveUnlock(channel);
+    }
+
     eventNumber++;
     await wait(3000);
   }
@@ -729,10 +731,9 @@ if (!incentiveTriggered && active.length <= Math.floor(originalCount / 2)) {
   const tied = finalists.filter(p => p.lives === maxLives);
 
   if (tied.length > 1) {
-    await channel.send(`⚖️ **TIEBREAKER!**\nMultiple players remain with **${maxLives} lives**!\n` +
-      `A sudden death round will decide who wears the crown...`);
+    await channel.send(`⚖️ **TIEBREAKER!**\nMultiple players remain with **${maxLives} lives**!\nA sudden death round will decide who wears the crown...`);
     await runTiebreaker(channel, tied);
-    await wait(3000); // suspense pause before podium
+    await wait(3000);
   }
 
   await showPodium(channel, players);
@@ -784,7 +785,7 @@ async function runMiniGameEvent(players, channel, eventNumber) {
 
   const message = await channel.send({ embeds: [embed], components: [row] });
 
-  // === Start the collector immediately for 20 seconds ===
+  // === Start the collector for 20 seconds ===
   const collector = message.createMessageComponentCollector({ time: 20000 });
 
   collector.on('collect', async i => {
@@ -801,7 +802,6 @@ async function runMiniGameEvent(players, channel, eventNumber) {
 
     let player = players.find(p => p.id === i.user.id);
 
-    // 🧟 Revival if not already in the game
     if (!player) {
       if (outcome === 'gain') {
         const revived = { id: i.user.id, username: i.user.username, lives: 1 };
@@ -817,7 +817,6 @@ async function runMiniGameEvent(players, channel, eventNumber) {
         return i.reply({ content: `💀 You are already eliminated and cannot be harmed or revived by this choice.`, flags: 64 });
       }
 
-      // Apply effect
       if (outcome === 'eliminate') player.lives = 0;
       else if (outcome === 'lose') player.lives -= 1;
       else if (outcome === 'gain') player.lives += 1;
@@ -842,10 +841,10 @@ async function runMiniGameEvent(players, channel, eventNumber) {
 
   await wait(5000); // Final 5 seconds
 
-  // === Collector ends after 20s; now evaluate non-clickers ===
+  // === Collector ends — evaluate non-clickers ===
   const frozenPlayers = [];
   for (let player of players) {
-    if (player.lives <= 0) continue; // Skip already eliminated
+    if (player.lives <= 0) continue;
     if (!clickedPlayers.has(player.id)) {
       const eliminated = Math.random() < 0.5;
       resultMap.set(player.id, eliminated ? 'eliminate' : 'ignored');
@@ -861,8 +860,6 @@ async function runMiniGameEvent(players, channel, eventNumber) {
 
   return resultMap;
 }
-
-
 
 // === Mint Incentive Ops ===
 async function runIncentiveUnlock(channel) {
