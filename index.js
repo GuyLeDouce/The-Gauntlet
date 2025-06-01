@@ -795,7 +795,7 @@ const playerMap = new Map(playerArray.map(p => [p.id, p]));
 
   if (survivors.length > 1) {
     await channel.send(`🔮 **FINAL RITUAL**\nToo many remain... The charm demands one final judgment.`);
-    await runFinalRitual(survivors, channel);
+    await runTiebreaker(survivors, channel);
     await wait(3000);
   } else if (survivors.length === 1) {
     await channel.send(`👑 Only one remains...`);
