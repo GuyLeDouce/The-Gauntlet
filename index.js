@@ -723,21 +723,27 @@ if (!incentiveTriggered && active.length <= Math.floor(originalCount / 2)) {
     await wait(3000);
   }
 
-  // Check for a tie in the final 2
-const finalists = [...playerMap.values()].filter(p => p.lives > 0);
-if (finalists.length === 2 && finalists[0].lives === finalists[1].lives) {
-  await channel.send("⚔️ It's a tie between the final two! Commencing sudden death duel...");
-  await runTiebreaker(finalists, channel); // You can rename this as needed
-}
+  // === Final Check for Tie ===
+  const finalists = [...playerMap.values()].filter(p => p.lives > 0);
+  const maxLives = Math.max(...finalists.map(p => p.lives));
+  const tied = finalists.filter(p => p.lives === maxLives);
 
-// Once tiebreaker resolves or if no tie, show the podium
-  await runTiebreaker(channel, [...playerMap.values()]);
-await showPodium(channel, [...playerMap.values()]);
+  if (tied.length > 1) {
+    await channel.send(`⚖️ **TIEBREAKER!**\nMultiple players remain with **${maxLives} lives**!\n` +
+      `A sudden death round will decide who wears the crown...`);
+    await runTiebreaker(channel, tied);
+    await wait(3000); // suspense pause before podium
+  }
+
+  await showPodium(channel, players);
 
   activeGame = null;
   rematchCount++;
-  if (rematchCount < maxRematches) await showRematchButton(channel, [...playerMap.values()]);
+  if (rematchCount < maxRematches) {
+    await showRematchButton(channel, [...playerMap.values()]);
+  }
 }
+
 // === Mini-Game Event with Countdown and Secret Outcome ===
 async function runMiniGameEvent(players, channel, eventNumber) {
   const outcomeTypes = ['lose', 'gain', 'eliminate', 'safe'];
@@ -1108,17 +1114,6 @@ async function showPodium(channel, players) {
 
   await channel.send({ embeds: [embed] });
 
-  // ⚖️ Sudden Death Duel if tied for 1st place
-  if (tied.length > 1) {
-    await channel.send(`⚖️ **TIEBREAKER!**\nMultiple players remain with **${maxLives} lives**!\n` +
-      `A sudden death round will decide who wears the crown...`);
-    await runTiebreaker(channel, tied);
-  }
-}
-
-
-
-
 // === Sudden Death Button Duel: The Final Ritual ===
 async function runTiebreaker(channel, tiedPlayers) {
   const introEmbed = new EmbedBuilder()
@@ -1170,7 +1165,7 @@ async function runTiebreaker(channel, tiedPlayers) {
 
       const victoryEmbed = new EmbedBuilder()
         .setTitle('👑 A Champion Emerges 👑')
-        .setDescription(`⚡ **${winner.username}** struck first and survives the final ritual!`)
+        .setDescription(`⚡ **${winner.username}** struck first and survives !`)
         .setColor(0xffcc00)
         .setFooter({ text: '🏆 The charm spares only one.' });
 
