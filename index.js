@@ -772,8 +772,9 @@ if (!incentiveTriggered && !incentiveTriggeredThisRound && active.length <= Math
 
 // === Mini-Game Event with Countdown and Secret Outcome ===
 async function runMiniGameEvent(players, channel, eventNumber) {
-  const outcomeTypes = ['gain', 'lose', 'eliminate', 'safe'];
-  const randomOutcome = () => outcomeTypes[Math.floor(Math.random() * outcomeTypes.length)];
+  const outcomes = ['gain', 'lose', 'eliminate', 'safe'];
+  const shuffledOutcomes = outcomes.sort(() => 0.5 - Math.random());
+
   const randomStyle = () => [
     ButtonStyle.Primary,
     ButtonStyle.Danger,
@@ -783,6 +784,7 @@ async function runMiniGameEvent(players, channel, eventNumber) {
 
   const resultMap = new Map();
   const clickedPlayers = new Set();
+  const buttonClicks = new Map();
 
   const chosenLore = miniGameLorePool[Math.floor(Math.random() * miniGameLorePool.length)];
   const fateLine = miniGameFateDescriptions[Math.floor(Math.random() * miniGameFateDescriptions.length)];
@@ -790,7 +792,7 @@ async function runMiniGameEvent(players, channel, eventNumber) {
   const buttons = ['A', 'B', 'C', 'D'];
   const outcomeMap = new Map();
 
-  buttons.forEach(label => outcomeMap.set(label, randomOutcome()));
+  buttons.forEach((label, index) => outcomeMap.set(label, shuffledOutcomes[index]));
 
   const timestamp = Date.now();
   const row = new ActionRowBuilder();
@@ -814,6 +816,12 @@ async function runMiniGameEvent(players, channel, eventNumber) {
   const collector = message.createMessageComponentCollector({ time: 20000 });
 
   collector.on('collect', async i => {
+    const userId = i.user.id;
+
+    if (buttonClicks.has(userId)) {
+      return i.reply({ content: `🤪 Whoa there! You already chose your fate. The Charm doesn't like indecision...`, ephemeral: true });
+    }
+
     const labelMatch = i.customId.match(/mini_([A-D])_evt/);
     if (!labelMatch) return;
 
@@ -822,26 +830,24 @@ async function runMiniGameEvent(players, channel, eventNumber) {
     const labelIndex = buttons.indexOf(label);
     const displayText = buttonLabels[labelIndex];
 
-    clickedPlayers.add(i.user.id);
-    resultMap.set(i.user.id, outcome);
+    clickedPlayers.add(userId);
+    buttonClicks.set(userId, label);
+    resultMap.set(userId, outcome);
 
-    let player = players.find(p => p.id === i.user.id);
+    let player = players.find(p => p.id === userId);
 
     if (!player) {
-      // Non-player clicked — allow entry on 'gain'
       if (outcome === 'gain') {
-        const revived = { id: i.user.id, username: i.user.username, lives: 1 };
+        const revived = { id: userId, username: i.user.username, lives: 1 };
         players.push(revived);
-        activeGame.players.set(i.user.id, revived);
-        currentPlayers.set(i.user.id, revived);
-        await i.reply({ content: `💫 You selected **${displayText}** and were **PULLED INTO THE GAUNTLET!**`, flags: 64 });
+        activeGame.players.set(userId, revived);
+        currentPlayers.set(userId, revived);
+        return i.reply({ content: `💫 You selected **${displayText}** and were **PULLED INTO THE GAUNTLET!**`, flags: 64 });
       } else {
         return i.reply({ content: `❌ You selected **${displayText}** but fate denied your entry.`, flags: 64 });
       }
-      return;
     }
 
-    // Player is valid and alive
     if (player.lives <= 0) {
       return i.reply({ content: `💀 You are already eliminated and cannot be harmed or revived.`, flags: 64 });
     }
@@ -852,6 +858,10 @@ async function runMiniGameEvent(players, channel, eventNumber) {
       eliminate: '💀 You were instantly eliminated!',
       safe: '😶 You survived untouched.'
     };
+
+    if (outcome === 'eliminate') player.lives = 0;
+    else if (outcome === 'lose') player.lives -= 1;
+    else if (outcome === 'gain') player.lives += 1;
 
     await i.reply({ content: `🔘 You selected **${displayText}** → ${emojiMap[outcome]}`, flags: 64 });
   });
@@ -1101,27 +1111,32 @@ const filter = m => {
 
   const collector = channel.createMessageCollector({ filter, time: countdown * 1000 });
 
-  collector.on('collect', async msg => {
-    const userId = msg.author.id;
+collector.on('collect', async msg => {
+  const userId = msg.author.id;
+  const player = players.find(p => p.id === userId);
 
-    if (!correctPlayers.has(userId)) {
-      correctPlayers.add(userId);
+  // Ignore messages from non-players
+  if (!player) return;
 
-      const player = players.find(p => p.id === userId);
-      if (player) player.lives += 1;
+  const content = msg.content?.toLowerCase().trim() || '';
+  const isCorrect = content.includes(answer.toLowerCase());
 
-      // Delete the answer to keep it secret
-      await msg.delete().catch(() => {});
+  if (isCorrect && !correctPlayers.has(userId)) {
+    correctPlayers.add(userId);
+    player.lives += 1;
 
-      // Send confirmation (not truly ephemeral but only visible to them)
-      await channel.send({
-        content: `🔮 You answered correctly — the Oracle grants you **+1 life**.`,
-        allowedMentions: { users: [userId] }
-      }).then(m => setTimeout(() => m.delete().catch(() => {}), 4000));
-    } else {
-      await msg.delete().catch(() => {});
-    }
-  });
+    await msg.delete().catch(() => {});
+
+    await channel.send({
+      content: `🔮 You answered correctly — the Oracle grants you **+1 life**.`,
+      allowedMentions: { users: [userId] }
+    }).then(m => setTimeout(() => m.delete().catch(() => {}), 4000));
+  } else {
+    // React with ❌ on wrong guess
+    await msg.react('❌').catch(() => {});
+  }
+});
+
 
   // Countdown updates
   const countdownIntervals = [25, 20, 15, 10, 5];
