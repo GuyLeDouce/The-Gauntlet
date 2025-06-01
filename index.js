@@ -1084,8 +1084,18 @@ async function showResultsRound(results, channel, players) {
       const flavorList = flavor[key];
       const randomLine = flavorList[Math.floor(Math.random() * flavorList.length)] || '';
       const fieldIndex = embed.data.fields.findIndex(f => f.name === title);
-      embed.data.fields[fieldIndex].value += `${randomLine} <@${p.id}>\n`;
-      await msg.edit({ embeds: [embed] });
+const fieldIndex = embed.data.fields.findIndex(f => f.name === title);
+const currentValue = embed.data.fields[fieldIndex].value;
+const newLine = `${randomLine} <@${p.id}>\n`;
+
+if ((currentValue + newLine).length > 1024) {
+  // Start a new continuation field
+  embed.addFields({ name: `${title} (cont.)`, value: newLine });
+} else {
+  embed.data.fields[fieldIndex].value += newLine;
+}
+await msg.edit({ embeds: [embed] });
+
       await wait(600);
     }
   };
