@@ -700,7 +700,7 @@ async function runGauntlet(players, channel) {
     const miniGameResults = await runMiniGameEvent(active, channel, eventNumber);
 
     // === Embed 3: Show Elimination Results One-by-One ===
-    await displayEliminations(miniGameResults, channel);
+   await showResultsRound(miniGameResults, channel, players);
 
     // === Riddle Phase with Countdown and Pause ===
     await runRiddleEvent(channel, active);
@@ -937,69 +937,96 @@ async function runIncentiveUnlock(channel) {
 
 
 // === Display Unified Results ===
-async function displayEliminations(resultMap, channel) {
-  const eliminated = [];
+// === Show Results Round (Dramatic Lore Edition) ===
+// === Show Results Round (Dramatic Lore Edition) ===
+async function showResultsRound(results, channel, players) {
+  const gained = [];
+  const lost = [];
   const revived = [];
-  const gainedLife = [];
-  const inactiveEliminations = [];
+  const eliminated = [];
+  const inactivity = [];
 
-  // Track who didn't click
-  const players = [...activeGame.players.values()];
-  const clickedIds = [...resultMap.keys()];
+  const flavor = {
+    gained: [
+      "The charm pulses… a life is restored.",
+      "A flicker of hope surges through them.",
+      "They feel stronger. Bolder. Uglier."
+    ],
+    lost: [
+      "A sharp pain — something was taken.",
+      "A whisper fades from the void.",
+      "A thread of life slips away..."
+    ],
+    revived: [
+      "The warp cracks… and something returns.",
+      "Against all odds, they claw back in.",
+      "The charm drags them from the pit."
+    ],
+    eliminated: [
+      "Their fate was sealed. The charm chose violence.",
+      "Gone in a blink. No trace remains.",
+      "The arena devours without remorse."
+    ],
+    inactivity: [
+      "They stood still. The charm did not.",
+      "Frozen in fear — and the warp punished them.",
+      "Inaction is death when chaos reigns."
+    ]
+  };
 
   for (let player of players) {
-    if (!clickedIds.includes(player.id)) {
-      const eliminatedByInactivity = Math.random() < 0.5;
-      resultMap.set(player.id, eliminatedByInactivity ? 'frozen' : 'ignored');
-      if (eliminatedByInactivity) {
-        player.lives = 0;
-        inactiveEliminations.push(player);
-      }
+    const outcome = results.get(player.id);
+    if (!outcome) continue;
+
+    if (player.lives <= 0 && outcome === 'eliminate') {
+      eliminated.push(player);
+    } else if (player.lives <= 0 && outcome === 'ignored') {
+      inactivity.push(player);
+    } else if (outcome === 'gain') {
+      if (player.lives === 1) revived.push(player);
+      else gained.push(player);
+    } else if (outcome === 'lose') {
+      lost.push(player);
     }
   }
-
-  for (let [userId, outcome] of resultMap.entries()) {
-    const player = activeGame.players.get(userId);
-    if (!player) continue;
-
-    if (outcome === 'eliminate') eliminated.push(player);
-    else if (outcome === 'gain' && player.lives === 1) revived.push(player); // Revived from dead
-    else if (outcome === 'gain') gainedLife.push(player);
-    else if (outcome === 'frozen') inactiveEliminations.push(player);
-  }
-
-  // Prepare sections (randomized order)
-  const categories = [
-    { title: "__Mini Game Eliminations__", data: eliminated, emoji: "💀", lore: funnyEliminations },
-    { title: "__Revived Players__", data: revived, emoji: "💫", lore: reviveLore },
-    { title: "__Additional Lives__", data: gainedLife, emoji: "❤️", lore: gainLifeLore },
-    { title: "__Inactive Eliminations__", data: inactiveEliminations, emoji: "🧊", lore: frozenLore }
-  ].sort(() => Math.random() - 0.5);
 
   const embed = new EmbedBuilder()
     .setTitle('📜 Results Round')
-    .setDescription('Processing the outcome of this trial...')
-    .setColor(0xff5588);
+    .setDescription(`The ritual is complete. The charm surveys the survivors...`)
+    .setColor(0xff66cc);
 
   const msg = await channel.send({ embeds: [embed] });
 
-  for (const cat of categories) {
-    if (cat.data.length === 0) continue;
+  const addFieldSlowly = async (title, list, key) => {
+    if (!list.length) return;
 
-    embed.data.description += `\n\n**${cat.title}**\n`;
+    // Create the field with just the title and a placeholder
+    embed.addFields({ name: `${title}`, value: ' ', inline: false });
+    await msg.edit({ embeds: [embed] });
 
-    for (let p of cat.data) {
-      const line = `${cat.emoji} <@${p.id}> ${cat.lore[Math.floor(Math.random() * cat.lore.length)]}`;
-      embed.data.description += line + `\n`;
+    for (let p of list) {
+      const line = `${flavor[key][Math.floor(Math.random() * flavor[key].length)]} <@${p.id}>`;
+      const fieldIndex = embed.data.fields.findIndex(f => f.name === title);
+      embed.data.fields[fieldIndex].value += `${line}\n`;
       await msg.edit({ embeds: [embed] });
       await wait(600);
     }
-  }
+  };
 
-  if (embed.data.description.trim() === 'Processing the outcome of this trial...') {
-    embed.setDescription('The charm is silent. No one was claimed, no one returned.');
+  await addFieldSlowly('🩸 Gained a Life', gained, 'gained');
+  await addFieldSlowly('💢 Lost a Life', lost, 'lost');
+  await addFieldSlowly('💫 Brought Back to Life', revived, 'revived');
+  await addFieldSlowly('☠️ Eliminated by the Mini-Game', eliminated, 'eliminated');
+  await addFieldSlowly('🧊 Eliminated by Inactivity', inactivity, 'inactivity');
+
+  if (
+    !gained.length && !lost.length && !revived.length &&
+    !eliminated.length && !inactivity.length
+  ) {
+    embed.setDescription('⚖️ No lives changed hands. The charm smirks in silence.');
     await msg.edit({ embeds: [embed] });
   }
+
   await wait(6000);
 }
 
