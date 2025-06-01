@@ -1157,16 +1157,6 @@ async function showPodium(channel, players) {
 
 // === Sudden Death Button Duel: The Final Ritual ===
 async function runTiebreaker(channel, tiedPlayers) {
-  const row = new ActionRowBuilder();
-  tiedPlayers.forEach((p, i) => {
-    row.addComponents(
-      new ButtonBuilder()
-        .setCustomId(`tie_${p.id}`)
-        .setLabel(`⚡ ${p.username}`)
-        .setStyle([ButtonStyle.Danger, ButtonStyle.Primary, ButtonStyle.Success][i % 3])
-    );
-  });
-
   const introEmbed = new EmbedBuilder()
     .setTitle('🩸 𝙏𝙃𝙀 𝙁𝙄𝙉𝘼𝙇 𝙍𝙄𝙏𝙐𝘼𝙇 🩸')
     .setDescription(
@@ -1178,7 +1168,27 @@ async function runTiebreaker(channel, tiedPlayers) {
     .setThumbnail('https://media.discordapp.net/attachments/1086418283131048156/1378206999421915187/The_Gauntlet.png?format=webp&quality=lossless&width=128&height=128')
     .setFooter({ text: '⏳ You have 10 seconds to act or be consumed.' });
 
-  const msg = await channel.send({ embeds: [introEmbed], components: [row] });
+  // Create action rows with max 5 buttons per row
+  const rows = [];
+  let currentRow = new ActionRowBuilder();
+
+  tiedPlayers.forEach((p, i) => {
+    if (i > 0 && i % 5 === 0) {
+      rows.push(currentRow);
+      currentRow = new ActionRowBuilder();
+    }
+
+    currentRow.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`tie_${p.id}`)
+        .setLabel(`⚡ ${p.username}`)
+        .setStyle([ButtonStyle.Danger, ButtonStyle.Primary, ButtonStyle.Success][i % 3])
+    );
+  });
+
+  if (currentRow.components.length > 0) rows.push(currentRow);
+
+  const msg = await channel.send({ embeds: [introEmbed], components: rows });
 
   const collector = msg.createMessageComponentCollector({ time: 10_000 });
   const alreadyClicked = new Set();
@@ -1202,6 +1212,9 @@ async function runTiebreaker(channel, tiedPlayers) {
 
       await channel.send({ embeds: [victoryEmbed] });
       collector.stop();
+
+      // Apply survival to this winner
+      winner.lives = 1;
     }
   });
 
@@ -1214,9 +1227,13 @@ async function runTiebreaker(channel, tiedPlayers) {
         .setFooter({ text: '🕳️ The void remembers your hesitation.' });
 
       await channel.send({ embeds: [failEmbed] });
+
+      // Eliminate all tied players
+      tiedPlayers.forEach(p => p.lives = 0);
     }
   });
 }
+
 
 // === Show Rematch Button & Wait for Votes ===
 async function showRematchButton(channel, finalPlayers) {
