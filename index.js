@@ -1077,25 +1077,24 @@ async function showResultsRound(results, channel, players) {
   const addFieldSlowly = async (title, list, key) => {
     if (!list.length) return;
 
-    embed.addFields({ name: title, value: '‎', inline: false }); // invisible char to init
+    embed.addFields({ name: title, value: '‎', inline: false }); // invisible char
     await msg.edit({ embeds: [embed] });
 
     for (let p of list) {
       const flavorList = flavor[key];
       const randomLine = flavorList[Math.floor(Math.random() * flavorList.length)] || '';
-      const fieldIndex = embed.data.fields.findIndex(f => f.name === title);
-const fieldIndex = embed.data.fields.findIndex(f => f.name === title);
-const currentValue = embed.data.fields[fieldIndex].value;
-const newLine = `${randomLine} <@${p.id}>\n`;
+      const newLine = `${randomLine} <@${p.id}>\n`;
 
-if ((currentValue + newLine).length > 1024) {
-  // Start a new continuation field
-  embed.addFields({ name: `${title} (cont.)`, value: newLine });
-} else {
-  embed.data.fields[fieldIndex].value += newLine;
-}
-await msg.edit({ embeds: [embed] });
+      let fieldIndex = embed.data.fields.findIndex(f => f.name === title || f.name === `${title} (cont.)`);
+      let currentValue = embed.data.fields[fieldIndex].value;
 
+      if ((currentValue + newLine).length > 1024) {
+        embed.addFields({ name: `${title} (cont.)`, value: newLine });
+      } else {
+        embed.data.fields[fieldIndex].value += newLine;
+      }
+
+      await msg.edit({ embeds: [embed] });
       await wait(600);
     }
   };
@@ -1116,6 +1115,7 @@ await msg.edit({ embeds: [embed] });
 
   await wait(6000);
 }
+
 
 // === Riddle Phase with Countdown & Monster Image ===
 async function runRiddleEvent(channel, players) {
