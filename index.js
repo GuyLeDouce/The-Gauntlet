@@ -1123,7 +1123,7 @@ async function showPodium(channel, players) {
   ];
 
   const fields = top3.map((p, i) => ({
-    name: `${medals[i]} ${p.username}`,
+    name: `${medals[i]} <@${p.id}>`,
     value: `${titles[i]}\nLives Remaining: **${p.lives}**`,
     inline: false
   }));
@@ -1149,6 +1149,7 @@ async function showPodium(channel, players) {
     await runTiebreaker(channel, tied);
   }
 }
+
 
 
 
