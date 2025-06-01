@@ -827,8 +827,10 @@ async function runMiniGameEvent(players, channel, eventNumber) {
 
     clickedPlayers.add(i.user.id);
     resultMap.set(i.user.id, outcome);
+
     let player = players.find(p => p.id === i.user.id);
 
+    // 🧟 Revival if not already in the game
     if (!player) {
       if (outcome === 'gain') {
         const revived = { id: i.user.id, username: i.user.username, lives: 1 };
@@ -840,6 +842,11 @@ async function runMiniGameEvent(players, channel, eventNumber) {
         return i.reply({ content: `❌ You selected **${displayText}** but fate denied your re-entry.`, flags: 64 });
       }
     } else {
+      if (player.lives <= 0) {
+        return i.reply({ content: `💀 You are already eliminated and cannot be harmed or revived by this choice.`, flags: 64 });
+      }
+
+      // Apply effect
       if (outcome === 'eliminate') player.lives = 0;
       else if (outcome === 'lose') player.lives -= 1;
       else if (outcome === 'gain') player.lives += 1;
@@ -867,6 +874,7 @@ async function runMiniGameEvent(players, channel, eventNumber) {
   // === Collector ends after 20s; now evaluate non-clickers ===
   const frozenPlayers = [];
   for (let player of players) {
+    if (player.lives <= 0) continue; // Skip already eliminated
     if (!clickedPlayers.has(player.id)) {
       const eliminated = Math.random() < 0.5;
       resultMap.set(player.id, eliminated ? 'eliminate' : 'ignored');
@@ -882,6 +890,7 @@ async function runMiniGameEvent(players, channel, eventNumber) {
 
   return resultMap;
 }
+
 
 
 // === Mint Incentive Ops ===
