@@ -1370,7 +1370,12 @@ async function showRematchButton(channel, finalPlayers) {
       `Do the spirits of battle hunger for more?\n\n` +
       `🔁 *Click to vote for a rematch.*\n` +
       `At least **75%** of the final players (**${requiredVotes}/${finalPlayers.length}**) must agree.`,
-    components: [rematchRow]
+    components: [rematchRow],
+    embeds: [
+      new EmbedBuilder()
+        .setImage('https://media.tenor.com/IAtglE9aZg4AAAAC/stewie-repetition.gif')
+        .setColor(0x00ffcc)
+    ]
   });
 
   const collector = msg.createMessageComponentCollector({ time: 60_000 });
@@ -1414,9 +1419,12 @@ async function showRematchButton(channel, finalPlayers) {
     if (!rematchTriggered) {
       rematchCount = 0;
       await channel.send(`😴 Not enough willpower remained. The charm sleeps… until next time.`);
+      await wait(500);
+      await channel.send({ stickers: ['1363459518238818424'] });
     }
   });
 }
+
 
 
 // === Leaderboard Command ===
