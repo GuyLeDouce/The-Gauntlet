@@ -680,8 +680,12 @@ async function runGauntlet(players, channel) {
   let active = [...playerMap.values()];
   const maxEvents = 100;
   const originalCount = players.length;
+  let incentiveTriggered = false;
+let incentiveTriggeredThisRound = false;
+
 
   while (active.length > 3 && eventNumber <= maxEvents) {
+  incentiveTriggeredThisRound = false; // reset each round
     const eventTitle = `⚔️ Event #${eventNumber}`;
     const loreIntro = `🌀 *The warp churns... new horrors rise...*`;
     const nftImg = getUglyImageUrl();
@@ -733,11 +737,15 @@ async function runGauntlet(players, channel) {
 
     active = [...playerMap.values()].filter(p => !eliminated.has(p.id));
 
-    // === Incentive Unlock Trigger ===
-    if (!incentiveTriggered && active.length <= Math.floor(originalCount / 2)) {
-      incentiveTriggered = true;
-      await runIncentiveUnlock(channel);
-    }
+// === Incentive Unlock Trigger ===
+if (!incentiveTriggered && !incentiveTriggeredThisRound && active.length <= Math.floor(originalCount / 2)) {
+  incentiveTriggered = true;
+  incentiveTriggeredThisRound = true;
+  await runIncentiveUnlock(channel);
+} else {
+  incentiveTriggeredThisRound = false;
+}
+
 
     eventNumber++;
     await wait(3000);
