@@ -907,10 +907,12 @@ async function runIncentiveUnlock(channel) {
 
   await channel.send({ embeds: [embed] });
 
-  const filter = m => {
-    const guess = parseInt(m.content.trim());
-    return !isNaN(guess) && guess >= 1 && guess <= 50 && !guesses.has(m.author.id);
-  };
+const filter = m => {
+  if (!m.content) return false; // 👈 guard against undefined content
+  const guess = parseInt(m.content.trim());
+  return !isNaN(guess) && guess >= 1 && guess <= 50 && !guesses.has(m.author.id);
+};
+
 
   const collector = channel.createMessageCollector({ filter, time: 10000 });
 
