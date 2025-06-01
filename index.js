@@ -729,7 +729,8 @@ async function runBossVotePhase(players, channel) {
 }
 // === Main Gauntlet Game Loop ===
 async function runGauntlet(players, channel) {
-  const playerMap = new Map(players.map(p => [p.id, p]));
+  const playerArray = Array.isArray(players) ? players : Array.from(players.values?.() || players);
+const playerMap = new Map(playerArray.map(p => [p.id, p]));
   let eliminated = new Map();
   let eventNumber = 1;
   let incentiveTriggered = false;
