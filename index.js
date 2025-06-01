@@ -680,8 +680,7 @@ async function runGauntlet(players, channel) {
   let active = [...playerMap.values()];
   const maxEvents = 100;
   const originalCount = players.length;
-  let incentiveTriggered = false;
-let incentiveTriggeredThisRound = false;
+  let incentiveTriggeredThisRound = false;
 
 
   while (active.length > 3 && eventNumber <= maxEvents) {
