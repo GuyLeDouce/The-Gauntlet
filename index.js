@@ -257,109 +257,107 @@ let joinMessageLink = null;
 ];
 
 // === Mini-Game Lore Pool (20 Variants) ===
- miniGameLorePool = [
+ const miniGameLorePool = [
   {
-    title: "🌪️ Vortex of Options",
-    lore: "The wind howls with malice. Choose a button and face the storm.",
-    buttons: ["Step into the gale", "Anchor to stone", "Whisper to the wind", "Leap toward the eye"]
+    title: "🎪 The Carnival Collapse",
+    lore: "A haunted calliope screams. Four rides spin—one spirals into another realm.",
+    buttons: ["Ride the Upside-Down Ferris", "Enter the Mirror Tent", "Chew the Cotton Scream", "Pet the Laughing Pony"]
   },
   {
-    title: "🕯️ Candle of Fate",
-    lore: "Each flame flickers with a different destiny. Which light do you trust?",
-    buttons: ["Snuff the tall wick", "Light the blue flame", "Shield the flicker", "Blow gently"]
+    title: "📦 The Mystery Box Quadrant",
+    lore: "Four boxes sit before you. Each hisses in a different accent.",
+    buttons: ["Open the box with teeth marks", "Sniff the soggy one", "Kick the humming crate", "Whisper to the warm one"]
   },
   {
-    title: "🎭 Masked Choices",
-    lore: "Behind each mask lies your fate. Will it smile or snuff you out?",
-    buttons: ["Put on the grin", "Don the blank face", "Hide behind sorrow", "Try the gold mask"]
+    title: "🌡️ Fever Dreams",
+    lore: "You’re burning up. The charm offers four icy visions. Pick one to cool your core.",
+    buttons: ["Swim in static", "Chew the ice mirror", "Melt into a song", "Lick the frost ghost"]
   },
   {
-    title: "🧪 Potions of Peril",
-    lore: "Four vials shimmer before you. Sip one... if you dare.",
-    buttons: ["Drink the red vial", "Smell the green fizz", "Lick the black ooze", "Swirl the gold dust"]
+    title: "🔋 Battery Ritual",
+    lore: "Each battery crackles with power—only one won’t fry your soul.",
+    buttons: ["Lick the AA", "Swallow the glowing C", "Sit on the D", "Charge yourself with the ZZZ"]
   },
   {
-    title: "📜 Scrolls of the Unknown",
-    lore: "Ancient scrolls rustle with secrets. One holds salvation.",
-    buttons: ["Read the blood-stained scroll", "Unravel the burning one", "Touch the invisible ink", "Seal the parchment"]
+    title: "🍽️ Dinner with the Charm",
+    lore: "Dinner is served. It’s still moving. Pick your entrée.",
+    buttons: ["Slurp the screaming soup", "Nibble the bone pie", "Sniff the neon salad", "Chomp the shadow steak"]
   },
   {
-    title: "🔮 Crystal Collapse",
-    lore: "The orb pulses. You must touch one facet. One will shatter you.",
-    buttons: ["Tap the violet shard", "Crack the green gleam", "Polish the smooth blue", "Peer into the cracked one"]
+    title: "📺 Reality Tuner",
+    lore: "Four TVs flicker with strange channels. Only one shows... yourself.",
+    buttons: ["Tune to Static 13", "Rotate the cursed knob", "Plug into your spine", "Speak into the screen"]
   },
   {
-    title: "🎁 Ugly Gift Bags",
-    lore: "They jiggle ominously. That’s probably fine.",
-    buttons: ["Open the spotted sack", "Shake the slimy gift", "Reach in blind", "Sniff it first"]
+    title: "🌙 Moonlight Bargain",
+    lore: "The moon grins. You are offered four pacts. Only one doesn’t bite.",
+    buttons: ["Kiss the night ink", "Trade your shadow", "Swear on a toad", "Offer your reflection"]
   },
   {
-    title: "🍀 Misfortune Cookies",
-    lore: "Crack one open. Let’s hope it’s dessert and not doom.",
-    buttons: ["Eat the broken one", "Crack the largest", "Pick the burnt edge", "Snap the clean shell"]
+    title: "🧻 Toilet Choices",
+    lore: "An abandoned gas station restroom. Four stalls. Something beckons.",
+    buttons: ["Choose the graffiti stall", "Kick open the bloody one", "Crawl under the silent stall", "Flush them all at once"]
   },
   {
-    title: "🧲 Magnetic Mayhem",
-    lore: "Each choice draws you to a different end. Or beginning.",
-    buttons: ["Choose north pull", "Align with chaos", "Countercharge fate", "Invert polarity"]
+    title: "🧼 Soap Opera",
+    lore: "Four talking soaps argue about who is cursed. Wash your hands of one.",
+    buttons: ["Grab the foamy screamer", "Rub the cube with teeth", "Pick the weeping lavender", "Toss the flirty lemon"]
   },
   {
-    title: "🕳️ Charmholes",
-    lore: "Jump into one. Guess what’s on the other side.",
-    buttons: ["Dive into the swirl", "Step into shadows", "Slide into the green glow", "Fall with eyes closed"]
+    title: "📅 Calendar of Catastrophe",
+    lore: "One of these days is your lucky day. The others… you don’t want to know.",
+    buttons: ["Circle Monday the 13th", "Rip out Wednesday", "Fold Sunday backwards", "Lick the leap day"]
   },
-{
-  title: "🧸 Twisted Toybox",
-  lore: "An old toybox creaks open. Inside: relics from a forgotten childhood. Some bite.",
-  buttons: ["Hug the patched bear", "Wind the rusty clown", "Pull the doll's string", "Open the music box"]
-},
-{
-  title: "🪓 The Chopping Block",
-  lore: "A game of choices—four levers, one blade. Will you kneel or rebel?",
-  buttons: ["Pull the green lever", "Smash the red one", "Whisper to the white", "Yank the black cord"]
-},
-{
-  title: "🐌 Slime Shrine",
-  lore: "The goo bubbles and beckons. The shrine demands tribute.",
-  buttons: ["Offer a tooth", "Touch the core", "Kiss the slime", "Throw in your shoe"]
-},
-{
-  title: "🖼️ Living Portraits",
-  lore: "Each painting shifts when you blink. Step into one… if you dare.",
-  buttons: ["Enter the storm scene", "Crawl through the fire", "Climb the spiral stairs", "Stand on the floating rock"]
-},
-{
-  title: "💤 Dream Shards",
-  lore: "You are half-asleep. Four doors appear in your dream. One leads home.",
-  buttons: ["Open the door of laughter", "Walk into the fog", "Slide beneath the mirror", "Fly into the crackling void"]
-},
-{
-  title: "🧤 Gloves of Fate",
-  lore: "These gloves don’t fit. They choose *you*. Which one will you wear?",
-  buttons: ["Glove of thorns", "Glove of whispers", "Glove of ink", "Glove of eyes"]
-},
-{
-  title: "🐀 Lab Maze",
-  lore: "The lights flicker. You are the experiment. Time to run.",
-  buttons: ["Turn left at the scratching", "Climb the air vent", "Follow the cheese", "Kick open the trapdoor"]
-},
-{
-  title: "🎓 Cursed Classroom",
-  lore: "A bell rings. You’re late. Four desks. One assignment. All graded by the charm.",
-  buttons: ["Read the dark textbook", "Sharpen the floating pencil", "Copy from the pale kid", "Hide under the desk"]
-},
-{
-  title: "🛁 Bathtub of Secrets",
-  lore: "It’s full. It’s warm. Something is… breathing inside.",
-  buttons: ["Reach below the foam", "Turn on the red tap", "Light the candle", "Whistle a lullaby"]
-},
-{
-  title: "🧵 Thread of Destiny",
-  lore: "Four threads dangle before you. Snip one, and weave your fate anew.",
-  buttons: ["Snip the gold thread", "Tie the frayed black", "Untangle the red spiral", "Burn the green loop"]
-}
-
-  
+  {
+    title: "🪑 Chair of Choices",
+    lore: "One chair is safe. The rest bite, collapse, or whisper secrets you can’t unhear.",
+    buttons: ["Sit on the cracked throne", "Balance on the slime stool", "Spin the carnival seat", "Float above the air chair"]
+  },
+  {
+    title: "🎂 Forgotten Birthdays",
+    lore: "Four cakes. One’s for you. The rest are... for others.",
+    buttons: ["Blow out all the candles", "Taste the sour frosting", "Eat the candle", "Cut the cake with a bone"]
+  },
+  {
+    title: "🐛 The Larva Lottery",
+    lore: "Each larva wiggles with potential. One becomes a butterfly. The rest? Problems.",
+    buttons: ["Adopt the chunky one", "Name the translucent squirm", "Pet the fuzzy mistake", "Feed the glowing worm"]
+  },
+  {
+    title: "📠 Fax From Beyond",
+    lore: "A dusty fax machine prints cryptic commands. Choose one and obey.",
+    buttons: ["Sign in blood", "Call the number back", "Fold the fax into origami", "Fax yourself instead"]
+  },
+  {
+    title: "🪚 Toolbox of Torment",
+    lore: "Each tool knows your secrets. They whisper to be chosen.",
+    buttons: ["Pick the laughing wrench", "Swing the sticky hammer", "Twist the warm screwdriver", "Nibble the measuring tape"]
+  },
+  {
+    title: "📒 Yearbook of Regrets",
+    lore: "You find a cursed yearbook. Choose someone’s memory to replace your own.",
+    buttons: ["Swap with 'Most Likely to Ascend'", "Take the page with no face", "Erase the principal", "Add yourself twice"]
+  },
+  {
+    title: "🎒 Backpack of Portals",
+    lore: "Each zipper leads somewhere else. One opens back here.",
+    buttons: ["Unzip the growling pocket", "Peek inside the infinity pouch", "Throw the whole thing", "Wear it and vanish"]
+  },
+  {
+    title: "🧊 Ice Cubes of Destiny",
+    lore: "One cube contains hope. The rest are frozen screams.",
+    buttons: ["Swallow the cube with an eye", "Hold the one that pulses", "Smash the jagged cube", "Give your cube a name"]
+  },
+  {
+    title: "📀 Cursed Mixtape",
+    lore: "Four tracks echo in your mind. One drops a banger. The rest… end you.",
+    buttons: ["Play Track 0", "Skip to the end", "Rewind forever", "Drop the mixtape"]
+  },
+  {
+    title: "🔑 Keys to the Unknown",
+    lore: "Four keys hang from a burning hook. Each unlocks a different doom.",
+    buttons: ["Turn the melting key", "Bite the chrome one", "Use the key with a tail", "Sing to the gold one"]
+  }
 ];
 
 // === Fate Lore Intros ===
@@ -393,83 +391,49 @@ let joinMessageLink = null;
 
 
  riddles = [
-  { riddle: "I speak without a mouth and hear without ears. What am I?", answer: "echo" },
-  { riddle: "The more you take, the more you leave behind. What are they?", answer: "footsteps" },
-  { riddle: "What has to be broken before you can use it?", answer: "egg" },
-  { riddle: "What runs but never walks, has a bed but never sleeps?", answer: "river" },
-  { riddle: "I am always hungry, must always be fed. What am I?", answer: "fire" },
-  { riddle: "I shrink smaller every time I take a bath. What am I?", answer: "soap" },
-  { riddle: "The more you remove, the bigger I get. What am I?", answer: "hole" },
-  { riddle: "I come once in a minute, twice in a moment, but never in a thousand years. What am I?", answer: "m" },
-  { riddle: "What invention lets you look through walls?", answer: "window" },
-  { riddle: "What can travel around the world while staying in the corner?", answer: "stamp" },
-  { riddle: "I have cities but no houses, forests but no trees, and rivers but no water. What am I?", answer: "map" },
-  { riddle: "What has a head, a tail, but no body?", answer: "coin" },
-  { riddle: "What has hands but can’t clap?", answer: "clock" },
-  { riddle: "The more you take away from me, the bigger I get. What am I?", answer: "hole" },
-  { riddle: "What has one eye but can’t see?", answer: "needle" },
-  { riddle: "What gets wetter as it dries?", answer: "towel" },
-  { riddle: "What belongs to you but other people use it more than you do?", answer: "your name" },
-  { riddle: "What has a neck but no head?", answer: "bottle" },
-  { riddle: "What can you catch but not throw?", answer: "cold" },
-  { riddle: "What has an eye but cannot see?", answer: "hurricane" },
-  { riddle: "What goes up but never comes down?", answer: "age" },
-  { riddle: "What comes once in a year, twice in a week, but never in a day?", answer: "e" },
-  { riddle: "What gets broken without being held?", answer: "promise" },
-  { riddle: "What kind of room has no doors or windows?", answer: "mushroom" },
-  { riddle: "What can fill a room but takes up no space?", answer: "light" },
-  { riddle: "What has many keys but can’t open a single lock?", answer: "piano" },
-  { riddle: "If you drop me, I’m sure to crack, but give me a smile and I’ll always smile back. What am I?", answer: "mirror" },
-  { riddle: "What can be cracked, made, told, and played?", answer: "joke" },
-  { riddle: "What can you break, even if you never pick it up or touch it?", answer: "promise" },
-  { riddle: "Where does today come before yesterday?", answer: "dictionary" },
-  { riddle: "What begins with T, ends with T, and has T in it?", answer: "teapot" },
-  { riddle: "What kind of band never plays music?", answer: "rubber band" },
-  { riddle: "What goes through cities and fields, but never moves?", answer: "road" },
-  { riddle: "What kind of tree can you carry in your hand?", answer: "palm" },
-  { riddle: "What has four wheels and flies?", answer: "garbage truck" },
-  { riddle: "What is full of holes but still holds water?", answer: "sponge" },
-  { riddle: "If you have me, you want to share me. If you share me, you don’t have me. What am I?", answer: "secret" },
-  { riddle: "What comes down but never goes up?", answer: "rain" },
-  { riddle: "What has a thumb and four fingers but is not alive?", answer: "glove" },
-  { riddle: "What begins with an E, but only contains one letter?", answer: "envelope" },
-  { riddle: "What do you throw out when you want to use it but take in when you don’t want to use it?", answer: "anchor" },
-  { riddle: "What has teeth but can’t bite?", answer: "comb" },
-  { riddle: "The more there is, the less you see. What is it?", answer: "darkness" },
-  { riddle: "What can run but never walks, has a mouth but never talks?", answer: "river" },
-  { riddle: "What has legs but doesn’t walk?", answer: "table" },
-  { riddle: "What kind of coat is best put on wet?", answer: "paint" },
-  { riddle: "What flies without wings?", answer: "time" },
-  { riddle: "What has roots as nobody sees, is taller than trees, up, up it goes, and yet never grows?", answer: "mountain" },
-  { riddle: "What can't be used until it is broken?", answer: "egg" },
-  { riddle: "What is so fragile that saying its name breaks it?", answer: "silence" },
-  { riddle: "What has a bottom at the top?", answer: "leg" },
-  { riddle: "What is easy to lift but hard to throw?", answer: "feather" },
-  { riddle: "What runs all around a backyard, yet never moves?", answer: "fence" },
-  { riddle: "What kind of cup can’t hold water?", answer: "cupcake" },
-  { riddle: "What has ears but cannot hear?", answer: "corn" },
-  { riddle: "What comes in many colors and is a favorite of children all over the world, yet it can’t be eaten?", answer: "crayon" },
-  { riddle: "What gets sharper the more you use it?", answer: "brain" },
-  { riddle: "What kind of ship has two mates but no captain?", answer: "relationship" },
-  { riddle: "What disappears the moment you say its name?", answer: "silence" },
-  { riddle: "What has a ring but no finger?", answer: "telephone" },
-  { riddle: "What goes up and down but never moves?", answer: "staircase" },
-  { riddle: "What can’t talk but will reply when spoken to?", answer: "echo" },
-  { riddle: "What can be seen once in a minute, twice in a moment, and never in a thousand years?", answer: "m" },
-  { riddle: "What has words but never speaks?", answer: "book" },
-  { riddle: "What has a spine but no bones?", answer: "book" },
-  { riddle: "I’m tall when I’m young, and I’m short when I’m old. What am I?", answer: "candle" },
-  { riddle: "What comes after thunder?", answer: "lightning" },
-  { riddle: "You buy me to eat but never eat me. What am I?", answer: "plate" },
-  { riddle: "What lives if fed, but dies if you give it a drink?", answer: "fire" },
-  { riddle: "What two things can you never eat for breakfast?", answer: "lunch and dinner" },
-  { riddle: "What travels faster: heat or cold?", answer: "heat" },
-  { riddle: "What has a face and two hands but no arms or legs?", answer: "clock" },
-  { riddle: "I’m always in front of you but can’t be seen. What am I?", answer: "future" },
-  { riddle: "What can you hold in your left hand but not your right?", answer: "your right elbow" },
-  { riddle: "What comes once in a minute, twice in a moment, but never in a thousand years?", answer: "m" }
+  { riddle: "I crawl inside your house without legs. I eat your time but never your food. What am I?", answer: "phone" },
+  { riddle: "The more you look, the less you see. Stare too long, and I stare back. What am I?", answer: "mirror" },
+  { riddle: "My breath is silent. My body is cold. I follow you home, but I was never born. What am I?", answer: "shadow" },
+  { riddle: "I was made to hold stories, but I never speak. I’ve got a spine, but I break easily. What am I?", answer: "book" },
+  { riddle: "I sit in corners but see the world. I never blink, but I always watch. What am I?", answer: "camera" },
+  { riddle: "I’m not food, but I’m fed. I’m not alive, but I grow. What am I?", answer: "fire" },
+  { riddle: "My words aren’t spoken, but they echo forever. You trust me with your secrets. What am I?", answer: "diary" },
+  { riddle: "Break me, and I vanish. Speak, and I die. What am I?", answer: "silence" },
+  { riddle: "You’ll find me in the pit, but I’m not a peach. I take your breath and whisper lies. What am I?", answer: "despair" },
+  { riddle: "I appear when you forget me. I vanish when you name me. What am I?", answer: "dream" },
+  { riddle: "I am not yours, but I wear your face. I know your steps before you take them. What am I?", answer: "reflection" },
+  { riddle: "You chase me in the morning and curse me at night. I slow time but never stop it. What am I?", answer: "fatigue" },
+  { riddle: "I never existed, but everyone remembers me. I change shape when you look away. What am I?", answer: "memory" },
+  { riddle: "I bleed numbers and eat seconds. My hands move but I don’t. What am I?", answer: "clock" },
+  { riddle: "I’m lighter than air, but I crush the soul. I haunt your quiet moments. What am I?", answer: "thought" },
+  { riddle: "I arrive with panic, stay without warning, and leave you shaking. What am I?", answer: "anxiety" },
+  { riddle: "I fill rooms but have no shape. I hide monsters behind me. What am I?", answer: "darkness" },
+  { riddle: "I drip when ignored, roar when angered, and leave nothing behind. What am I?", answer: "leak" },
+  { riddle: "You pull me from your mind and wear me like armor. I’m never real, but I protect you. What am I?", answer: "lie" },
+  { riddle: "You open me in anger. You close me in regret. I am silent but sharp. What am I?", answer: "mouth" },
+  { riddle: "I wait in your attic, creak in your walls, and appear when you're alone. What am I?", answer: "house" },
+  { riddle: "You cannot see me, but I change what you are. I seep into your voice. What am I?", answer: "emotion" },
+  { riddle: "I float above graves and whisper to the dirt. I’m not alive, but I linger. What am I?", answer: "ghost" },
+  { riddle: "I twist the truth and sharpen the tongue. I wear many masks. What am I?", answer: "gossip" },
+  { riddle: "I go up but never down. I grow old with you, but I’m invisible. What am I?", answers: ["age", "time"]},
+  { riddle: "I’m not alive, but I grow. I don’t have lungs, but I need air. I destroy everything I touch. What am I?", answers: ["fire", "flame"]},
+  { riddle: "I reflect but never speak. I crack under pressure. What am I?", answers: ["mirror", "glass"]},
+  { riddle: "I’m full of holes, yet I hold water. What am I?", answers: ["sponge", "net"]},
+  { riddle: "I have arms and hands but no fingers. I show your schedule but never the time. What am I?", answers: ["clock", "watch", "calendar"]},
+  { riddle: "You can find me on walls and faces. I tick but never talk. What am I?", answers: ["clock", "watch"]},
+  { riddle: "I never stop moving, but I never go anywhere. I flow, but I’m not alive. What am I?", answers: ["time", "river"]},
+  { riddle: "I come in many colors. Kids love me. I snap easily. What am I?", answers: ["crayon", "chalk", "colored pencil"]},
+  { riddle: "I travel around the world but always stay in the same place. What am I?", answers: ["stamp", "postage stamp"]},
+  { riddle: "I get sharper the more you use me. What am I?", answers: ["brain", "mind", "pencil"]},
+  { riddle: "I fall but never rise. I soften the world. What am I?", answers: ["snow", "rain"]},
+  { riddle: "What is never seen but always ahead? It can be shaped, but not held.", answers: ["future", "tomorrow"]},
+  { riddle: "What has a tail and may flick, but isn’t alive? It’s in your hand but isn’t your friend.", answers: ["coin", "comet"]},
+  { riddle: "You use me to eat, but you never eat me. What am I?", answers: ["plate", "fork", "spoon"]}
 ];
+
+
 const gauntletOverviewEmbed = new EmbedBuilder()
+  
   .setTitle('🌀 WELCOME TO THE GAUNTLET 🌀')
   .setDescription(
     "**A cursed survival game where each round throws you deeper into chaos.**\n\n" +
