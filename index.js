@@ -908,10 +908,11 @@ async function runIncentiveUnlock(channel) {
   await channel.send({ embeds: [embed] });
 
 const filter = m => {
-  if (!m.content) return false; // 👈 guard against undefined content
+  if (!m.content || typeof m.content !== 'string') return false;
   const guess = parseInt(m.content.trim());
   return !isNaN(guess) && guess >= 1 && guess <= 50 && !guesses.has(m.author.id);
 };
+
 
 
   const collector = channel.createMessageCollector({ filter, time: 10000 });
@@ -1085,36 +1086,39 @@ async function runRiddleEvent(channel, players) {
   const msg = await channel.send({ embeds: [embed] });
 
   const correctPlayers = new Set();
+
   const filter = m => {
-    return players.some(p => p.id === m.author.id) && m.content.toLowerCase().includes(answer.toLowerCase());
+    if (!m.content || typeof m.content !== 'string') return false;
+    const content = m.content.toLowerCase().trim();
+    const isPlayer = players.some(p => p.id === m.author.id);
+    return isPlayer && content.includes(answer.toLowerCase());
   };
 
   const collector = channel.createMessageCollector({ filter, time: countdown * 1000 });
 
   collector.on('collect', async msg => {
-    if (!correctPlayers.has(msg.author.id)) {
-      correctPlayers.add(msg.author.id);
+    const userId = msg.author.id;
 
-      const player = players.find(p => p.id === msg.author.id);
+    if (!correctPlayers.has(userId)) {
+      correctPlayers.add(userId);
+
+      const player = players.find(p => p.id === userId);
       if (player) player.lives += 1;
 
-      // Delete answer to keep it hidden
+      // Delete the answer to keep it secret
       await msg.delete().catch(() => {});
 
-      // Ephemeral confirmation
+      // Send confirmation (not truly ephemeral but only visible to them)
       await channel.send({
         content: `🔮 You answered correctly — the Oracle grants you **+1 life**.`,
-        flags: 64,
-        allowedMentions: { users: [msg.author.id] },
-        embeds: [],
-        components: []
-      }).catch(() => {});
+        allowedMentions: { users: [userId] }
+      }).then(m => setTimeout(() => m.delete().catch(() => {}), 4000));
     } else {
       await msg.delete().catch(() => {});
     }
   });
 
-  // Countdown embed updater
+  // Countdown updates
   const countdownIntervals = [25, 20, 15, 10, 5];
   for (const secondsLeft of countdownIntervals) {
     await wait(5000);
@@ -1133,6 +1137,7 @@ async function runRiddleEvent(channel, players) {
 
   await wait(5000);
 }
+
 
 // === Show Final Podium ===
 async function showPodium(channel, players) {
