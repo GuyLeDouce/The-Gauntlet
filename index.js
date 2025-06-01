@@ -703,7 +703,7 @@ async function runBossVotePhase(players, channel) {
       .setColor(0xff66ff);
 
     await channel.send({ embeds: [announce] });
-    await wait(2000);
+    await wait(5000);
     runGauntlet(players, channel);
   });
 }
@@ -729,7 +729,7 @@ async function runGauntlet(players, channel) {
       .setColor(0xaa00ff);
 
     await channel.send({ embeds: [introEmbed] });
-    await wait(2000);
+    await wait(5000);
 
     // === Embed 2: Run Mini-Game (with countdown) ===
     const miniGameResults = await runMiniGameEvent(active, channel, eventNumber);
@@ -767,6 +767,7 @@ if (finalists.length === 2 && finalists[0].lives === finalists[1].lives) {
 }
 
 // Once tiebreaker resolves or if no tie, show the podium
+  await runTiebreaker(channel, [...playerMap.values()]);
 await showPodium(channel, [...playerMap.values()]);
 
   activeGame = null;
@@ -1025,7 +1026,7 @@ async function displayEliminations(resultMap, channel) {
       const line = `${cat.emoji} <@${p.id}> ${cat.lore[Math.floor(Math.random() * cat.lore.length)]}`;
       embed.data.description += line + `\n`;
       await msg.edit({ embeds: [embed] });
-      await wait(400);
+      await wait(600);
     }
   }
 
@@ -1033,6 +1034,7 @@ async function displayEliminations(resultMap, channel) {
     embed.setDescription('The charm is silent. No one was claimed, no one returned.');
     await msg.edit({ embeds: [embed] });
   }
+  await wait(6000);
 }
 
 // === Riddle Phase with Countdown & Monster Image ===
@@ -1233,7 +1235,7 @@ async function showRematchButton(channel, finalPlayers) {
     components: [rematchRow]
   });
 
-  const collector = msg.createMessageComponentCollector({ time: 30_000 });
+  const collector = msg.createMessageComponentCollector({ time: 60_000 });
 
   collector.on('collect', async i => {
     if (!finalPlayers.find(p => p.id === i.user.id)) {
