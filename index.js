@@ -1087,12 +1087,17 @@ async function runRiddleEvent(channel, players) {
 
   const correctPlayers = new Set();
 
-  const filter = m => {
-    if (!m.content || typeof m.content !== 'string') return false;
+const filter = m => {
+  try {
+    if (!m || typeof m.content !== 'string') return false;
     const content = m.content.toLowerCase().trim();
     const isPlayer = players.some(p => p.id === m.author.id);
     return isPlayer && content.includes(answer.toLowerCase());
-  };
+  } catch (e) {
+    return false;
+  }
+};
+
 
   const collector = channel.createMessageCollector({ filter, time: countdown * 1000 });
 
