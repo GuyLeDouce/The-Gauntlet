@@ -1119,12 +1119,15 @@ async function showResultsRound(results, channel, players) {
 
 // === Riddle Phase with Countdown & Monster Image ===
 async function runRiddleEvent(channel, players) {
-  const { riddle, answer } = riddles[Math.floor(Math.random() * riddles.length)];
-  const answers = Array.isArray(answer) ? answer.map(a => a.toLowerCase().trim()) : [answer.toLowerCase().trim()];
-  const monsterImg = getMonsterImageUrl();
+  const { riddle, answers } = riddles[Math.floor(Math.random() * riddles.length)];
+  const safeAnswers = Array.isArray(answers)
+    ? answers.map(a => a?.toLowerCase().trim())
+    : [String(answers).toLowerCase().trim()];
 
+  const monsterImg = getMonsterImageUrl();
   const countdown = 30;
   const correctPlayers = new Set();
+
 
   const embed = new EmbedBuilder()
     .setTitle('🧠 Ugly Oracle Riddle')
