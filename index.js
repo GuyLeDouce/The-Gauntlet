@@ -26,7 +26,7 @@ const client = new Client({
 });
 
 // === PostgreSQL Setup ===
-const db = new PgClient({
+ db = new PgClient({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
@@ -63,17 +63,17 @@ db.connect()
 // === Global Game State ===
 let activeGame = null;
 let rematchCount = 0;
-const maxRematches = 4;
-const currentPlayers = new Map(); // userId => { username, lives }
-const eliminatedPlayers = new Map(); // userId => { username, eliminatedAt }
-const trialMode = false;
+ maxRematches = 4;
+ currentPlayers = new Map(); // userId => { username, lives }
+ eliminatedPlayers = new Map(); // userId => { username, eliminatedAt }
+ trialMode = false;
 let gameChannel = null;
 let joinMessageLink = null;
-const authorizedUsers = ['826581856400179210', '1288107772248064044'];
+ authorizedUsers = ['826581856400179210', '1288107772248064044'];
 
 
 // === Lore Arrays ===
-const funnyEliminations = [
+ funnyEliminations = [
   "🩴 tripped over their own sandal and fell into the Charmhole.",
   "🧠 tried to outthink the Oracle. Brain exploded like 🍉.",
   "🦴 challenged a Monster to a dance battle. Got breakdanced to death.",
@@ -150,7 +150,7 @@ const funnyEliminations = [
   "🎲 gambled everything on a 7-sided die. Rolled despair.",
   "📎 challenged reality with a paperclip. Paperclip won."
 ];
-  const frozenLore = [
+   frozenLore = [
   "❄️ Froze mid-click and vanished.",
   "🪞 Stared too long at the buttons and became one.",
   "🐌 Moved too slow for the charm to care.",
@@ -191,7 +191,7 @@ const funnyEliminations = [
   "🎤 Said 'Wait, wait!' The charm didn’t.",
   "💽 Buffering… still buffering…"
 ];
-const gainLifeLore = [
+ gainLifeLore = [
   "✨ absorbed ambient CHARM and gained a life!",
   "🫀 stole fate’s heartbeat. +1 life.",
   "🍀 rubbed a lucky token. It pulsed with life.",
@@ -223,7 +223,7 @@ const gainLifeLore = [
   "🧼 cleaned their aura. Found a spare life behind it.",
   "🪞 out-negotiated their reflection. Took its life instead."
 ];
-const reviveLore = [
+ reviveLore = [
   "🌪️ twisted their fate and returned to the arena!",
   "🌱 bloomed from the grave like a cursed daisy.",
   "💥 broke back in through pure chaos energy.",
@@ -257,7 +257,7 @@ const reviveLore = [
 ];
 
 // === Mini-Game Lore Pool (20 Variants) ===
-const miniGameLorePool = [
+ miniGameLorePool = [
   {
     title: "🌪️ Vortex of Options",
     lore: "The wind howls with malice. Choose a button and face the storm.",
@@ -363,7 +363,7 @@ const miniGameLorePool = [
 ];
 
 // === Fate Lore Intros ===
-const miniGameFateDescriptions = [
+ miniGameFateDescriptions = [
   "The charm stirs. Only one choice uplifts, the rest consume.",
   "Fate is sealed by your fingertip. Pick wrong and be erased.",
   "One button saves. The rest… echo with screams.",
@@ -392,7 +392,7 @@ const miniGameFateDescriptions = [
 ];
 
 
-const riddles = [
+ riddles = [
   { riddle: "I speak without a mouth and hear without ears. What am I?", answer: "echo" },
   { riddle: "The more you take, the more you leave behind. What are they?", answer: "footsteps" },
   { riddle: "What has to be broken before you can use it?", answer: "egg" },
@@ -469,16 +469,36 @@ const riddles = [
   { riddle: "What can you hold in your left hand but not your right?", answer: "your right elbow" },
   { riddle: "What comes once in a minute, twice in a moment, but never in a thousand years?", answer: "m" }
 ];
+const gauntletOverviewEmbed = new EmbedBuilder()
+  .setTitle('🌀 WELCOME TO THE GAUNTLET 🌀')
+  .setDescription(
+    "**A cursed survival game where each round throws you deeper into chaos.**\n\n" +
+    "🎮 **Mini-Games** *(open to everyone — alive, eliminated, or lurking)*\n" +
+    "Click a button and face one of **4 fates**:\n\n" +
+    "🔓 **+1 Life** – Gain a life or return from the dead\n" +
+    "💠 **Nothing** – Survive, untouched\n" +
+    "💥 **Dead** – Instant elimination, no matter your lives\n" +
+    "❄️ **-1 Life** – Lose one of your lives\n\n" +
+    "😶 *Inaction is death.*\n" +
+    "**50%** of inactive players are silently eliminated.\n\n" +
+    "🧠 **Oracle Riddles** – Answer in 30 sec for **+1 Life**\n" +
+    "⌛ Type `/life` or `!life` to check your lives\n\n" +
+    "📸 Your Ugly or Monster NFT appears when you fall\n" +
+    "🏆 Top 3 rise to the podium. Stats are forever.\n\n" +
+    "*This isn’t luck. It’s malformed destiny.*\n\n" +
+    "⚔️ **Click. Survive. Ascend.**"
+  )
+  .setColor(0x9b59b6);
 
 
 // === NFT Image Fetching ===
 function getUglyImageUrl() {
-  const tokenId = Math.floor(Math.random() * 615) + 1;
+   tokenId = Math.floor(Math.random() * 615) + 1;
   return `https://ipfs.io/ipfs/bafybeie5o7afc4yxyv3xx4jhfjzqugjwl25wuauwn3554jrp26mlcmprhe/${tokenId}`;
 }
 
 function getMonsterImageUrl() {
-  const tokenId = Math.floor(Math.random() * 126) + 1;
+   tokenId = Math.floor(Math.random() * 126) + 1;
   return `https://ipfs.io/ipfs/bafybeicydaui66527mumvml5ushq5ngloqklh6rh7hv3oki2ieo6q25ns4/${tokenId}.webp`;
 }
 
@@ -488,15 +508,15 @@ function wait(ms) {
 }
 
 function getCurrentMonthYear() {
-  const now = new Date();
+   now = new Date();
   return { year: now.getFullYear(), month: now.getMonth() + 1 };
 }
 // === Gauntlet Command: Public Join Phase ===
 client.on('messageCreate', async (message) => {
   if (message.content.startsWith('!gauntlet')) {
-  if (!authorizedUsers.includes(message.author.id)) {
-    return message.reply("⛔ Only authorized users can start the Gauntlet.");
-  }
+    if (!authorizedUsers.includes(message.author.id)) {
+      return message.reply("⛔ Only authorized users can start the Gauntlet.");
+    }
 
     const minutes = parseFloat(message.content.split(' ')[1]) || 1;
     if (activeGame) return message.reply('⛔ A Gauntlet is already running!');
@@ -511,13 +531,37 @@ client.on('messageCreate', async (message) => {
 
     const joinRow = new ActionRowBuilder().addComponents(joinButton);
 
-const joinEmbed = new EmbedBuilder()
-  .setTitle('⚔️ A New Gauntlet Is Forming...')
-  .setDescription(`Click the button below to enter the arena!\n\n⏳ Starts in **${minutes} minute(s)**\n👥 Joined: **0** players`)
-  .setImage('https://media.discordapp.net/attachments/1086418283131048156/1378206999421915187/The_Gauntlet.png?ex=683bc2ca&is=683a714a&hm=f9ca4a5ebcb5a636b7ce2946fd3c4779f58809b183ea1720a44d04f45c3b8b36&=&format=webp&quality=lossless&width=930&height=930') // ⬅️ Update this URL
-  .setColor(0x880088);
+    const joinEmbed = new EmbedBuilder()
+      .setTitle('⚔️ A New Gauntlet Is Forming...')
+      .setDescription(`Click the button below to enter the arena!\n\n⏳ Starts in **${minutes} minute(s)**\n👥 Joined: **0** players`)
+      .setImage('https://media.discordapp.net/attachments/1086418283131048156/1378206999421915187/The_Gauntlet.png?ex=683bc2ca&is=683a714a&hm=f9ca4a5ebcb5a636b7ce2946fd3c4779f58809b183ea1720a44d04f45c3b8b36&=&format=webp&quality=lossless&width=930&height=930')
+      .setColor(0x880088);
 
+    const gauntletOverviewEmbed = new EmbedBuilder()
+      .setTitle('🌌✨ 𝙏𝙃𝙀 𝙂𝘼𝙐𝙉𝙏𝙇𝙀𝙏: 𝘼 𝘾𝙐𝙍𝙎𝙀𝘿 𝘾𝙃𝘼𝙇𝙄𝘾𝙀 ✨🌌')
+      .setDescription(
+        `**Each round tears deeper into the void.**\nChoose wisely... or be erased.\n\n` +
+        `🎮 **Mini-Games** *(open to ALL — alive, dead, or just watching)*\nClick to tempt fate... and face one of **4 warped outcomes**:\n\n` +
+        `🔓 **+1 Life** – The charm blesses you. Rise again.\n` +
+        `💠 **Nothing** – You remain... unchanged.\n` +
+        `💥 **Dead** – You explode in silence. No lives can save you.\n` +
+        `❄️ **-1 Life** – The charm saps your strength. One life lost.\n\n` +
+        `😶 **Inaction = Death** — *50% of those who don’t click are erased without warning.*\n\n` +
+        `🔮 **Oracle Riddles** – Solve within 30 sec to gain **+1 Life** from the Ugly Oracle.\n` +
+        `⌛ Type \`!life\` or \`/life\` to check your soul’s status.\n\n` +
+        `📸 When you fall, your **Ugly** or **Monster** NFT is summoned.\n` +
+        `🏆 Top 3 stand on the final **Podium of Pain**. Your stats are eternal.\n\n` +
+        `*This is not a game. It’s a ritual.*\n*This is not luck. It’s malformed destiny.*\n\n` +
+        `⚔️ **𝘾𝙇𝙄𝘾𝙆. 𝙎𝙐𝙍𝙑𝙄𝙑𝙀. 𝘼𝙎𝘾𝙀𝙉𝘿.** ⚔️`
+      )
+      .setColor(0x6e00aa)
+      .setThumbnail('https://media.discordapp.net/attachments/1086418283131048156/1378206999421915187/The_Gauntlet.png?ex=683bc2ca&is=683a714a&hm=f9ca4a5ebcb5a636b7ce2946fd3c4779f58809b183ea1720a44d04f45c3b8b36&=&format=webp&quality=lossless&width=128&height=128')
+      .setFooter({ text: '💀 The charm is always watching.' });
 
+    // Send the animated overview first
+    await message.channel.send({ embeds: [gauntletOverviewEmbed] });
+
+    // Then send the join message
     const msg = await message.channel.send({
       content: '@everyone ⚔️ A new Gauntlet is forming!',
       embeds: [joinEmbed],
@@ -559,6 +603,7 @@ const joinEmbed = new EmbedBuilder()
     }, minutes * 60_000);
   }
 });
+
 client.on('messageCreate', async (message) => {
   if (message.content === '!testgauntlet') {
   if (!authorizedUsers.includes(message.author.id)) {
@@ -1051,38 +1096,51 @@ async function showPodium(channel, players) {
   const alive = players.filter(p => p.lives > 0);
   const ranked = [...alive].sort((a, b) => b.lives - a.lives);
 
-  // Fill up to 3 if fewer than 3 survived
+  // Fill with longest-lasting fallen players if fewer than 3 survived
   while (ranked.length < 3) {
     const fillers = players.filter(p => !ranked.includes(p)).slice(0, 3 - ranked.length);
     ranked.push(...fillers);
   }
 
-  // Determine top 3 by lives
   const top3 = ranked.slice(0, 3);
   const maxLives = top3[0]?.lives || 0;
   const tied = top3.filter(p => p.lives === maxLives);
 
-  const medals = ['🥇', '🥈', '🥉'];
+  const medals = ['👑🥇', '🩸🥈', '💀🥉'];
+  const titles = [
+    "⚔️ **Champion of the Charm** ⚔️",
+    "🌑 **Scarred But Standing** 🌑",
+    "🕳️ **Last One Dragged from the Void** 🕳️"
+  ];
+
   const fields = top3.map((p, i) => ({
     name: `${medals[i]} ${p.username}`,
-    value: `Lives remaining: **${p.lives}**`,
-    inline: true
+    value: `${titles[i]}\nLives Remaining: **${p.lives}**`,
+    inline: false
   }));
 
   const embed = new EmbedBuilder()
-    .setTitle('🏁 The Gauntlet Has Ended!')
-    .setDescription('Here are the Top 3 survivors of the Ugly Trials:')
+    .setTitle('🌌👁‍🗨️ 𝙏𝙃𝙀 𝙁𝙄𝙉𝘼𝙇 𝙋𝙊𝘿𝙄𝙐𝙈 👁‍🗨️🌌')
+    .setDescription(
+      `The arena falls silent...\n` +
+      `Only the echoes of chaos remain.\n\n` +
+      `🏆 *Here stand the final 3 who braved the Gauntlet:*`
+    )
     .addFields(fields)
-    .setColor(0xf5c518);
+    .setColor(0x8e44ad)
+    .setThumbnail('https://media.discordapp.net/attachments/1086418283131048156/1378206999421915187/The_Gauntlet.png?format=webp&quality=lossless&width=128&height=128')
+    .setFooter({ text: '💀 The charm remembers all...' });
 
   await channel.send({ embeds: [embed] });
 
-  // If there’s a full tie for first (2 or 3 players), do a sudden death round
+  // ⚖️ Sudden Death Duel if tied for 1st place
   if (tied.length > 1) {
-    await channel.send(`⚖️ Tiebreaker required! ${tied.map(p => p.username).join(', ')} all have ${maxLives} lives!`);
+    await channel.send(`⚖️ **TIEBREAKER!**\nMultiple players remain with **${maxLives} lives**!\n` +
+      `A sudden death round will decide who wears the crown...`);
     await runTiebreaker(channel, tied);
   }
 }
+
 
 
 // === Sudden Death Button Duel ===
