@@ -699,8 +699,26 @@ async function runGauntlet(players, channel) {
     // === Embed 2: Run Mini-Game (with countdown) ===
     const miniGameResults = await runMiniGameEvent(active, channel, eventNumber);
 
-    // === Embed 3: Show Elimination Results One-by-One ===
-   await showResultsRound(miniGameResults, channel, players);
+    // === Apply Results to Player Lives ===
+    for (const [userId, outcome] of miniGameResults.entries()) {
+      const player = playerMap.get(userId);
+      if (!player) continue;
+
+      if (outcome === 'gain') {
+        if (player.lives <= 0) {
+          player.lives = 1; // Revived
+        } else {
+          player.lives += 1;
+        }
+      } else if (outcome === 'lose') {
+        player.lives = Math.max(0, player.lives - 1);
+      } else if (outcome === 'eliminate' || outcome === 'frozen') {
+        player.lives = 0;
+      }
+    }
+
+    // === Embed 3: Show Results of the Round ===
+    await showResultsRound(miniGameResults, channel, [...playerMap.values()]);
 
     // === Riddle Phase with Countdown and Pause ===
     await runRiddleEvent(channel, active);
@@ -709,7 +727,7 @@ async function runGauntlet(players, channel) {
     for (let player of active) {
       if (player.lives <= 0 && !eliminated.has(player.id)) {
         eliminated.set(player.id, player);
-        currentPlayers.delete(player.id);
+        if (currentPlayers) currentPlayers.delete(player.id);
       }
     }
 
@@ -736,7 +754,7 @@ async function runGauntlet(players, channel) {
     await wait(3000);
   }
 
-  await showPodium(channel, players);
+  await showPodium(channel, [...playerMap.values()]);
 
   activeGame = null;
   rematchCount++;
@@ -744,9 +762,10 @@ async function runGauntlet(players, channel) {
     await showRematchButton(channel, [...playerMap.values()]);
   }
 }
+
 // === Mini-Game Event with Countdown and Secret Outcome ===
 async function runMiniGameEvent(players, channel, eventNumber) {
-  const outcomeTypes = ['lose', 'gain', 'eliminate', 'safe'];
+  const outcomeTypes = ['gain', 'lose', 'eliminate', 'safe'];
   const randomOutcome = () => outcomeTypes[Math.floor(Math.random() * outcomeTypes.length)];
   const randomStyle = () => [
     ButtonStyle.Primary,
@@ -757,6 +776,7 @@ async function runMiniGameEvent(players, channel, eventNumber) {
 
   const resultMap = new Map();
   const clickedPlayers = new Set();
+
   const chosenLore = miniGameLorePool[Math.floor(Math.random() * miniGameLorePool.length)];
   const fateLine = miniGameFateDescriptions[Math.floor(Math.random() * miniGameFateDescriptions.length)];
   const buttonLabels = chosenLore.buttons;
@@ -784,7 +804,6 @@ async function runMiniGameEvent(players, channel, eventNumber) {
 
   const message = await channel.send({ embeds: [embed], components: [row] });
 
-  // === Start the collector for 20 seconds ===
   const collector = message.createMessageComponentCollector({ time: 20000 });
 
   collector.on('collect', async i => {
@@ -802,78 +821,71 @@ async function runMiniGameEvent(players, channel, eventNumber) {
     let player = players.find(p => p.id === i.user.id);
 
     if (!player) {
+      // Non-player clicked — allow entry on 'gain'
       if (outcome === 'gain') {
         const revived = { id: i.user.id, username: i.user.username, lives: 1 };
         players.push(revived);
         activeGame.players.set(i.user.id, revived);
         currentPlayers.set(i.user.id, revived);
-        await i.reply({ content: `💫 You selected **${displayText}** and were PULLED INTO THE GAUNTLET!`, flags: 64 });
+        await i.reply({ content: `💫 You selected **${displayText}** and were **PULLED INTO THE GAUNTLET!**`, flags: 64 });
       } else {
-        return i.reply({ content: `❌ You selected **${displayText}** but fate denied your re-entry.`, flags: 64 });
+        return i.reply({ content: `❌ You selected **${displayText}** but fate denied your entry.`, flags: 64 });
       }
-    } else {
-      if (player.lives <= 0) {
-        return i.reply({ content: `💀 You are already eliminated and cannot be harmed or revived by this choice.`, flags: 64 });
-      }
-
-      if (outcome === 'eliminate') player.lives = 0;
-      else if (outcome === 'lose') player.lives -= 1;
-      else if (outcome === 'gain') player.lives += 1;
-
-      const emojiMap = {
-        gain: '❤️ You gained a life!',
-        lose: '💢 You lost a life!',
-        eliminate: '💀 You were instantly eliminated!',
-        safe: '😶 You survived untouched.'
-      };
-
-      await i.reply({ content: `🔘 You selected **${displayText}** → ${emojiMap[outcome]}`, flags: 64 });
+      return;
     }
+
+    // Player is valid and alive
+    if (player.lives <= 0) {
+      return i.reply({ content: `💀 You are already eliminated and cannot be harmed or revived.`, flags: 64 });
+    }
+
+    const emojiMap = {
+      gain: '❤️ You gained a life!',
+      lose: '💢 You lost a life!',
+      eliminate: '💀 You were instantly eliminated!',
+      safe: '😶 You survived untouched.'
+    };
+
+    await i.reply({ content: `🔘 You selected **${displayText}** → ${emojiMap[outcome]}`, flags: 64 });
   });
 
-  // === Countdown UI updates ===
+  // === Countdown Timer Update ===
   for (let timeLeft of [15, 10, 5]) {
     await wait(5000);
     embed.setDescription(`${chosenLore.lore}\n\n${fateLine}\n\n⏳ Time left: **${timeLeft} seconds**`);
     await message.edit({ embeds: [embed] });
   }
 
-  await wait(5000); // Final 5 seconds
+  await wait(5000); // Final countdown
 
-  // === Collector ends — evaluate non-clickers ===
-  const frozenPlayers = [];
+  // === Handle Inactive Players ===
   for (let player of players) {
     if (player.lives <= 0) continue;
     if (!clickedPlayers.has(player.id)) {
       const eliminated = Math.random() < 0.5;
       resultMap.set(player.id, eliminated ? 'eliminate' : 'ignored');
-      if (eliminated) player.lives = 0;
-
-      frozenPlayers.push({
-        username: player.username,
-        eliminated,
-        lore: frozenLore[Math.floor(Math.random() * frozenLore.length)]
-      });
     }
   }
 
   return resultMap;
 }
 
+
 // === Mint Incentive Ops ===
+// === Mint Incentive Ops (with Emoji Reaction + Reply) ===
 async function runIncentiveUnlock(channel) {
   const targetNumber = Math.floor(Math.random() * 50) + 1;
   const guesses = new Map(); // user.id => guessed number
+  const correctMessages = [];
 
   const incentiveRewards = [
     '🎁 Mint 3 Uglys → Get 1 Free!',
     '💸 Every mint earns **double $CHARM**!',
     '👹 Only 2 burns needed to summon a Monster!',
-    ];
+  ];
 
   const monsterImg = getMonsterImageUrl();
 
-  // --- Initial prompt
   const embed = new EmbedBuilder()
     .setTitle('🧠 Incentive Unlock Challenge')
     .setDescription(
@@ -896,11 +908,29 @@ async function runIncentiveUnlock(channel) {
   const collector = channel.createMessageCollector({ filter, time: 10000 });
 
   collector.on('collect', msg => {
-    guesses.set(msg.author.id, parseInt(msg.content.trim()));
+    const guess = parseInt(msg.content.trim());
+    guesses.set(msg.author.id, guess);
+
+    if (guess === targetNumber) {
+      correctMessages.push(msg); // Save the message to react and reply to later
+    }
   });
 
   collector.on('end', async () => {
-    const winners = [...guesses.entries()].filter(([_, num]) => num === targetNumber).map(([id]) => `<@${id}>`);
+    // React + reply to correct guesses
+    for (const msg of correctMessages) {
+      try {
+        await msg.react('✅');
+        await msg.reply({
+          content: `🎯 You guessed it! **${targetNumber}** was correct — you helped unlock the incentive!`,
+          allowedMentions: { repliedUser: true }
+        });
+      } catch (err) {
+        console.error('Failed to react or reply to a correct guess:', err);
+      }
+    }
+
+    const winners = correctMessages.map(m => `<@${m.author.id}>`);
 
     if (winners.length > 0) {
       const incentive = incentiveRewards[Math.floor(Math.random() * incentiveRewards.length)];
@@ -936,8 +966,8 @@ async function runIncentiveUnlock(channel) {
 }
 
 
-// === Display Unified Results ===
-// === Show Results Round (Dramatic Lore Edition) ===
+
+
 // === Show Results Round (Dramatic Lore Edition) ===
 async function showResultsRound(results, channel, players) {
   const gained = [];
