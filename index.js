@@ -744,7 +744,6 @@ async function runGauntlet(players, channel) {
     await showRematchButton(channel, [...playerMap.values()]);
   }
 }
-
 // === Mini-Game Event with Countdown and Secret Outcome ===
 async function runMiniGameEvent(players, channel, eventNumber) {
   const outcomeTypes = ['lose', 'gain', 'eliminate', 'safe'];
@@ -1110,7 +1109,7 @@ async function showPodium(channel, players) {
     .setFooter({ text: '💀 The charm remembers all...' });
 
   await channel.send({ embeds: [embed] });
-
+}
 // === Sudden Death Button Duel: The Final Ritual ===
 async function runTiebreaker(channel, tiedPlayers) {
   const introEmbed = new EmbedBuilder()
