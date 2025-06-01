@@ -150,6 +150,62 @@ const funnyEliminations = [
   "🎲 gambled everything on a 7-sided die. Rolled despair.",
   "📎 challenged reality with a paperclip. Paperclip won."
 ];
+const lostLifeMoments = [
+  "🥴 tried to freestyle a chant. Summoned a headache and lost a life.",
+  "🪙 flipped a CHARM coin and called ‘banana.’ Wrong.",
+  "💅 paused to touch up their glam. The ritual did not approve.",
+  "🍄 stepped on a glowing mushroom. Now slightly glitchy.",
+  "📦 hid in a box labeled ‘Definitely Not Me’. It almost worked.",
+  "📀 rewound a cursed VHS. Got flashbanged by 1997.",
+  "🎯 aimed for glory. Hit a tree.",
+  "🪩 brought a disco ball to the silence round. Lost a vibe… and a life.",
+  "🧤 wore slippery gloves. Fate button slid. Oops.",
+  "🐟 slapped a Monster with a fish. It was not amused.",
+  "📢 shouted 'I GOT THIS!' — didn’t.",
+  "🛹 ollied over the Oracle. Landed in a plot hole.",
+  "📎 tried to unlock a fate door with a paperclip. Got zapped.",
+  "🥒 mistook a relic for a pickle. Bit into doom.",
+  "🍳 cooked breakfast during the trial. Got lightly scrambled.",
+  "🧃 sipped ancient charmjuice. Lost a life and maybe some dignity.",
+  "👑 declared themselves Champion. The Gauntlet rolled its eyes.",
+  "🎩 pulled a worm from their hat. Wrong ritual.",
+  "🪕 strummed a forbidden chord. Lore vibrated them backwards.",
+  "🧦 wore mismatched socks. Slipped through dimensions slightly.",
+  "🐌 raced a snail. Lost. Shame cost them 1 life.",
+  "💼 opened a briefcase of secrets. Lost 1 life and 3 braincells.",
+  "🕹️ mashed buttons like it was a game. The Gauntlet noticed.",
+  "🧊 tried to cool off in the Charmhole. Caught a cold. Lost a life.",
+  "📺 stared at static for too long. Mind melted a bit.",
+  "🧤 slapped fate with a velvet glove. Fate slapped back.",
+  "🎈 floated mid-trial chanting ‘I am air.’ Popped.",
+  "🪑 chose the comfy chair. It bit them.",
+  "🪥 brushed their teeth with Monster paste. Tingly… then ouch.",
+  "🐸 kissed the wrong frog. Lost a life, gained regrets.",
+  "📿 juggled fate beads. Dropped one. The important one.",
+  "🥽 wore safety goggles. Still lost a life. Irony.",
+  "🍔 ordered food from the Lore Café. Bit into mystery. Lost a life.",
+  "🛁 took a bubble bath in cursed foam. Still squeaky clean, just minus 1 life.",
+  "🎮 tried the Konami Code. Got a lore strike instead.",
+  "🍌 slipped on an imaginary banana. It worked.",
+  "🕳️ peeked into a metaphor. Fell halfway in.",
+  "🧻 TP’d the Charm Tree. It TP’d them back.",
+  "🎣 tried to fish in the Portal Pool. Hooked a whisper.",
+  "🔋 licked a fate battery. Buzzed. Lost 1 life.",
+  "🪞 winked at their reflection. It winked first. Confidence shook.",
+  "🥤 spilled charmshake on the floor. Slipped in consequences.",
+  "📖 skipped the footnotes. They were important.",
+  "🪰 annoyed the Ritual Fly. Got divebombed by fate.",
+  "🛎️ rang the forbidden bell. Got dinged for 1 life.",
+  "📸 photobombed the Oracle. The photo came out cursed.",
+  "🧻 wrote their name in the Book of Maybe. It updated to ‘Probably.’",
+  "🕯️ blew out a ritual candle. Mood ruined. Life lost.",
+  "🐍 tried to high five a snake. Got hissed into minus one.",
+  "🧲 magnetized themselves to the wrong timeline. Had to wiggle free.",
+  "🍭 licked the mystery lolly. Flavor: ‘1 less life.’",
+  "🛷 sledded down Lore Hill. Bonked a prophecy.",
+  "🪩 threw a dance party. Lost a life to the beat drop."
+];
+
  const frozenLore = [
   "❄️ Froze mid-click and vanished.",
   "🪞 Stared too long at the buttons and became one.",
@@ -673,57 +729,42 @@ async function runBossVotePhase(players, channel) {
 }
 // === Main Gauntlet Game Loop ===
 async function runGauntlet(players, channel) {
-  const playerMap = new Map(players);
+  const playerMap = new Map(players.map(p => [p.id, p]));
   let eliminated = new Map();
   let eventNumber = 1;
   let incentiveTriggered = false;
-  let active = [...playerMap.values()];
   const maxEvents = 100;
   const originalCount = players.length;
-  let incentiveTriggeredThisRound = false;
 
+  let active = [...playerMap.values()];
 
   while (active.length > 3 && eventNumber <= maxEvents) {
-  incentiveTriggeredThisRound = false; // reset each round
-    const eventTitle = `⚔️ Event #${eventNumber}`;
-    const loreIntro = `🌀 *The warp churns... new horrors rise...*`;
-    const nftImg = getUglyImageUrl();
-
     // === Embed 1: Lore & Ugly Image ===
     const introEmbed = new EmbedBuilder()
-      .setTitle(eventTitle)
-      .setDescription(loreIntro)
-      .setImage(nftImg)
+      .setTitle(`⚔️ Event #${eventNumber}`)
+      .setDescription(`🌀 *The warp churns... new horrors rise...*`)
+      .setImage(getUglyImageUrl())
       .setColor(0xaa00ff);
-
     await channel.send({ embeds: [introEmbed] });
     await wait(5000);
 
-    // === Embed 2: Run Mini-Game (with countdown) ===
+    // === Embed 2: Mini-Game ===
     const miniGameResults = await runMiniGameEvent(active, channel, eventNumber);
 
-    // === Apply Results to Player Lives ===
+    // === Apply Mini-Game Outcomes ===
     for (const [userId, outcome] of miniGameResults.entries()) {
       const player = playerMap.get(userId);
       if (!player) continue;
-
-      if (outcome === 'gain') {
-        if (player.lives <= 0) {
-          player.lives = 1; // Revived
-        } else {
-          player.lives += 1;
-        }
-      } else if (outcome === 'lose') {
-        player.lives = Math.max(0, player.lives - 1);
-      } else if (outcome === 'eliminate' || outcome === 'frozen') {
-        player.lives = 0;
-      }
+      if (outcome === 'gain') player.lives = player.lives <= 0 ? 1 : player.lives + 1;
+      else if (outcome === 'lose') player.lives = Math.max(0, player.lives - 1);
+      else if (outcome === 'eliminate' || outcome === 'frozen') player.lives = 0;
     }
 
-    // === Embed 3: Show Results of the Round ===
+    // === Embed 3: Results Round ===
     await showResultsRound(miniGameResults, channel, [...playerMap.values()]);
+    await wait(6000);
 
-    // === Riddle Phase with Countdown and Pause ===
+    // === Riddle Phase ===
     await runRiddleEvent(channel, active);
 
     // === Remove Dead Players ===
@@ -734,41 +775,44 @@ async function runGauntlet(players, channel) {
       }
     }
 
+    // === Update Active Players ===
     active = [...playerMap.values()].filter(p => !eliminated.has(p.id));
 
-// === Incentive Unlock Trigger ===
-if (!incentiveTriggered && !incentiveTriggeredThisRound && active.length <= Math.floor(originalCount / 2)) {
-  incentiveTriggered = true;
-  incentiveTriggeredThisRound = true;
-  await runIncentiveUnlock(channel);
-} else {
-  incentiveTriggeredThisRound = false;
-}
-
+    // === Incentive Unlock Trigger (Only Once) ===
+    if (!incentiveTriggered && active.length <= Math.floor(originalCount / 2)) {
+      incentiveTriggered = true;
+      await runIncentiveUnlock(channel);
+      await wait(3000);
+    }
 
     eventNumber++;
     await wait(3000);
   }
 
-  // === Final Check for Tie ===
-  const finalists = [...playerMap.values()].filter(p => p.lives > 0);
-  const maxLives = Math.max(...finalists.map(p => p.lives));
-  const tied = finalists.filter(p => p.lives === maxLives);
+  // === Endgame: Ritual or Podium ===
+  const survivors = [...playerMap.values()].filter(p => p.lives > 0);
 
-  if (tied.length > 1) {
-    await channel.send(`⚖️ **TIEBREAKER!**\nMultiple players remain with **${maxLives} lives**!\nA sudden death round will decide who wears the crown...`);
-    await runTiebreaker(channel, tied);
+  if (survivors.length > 1) {
+    await channel.send(`🔮 **FINAL RITUAL**\nToo many remain... The charm demands one final judgment.`);
+    await runFinalRitual(survivors, channel);
     await wait(3000);
+  } else if (survivors.length === 1) {
+    await channel.send(`👑 Only one remains...`);
+  } else {
+    await channel.send(`💀 No survivors remain. The arena claims them all.`);
   }
 
+  // === Final Podium ===
   await showPodium(channel, [...playerMap.values()]);
-
   activeGame = null;
+
+  // === Rematch Offer ===
   rematchCount++;
   if (rematchCount < maxRematches) {
     await showRematchButton(channel, [...playerMap.values()]);
   }
 }
+
 
 // === Mini-Game Event with Countdown and Secret Outcome ===
 async function runMiniGameEvent(players, channel, eventNumber) {
@@ -997,52 +1041,34 @@ async function showResultsRound(results, channel, players) {
   const inactivity = [];
 
   const flavor = {
-    gained: [
-      "The charm pulses… a life is restored.",
-      "A flicker of hope surges through them.",
-      "They feel stronger. Bolder. Uglier."
-    ],
-    lost: [
-      "A sharp pain — something was taken.",
-      "A whisper fades from the void.",
-      "A thread of life slips away..."
-    ],
-    revived: [
-      "The warp cracks… and something returns.",
-      "Against all odds, they claw back in.",
-      "The charm drags them from the pit."
-    ],
-    eliminated: [
-      "Their fate was sealed. The charm chose violence.",
-      "Gone in a blink. No trace remains.",
-      "The arena devours without remorse."
-    ],
-    inactivity: [
-      "They stood still. The charm did not.",
-      "Frozen in fear — and the warp punished them.",
-      "Inaction is death when chaos reigns."
-    ]
+    gained: gainLifeLore,
+    lost: lostLifeMoments,
+    revived: reviveLore,
+    eliminated: funnyEliminations,
+    inactivity: frozenLore
   };
 
   for (let player of players) {
     const outcome = results.get(player.id);
     if (!outcome) continue;
 
-    if (player.lives <= 0 && outcome === 'eliminate') {
-      eliminated.push(player);
-    } else if (player.lives <= 0 && outcome === 'ignored') {
-      inactivity.push(player);
-    } else if (outcome === 'gain') {
-      if (player.lives === 1) revived.push(player);
+    const wasDead = player.lives === 0;
+
+    if (outcome === 'gain') {
+      if (wasDead) revived.push(player);
       else gained.push(player);
     } else if (outcome === 'lose') {
       lost.push(player);
+    } else if (outcome === 'eliminate') {
+      eliminated.push(player);
+    } else if (outcome === 'ignored') {
+      inactivity.push(player);
     }
   }
 
   const embed = new EmbedBuilder()
     .setTitle('📜 Results Round')
-    .setDescription(`The ritual is complete. The charm surveys the survivors...`)
+    .setDescription('The ritual is complete. The charm surveys the survivors...')
     .setColor(0xff66cc);
 
   const msg = await channel.send({ embeds: [embed] });
@@ -1050,20 +1076,20 @@ async function showResultsRound(results, channel, players) {
   const addFieldSlowly = async (title, list, key) => {
     if (!list.length) return;
 
-    // Create the field with just the title and a placeholder
-    embed.addFields({ name: `${title}`, value: ' ', inline: false });
+    embed.addFields({ name: title, value: '‎', inline: false }); // invisible char to init
     await msg.edit({ embeds: [embed] });
 
     for (let p of list) {
-      const line = `${flavor[key][Math.floor(Math.random() * flavor[key].length)]} <@${p.id}>`;
+      const flavorList = flavor[key];
+      const randomLine = flavorList[Math.floor(Math.random() * flavorList.length)] || '';
       const fieldIndex = embed.data.fields.findIndex(f => f.name === title);
-      embed.data.fields[fieldIndex].value += `${line}\n`;
+      embed.data.fields[fieldIndex].value += `${randomLine} <@${p.id}>\n`;
       await msg.edit({ embeds: [embed] });
       await wait(600);
     }
   };
 
-  await addFieldSlowly('🩸 Gained a Life', gained, 'gained');
+  await addFieldSlowly('❤️ Gained a Life', gained, 'gained');
   await addFieldSlowly('💢 Lost a Life', lost, 'lost');
   await addFieldSlowly('💫 Brought Back to Life', revived, 'revived');
   await addFieldSlowly('☠️ Eliminated by the Mini-Game', eliminated, 'eliminated');
@@ -1083,9 +1109,12 @@ async function showResultsRound(results, channel, players) {
 // === Riddle Phase with Countdown & Monster Image ===
 async function runRiddleEvent(channel, players) {
   const { riddle, answer } = riddles[Math.floor(Math.random() * riddles.length)];
+  const answers = Array.isArray(answer) ? answer.map(a => a.toLowerCase().trim()) : [answer.toLowerCase().trim()];
   const monsterImg = getMonsterImageUrl();
 
-  let countdown = 30;
+  const countdown = 30;
+  const correctPlayers = new Set();
+
   const embed = new EmbedBuilder()
     .setTitle('🧠 Ugly Oracle Riddle')
     .setDescription(`**“${riddle}”**\n\nType the correct answer in chat.\n⏳ Time left: **${countdown} seconds**`)
@@ -1095,33 +1124,22 @@ async function runRiddleEvent(channel, players) {
 
   const msg = await channel.send({ embeds: [embed] });
 
-  const correctPlayers = new Set();
-
-const filter = m => {
-  try {
+  const filter = m => {
     if (!m || typeof m.content !== 'string') return false;
     const content = m.content.toLowerCase().trim();
     const isPlayer = players.some(p => p.id === m.author.id);
-    return isPlayer && content.includes(answer.toLowerCase());
-  } catch (e) {
-    return false;
-  }
-};
-
+    return isPlayer && answers.some(ans => content.includes(ans));
+  };
 
   const collector = channel.createMessageCollector({ filter, time: countdown * 1000 });
 
-collector.on('collect', async msg => {
-  const userId = msg.author.id;
-  const player = players.find(p => p.id === userId);
+  collector.on('collect', async msg => {
+    const userId = msg.author.id;
+    const player = players.find(p => p.id === userId);
+    const content = msg.content.toLowerCase().trim();
 
-  // Ignore messages from non-players
-  if (!player) return;
+    if (!player || correctPlayers.has(userId)) return;
 
-  const content = msg.content?.toLowerCase().trim() || '';
-  const isCorrect = content.includes(answer.toLowerCase());
-
-  if (isCorrect && !correctPlayers.has(userId)) {
     correctPlayers.add(userId);
     player.lives += 1;
 
@@ -1131,12 +1149,20 @@ collector.on('collect', async msg => {
       content: `🔮 You answered correctly — the Oracle grants you **+1 life**.`,
       allowedMentions: { users: [userId] }
     }).then(m => setTimeout(() => m.delete().catch(() => {}), 4000));
-  } else {
-    // React with ❌ on wrong guess
-    await msg.react('❌').catch(() => {});
-  }
-});
+  });
 
+  // Handle wrong guesses and ❌ reactions
+  const wrongCollector = channel.createMessageCollector({ time: countdown * 1000 });
+  wrongCollector.on('collect', async msg => {
+    const userId = msg.author.id;
+    const content = msg.content?.toLowerCase().trim();
+    const isPlayer = players.some(p => p.id === userId);
+    const isCorrect = answers.some(ans => content.includes(ans));
+
+    if (isPlayer && !isCorrect) {
+      await msg.react('❌').catch(() => {});
+    }
+  });
 
   // Countdown updates
   const countdownIntervals = [25, 20, 15, 10, 5];
@@ -1148,7 +1174,7 @@ collector.on('collect', async msg => {
 
   collector.on('end', async () => {
     if (correctPlayers.size === 0) {
-      await channel.send(`⏳ The Oracle received no answer this time...`);
+      await channel.send(`⏳ The Oracle received no correct answer... fate remains unmoved.`);
     } else {
       const summary = [...correctPlayers].map(id => `<@${id}>`).join(', ');
       await channel.send(`🌟 The Oracle blesses ${summary} with +1 life.`);
@@ -1157,6 +1183,102 @@ collector.on('collect', async msg => {
 
   await wait(5000);
 }
+// === Sudden Death : The Final Ritual VOTE ===
+async function runTiebreaker(channel, tiedPlayers) {
+  const voteCounts = new Map(tiedPlayers.map(p => [p.id, 0]));
+  const votedUsers = new Set();
+
+  const introEmbed = new EmbedBuilder()
+    .setTitle('🩸 𝙏𝙃𝙀 𝙁𝙄𝙉𝘼𝙇 𝙍𝙄𝙏𝙐𝘼𝙇 🩸')
+    .setDescription(
+      `The charm cannot choose...\n\n` +
+      `🗳️ *Cast your vote for who deserves to survive the final ritual.*\n` +
+      `All players, fallen or not, may vote.\n\n` +
+      `If fate is undecided, all shall perish.`
+    )
+    .setColor(0xff0033)
+    .setThumbnail('https://media.discordapp.net/attachments/1086418283131048156/1378206999421915187/The_Gauntlet.png?format=webp&quality=lossless&width=128&height=128')
+    .setFooter({ text: '⏳ 15 seconds to vote...' });
+
+  const rows = [];
+  let currentRow = new ActionRowBuilder();
+
+  tiedPlayers.forEach((p, i) => {
+    if (i > 0 && i % 5 === 0) {
+      rows.push(currentRow);
+      currentRow = new ActionRowBuilder();
+    }
+
+    currentRow.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`vote_${p.id}`)
+        .setLabel(`Vote: ${p.username || p.tag || p.id}`)
+        .setStyle(ButtonStyle.Primary)
+    );
+  });
+
+  if (currentRow.components.length > 0) rows.push(currentRow);
+
+  const msg = await channel.send({ embeds: [introEmbed], components: rows });
+
+  const collector = msg.createMessageComponentCollector({ time: 15_000 });
+
+  collector.on('collect', async i => {
+    if (votedUsers.has(i.user.id)) {
+      await i.reply({ content: '🗳️ You already voted!', ephemeral: true });
+      return;
+    }
+
+    votedUsers.add(i.user.id);
+
+    const votedId = i.customId.replace('vote_', '');
+    if (voteCounts.has(votedId)) {
+      voteCounts.set(votedId, voteCounts.get(votedId) + 1);
+    }
+
+    await i.reply({ content: `🗳️ Your vote has been cast.`, ephemeral: true });
+  });
+
+  collector.on('end', async () => {
+    const sorted = [...voteCounts.entries()].sort((a, b) => b[1] - a[1]);
+    const highest = sorted[0][1];
+    const topVoted = sorted.filter(([_, count]) => count === highest);
+
+    const voteTally = sorted
+      .map(([id, count]) => `🗳️ <@${id}> — **${count} vote${count !== 1 ? 's' : ''}**`)
+      .join('\n');
+
+    if (topVoted.length === 1) {
+      const winnerId = topVoted[0][0];
+      const winner = tiedPlayers.find(p => p.id === winnerId);
+      winner.lives = 1;
+
+      const winEmbed = new EmbedBuilder()
+        .setTitle('👑 The Charm Has Spoken 👑')
+        .setDescription(
+          `${voteTally}\n\n<@${winner.id}> is chosen by the will of many.\nThey survive the final ritual.`
+        )
+        .setColor(0xffcc00)
+        .setFooter({ text: '🏆 The charm accepts this verdict.' });
+
+      await channel.send({ embeds: [winEmbed] });
+    } else {
+      const failEmbed = new EmbedBuilder()
+        .setTitle('💀 No Clear Victor 💀')
+        .setDescription(
+          `${voteTally}\n\nThe vote ended in a tie.\nThe charm chooses **none**.\nAll are consumed by the void.`
+        )
+        .setColor(0x222222)
+        .setFooter({ text: '🕳️ Balance requires sacrifice.' });
+
+      await channel.send({ embeds: [failEmbed] });
+      topVoted.forEach(([id]) => {
+        const loser = tiedPlayers.find(p => p.id === id);
+        if (loser) loser.lives = 0;
+      });
+    }
+  });
+}
 
 
 // === Show Final Podium ===
@@ -1164,10 +1286,12 @@ async function showPodium(channel, players) {
   const alive = players.filter(p => p.lives > 0);
   const ranked = [...alive].sort((a, b) => b.lives - a.lives);
 
-  // Fill with longest-lasting fallen players if fewer than 3 survived
-  while (ranked.length < 3) {
-    const fillers = players.filter(p => !ranked.includes(p)).slice(0, 3 - ranked.length);
-    ranked.push(...fillers);
+  // Fill podium with longest-lasting fallen players if needed
+  if (ranked.length < 3) {
+    const deadPlayers = players
+      .filter(p => !ranked.includes(p))
+      .sort((a, b) => b.lives - a.lives);
+    ranked.push(...deadPlayers.slice(0, 3 - ranked.length));
   }
 
   const top3 = ranked.slice(0, 3);
@@ -1181,110 +1305,43 @@ async function showPodium(channel, players) {
     "🕳️ **Last One Dragged from the Void** 🕳️"
   ];
 
-  const fields = top3.map((p, i) => ({
-    name: `${medals[i]} <@${p.id}>`,
-    value: `${titles[i]}\nLives Remaining: **${p.lives}**`,
-    inline: false
-  }));
+  const winnerNote = maxLives > 0
+    ? (tied.length > 1
+        ? `👑 A shared crown! ${tied.map(p => `<@${p.id}>`).join(', ')} reign together...`
+        : `🏆 <@${top3[0].id}> emerges as the ultimate survivor...`)
+    : `💀 No one survived the final ritual. The charm claims all...`;
 
-  const embed = new EmbedBuilder()
+  const baseEmbed = new EmbedBuilder()
     .setTitle('🌌👁‍🗨️ 𝙏𝙃𝙀 𝙁𝙄𝙉𝘼𝙇 𝙋𝙊𝘿𝙄𝙐𝙈 👁‍🗨️🌌')
     .setDescription(
-      `The arena falls silent...\n` +
-      `Only the echoes of chaos remain.\n\n` +
-      `🏆 *Here stand the final 3 who braved the Gauntlet:*`
+      `The arena falls silent...\nOnly the echoes of chaos remain.\n\n` +
+      `🏆 *Here stand the final 3 who braved the Gauntlet:*\n\n${winnerNote}`
     )
-    .addFields(fields)
-    .setColor(0x8e44ad)
+    .setColor(maxLives > 0 ? 0x8e44ad : 0x444444)
     .setThumbnail('https://media.discordapp.net/attachments/1086418283131048156/1378206999421915187/The_Gauntlet.png?format=webp&quality=lossless&width=128&height=128')
     .setFooter({ text: '💀 The charm remembers all...' });
 
-  await channel.send({ embeds: [embed] });
+  const msg = await channel.send({ embeds: [baseEmbed] });
+
+  for (let i = 0; i < top3.length; i++) {
+    const field = {
+      name: `${medals[i]} <@${top3[i].id}>`,
+      value: `${titles[i]}\nLives Remaining: **${top3[i].lives}**`,
+      inline: false
+    };
+    baseEmbed.addFields(field);
+    await wait(1500); // 1.5 second delay between podium steps
+    await msg.edit({ embeds: [baseEmbed] });
+  }
+
+  await wait(5000); // Leave it visible a bit longer
 }
-// === Sudden Death Button Duel: The Final Ritual ===
-async function runTiebreaker(channel, tiedPlayers) {
-  const introEmbed = new EmbedBuilder()
-    .setTitle('🩸 𝙏𝙃𝙀 𝙁𝙄𝙉𝘼𝙇 𝙍𝙄𝙏𝙐𝘼𝙇 🩸')
-    .setDescription(
-      `The charm cannot choose.\nA ritual of reflex begins...\n\n` +
-      `⚔️ *Only one will ascend. The rest are dust.*\n` +
-      `Click your name first to survive. No second chances.`
-    )
-    .setColor(0xff0033)
-    .setThumbnail('https://media.discordapp.net/attachments/1086418283131048156/1378206999421915187/The_Gauntlet.png?format=webp&quality=lossless&width=128&height=128')
-    .setFooter({ text: '⏳ You have 10 seconds to act or be consumed.' });
-
-  // Create action rows with max 5 buttons per row
-  const rows = [];
-  let currentRow = new ActionRowBuilder();
-
-  tiedPlayers.forEach((p, i) => {
-    if (i > 0 && i % 5 === 0) {
-      rows.push(currentRow);
-      currentRow = new ActionRowBuilder();
-    }
-
-    currentRow.addComponents(
-      new ButtonBuilder()
-        .setCustomId(`tie_${p.id}`)
-        .setLabel(`⚡ ${p.username}`)
-        .setStyle([ButtonStyle.Danger, ButtonStyle.Primary, ButtonStyle.Success][i % 3])
-    );
-  });
-
-  if (currentRow.components.length > 0) rows.push(currentRow);
-
-  const msg = await channel.send({ embeds: [introEmbed], components: rows });
-
-  const collector = msg.createMessageComponentCollector({ time: 10_000 });
-  const alreadyClicked = new Set();
-  let winnerAnnounced = false;
-
-  collector.on('collect', async i => {
-    if (alreadyClicked.has(i.user.id)) {
-      return i.reply({ content: '🕰️ Too late. You already made your move.', flags: 64 });
-    }
-
-    const winner = tiedPlayers.find(p => `tie_${p.id}` === i.customId);
-    if (winner) {
-      alreadyClicked.add(i.user.id);
-      winnerAnnounced = true;
-
-      const victoryEmbed = new EmbedBuilder()
-        .setTitle('👑 A Champion Emerges 👑')
-        .setDescription(`⚡ **${winner.username}** struck first and survives !`)
-        .setColor(0xffcc00)
-        .setFooter({ text: '🏆 The charm spares only one.' });
-
-      await channel.send({ embeds: [victoryEmbed] });
-      collector.stop();
-
-      // Apply survival to this winner
-      winner.lives = 1;
-    }
-  });
-
-  collector.on('end', async collected => {
-    if (!winnerAnnounced) {
-      const failEmbed = new EmbedBuilder()
-        .setTitle('💀 The Charm Is Displeased 💀')
-        .setDescription(`⏳ None acted in time.\nThe ritual collapses.\n\nAll tied souls are lost.`)
-        .setColor(0x333333)
-        .setFooter({ text: '🕳️ The void remembers your hesitation.' });
-
-      await channel.send({ embeds: [failEmbed] });
-
-      // Eliminate all tied players
-      tiedPlayers.forEach(p => p.lives = 0);
-    }
-  });
-}
-
 
 // === Show Rematch Button & Wait for Votes ===
 async function showRematchButton(channel, finalPlayers) {
   const requiredVotes = Math.ceil(finalPlayers.length * 0.75);
   const votes = new Set();
+  let rematchTriggered = false;
 
   const voteButton = new ButtonBuilder()
     .setCustomId('rematch_vote')
@@ -1294,47 +1351,59 @@ async function showRematchButton(channel, finalPlayers) {
   const rematchRow = new ActionRowBuilder().addComponents(voteButton);
 
   const msg = await channel.send({
-    content: `🏁 The Gauntlet has ended. Want to play again?\nAt least **75%** of players must vote to rematch.\nFinal players: **${finalPlayers.length}**`,
+    content:
+      `🏁 The Gauntlet has ended...\n` +
+      `Do the spirits of battle hunger for more?\n\n` +
+      `🔁 *Click to vote for a rematch.*\n` +
+      `At least **75%** of the final players (**${requiredVotes}/${finalPlayers.length}**) must agree.`,
     components: [rematchRow]
   });
 
   const collector = msg.createMessageComponentCollector({ time: 60_000 });
 
   collector.on('collect', async i => {
-    if (!finalPlayers.find(p => p.id === i.user.id)) {
-      return i.reply({ content: `⛔ Only final players can vote.`, flags: 64 });
+    const isFinalPlayer = finalPlayers.some(p => p.id === i.user.id);
+    if (!isFinalPlayer) {
+      return i.reply({ content: `⛔ Only final players from the last Gauntlet may vote.`, ephemeral: true });
     }
 
     if (votes.has(i.user.id)) {
-      return i.reply({ content: `✅ Already voted!`, flags: 64 });
+      return i.reply({ content: `✅ You've already cast your rematch vote.`, ephemeral: true });
     }
 
     votes.add(i.user.id);
-    await i.reply({ content: `🔁 You're in for another round!`, flags: 64 });
+    await i.reply({ content: `🗳️ Vote counted! You seek the charm again...`, ephemeral: true });
 
-    const newButton = ButtonBuilder.from(voteButton)
+    const updatedButton = ButtonBuilder.from(voteButton)
       .setLabel(`🔁 Run It Back (${votes.size}/${requiredVotes})`);
 
-    const newRow = new ActionRowBuilder().addComponents(newButton);
-    await msg.edit({ components: [newRow] });
-  });
+    const updatedRow = new ActionRowBuilder().addComponents(updatedButton);
+    await msg.edit({ components: [updatedRow] });
 
-  collector.on('end', async () => {
-    const percent = (votes.size / finalPlayers.length) * 100;
-    if (percent >= 75 && rematchCount < maxRematches) {
-      channel.send(`✅ **${votes.size}** voted to restart! The Gauntlet begins anew...`);
+    // If enough votes are reached early
+    if (votes.size >= requiredVotes && !rematchTriggered && rematchCount < maxRematches) {
+      rematchTriggered = true;
+      collector.stop(); // end early
+      await channel.send(`🔥 **${votes.size}** have spoken. The charm awakens once more!`);
+
       const playerMap = new Map();
       finalPlayers.forEach(p => {
         playerMap.set(p.id, { id: p.id, username: p.username, lives: 1 });
       });
+
       activeGame = { players: playerMap, rematch: true };
       await runBossVotePhase(playerMap, channel);
-    } else {
+    }
+  });
+
+  collector.on('end', async () => {
+    if (!rematchTriggered) {
       rematchCount = 0;
-      channel.send(`🛑 Rematch cancelled or max streak reached. Rest well, warriors.`);
+      await channel.send(`😴 Not enough willpower remained. The charm sleeps… until next time.`);
     }
   });
 }
+
 
 // === Leaderboard Command ===
 client.on('messageCreate', async (message) => {
