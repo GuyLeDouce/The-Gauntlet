@@ -763,7 +763,7 @@ const playerMap = new Map(playerArray.map(p => [p.id, p]));
 
     // === Embed 3: Results Round ===
     await showResultsRound(miniGameResults, channel, [...playerMap.values()]);
-    await wait(3000);
+    await wait(6000);
 
     // === Riddle Phase ===
     await runRiddleEvent(channel, active);
@@ -1198,6 +1198,65 @@ async function runRiddleEvent(channel, players) {
   await wait(5000);
 }
 // === Sudden Death : The Final Ritual VOTE ===
+async function runTiebreaker(tiedPlayersInput, channel) {
+  const tiedPlayers = Array.isArray(tiedPlayersInput)
+    ? tiedPlayersInput
+    : Array.from(tiedPlayersInput.values?.() || []);
+
+  const voteCounts = new Map(tiedPlayers.map(p => [p.id, 0]));
+  const votedUsers = new Set();
+
+  const introEmbed = new EmbedBuilder()
+    .setTitle('🩸 𝙏𝙃𝙀 𝙁𝙄𝙉𝘼𝙇 𝙍𝙄𝙏𝙐𝘼𝙇 🩸')
+    .setDescription(
+      `The charm cannot choose...\n\n` +
+      `🗳️ *Cast your vote for who deserves to survive the final ritual.*\n` +
+      `All players, fallen or not, may vote.\n\n` +
+      `If fate is undecided, all shall perish.`
+    )
+    .setColor(0xff0033)
+    .setThumbnail('https://media.discordapp.net/attachments/1086418283131048156/1378206999421915187/The_Gauntlet.png?format=webp&quality=lossless&width=128&height=128')
+    .setFooter({ text: '⏳ 15 seconds to vote...' });
+
+  const rows = [];
+  let currentRow = new ActionRowBuilder();
+
+  tiedPlayers.forEach((p, i) => {
+    if (i > 0 && i % 5 === 0) {
+      rows.push(currentRow);
+      currentRow = new ActionRowBuilder();
+    }
+
+    currentRow.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`vote_${p.id}`)
+        .setLabel(`Vote: ${p.username || p.tag || p.id}`)
+        .setStyle(ButtonStyle.Primary)
+    );
+  });
+
+  if (currentRow.components.length > 0) rows.push(currentRow);
+
+  const msg = await channel.send({ embeds: [introEmbed], components: rows });
+
+  const collector = msg.createMessageComponentCollector({ time: 15_000 });
+
+  collector.on('collect', async i => {
+    if (votedUsers.has(i.user.id)) {
+      await i.reply({ content: '🗳️ You already voted!', ephemeral: true });
+      return;
+    }
+
+    votedUsers.add(i.user.id);
+
+    const votedId = i.customId.replace('vote_', '');
+    if (voteCounts.has(votedId)) {
+      voteCounts.set(votedId, voteCounts.get(votedId) + 1);
+    }
+
+    await i.reply({ content: `🗳️ Your vote has been cast.`, ephemeral: true });
+  });
+
 collector.on('end', async () => {
   const sorted = [...voteCounts.entries()].sort((a, b) => b[1] - a[1]);
   const highest = sorted[0][1];
@@ -1244,7 +1303,20 @@ collector.on('end', async () => {
   }
 });
 
-// === Show Podium Results ===
+
+// === Show Final Podium ===
+async function showPodium(channel, players) {
+  const alive = players.filter(p => p.lives > 0);
+  const ranked = [...alive].sort((a, b) => b.lives - a.lives);
+
+  // Fill podium with longest-lasting fallen players if needed
+  if (ranked.length < 3) {
+    const deadPlayers = players
+      .filter(p => !ranked.includes(p))
+      .sort((a, b) => b.lives - a.lives);
+    ranked.push(...deadPlayers.slice(0, 3 - ranked.length));
+  }
+
 const top3 = ranked.slice(0, 3);
 const maxLives = top3[0]?.lives || 0;
 const tied = top3.filter(p => p.lives === maxLives);
@@ -1285,8 +1357,8 @@ for (let i = 0; i < top3.length; i++) {
   await wait(1500);
   await msg.edit({ embeds: [baseEmbed] });
 }
-
-
+  await wait(5000); // Leave it visible a bit longer
+}
 
 // === Show Rematch Button & Wait for Votes ===
 async function showRematchButton(channel, finalPlayers) {
