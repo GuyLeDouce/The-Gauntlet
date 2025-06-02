@@ -945,7 +945,7 @@ for (let player of players) {
 
   return { resultMap, wasAliveBefore };
 }
-
+}
 
 
 // === Mint Incentive Ops ===
