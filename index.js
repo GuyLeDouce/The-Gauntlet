@@ -1198,7 +1198,11 @@ async function runRiddleEvent(channel, players) {
   await wait(5000);
 }
 // === Sudden Death : The Final Ritual VOTE ===
-async function runTiebreaker(channel, tiedPlayers) {
+async function runTiebreaker(tiedPlayersInput, channel) {
+  const tiedPlayers = Array.isArray(tiedPlayersInput)
+    ? tiedPlayersInput
+    : Array.from(tiedPlayersInput.values?.() || []);
+
   const voteCounts = new Map(tiedPlayers.map(p => [p.id, 0]));
   const votedUsers = new Set();
 
@@ -1265,7 +1269,7 @@ async function runTiebreaker(channel, tiedPlayers) {
     if (topVoted.length === 1) {
       const winnerId = topVoted[0][0];
       const winner = tiedPlayers.find(p => p.id === winnerId);
-      winner.lives = 1;
+      if (winner) winner.lives = 1;
 
       const winEmbed = new EmbedBuilder()
         .setTitle('👑 The Charm Has Spoken 👑')
@@ -1286,6 +1290,7 @@ async function runTiebreaker(channel, tiedPlayers) {
         .setFooter({ text: '🕳️ Balance requires sacrifice.' });
 
       await channel.send({ embeds: [failEmbed] });
+
       topVoted.forEach(([id]) => {
         const loser = tiedPlayers.find(p => p.id === id);
         if (loser) loser.lives = 0;
@@ -1293,7 +1298,6 @@ async function runTiebreaker(channel, tiedPlayers) {
     }
   });
 }
-
 
 // === Show Final Podium ===
 async function showPodium(channel, players) {
