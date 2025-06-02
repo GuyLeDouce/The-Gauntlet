@@ -1302,7 +1302,7 @@ collector.on('end', async () => {
     await showPodium(channel, tiedPlayers);
   }
 });
-
+}
 
 // === Show Final Podium ===
 async function showPodium(channel, players) {
