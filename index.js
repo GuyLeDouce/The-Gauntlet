@@ -763,7 +763,7 @@ const playerMap = new Map(playerArray.map(p => [p.id, p]));
 
     // === Embed 3: Results Round ===
     await showResultsRound(miniGameResults, channel, [...playerMap.values()]);
-    await wait(6000);
+    await wait(3000);
 
     // === Riddle Phase ===
     await runRiddleEvent(channel, active);
@@ -1198,162 +1198,95 @@ async function runRiddleEvent(channel, players) {
   await wait(5000);
 }
 // === Sudden Death : The Final Ritual VOTE ===
-async function runTiebreaker(tiedPlayersInput, channel) {
-  const tiedPlayers = Array.isArray(tiedPlayersInput)
-    ? tiedPlayersInput
-    : Array.from(tiedPlayersInput.values?.() || []);
+collector.on('end', async () => {
+  const sorted = [...voteCounts.entries()].sort((a, b) => b[1] - a[1]);
+  const highest = sorted[0][1];
+  const topVoted = sorted.filter(([_, count]) => count === highest);
 
-  const voteCounts = new Map(tiedPlayers.map(p => [p.id, 0]));
-  const votedUsers = new Set();
+  const voteTally = sorted
+    .map(([id, count]) => {
+      const player = tiedPlayers.find(p => p.id === id);
+      const name = player?.username || `<@${id}>`;
+      return `🗳️ ${name} — **${count} vote${count !== 1 ? 's' : ''}**`;
+    })
+    .join('\n');
 
-  const introEmbed = new EmbedBuilder()
-    .setTitle('🩸 𝙏𝙃𝙀 𝙁𝙄𝙉𝘼𝙇 𝙍𝙄𝙏𝙐𝘼𝙇 🩸')
-    .setDescription(
-      `The charm cannot choose...\n\n` +
-      `🗳️ *Cast your vote for who deserves to survive the final ritual.*\n` +
-      `All players, fallen or not, may vote.\n\n` +
-      `If fate is undecided, all shall perish.`
-    )
-    .setColor(0xff0033)
-    .setThumbnail('https://media.discordapp.net/attachments/1086418283131048156/1378206999421915187/The_Gauntlet.png?format=webp&quality=lossless&width=128&height=128')
-    .setFooter({ text: '⏳ 15 seconds to vote...' });
+  if (topVoted.length === 1) {
+    const winnerId = topVoted[0][0];
+    const winner = tiedPlayers.find(p => p.id === winnerId);
+    if (winner) winner.lives = 1;
 
-  const rows = [];
-  let currentRow = new ActionRowBuilder();
+    const winEmbed = new EmbedBuilder()
+      .setTitle('👑 The Charm Has Spoken 👑')
+      .setDescription(`${voteTally}\n\n<@${winner.id}> is chosen by the will of many.\nThey survive the final ritual.`)
+      .setColor(0xffcc00)
+      .setFooter({ text: '🏆 The charm accepts this verdict.' });
 
-  tiedPlayers.forEach((p, i) => {
-    if (i > 0 && i % 5 === 0) {
-      rows.push(currentRow);
-      currentRow = new ActionRowBuilder();
-    }
+    await channel.send({ embeds: [winEmbed] });
+    await wait(4000);
+    await showPodium(channel, tiedPlayers);
+  } else {
+    const failEmbed = new EmbedBuilder()
+      .setTitle('💀 No Clear Victor 💀')
+      .setDescription(`${voteTally}\n\nThe vote ended in a tie.\nThe charm chooses **none**.\nAll are consumed by the void.`)
+      .setColor(0x222222)
+      .setFooter({ text: '🕳️ Balance requires sacrifice.' });
 
-    currentRow.addComponents(
-      new ButtonBuilder()
-        .setCustomId(`vote_${p.id}`)
-        .setLabel(`Vote: ${p.username || p.tag || p.id}`)
-        .setStyle(ButtonStyle.Primary)
-    );
-  });
+    await channel.send({ embeds: [failEmbed] });
 
-  if (currentRow.components.length > 0) rows.push(currentRow);
+    topVoted.forEach(([id]) => {
+      const loser = tiedPlayers.find(p => p.id === id);
+      if (loser) loser.lives = 0;
+    });
 
-  const msg = await channel.send({ embeds: [introEmbed], components: rows });
+    await wait(4000);
+    await showPodium(channel, tiedPlayers);
+  }
+});
 
-  const collector = msg.createMessageComponentCollector({ time: 15_000 });
+// === Show Podium Results ===
+const top3 = ranked.slice(0, 3);
+const maxLives = top3[0]?.lives || 0;
+const tied = top3.filter(p => p.lives === maxLives);
 
-  collector.on('collect', async i => {
-    if (votedUsers.has(i.user.id)) {
-      await i.reply({ content: '🗳️ You already voted!', ephemeral: true });
-      return;
-    }
+const medals = ['👑🥇', '🩸🥈', '💀🥉'];
+const titles = [
+  "⚔️ **Champion of the Charm** ⚔️",
+  "🌑 **Scarred But Standing** 🌑",
+  "🕳️ **Last One Dragged from the Void** 🕳️"
+];
 
-    votedUsers.add(i.user.id);
+const winnerNote = maxLives > 0
+  ? (tied.length > 1
+      ? `👑 A shared crown! ${tied.map(p => p.username || `<@${p.id}>`).join(', ')} reign together...`
+      : `🏆 ${top3[0].username || `<@${top3[0].id}>`} emerges as the ultimate survivor...`)
+  : `💀 No one survived the final ritual. The charm claims all...`;
 
-    const votedId = i.customId.replace('vote_', '');
-    if (voteCounts.has(votedId)) {
-      voteCounts.set(votedId, voteCounts.get(votedId) + 1);
-    }
+const baseEmbed = new EmbedBuilder()
+  .setTitle('🌌👁‍🗨️ 𝙏𝙃𝙀 𝙁𝙄𝙉𝘼𝙇 𝙋𝙊𝘿𝙄𝙐𝙈 👁‍🗨️🌌')
+  .setDescription(
+    `The arena falls silent...\nOnly the echoes of chaos remain.\n\n` +
+    `🏆 *Here stand the final 3 who braved the Gauntlet:*\n\n${winnerNote}`
+  )
+  .setColor(maxLives > 0 ? 0x8e44ad : 0x444444)
+  .setThumbnail('https://media.discordapp.net/attachments/1086418283131048156/1378206999421915187/The_Gauntlet.png?format=webp&quality=lossless&width=128&height=128')
+  .setFooter({ text: '💀 The charm remembers all...' });
 
-    await i.reply({ content: `🗳️ Your vote has been cast.`, ephemeral: true });
-  });
+const msg = await channel.send({ embeds: [baseEmbed] });
 
-  collector.on('end', async () => {
-    const sorted = [...voteCounts.entries()].sort((a, b) => b[1] - a[1]);
-    const highest = sorted[0][1];
-    const topVoted = sorted.filter(([_, count]) => count === highest);
-
-    const voteTally = sorted
-      .map(([id, count]) => `🗳️ <@${id}> — **${count} vote${count !== 1 ? 's' : ''}**`)
-      .join('\n');
-
-    if (topVoted.length === 1) {
-      const winnerId = topVoted[0][0];
-      const winner = tiedPlayers.find(p => p.id === winnerId);
-      if (winner) winner.lives = 1;
-
-      const winEmbed = new EmbedBuilder()
-        .setTitle('👑 The Charm Has Spoken 👑')
-        .setDescription(
-          `${voteTally}\n\n<@${winner.id}> is chosen by the will of many.\nThey survive the final ritual.`
-        )
-        .setColor(0xffcc00)
-        .setFooter({ text: '🏆 The charm accepts this verdict.' });
-
-      await channel.send({ embeds: [winEmbed] });
-    } else {
-      const failEmbed = new EmbedBuilder()
-        .setTitle('💀 No Clear Victor 💀')
-        .setDescription(
-          `${voteTally}\n\nThe vote ended in a tie.\nThe charm chooses **none**.\nAll are consumed by the void.`
-        )
-        .setColor(0x222222)
-        .setFooter({ text: '🕳️ Balance requires sacrifice.' });
-
-      await channel.send({ embeds: [failEmbed] });
-
-      topVoted.forEach(([id]) => {
-        const loser = tiedPlayers.find(p => p.id === id);
-        if (loser) loser.lives = 0;
-      });
-    }
-  });
+for (let i = 0; i < top3.length; i++) {
+  const name = top3[i].username || `<@${top3[i].id}>`;
+  const field = {
+    name: `${medals[i]} ${name}`,
+    value: `${titles[i]}\nLives Remaining: **${top3[i].lives}**`,
+    inline: false
+  };
+  baseEmbed.addFields(field);
+  await wait(1500);
+  await msg.edit({ embeds: [baseEmbed] });
 }
 
-// === Show Final Podium ===
-async function showPodium(channel, players) {
-  const alive = players.filter(p => p.lives > 0);
-  const ranked = [...alive].sort((a, b) => b.lives - a.lives);
 
-  // Fill podium with longest-lasting fallen players if needed
-  if (ranked.length < 3) {
-    const deadPlayers = players
-      .filter(p => !ranked.includes(p))
-      .sort((a, b) => b.lives - a.lives);
-    ranked.push(...deadPlayers.slice(0, 3 - ranked.length));
-  }
-
-  const top3 = ranked.slice(0, 3);
-  const maxLives = top3[0]?.lives || 0;
-  const tied = top3.filter(p => p.lives === maxLives);
-
-  const medals = ['👑🥇', '🩸🥈', '💀🥉'];
-  const titles = [
-    "⚔️ **Champion of the Charm** ⚔️",
-    "🌑 **Scarred But Standing** 🌑",
-    "🕳️ **Last One Dragged from the Void** 🕳️"
-  ];
-
-  const winnerNote = maxLives > 0
-    ? (tied.length > 1
-        ? `👑 A shared crown! ${tied.map(p => `<@${p.id}>`).join(', ')} reign together...`
-        : `🏆 <@${top3[0].id}> emerges as the ultimate survivor...`)
-    : `💀 No one survived the final ritual. The charm claims all...`;
-
-  const baseEmbed = new EmbedBuilder()
-    .setTitle('🌌👁‍🗨️ 𝙏𝙃𝙀 𝙁𝙄𝙉𝘼𝙇 𝙋𝙊𝘿𝙄𝙐𝙈 👁‍🗨️🌌')
-    .setDescription(
-      `The arena falls silent...\nOnly the echoes of chaos remain.\n\n` +
-      `🏆 *Here stand the final 3 who braved the Gauntlet:*\n\n${winnerNote}`
-    )
-    .setColor(maxLives > 0 ? 0x8e44ad : 0x444444)
-    .setThumbnail('https://media.discordapp.net/attachments/1086418283131048156/1378206999421915187/The_Gauntlet.png?format=webp&quality=lossless&width=128&height=128')
-    .setFooter({ text: '💀 The charm remembers all...' });
-
-  const msg = await channel.send({ embeds: [baseEmbed] });
-
-  for (let i = 0; i < top3.length; i++) {
-    const field = {
-      name: `${medals[i]} <@${top3[i].id}>`,
-      value: `${titles[i]}\nLives Remaining: **${top3[i].lives}**`,
-      inline: false
-    };
-    baseEmbed.addFields(field);
-    await wait(1500); // 1.5 second delay between podium steps
-    await msg.edit({ embeds: [baseEmbed] });
-  }
-
-  await wait(5000); // Leave it visible a bit longer
-}
 
 // === Show Rematch Button & Wait for Votes ===
 async function showRematchButton(channel, finalPlayers) {
