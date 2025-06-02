@@ -1316,7 +1316,6 @@ async function runRiddleEvent(channel, players) {
     await channel.send(`🌟 The Oracle blesses ${summary} with +1 life.`);
   }
 });
-  });
 
   await wait(5000);
 }
