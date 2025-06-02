@@ -1282,7 +1282,7 @@ collector.on('end', async () => {
   const voteTally = sorted
     .map(([id, count]) => {
       const player = tiedPlayers.find(p => p.id === id);
-      const name = player?.username || `<@${id}>`;
+      const name = `<@${id}>`;
       return `🗳️ ${name} — **${count} vote${count !== 1 ? 's' : ''}**`;
     })
     .join('\n');
@@ -1352,9 +1352,10 @@ const titles = [
 
 const winnerNote = maxLives > 0
   ? (tied.length > 1
-      ? `👑 A shared crown! ${tied.map(p => p.username || `<@${p.id}>`).join(', ')} reign together...`
-      : `🏆 ${top3[0].username || `<@${top3[0].id}>`} emerges as the ultimate survivor...`)
+      ? `👑 A shared crown! ${tied.map(p => `<@${p.id}>`).join(', ')} reign together...`
+      : `🏆 <@${top3[0].id}> emerges as the ultimate survivor...`)
   : `💀 No one survived the final ritual. The charm claims all...`;
+
 
 const baseEmbed = new EmbedBuilder()
   .setTitle('🌌👁‍🗨️ 𝙏𝙃𝙀 𝙁𝙄𝙉𝘼𝙇 𝙋𝙊𝘿𝙄𝙐𝙈 👁‍🗨️🌌')
@@ -1369,7 +1370,7 @@ const baseEmbed = new EmbedBuilder()
 const msg = await channel.send({ embeds: [baseEmbed] });
 
 for (let i = 0; i < top3.length; i++) {
-  const name = top3[i].username || `<@${top3[i].id}>`;
+  const name = `<@${top3[i].id}>`;
   const field = {
     name: `${medals[i]} ${name}`,
     value: `${titles[i]}\nLives Remaining: **${top3[i].lives}**`,
