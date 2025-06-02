@@ -445,15 +445,6 @@ const lostLifeMoments = [
   "Those who hoard CHARM may lose it. Those who spend, may rise."
 ];
 
-const noCorrectAnswers = [
-  `📜 *The Oracle falls silent...* No one deciphered the riddle.\nBut etched beneath the altar, glowing faintly, is the forgotten truth:\n**"${correctAnswer}"**.`,
-  `🕯️ *A whisper curls from the void...* “${correctAnswer}...”\nToo late. The answer now belongs to the shadows.`,
-  `🌀 *The runes shift.* The answer was **${correctAnswer}**, lost to hesitation.\nThe charm shudders — it expected more.`,
-  `🔮 *Fate pauses... unimpressed.* The correct answer was **${correctAnswer}**.\nIt echoes through the chamber like a name never spoken.`,
-  `👁️ The Oracle chuckles — low and hollow.\n“You seek truth, yet flee from it. The answer was **${correctAnswer}**.”`,
-  `⚰️ *The riddle rots in silence...*\nThe answer — **${correctAnswer}** — is carved now into memory, not victory.`,
-];
-
 
 const riddles = [
   { riddle: "I crawl inside your house without legs. I eat your time but never your food. What am I?", answers: ["phone"] },
@@ -1308,13 +1299,23 @@ async function runRiddleEvent(channel, players) {
     await msg.edit({ embeds: [embed] });
   }
 
-  collector.on('end', async () => {
-    if (correctPlayers.size === 0) {
-      await channel.send(noCorrectAnswers[Math.floor(Math.random() * noCorrectAnswers.length)]);
-    } else {
-      const summary = [...correctPlayers].map(id => `<@${id}>`).join(', ');
-      await channel.send(`🌟 The Oracle blesses ${summary} with +1 life.`);
-    }
+ collector.on('end', async () => {
+  if (correctPlayers.size === 0) {
+    const correctAnswer = currentRiddle.answers[0]; // ✅ Define it here
+    const noCorrectAnswers = [
+      `📜 *The Oracle falls silent...* No one deciphered the riddle.\nBut etched beneath the altar, glowing faintly, is the forgotten truth:\n**"${correctAnswer}"**.`,
+      `🕯️ *A whisper curls from the void...* “${correctAnswer}...”\nToo late. The answer now belongs to the shadows.`,
+      `🌀 *The runes shift.* The answer was **${correctAnswer}**, lost to hesitation.\nThe charm shudders — it expected more.`,
+      `🔮 *Fate pauses... unimpressed.* The correct answer was **${correctAnswer}**.\nIt echoes through the chamber like a name never spoken.`,
+      `👁️ The Oracle chuckles — low and hollow.\n“You seek truth, yet flee from it. The answer was **${correctAnswer}**.”`,
+      `⚰️ *The riddle rots in silence...*\nThe answer — **${correctAnswer}** — is carved now into memory, not victory.`,
+    ];
+    await channel.send(noCorrectAnswers[Math.floor(Math.random() * noCorrectAnswers.length)]);
+  } else {
+    const summary = [...correctPlayers].map(id => `<@${id}>`).join(', ');
+    await channel.send(`🌟 The Oracle blesses ${summary} with +1 life.`);
+  }
+});
   });
 
   await wait(5000);
