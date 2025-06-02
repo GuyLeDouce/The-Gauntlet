@@ -803,8 +803,11 @@ const playerMap = new Map(playerArray.map(p => [p.id, p]));
     await channel.send(`💀 No survivors remain. The arena claims them all.`);
   }
 
-  // === Final Podium ===
+    // === Final Podium ===
+if (survivors.length <= 1) {
   await showPodium(channel, [...playerMap.values()]);
+}
+
   activeGame = null;
 
   // === Rematch Offer ===
