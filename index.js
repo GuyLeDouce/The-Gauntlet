@@ -926,14 +926,19 @@ async function runMiniGameEvent(players, channel, eventNumber, playerMap) {
 
   await wait(5000); // Final buffer
 
-  // Handle non-clickers
-  for (let player of players) {
-    if (player.lives <= 0) continue;
-    if (!clickedPlayers.has(player.id)) {
-      const eliminated = Math.random() < 0.5;
-      resultMap.set(player.id, eliminated ? 'eliminate' : 'ignored');
-    }
+// Handle non-clickers, but skip already-dead players
+for (let player of players) {
+  const wasDeadBefore = !wasAliveBefore.has(player.id);
+  const didNotClick = !clickedPlayers.has(player.id);
+
+  if (didNotClick && wasDeadBefore) continue; // Already dead, didn't interact — ignore
+
+  if (didNotClick && player.lives > 0) {
+    const eliminated = Math.random() < 0.5;
+    resultMap.set(player.id, eliminated ? 'eliminate' : 'ignored');
   }
+}
+
 
   return { resultMap, wasAliveBefore };
 }
@@ -1056,24 +1061,25 @@ async function showResultsRound(results, wasAliveBefore, channel, players) {
     inactivity: frozenLore
   };
 
-  for (let player of players) {
-    const outcome = results.get(player.id);
-    if (!outcome) continue;
+for (let player of players) {
+  const outcome = results.get(player.id);
+  if (!outcome) continue;
 
-    const wasDead = !wasAliveBefore.has(player.id);
-    const nowDead = player.lives <= 0;
+  const wasAlive = wasAliveBefore.has(player.id);
+  const nowDead = player.lives <= 0;
 
-    if (outcome === 'gain') {
-      if (wasDead) revived.push(player);
-      else gained.push(player);
-    } else if (outcome === 'lose' && !wasDead) {
-      lost.push(player);
-    } else if (outcome === 'eliminate' && !wasDead) {
-      eliminated.push(player);
-    } else if (outcome === 'ignored' && !wasDead) {
-      inactivity.push(player);
-    }
+  if (outcome === 'gain') {
+    if (!wasAlive) revived.push(player);
+    else gained.push(player);
+  } else if (outcome === 'lose' && wasAlive) {
+    lost.push(player);
+  } else if (outcome === 'eliminate' && wasAlive) {
+    eliminated.push(player);
+  } else if (outcome === 'ignored' && wasAlive) {
+    inactivity.push(player);
   }
+}
+
 
   const embed = new EmbedBuilder()
     .setTitle('📜 Results Round')
