@@ -750,7 +750,7 @@ const playerMap = new Map(playerArray.map(p => [p.id, p]));
     await wait(5000);
 
     // === Embed 2: Mini-Game ===
-    const miniGameResults = await runMiniGameEvent(active, channel, eventNumber);
+    const { resultMap: miniGameResults, wasAliveBefore } = await runMiniGameEvent(active, channel, eventNumber, playerMap);
 
     // === Apply Mini-Game Outcomes ===
     for (const [userId, outcome] of miniGameResults.entries()) {
@@ -762,7 +762,8 @@ const playerMap = new Map(playerArray.map(p => [p.id, p]));
     }
 
     // === Embed 3: Results Round ===
-    await showResultsRound(miniGameResults, channel, [...playerMap.values()]);
+    await showResultsRound(miniGameResults, wasAliveBefore, channel, [...playerMap.values()]);
+
     await wait(6000);
 
     // === Riddle Phase ===
@@ -819,20 +820,18 @@ if (survivors.length <= 1) {
 
 
 // === Mini-Game Event with Countdown and Secret Outcome ===
-async function runMiniGameEvent(players, channel, eventNumber) {
+async function runMiniGameEvent(players, channel, eventNumber, playerMap) {
   const outcomes = ['gain', 'lose', 'eliminate', 'safe'];
   const shuffledOutcomes = outcomes.sort(() => 0.5 - Math.random());
-
-  const randomStyle = () => [
-    ButtonStyle.Primary,
-    ButtonStyle.Danger,
-    ButtonStyle.Secondary,
-    ButtonStyle.Success
-  ][Math.floor(Math.random() * 4)];
 
   const resultMap = new Map();
   const clickedPlayers = new Set();
   const buttonClicks = new Map();
+  const wasAliveBefore = new Set();
+
+  for (const p of players) {
+    if (p.lives > 0) wasAliveBefore.add(p.id);
+  }
 
   const chosenLore = miniGameLorePool[Math.floor(Math.random() * miniGameLorePool.length)];
   const fateLine = miniGameFateDescriptions[Math.floor(Math.random() * miniGameFateDescriptions.length)];
@@ -850,7 +849,12 @@ async function runMiniGameEvent(players, channel, eventNumber) {
       new ButtonBuilder()
         .setCustomId(uniqueId)
         .setLabel(buttonLabels[index])
-        .setStyle(randomStyle())
+        .setStyle([
+          ButtonStyle.Primary,
+          ButtonStyle.Danger,
+          ButtonStyle.Secondary,
+          ButtonStyle.Success
+        ][Math.floor(Math.random() * 4)])
     );
   });
 
@@ -860,7 +864,6 @@ async function runMiniGameEvent(players, channel, eventNumber) {
     .setColor(0xff66cc);
 
   const message = await channel.send({ embeds: [embed], components: [row] });
-
   const collector = message.createMessageComponentCollector({ time: 20000 });
 
   collector.on('collect', async i => {
@@ -914,16 +917,16 @@ async function runMiniGameEvent(players, channel, eventNumber) {
     await i.reply({ content: `🔘 You selected **${displayText}** → ${emojiMap[outcome]}`, flags: 64 });
   });
 
-  // === Countdown Timer Update ===
+  // Countdown
   for (let timeLeft of [15, 10, 5]) {
     await wait(5000);
     embed.setDescription(`${chosenLore.lore}\n\n${fateLine}\n\n⏳ Time left: **${timeLeft} seconds**`);
     await message.edit({ embeds: [embed] });
   }
 
-  await wait(5000); // Final countdown
+  await wait(5000); // Final buffer
 
-  // === Handle Inactive Players ===
+  // Handle non-clickers
   for (let player of players) {
     if (player.lives <= 0) continue;
     if (!clickedPlayers.has(player.id)) {
@@ -932,8 +935,9 @@ async function runMiniGameEvent(players, channel, eventNumber) {
     }
   }
 
-  return resultMap;
+  return { resultMap, wasAliveBefore };
 }
+
 
 
 // === Mint Incentive Ops ===
@@ -1037,7 +1041,7 @@ const filter = m => {
 
 
 // === Show Results Round (Dramatic Lore Edition) ===
-async function showResultsRound(results, channel, players) {
+async function showResultsRound(results, wasAliveBefore, channel, players) {
   const gained = [];
   const lost = [];
   const revived = [];
@@ -1056,16 +1060,17 @@ async function showResultsRound(results, channel, players) {
     const outcome = results.get(player.id);
     if (!outcome) continue;
 
-    const wasDead = player.lives === 0;
+    const wasDead = !wasAliveBefore.has(player.id);
+    const nowDead = player.lives <= 0;
 
     if (outcome === 'gain') {
       if (wasDead) revived.push(player);
       else gained.push(player);
-    } else if (outcome === 'lose') {
+    } else if (outcome === 'lose' && !wasDead) {
       lost.push(player);
-    } else if (outcome === 'eliminate') {
+    } else if (outcome === 'eliminate' && !wasDead) {
       eliminated.push(player);
-    } else if (outcome === 'ignored') {
+    } else if (outcome === 'ignored' && !wasDead) {
       inactivity.push(player);
     }
   }
@@ -1080,7 +1085,7 @@ async function showResultsRound(results, channel, players) {
   const addFieldSlowly = async (title, list, key) => {
     if (!list.length) return;
 
-    embed.addFields({ name: title, value: '‎', inline: false }); // invisible char
+    embed.addFields({ name: title, value: '‎', inline: false });
     await msg.edit({ embeds: [embed] });
 
     for (let p of list) {
