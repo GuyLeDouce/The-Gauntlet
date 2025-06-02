@@ -864,7 +864,7 @@ async function runMiniGameEvent(players, channel, eventNumber) {
     const userId = i.user.id;
 
     if (buttonClicks.has(userId)) {
-      return i.reply({ content: `🤪 Whoa there! You already chose your fate. The Charm doesn't like indecision...`, ephemeral: true });
+      return i.reply({ content: `🤪 Whoa there! You already chose your fate. The Charm doesn't like indecision...`, flags: 64 });
     }
 
     const labelMatch = i.customId.match(/mini_([A-D])_evt/);
@@ -1243,7 +1243,7 @@ async function runTiebreaker(tiedPlayersInput, channel) {
 
   collector.on('collect', async i => {
     if (votedUsers.has(i.user.id)) {
-      await i.reply({ content: '🗳️ You already voted!', ephemeral: true });
+      await i.reply({ content: '🗳️ You already voted!', flags: 64 });
       return;
     }
 
@@ -1254,7 +1254,7 @@ async function runTiebreaker(tiedPlayersInput, channel) {
       voteCounts.set(votedId, voteCounts.get(votedId) + 1);
     }
 
-    await i.reply({ content: `🗳️ Your vote has been cast.`, ephemeral: true });
+    await i.reply({ content: `🗳️ Your vote has been cast.`, flags: 64 });
   });
 
 collector.on('end', async () => {
@@ -1281,9 +1281,14 @@ collector.on('end', async () => {
       .setColor(0xffcc00)
       .setFooter({ text: '🏆 The charm accepts this verdict.' });
 
+    const winnerTag = winner.username || `<@${winner.id}>`;
+
+    await wait(1000);
     await channel.send({ embeds: [winEmbed] });
+
     await wait(4000);
     await showPodium(channel, tiedPlayers);
+
   } else {
     const failEmbed = new EmbedBuilder()
       .setTitle('💀 No Clear Victor 💀')
@@ -1392,15 +1397,15 @@ async function showRematchButton(channel, finalPlayers) {
   collector.on('collect', async i => {
     const isFinalPlayer = finalPlayers.some(p => p.id === i.user.id);
     if (!isFinalPlayer) {
-      return i.reply({ content: `⛔ Only final players from the last Gauntlet may vote.`, ephemeral: true });
+      return i.reply({ content: `⛔ Only final players from the last Gauntlet may vote.`, flags: 64 });
     }
 
     if (votes.has(i.user.id)) {
-      return i.reply({ content: `✅ You've already cast your rematch vote.`, ephemeral: true });
+      return i.reply({ content: `✅ You've already cast your rematch vote.`, flags: 64 });
     }
 
     votes.add(i.user.id);
-    await i.reply({ content: `🗳️ Vote counted! You seek the charm again...`, ephemeral: true });
+    await i.reply({ content: `🗳️ Vote counted! You seek the charm again...`, flags: 64 });
 
     const updatedButton = ButtonBuilder.from(voteButton)
       .setLabel(`🔁 Run It Back (${votes.size}/${requiredVotes})`);
