@@ -1291,17 +1291,22 @@ async function runRiddleEvent(channel, players) {
     }
   });
 
-  // Countdown updates
-  const countdownIntervals = [25, 20, 15, 10, 5];
-  for (const secondsLeft of countdownIntervals) {
-    await wait(5000);
-    embed.setDescription(`**“${riddle}”**\n\nType the correct answer in chat.\n⏳ Time left: **${secondsLeft} seconds**`);
-    await msg.edit({ embeds: [embed] });
-  }
+const countdown = 30; // total countdown time
+const countdownIntervals = [25, 20, 15, 10, 5];
 
- collector.on('end', async () => {
+for (let i = 0; i < countdownIntervals.length; i++) {
+  const secondsLeft = countdownIntervals[i];
+  const delay = (i === 0 ? countdown - secondsLeft : countdownIntervals[i - 1] - secondsLeft) * 1000;
+
+  await wait(delay);
+  embed.setDescription(`**“${riddle}”**\n\nType the correct answer in chat.\n⏳ Time left: **${secondsLeft} seconds**`);
+  await msg.edit({ embeds: [embed] });
+}
+
+
+collector.on('end', async () => {
   if (correctPlayers.size === 0) {
-    const correctAnswer = currentRiddle.answers[0]; // ✅ Define it here
+    const correctAnswer = currentRiddle.answers[0]; // ✅ Safe to access now
     const noCorrectAnswers = [
       `📜 *The Oracle falls silent...* No one deciphered the riddle.\nBut etched beneath the altar, glowing faintly, is the forgotten truth:\n**"${correctAnswer}"**.`,
       `🕯️ *A whisper curls from the void...* “${correctAnswer}...”\nToo late. The answer now belongs to the shadows.`,
