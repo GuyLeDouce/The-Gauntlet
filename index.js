@@ -1232,7 +1232,8 @@ for (let player of players) {
 
 // === Riddle Phase with Countdown & Monster Image ===
 async function runRiddleEvent(channel, players) {
-  const { riddle, answers } = riddles[Math.floor(Math.random() * riddles.length)];
+  const currentRiddle = riddles[Math.floor(Math.random() * riddles.length)];
+  const { riddle, answers } = currentRiddle;
   const safeAnswers = Array.isArray(answers)
     ? answers.map(a => a?.toLowerCase().trim())
     : [String(answers).toLowerCase().trim()];
@@ -1240,7 +1241,6 @@ async function runRiddleEvent(channel, players) {
   const monsterImg = getMonsterImageUrl();
   const countdown = 30;
   const correctPlayers = new Set();
-
 
   const embed = new EmbedBuilder()
     .setTitle('🧠 Ugly Oracle Riddle')
@@ -1251,79 +1251,71 @@ async function runRiddleEvent(channel, players) {
 
   const msg = await channel.send({ embeds: [embed] });
 
-  const filter = m => {
-    if (!m || typeof m.content !== 'string') return false;
-    const content = m.content.toLowerCase().trim();
-    const isPlayer = players.some(p => p.id === m.author.id);
-    return isPlayer && answers.some(ans => content.includes(ans));
-  };
-
-  const collector = channel.createMessageCollector({ filter, time: countdown * 1000 });
+  const collector = channel.createMessageCollector({ time: countdown * 1000 });
 
   collector.on('collect', async msg => {
     const userId = msg.author.id;
-    const player = players.find(p => p.id === userId);
-    const content = msg.content.toLowerCase().trim();
+    const content = msg.content?.toLowerCase().trim();
+    const isPlayer = players.some(p => p.id === userId);
+    const isCorrect = safeAnswers.some(ans => content.includes(ans));
 
-    if (!player || correctPlayers.has(userId)) return;
+    if (!isPlayer || !isCorrect || correctPlayers.has(userId)) return;
 
     correctPlayers.add(userId);
+    const player = players.find(p => p.id === userId);
     player.lives += 1;
 
     await msg.delete().catch(() => {});
-
     await channel.send({
       content: `🔮 You answered correctly — the Oracle grants you **+1 life**.`,
       allowedMentions: { users: [userId] }
     }).then(m => setTimeout(() => m.delete().catch(() => {}), 4000));
   });
 
-  // Handle wrong guesses and ❌ reactions
+  // ❌ React to wrong guesses
   const wrongCollector = channel.createMessageCollector({ time: countdown * 1000 });
   wrongCollector.on('collect', async msg => {
     const userId = msg.author.id;
     const content = msg.content?.toLowerCase().trim();
     const isPlayer = players.some(p => p.id === userId);
-    const isCorrect = answers.some(ans => content.includes(ans));
+    const isCorrect = safeAnswers.some(ans => content.includes(ans));
 
     if (isPlayer && !isCorrect) {
       await msg.react('❌').catch(() => {});
     }
   });
 
-const countdown = 30; // total countdown time
-const countdownIntervals = [25, 20, 15, 10, 5];
-
-for (let i = 0; i < countdownIntervals.length; i++) {
-  const secondsLeft = countdownIntervals[i];
-  const delay = (i === 0 ? countdown - secondsLeft : countdownIntervals[i - 1] - secondsLeft) * 1000;
-
-  await wait(delay);
-  embed.setDescription(`**“${riddle}”**\n\nType the correct answer in chat.\n⏳ Time left: **${secondsLeft} seconds**`);
-  await msg.edit({ embeds: [embed] });
-}
-
-
-collector.on('end', async () => {
-  if (correctPlayers.size === 0) {
-    const correctAnswer = currentRiddle.answers[0]; // ✅ Safe to access now
-    const noCorrectAnswers = [
-      `📜 *The Oracle falls silent...* No one deciphered the riddle.\nBut etched beneath the altar, glowing faintly, is the forgotten truth:\n**"${correctAnswer}"**.`,
-      `🕯️ *A whisper curls from the void...* “${correctAnswer}...”\nToo late. The answer now belongs to the shadows.`,
-      `🌀 *The runes shift.* The answer was **${correctAnswer}**, lost to hesitation.\nThe charm shudders — it expected more.`,
-      `🔮 *Fate pauses... unimpressed.* The correct answer was **${correctAnswer}**.\nIt echoes through the chamber like a name never spoken.`,
-      `👁️ The Oracle chuckles — low and hollow.\n“You seek truth, yet flee from it. The answer was **${correctAnswer}**.”`,
-      `⚰️ *The riddle rots in silence...*\nThe answer — **${correctAnswer}** — is carved now into memory, not victory.`,
-    ];
-    await channel.send(noCorrectAnswers[Math.floor(Math.random() * noCorrectAnswers.length)]);
-  } else {
-    const summary = [...correctPlayers].map(id => `<@${id}>`).join(', ');
-    await channel.send(`🌟 The Oracle blesses ${summary} with +1 life.`);
+  // Countdown updates
+  const countdownIntervals = [25, 20, 15, 10, 5];
+  for (let i = 0; i < countdownIntervals.length; i++) {
+    const secondsLeft = countdownIntervals[i];
+    const delay = (i === 0 ? countdown - secondsLeft : countdownIntervals[i - 1] - secondsLeft) * 1000;
+    await wait(delay);
+    embed.setDescription(`**“${riddle}”**\n\nType the correct answer in chat.\n⏳ Time left: **${secondsLeft} seconds**`);
+    await msg.edit({ embeds: [embed] });
   }
-});
+
+  collector.on('end', async () => {
+    if (correctPlayers.size === 0) {
+      const correctAnswer = currentRiddle.answers[0];
+      const noCorrectAnswers = [
+        `📜 *The Oracle falls silent...* No one deciphered the riddle.\nBut etched beneath the altar, glowing faintly, is the forgotten truth:\n**"${correctAnswer}"**.`,
+        `🕯️ *A whisper curls from the void...* “${correctAnswer}...”\nToo late. The answer now belongs to the shadows.`,
+        `🌀 *The runes shift.* The answer was **${correctAnswer}**, lost to hesitation.\nThe charm shudders — it expected more.`,
+        `🔮 *Fate pauses... unimpressed.* The correct answer was **${correctAnswer}**.\nIt echoes through the chamber like a name never spoken.`,
+        `👁️ The Oracle chuckles — low and hollow.\n“You seek truth, yet flee from it. The answer was **${correctAnswer}**.”`,
+        `⚰️ *The riddle rots in silence...*\nThe answer — **${correctAnswer}** — is carved now into memory, not victory.`,
+      ];
+      await channel.send(noCorrectAnswers[Math.floor(Math.random() * noCorrectAnswers.length)]);
+    } else {
+      const summary = [...correctPlayers].map(id => `<@${id}>`).join(', ');
+      await channel.send(`🌟 The Oracle blesses ${summary} with +1 life.`);
+    }
+  });
 
   await wait(5000);
 }
+
 // === Sudden Death : The Final Ritual VOTE ===
 async function runTiebreaker(tiedPlayersInput, channel) {
   const tiedPlayers = Array.isArray(tiedPlayersInput)
