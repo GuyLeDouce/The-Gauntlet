@@ -315,108 +315,59 @@ const lostLifeMoments = [
 ];
 
 // === Mini-Game Lore Pool (20 Variants) ===
- const miniGameLorePool = [
+const miniGameLorePool = [
   {
-    title: "🎪 The Carnival Collapse",
-    lore: "A haunted calliope screams. Four rides spin—one spirals into another realm.",
-    buttons: ["Ride the Upside-Down Ferris", "Enter the Mirror Tent", "Chew the Cotton Scream", "Pet the Laughing Pony"]
+    title: "🎁 Pick a Prize",
+    lore: "It's totally random. Just pick one and hope for the best.",
+    buttons: ["Box A", "Box B", "Box C", "Box D"]
   },
   {
-    title: "📦 The Mystery Box Quadrant",
-    lore: "Four boxes sit before you. Each hisses in a different accent.",
-    buttons: ["Open the box with teeth marks", "Sniff the soggy one", "Kick the humming crate", "Whisper to the warm one"]
+    title: "🍕 Mystery Snack Time",
+    lore: "You’re hungry. One of these snacks might help. Or not.",
+    buttons: ["Cold Pizza", "Weird Burrito", "Melted Ice Cream", "Mystery Meat"]
   },
   {
-    title: "🌡️ Fever Dreams",
-    lore: "You’re burning up. The charm offers four icy visions. Pick one to cool your core.",
-    buttons: ["Swim in static", "Chew the ice mirror", "Melt into a song", "Lick the frost ghost"]
+    title: "🛏️ Dream Options",
+    lore: "Four dreams float in the air. Choose one to nap in. Outcomes vary.",
+    buttons: ["Flying dream", "Falling dream", "Late-for-class dream", "Totally blank dream"]
   },
   {
-    title: "🔋 Battery Ritual",
-    lore: "Each battery crackles with power—only one won’t fry your soul.",
-    buttons: ["Lick the AA", "Swallow the glowing C", "Sit on the D", "Charge yourself with the ZZZ"]
+    title: "📦 Grab a Box",
+    lore: "They all look the same. And different. And... weird.",
+    buttons: ["Box 1", "Box 2", "Box 3", "Box 4"]
   },
   {
-    title: "🍽️ Dinner with the Charm",
-    lore: "Dinner is served. It’s still moving. Pick your entrée.",
-    buttons: ["Slurp the screaming soup", "Nibble the bone pie", "Sniff the neon salad", "Chomp the shadow steak"]
+    title: "💡 Gut Feeling Test",
+    lore: "Trust your gut. Pick a lightbulb. Totally scientific.",
+    buttons: ["Bright Idea", "Dim Hope", "Flickering Risk", "Totally Out"]
   },
   {
-    title: "📺 Reality Tuner",
-    lore: "Four TVs flicker with strange channels. Only one shows... yourself.",
-    buttons: ["Tune to Static 13", "Rotate the cursed knob", "Plug into your spine", "Speak into the screen"]
+    title: "🐸 Frog Toss",
+    lore: "Four frogs. One has a crown. One’s just wet.",
+    buttons: ["Green Guy", "Bumpy One", "Big Eyes", "Screams A Lot"]
   },
   {
-    title: "🌙 Moonlight Bargain",
-    lore: "The moon grins. You are offered four pacts. Only one doesn’t bite.",
-    buttons: ["Kiss the night ink", "Trade your shadow", "Swear on a toad", "Offer your reflection"]
+    title: "🎲 Roll the Dice",
+    lore: "Each choice is a roll of fate. But with buttons instead of dice.",
+    buttons: ["Roll 1", "Roll 2", "Roll 3", "Roll 4"]
   },
   {
-    title: "🧻 Toilet Choices",
-    lore: "An abandoned gas station restroom. Four stalls. Something beckons.",
-    buttons: ["Choose the graffiti stall", "Kick open the bloody one", "Crawl under the silent stall", "Flush them all at once"]
+    title: "🧼 Clean or Cursed?",
+    lore: "One of these soaps is cursed. The rest are just... soap.",
+    buttons: ["Lemon Fresh", "Minty One", "Sketchy Bar", "Unknown Goo"]
   },
   {
-    title: "🧼 Soap Opera",
-    lore: "Four talking soaps argue about who is cursed. Wash your hands of one.",
-    buttons: ["Grab the foamy screamer", "Rub the cube with teeth", "Pick the weeping lavender", "Toss the flirty lemon"]
+    title: "🚪 Door Decision",
+    lore: "Pick a door. Don’t overthink it. Or do. Won’t help.",
+    buttons: ["Red Door", "Blue Door", "Green Door", "Wiggly Door"]
   },
   {
-    title: "📅 Calendar of Catastrophe",
-    lore: "One of these days is your lucky day. The others… you don’t want to know.",
-    buttons: ["Circle Monday the 13th", "Rip out Wednesday", "Fold Sunday backwards", "Lick the leap day"]
-  },
-  {
-    title: "🪑 Chair of Choices",
-    lore: "One chair is safe. The rest bite, collapse, or whisper secrets you can’t unhear.",
-    buttons: ["Sit on the cracked throne", "Balance on the slime stool", "Spin the carnival seat", "Float above the air chair"]
-  },
-  {
-    title: "🎂 Forgotten Birthdays",
-    lore: "Four cakes. One’s for you. The rest are... for others.",
-    buttons: ["Blow out all the candles", "Taste the sour frosting", "Eat the candle", "Cut the cake with a bone"]
-  },
-  {
-    title: "🐛 The Larva Lottery",
-    lore: "Each larva wiggles with potential. One becomes a butterfly. The rest? Problems.",
-    buttons: ["Adopt the chunky one", "Name the translucent squirm", "Pet the fuzzy mistake", "Feed the glowing worm"]
-  },
-  {
-    title: "📠 Fax From Beyond",
-    lore: "A dusty fax machine prints cryptic commands. Choose one and obey.",
-    buttons: ["Sign in blood", "Call the number back", "Fold the fax into origami", "Fax yourself instead"]
-  },
-  {
-    title: "🪚 Toolbox of Torment",
-    lore: "Each tool knows your secrets. They whisper to be chosen.",
-    buttons: ["Pick the laughing wrench", "Swing the sticky hammer", "Twist the warm screwdriver", "Nibble the measuring tape"]
-  },
-  {
-    title: "📒 Yearbook of Regrets",
-    lore: "You find a cursed yearbook. Choose someone’s memory to replace your own.",
-    buttons: ["Swap with 'Most Likely to Ascend'", "Take the page with no face", "Erase the principal", "Add yourself twice"]
-  },
-  {
-    title: "🎒 Backpack of Portals",
-    lore: "Each zipper leads somewhere else. One opens back here.",
-    buttons: ["Unzip the growling pocket", "Peek inside the infinity pouch", "Throw the whole thing", "Wear it and vanish"]
-  },
-  {
-    title: "🧊 Ice Cubes of Destiny",
-    lore: "One cube contains hope. The rest are frozen screams.",
-    buttons: ["Swallow the cube with an eye", "Hold the one that pulses", "Smash the jagged cube", "Give your cube a name"]
-  },
-  {
-    title: "📀 Cursed Mixtape",
-    lore: "Four tracks echo in your mind. One drops a banger. The rest… end you.",
-    buttons: ["Play Track 0", "Skip to the end", "Rewind forever", "Drop the mixtape"]
-  },
-  {
-    title: "🔑 Keys to the Unknown",
-    lore: "Four keys hang from a burning hook. Each unlocks a different doom.",
-    buttons: ["Turn the melting key", "Bite the chrome one", "Use the key with a tail", "Sing to the gold one"]
+    title: "📺 Channel Surfing",
+    lore: "You're flipping channels. What’s on might be your fate.",
+    buttons: ["Cooking Show", "Weather Alert", "Cartoon Hour", "Static"]
   }
 ];
+
 
 // === Fate Lore Intros ===
  const miniGameFateDescriptions = [
@@ -587,26 +538,19 @@ const riddles = [
 
 
 const gauntletOverviewEmbed = new EmbedBuilder()
-  
   .setTitle('🌀 WELCOME TO THE GAUNTLET 🌀')
   .setDescription(
-    "**A cursed survival game where each round throws you deeper into chaos.**\n\n" +
-    "🎮 **Mini-Games** *(open to everyone — alive, eliminated, or lurking)*\n" +
-    "Click a button and face one of **4 fates**:\n\n" +
-    "🔓 **+1 Life** – Gain a life or return from the dead\n" +
-    "💠 **Nothing** – Survive, untouched\n" +
-    "💥 **Dead** – Instant elimination, no matter your lives\n" +
-    "❄️ **-1 Life** – Lose one of your lives\n\n" +
-    "😶 *Inaction is death.*\n" +
-    "**50%** of inactive players are silently eliminated.\n\n" +
-    "🧠 **Oracle Riddles** – Answer in 30 sec for **+1 Life**\n" +
-    "⌛ Type `/life` or `!life` to check your lives\n\n" +
-    "📸 Your Ugly or Monster NFT appears when you fall\n" +
-    "🏆 Top 3 rise to the podium. Stats are forever.\n\n" +
-    "*This isn’t luck. It’s malformed destiny.*\n\n" +
-    "⚔️ **Click. Survive. Ascend.**"
+    "**Survive the chaos. Outsmart the odds.**\n\n" +
+    "🎮 **Mini-Games** – Anyone can click. Your fate is random:\n" +
+    "🔓 +1 Life   💠 Nothing   ❄️ -1 Life   💥 Eliminated\n\n" +
+    "😶 *Don’t click? You might vanish.*\n\n" +
+    "🧠 **Riddles** – Answer in time for +1 Life\n" +
+    "⌛ `/life` or `!life` to check lives\n\n" +
+    "🏆 Top 3 reach the podium\n\n" +
+    "*Click. Survive. Ascend.*"
   )
   .setColor(0x9b59b6);
+
 
 
 // === NFT Image Fetching ===
