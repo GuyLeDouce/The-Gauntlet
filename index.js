@@ -1406,49 +1406,50 @@ async function showPodium(channel, players) {
     ranked.push(...deadPlayers.slice(0, 3 - ranked.length));
   }
 
-const top3 = ranked.slice(0, 3);
-const maxLives = top3[0]?.lives || 0;
-const tied = top3.filter(p => p.lives === maxLives);
+  const top3 = ranked.slice(0, 3);
+  const maxLives = top3[0]?.lives || 0;
+  const tied = top3.filter(p => p.lives === maxLives);
 
-const medals = ['👑🥇', '🩸🥈', '💀🥉'];
-const titles = [
-  "⚔️ **Champion of the Charm** ⚔️",
-  "🌑 **Scarred But Standing** 🌑",
-  "🕳️ **Last One Dragged from the Void** 🕳️"
-];
+  const medals = ['👑🥇', '🩸🥈', '💀🥉'];
+  const titles = [
+    "⚔️ **Champion of the Charm** ⚔️",
+    "🌑 **Scarred But Standing** 🌑",
+    "🕳️ **Last One Dragged from the Void** 🕳️"
+  ];
 
-const winnerNote = maxLives > 0
-  ? (tied.length > 1
-      ? `👑 A shared crown! ${tied.map(p => `<@${p.id}>`).join(', ')} reign together...`
-      : `🏆 <@${top3[0].id}> emerges as the ultimate survivor...`)
-  : `💀 No one survived the final ritual. The charm claims all...`;
+  const winnerNote = maxLives > 0
+    ? (tied.length > 1
+        ? `👑 A shared crown! ${tied.map(p => `${p.username}`).join(', ')} reign together...`
+        : `🏆 ${top3[0].username} emerges as the ultimate survivor...`)
+    : `💀 No one survived the final ritual. The charm claims all...`;
 
+  const baseEmbed = new EmbedBuilder()
+    .setTitle('🌌👁‍🗨️ 𝙏𝙃𝙀 𝙁𝙄𝙉𝘼𝙇 𝙋𝙊𝘿𝙄𝙐𝙈 👁‍🗨️🌌')
+    .setDescription(
+      `The arena falls silent...\nOnly the echoes of chaos remain.\n\n` +
+      `🏆 *Here stand the final 3 who braved the Gauntlet:*\n\n${winnerNote}`
+    )
+    .setColor(maxLives > 0 ? 0x8e44ad : 0x444444)
+    .setThumbnail('https://media.discordapp.net/attachments/1086418283131048156/1378206999421915187/The_Gauntlet.png?format=webp&quality=lossless&width=128&height=128')
+    .setFooter({ text: '💀 The charm remembers all...' });
 
-const baseEmbed = new EmbedBuilder()
-  .setTitle('🌌👁‍🗨️ 𝙏𝙃𝙀 𝙁𝙄𝙉𝘼𝙇 𝙋𝙊𝘿𝙄𝙐𝙈 👁‍🗨️🌌')
-  .setDescription(
-    `The arena falls silent...\nOnly the echoes of chaos remain.\n\n` +
-    `🏆 *Here stand the final 3 who braved the Gauntlet:*\n\n${winnerNote}`
-  )
-  .setColor(maxLives > 0 ? 0x8e44ad : 0x444444)
-  .setThumbnail('https://media.discordapp.net/attachments/1086418283131048156/1378206999421915187/The_Gauntlet.png?format=webp&quality=lossless&width=128&height=128')
-  .setFooter({ text: '💀 The charm remembers all...' });
+  const msg = await channel.send({ embeds: [baseEmbed] });
 
-const msg = await channel.send({ embeds: [baseEmbed] });
+  for (let i = 0; i < top3.length; i++) {
+    const name = `${top3[i].username}`;
+    const field = {
+      name: `${medals[i]} ${name}`,
+      value: `${titles[i]}\nLives Remaining: **${top3[i].lives}**`,
+      inline: false
+    };
+    baseEmbed.addFields(field);
+    await wait(1500);
+    await msg.edit({ embeds: [baseEmbed] });
+  }
 
-for (let i = 0; i < top3.length; i++) {
-  const name = `<@${top3[i].id}>`;
-  const field = {
-    name: `${medals[i]} ${name}`,
-    value: `${titles[i]}\nLives Remaining: **${top3[i].lives}**`,
-    inline: false
-  };
-  baseEmbed.addFields(field);
-  await wait(1500);
-  await msg.edit({ embeds: [baseEmbed] });
-}
   await wait(5000); // Leave it visible a bit longer
 }
+
 
 // === Show Rematch Button & Wait for Votes ===
 async function showRematchButton(channel, finalPlayers) {
