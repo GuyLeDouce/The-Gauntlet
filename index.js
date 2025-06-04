@@ -70,6 +70,8 @@ let rematchCount = 0;
 let gameChannel = null;
 let joinMessageLink = null;
  authorizedUsers = ['826581856400179210', '1288107772248064044'];
+let lastIncentiveTimestamp = 0; // Unix timestamp in milliseconds
+
 
 
 // === Lore Arrays ===
@@ -876,47 +878,55 @@ const playerMap = new Map(playerArray.map(p => [p.id, p]));
     // === Update Active Players ===
     active = [...playerMap.values()].filter(p => !eliminated.has(p.id));
 
-    // === Incentive Unlock Trigger (Only Once) ===
-    if (!incentiveTriggered && active.length <= Math.floor(originalCount / 2)) {
-      incentiveTriggered = true;
-      await runIncentiveUnlock(channel);
-      await wait(3000);
-    }
+// === Incentive Unlock Trigger (Only Once, based on dead players) ===
+const deadCount = [...playerMap.values()].filter(p => p.lives <= 0).length;
+const now = Date.now();
+const twentyFourHours = 24 * 60 * 60 * 1000;
+
+if (!incentiveTriggered && deadCount >= Math.floor(originalCount / 2) && (now - lastIncentiveTimestamp > twentyFourHours)) {
+  incentiveTriggered = true;
+  lastIncentiveTimestamp = now;
+  await runIncentiveUnlock(channel);
+  await wait(3000);
+}
+
 
     eventNumber++;
     await wait(3000);
   }
 
   // === Endgame: Ritual or Podium ===
-  const survivors = [...playerMap.values()].filter(p => p.lives > 0);
+ // === Final Survivors Check ===
+const survivors = [...playerMap.values()].filter(p => p.lives > 0);
 
-  if (survivors.length > 1) {
-    await channel.send(`🔮 **FINAL RITUAL**\nToo many remain... The charm demands one final judgment.`);
-    await runTiebreaker(survivors, channel);
-    await wait(3000);
-  } else if (survivors.length === 1) {
-    await channel.send(`👑 Only one remains...`);
-  } else {
-    await channel.send(`💀 No survivors remain. The arena claims them all.`);
-  }
-
-// === Final Podium ===
-if (survivors.length <= 1) {
-  await showPodium(channel, [...playerMap.values()]);
-  await wait(2000); // optional pause after the podium finishes
-
-  activeGame = null;
-
-  // === Rematch Offer ===
-  rematchCount++;
-  if (rematchCount < maxRematches) {
-    await showRematchButton(channel, [...playerMap.values()]);
-  }
-} else {
-  activeGame = null;
+// 🚫 Too many players? Force another round instead of ending
+if (survivors.length > 3) {
+  await channel.send(`⚠️ **Too many players remain (${survivors.length})**\nThe Gauntlet is not finished with you yet...`);
+  await wait(3000);
+  return await runGauntlet(playerMap, channel); // Recurse with updated state
 }
 
+// === Final Ritual or Podium ===
+if (survivors.length > 1) {
+  await channel.send(`🔮 **FINAL RITUAL**\nToo many remain... The charm demands one final judgment.`);
+  await runTiebreaker(survivors, channel);
+  await wait(3000);
+} else if (survivors.length === 1) {
+  await channel.send(`👑 Only one remains...`);
+} else {
+  await channel.send(`💀 No survivors remain. The arena claims them all.`);
+}
 
+await showPodium(channel, [...playerMap.values()]);
+await wait(2000);
+
+activeGame = null;
+
+// === Rematch Offer ===
+rematchCount++;
+if (rematchCount < maxRematches) {
+  await showRematchButton(channel, [...playerMap.values()]);
+}
 
 // === Mini-Game Event with Countdown and Secret Outcome ===
 async function runMiniGameEvent(players, channel, eventNumber, playerMap) {
@@ -1048,11 +1058,13 @@ for (let player of players) {
 }
 
 
-// === Mint Incentive Ops ===
-// === Mint Incentive Ops (with Emoji Reaction + Reply) ===
-async function runIncentiveUnlock(channel) {
+// === Mint Incentive Ops (Corrected Trigger Logic & Number Guess Event) ===
+async function runIncentiveUnlock(channel, playerMap, originalCount) {
+  const deadCount = [...playerMap.values()].filter(p => p.lives <= 0).length;
+  if (deadCount < Math.floor(originalCount / 2)) return; // Only trigger if half or more are eliminated
+
   const targetNumber = Math.floor(Math.random() * 50) + 1;
-  const guesses = new Map(); // user.id => guessed number
+  const guesses = new Map();
   const correctMessages = [];
 
   const incentiveRewards = [
@@ -1077,27 +1089,23 @@ async function runIncentiveUnlock(channel) {
 
   await channel.send({ embeds: [embed] });
 
-const filter = m => {
-  if (!m.content || typeof m.content !== 'string') return false;
-  const guess = parseInt(m.content.trim());
-  return !isNaN(guess) && guess >= 1 && guess <= 50 && !guesses.has(m.author.id);
-};
-
-
+  const filter = m => {
+    if (!m.content || typeof m.content !== 'string') return false;
+    const guess = parseInt(m.content.trim());
+    return !isNaN(guess) && guess >= 1 && guess <= 50 && !guesses.has(m.author.id);
+  };
 
   const collector = channel.createMessageCollector({ filter, time: 10000 });
 
   collector.on('collect', msg => {
     const guess = parseInt(msg.content.trim());
     guesses.set(msg.author.id, guess);
-
     if (guess === targetNumber) {
-      correctMessages.push(msg); // Save the message to react and reply to later
+      correctMessages.push(msg);
     }
   });
 
   collector.on('end', async () => {
-    // React + reply to correct guesses
     for (const msg of correctMessages) {
       try {
         await msg.react('✅');
@@ -1114,7 +1122,6 @@ const filter = m => {
 
     if (winners.length > 0) {
       const incentive = incentiveRewards[Math.floor(Math.random() * incentiveRewards.length)];
-
       const winEmbed = new EmbedBuilder()
         .setTitle('🎉 Incentive Unlocked!')
         .setDescription(
@@ -1128,7 +1135,6 @@ const filter = m => {
         .setFooter({ text: 'Unlocked by the power of the malformed minds.' });
 
       await channel.send({ embeds: [winEmbed] });
-
     } else {
       const failEmbed = new EmbedBuilder()
         .setTitle('🧤 The Offer Remains Sealed...')
@@ -1144,6 +1150,7 @@ const filter = m => {
     }
   });
 }
+
 
 
 
