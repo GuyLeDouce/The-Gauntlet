@@ -913,15 +913,17 @@ async function runMiniGameEvent(players, channel, eventNumber, playerMap) {
 
   const embed = new EmbedBuilder()
     .setTitle(`🎲 Event #${eventNumber}: ${chosenLore.title}`)
-    .setDescription(`${chosenLore.lore}\n\n${fateLine}\n\n⏳ Time left: **30 seconds**`)
+    .setDescription(`${chosenLore.lore}\n\n${fateLine}\n\n⏳ Time left: **40 seconds**`)
     .setColor(0xff66cc);
 
   const message = await channel.send({ embeds: [embed], components: [row] });
-  const collector = message.createMessageComponentCollector({ time: 30000 });
-  setTimeout(() => {
-  channel.send('🌀 **Lock in your pick!** 30 seconds left...');
-}, 20000);
 
+  // Send reminder after 10s
+  setTimeout(() => {
+    channel.send('🌀 **Lock in your pick!** 30 seconds left...');
+  }, 10000);
+
+  const collector = message.createMessageComponentCollector({ time: 40000 });
 
   collector.on('collect', async i => {
     const userId = i.user.id;
@@ -974,33 +976,36 @@ async function runMiniGameEvent(players, channel, eventNumber, playerMap) {
     await i.reply({ content: `🔘 You selected **${displayText}** → ${emojiMap[outcome]}`, flags: 64 });
   });
 
-  // Countdown
-  for (let timeLeft of [15, 10, 5]) {
-    await wait(5000);
-    embed.setDescription(`${chosenLore.lore}\n\n${fateLine}\n\n⏳ Time left: **${timeLeft} seconds**`);
-    await message.edit({ embeds: [embed] });
+  // Countdown Updates
+  await wait(10000); // Wait until 30s left
+  embed.setDescription(`${chosenLore.lore}\n\n${fateLine}\n\n⏳ Time left: **30 seconds**`);
+  await message.edit({ embeds: [embed] });
+
+  await wait(10000); // Until 20s left
+  embed.setDescription(`${chosenLore.lore}\n\n${fateLine}\n\n⏳ Time left: **20 seconds**`);
+  await message.edit({ embeds: [embed] });
+
+  await wait(10000); // Until 10s left
+  embed.setDescription(`${chosenLore.lore}\n\n${fateLine}\n\n⏳ Time left: **10 seconds**`);
+  await message.edit({ embeds: [embed] });
+
+  await wait(10000); // Final buffer
+
+  // Handle non-clickers, but skip already-dead players
+  for (let player of players) {
+    const wasDeadBefore = !wasAliveBefore.has(player.id);
+    const didNotClick = !clickedPlayers.has(player.id);
+
+    if (didNotClick && wasDeadBefore) continue; // Already dead, didn't interact — ignore
+
+    if (didNotClick && player.lives > 0) {
+      const eliminated = Math.random() < 0.5;
+      resultMap.set(player.id, eliminated ? 'eliminate' : 'ignored');
+    }
   }
-
-  await wait(5000); // Final buffer
-
-// Handle non-clickers, but skip already-dead players
-for (let player of players) {
-  const wasDeadBefore = !wasAliveBefore.has(player.id);
-  const didNotClick = !clickedPlayers.has(player.id);
-
-  if (didNotClick && wasDeadBefore) continue; // Already dead, didn't interact — ignore
-
-  if (didNotClick && player.lives > 0) {
-    const eliminated = Math.random() < 0.5;
-    resultMap.set(player.id, eliminated ? 'eliminate' : 'ignored');
-  }
-}
-
 
   return { resultMap, wasAliveBefore };
 }
-}
-
 
 // === Mint Incentive Ops (Corrected Trigger Logic & Number Guess Event) ===
 async function runIncentiveUnlock(channel, playerMap, originalCount) {
@@ -1094,7 +1099,7 @@ async function runIncentiveUnlock(channel, playerMap, originalCount) {
     }
   });
 }
-
+}
 
 
 
