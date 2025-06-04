@@ -208,7 +208,7 @@ const lostLifeMoments = [
   "🪩 threw a dance party. Lost a life to the beat drop."
 ];
 
- const frozenLore = [
+ const eliminatedByInactivityLore = [
   "❄️ Froze mid-click and vanished.",
   "🪞 Stared too long at the buttons and became one.",
   "🐌 Moved too slow for the charm to care.",
@@ -999,21 +999,20 @@ async function runMiniGameEvent(players, channel, eventNumber, playerMap) {
 
   await wait(10000); // Final buffer
 
-  // Handle non-clickers, but skip already-dead players
-  for (let player of players) {
-    const wasDeadBefore = !wasAliveBefore.has(player.id);
-    const didNotClick = !clickedPlayers.has(player.id);
+  // === Handle non-clickers (eliminate 50% randomly) ===
+  const nonClickers = players.filter(p => p.lives > 0 && !clickedPlayers.has(p.id));
+  const shuffled = nonClickers.sort(() => Math.random() - 0.5);
+  const half = Math.floor(nonClickers.length / 2);
 
-    if (didNotClick && wasDeadBefore) continue; // Already dead, didn't interact — ignore
-
-    if (didNotClick && player.lives > 0) {
-      const eliminated = Math.random() < 0.5;
-      resultMap.set(player.id, eliminated ? 'eliminate' : 'ignored');
-    }
+  for (let i = 0; i < half; i++) {
+    const p = shuffled[i];
+    resultMap.set(p.id, 'eliminate');
+    p.wasInactive = true; // 🧊 Flag them for results
   }
 
   return { resultMap, wasAliveBefore };
 }
+
 
 // === Mint Incentive Ops (Corrected Trigger Logic & Number Guess Event) ===
 async function runIncentiveUnlock(channel, playerMap, originalCount) {
@@ -1121,7 +1120,7 @@ async function showResultsRound(results, wasAliveBefore, channel, players) {
     lost: lostLifeMoments,
     revived: reviveLore,
     eliminated: funnyEliminations,
-    inactivity: frozenLore
+    inactivity: eliminatedByInactivityLore // Now used only for eliminated *by inactivity*
   };
 
   // Categorize outcomes
@@ -1136,19 +1135,19 @@ async function showResultsRound(results, wasAliveBefore, channel, players) {
     } else if (outcome === 'lose' && wasAlive) {
       lost.push(player);
     } else if (outcome === 'eliminate' && wasAlive) {
-      eliminated.push(player);
-    } else if (outcome === 'ignored' && wasAlive) {
-      inactivity.push(player);
+      // Check if this elimination was due to inactivity
+      if (player.wasInactive) inactivity.push(player);
+      else eliminated.push(player);
     }
   }
 
-  // Build summary line
+  // Summary line
   const summaryParts = [];
   if (gained.length) summaryParts.push(`❤️ ${gained.length} gained a life`);
   if (lost.length) summaryParts.push(`💢 ${lost.length} lost a life`);
   if (revived.length) summaryParts.push(`💫 ${revived.length} revived`);
   if (eliminated.length) summaryParts.push(`☠️ ${eliminated.length} eliminated`);
-  if (inactivity.length) summaryParts.push(`🧊 ${inactivity.length} frozen`);
+  if (inactivity.length) summaryParts.push(`🧊 ${inactivity.length} eliminated by inactivity`);
 
   const summaryText = summaryParts.length > 0
     ? `**Summary:** ${summaryParts.join(' | ')}`
@@ -1161,7 +1160,7 @@ async function showResultsRound(results, wasAliveBefore, channel, players) {
 
   const msg = await channel.send({ embeds: [embed] });
 
-  // Helper function to add player lore slowly
+  // Helper: reveal outcomes line-by-line
   const revealOutcomeGroup = async (title, list, key) => {
     if (!list.length) return;
 
@@ -1193,6 +1192,7 @@ async function showResultsRound(results, wasAliveBefore, channel, players) {
 
   await wait(6000);
 }
+
 
 
 // === Riddle Phase with Countdown & Monster Image ===
