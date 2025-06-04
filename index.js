@@ -795,7 +795,7 @@ async function runBossVotePhase(players, channel) {
   const msg = await channel.send({ embeds: [embed], components: [row] });
 
   const votes = {};
-  const collector = msg.createMessageComponentCollector({ time: 10_000 });
+  const collector = msg.createMessageComponentCollector({ time: 15_000 });
   collector.on('collect', i => {
     if (!votes[i.user.id]) {
       const voted = i.customId.replace('bossvote_', '');
@@ -959,11 +959,15 @@ async function runMiniGameEvent(players, channel, eventNumber, playerMap) {
 
   const embed = new EmbedBuilder()
     .setTitle(`🎲 Event #${eventNumber}: ${chosenLore.title}`)
-    .setDescription(`${chosenLore.lore}\n\n${fateLine}\n\n⏳ Time left: **20 seconds**`)
+    .setDescription(`${chosenLore.lore}\n\n${fateLine}\n\n⏳ Time left: **30 seconds**`)
     .setColor(0xff66cc);
 
   const message = await channel.send({ embeds: [embed], components: [row] });
-  const collector = message.createMessageComponentCollector({ time: 20000 });
+  const collector = message.createMessageComponentCollector({ time: 30000 });
+  setTimeout(() => {
+  channel.send('🌀 **Lock in your pick!** 30 seconds left...');
+}, 20000);
+
 
   collector.on('collect', async i => {
     const userId = i.user.id;
@@ -1239,7 +1243,7 @@ async function runRiddleEvent(channel, players) {
     : [String(answers).toLowerCase().trim()];
 
   const monsterImg = getMonsterImageUrl();
-  const countdown = 30;
+  const countdown = 40;
   const correctPlayers = new Set();
 
   const embed = new EmbedBuilder()
@@ -1286,7 +1290,7 @@ async function runRiddleEvent(channel, players) {
   });
 
   // Countdown updates
-  const countdownIntervals = [25, 20, 15, 10, 5];
+  const countdownIntervals = [35, 30, 25, 20, 15, 10, 5];
   for (let i = 0; i < countdownIntervals.length; i++) {
     const secondsLeft = countdownIntervals[i];
     const delay = (i === 0 ? countdown - secondsLeft : countdownIntervals[i - 1] - secondsLeft) * 1000;
@@ -1335,7 +1339,7 @@ async function runTiebreaker(tiedPlayersInput, channel) {
     )
     .setColor(0xff0033)
     .setThumbnail('https://media.discordapp.net/attachments/1086418283131048156/1378206999421915187/The_Gauntlet.png?format=webp&quality=lossless&width=128&height=128')
-    .setFooter({ text: '⏳ 15 seconds to vote...' });
+    .setFooter({ text: '⏳ 30 seconds to vote...' });
 
   const rows = [];
   let currentRow = new ActionRowBuilder();
@@ -1358,7 +1362,7 @@ async function runTiebreaker(tiedPlayersInput, channel) {
 
   const msg = await channel.send({ embeds: [introEmbed], components: rows });
 
-  const collector = msg.createMessageComponentCollector({ time: 15_000 });
+  const collector = msg.createMessageComponentCollector({ time: 30_000 });
 
   collector.on('collect', async i => {
     if (votedUsers.has(i.user.id)) {
