@@ -840,7 +840,10 @@ if (!incentiveTriggered && deadCount >= Math.floor(originalCount / 2) && (now - 
   }
 
   // === Endgame: Ritual or Podium ===
- // === Final Survivors Check ===
+// === Final Phase: Ritual or Podium ===
+let podiumShown = false;
+
+// === Final Survivors Check ===
 const survivors = [...playerMap.values()].filter(p => p.lives > 0);
 
 // 🚫 Too many players? Force another round instead of ending
@@ -854,6 +857,7 @@ if (survivors.length > 3) {
 if (survivors.length > 1) {
   await channel.send(`🔮 **FINAL RITUAL**\nToo many remain... The charm demands one final judgment.`);
   await runTiebreaker(survivors, channel);
+  podiumShown = true; // Final podium is shown inside runTiebreaker
   await wait(3000);
 } else if (survivors.length === 1) {
   await channel.send(`👑 Only one remains...`);
@@ -861,10 +865,14 @@ if (survivors.length > 1) {
   await channel.send(`💀 No survivors remain. The arena claims them all.`);
 }
 
-await showPodium(channel, [...playerMap.values()]);
-await wait(2000);
+// === Show Podium (if not already shown) ===
+if (!podiumShown) {
+  await showPodium(channel, [...playerMap.values()]);
+}
 
+await wait(2000);
 activeGame = null;
+
 
 // === Rematch Offer ===
 rematchCount++;
@@ -1106,11 +1114,7 @@ async function runIncentiveUnlock(channel, playerMap, originalCount) {
 
 // === Show Results Round (Dramatic Lore Edition) ===
 async function showResultsRound(results, wasAliveBefore, channel, players) {
-  const gained = [];
-  const lost = [];
-  const revived = [];
-  const eliminated = [];
-  const inactivity = [];
+  const gained = [], lost = [], revived = [], eliminated = [], inactivity = [];
 
   const flavor = {
     gained: gainLifeLore,
@@ -1120,51 +1124,60 @@ async function showResultsRound(results, wasAliveBefore, channel, players) {
     inactivity: frozenLore
   };
 
-for (let player of players) {
-  const outcome = results.get(player.id);
-  if (!outcome) continue;
+  // Categorize outcomes
+  for (let player of players) {
+    const outcome = results.get(player.id);
+    if (!outcome) continue;
 
-  const wasAlive = wasAliveBefore.has(player.id);
-  const nowDead = player.lives <= 0;
+    const wasAlive = wasAliveBefore.has(player.id);
 
-  if (outcome === 'gain') {
-    if (!wasAlive) revived.push(player);
-    else gained.push(player);
-  } else if (outcome === 'lose' && wasAlive) {
-    lost.push(player);
-  } else if (outcome === 'eliminate' && wasAlive) {
-    eliminated.push(player);
-  } else if (outcome === 'ignored' && wasAlive) {
-    inactivity.push(player);
+    if (outcome === 'gain') {
+      (!wasAlive ? revived : gained).push(player);
+    } else if (outcome === 'lose' && wasAlive) {
+      lost.push(player);
+    } else if (outcome === 'eliminate' && wasAlive) {
+      eliminated.push(player);
+    } else if (outcome === 'ignored' && wasAlive) {
+      inactivity.push(player);
+    }
   }
-}
 
+  // Build summary line
+  const summaryParts = [];
+  if (gained.length) summaryParts.push(`❤️ ${gained.length} gained a life`);
+  if (lost.length) summaryParts.push(`💢 ${lost.length} lost a life`);
+  if (revived.length) summaryParts.push(`💫 ${revived.length} revived`);
+  if (eliminated.length) summaryParts.push(`☠️ ${eliminated.length} eliminated`);
+  if (inactivity.length) summaryParts.push(`🧊 ${inactivity.length} frozen`);
+
+  const summaryText = summaryParts.length > 0
+    ? `**Summary:** ${summaryParts.join(' | ')}`
+    : `⚖️ No lives changed hands. The charm smirks in silence.`;
 
   const embed = new EmbedBuilder()
     .setTitle('📜 Results Round')
-    .setDescription('The ritual is complete. The charm surveys the survivors...')
+    .setDescription(`The ritual is complete. The charm surveys the survivors...\n\n${summaryText}`)
     .setColor(0xff66cc);
 
   const msg = await channel.send({ embeds: [embed] });
 
-  const addFieldSlowly = async (title, list, key) => {
+  // Helper function to add player lore slowly
+  const revealOutcomeGroup = async (title, list, key) => {
     if (!list.length) return;
 
     embed.addFields({ name: title, value: '‎', inline: false });
     await msg.edit({ embeds: [embed] });
 
     for (let p of list) {
-      const flavorList = flavor[key];
-      const randomLine = flavorList[Math.floor(Math.random() * flavorList.length)] || '';
-      const newLine = `${randomLine} <@${p.id}>\n`;
+      const line = flavor[key][Math.floor(Math.random() * flavor[key].length)] + ` <@${p.id}>\n`;
 
-      let fieldIndex = embed.data.fields.findIndex(f => f.name === title || f.name === `${title} (cont.)`);
-      let currentValue = embed.data.fields[fieldIndex].value;
+      let field = embed.data.fields.find(f => f.name === title || f.name === `${title} (cont.)`);
+      if (!field) return;
 
-      if ((currentValue + newLine).length > 1024) {
-        embed.addFields({ name: `${title} (cont.)`, value: newLine });
+      if ((field.value + line).length > 1024) {
+        embed.addFields({ name: `${title} (cont.)`, value: line });
       } else {
-        embed.data.fields[fieldIndex].value += newLine;
+        field.value += line;
       }
 
       await msg.edit({ embeds: [embed] });
@@ -1172,19 +1185,11 @@ for (let player of players) {
     }
   };
 
-  await addFieldSlowly('❤️ Gained a Life', gained, 'gained');
-  await addFieldSlowly('💢 Lost a Life', lost, 'lost');
-  await addFieldSlowly('💫 Brought Back to Life', revived, 'revived');
-  await addFieldSlowly('☠️ Eliminated by the Mini-Game', eliminated, 'eliminated');
-  await addFieldSlowly('🧊 Eliminated by Inactivity', inactivity, 'inactivity');
-
-  if (
-    !gained.length && !lost.length && !revived.length &&
-    !eliminated.length && !inactivity.length
-  ) {
-    embed.setDescription('⚖️ No lives changed hands. The charm smirks in silence.');
-    await msg.edit({ embeds: [embed] });
-  }
+  await revealOutcomeGroup('❤️ Gained a Life', gained, 'gained');
+  await revealOutcomeGroup('💢 Lost a Life', lost, 'lost');
+  await revealOutcomeGroup('💫 Brought Back to Life', revived, 'revived');
+  await revealOutcomeGroup('☠️ Eliminated by the Mini-Game', eliminated, 'eliminated');
+  await revealOutcomeGroup('🧊 Eliminated by Inactivity', inactivity, 'inactivity');
 
   await wait(6000);
 }
