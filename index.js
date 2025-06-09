@@ -1500,19 +1500,22 @@ async function showRematchButton(channel, finalPlayers) {
     await msg.edit({ components: [updatedRow] });
 
     // If enough votes are reached early
-    if (votes.size >= requiredVotes && !rematchTriggered && rematchCount < maxRematches) {
-      rematchTriggered = true;
-      collector.stop(); // end early
-      await channel.send(`🔥 **${votes.size}** have spoken. The charm awakens once more!`);
+if (votes.size >= requiredVotes && !rematchTriggered && rematchCount < maxRematches) {
+  rematchTriggered = true;
+  collector.stop(); // end early
 
-      const playerMap = new Map();
-      finalPlayers.forEach(p => {
-        playerMap.set(p.id, { id: p.id, username: p.username, lives: 1 });
-      });
+  await channel.send(`🔥 **${votes.size}** have spoken. The charm stirs once more...`);
 
-      activeGame = { players: playerMap, rematch: true };
-      await runBossVotePhase(playerMap, channel);
-    }
+  // Simulate the !gauntlet 3 command
+  const fakeMessage = {
+    content: '!gauntlet 3',
+    author: { id: authorizedUsers[0] }, // assumes first authorized user
+    channel,
+    reply: (msg) => channel.send(msg)
+  };
+
+  client.emit('messageCreate', fakeMessage);
+}
   });
 
   collector.on('end', async () => {
