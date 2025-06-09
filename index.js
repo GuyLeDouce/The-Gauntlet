@@ -71,6 +71,7 @@ let gameChannel = null;
 let joinMessageLink = null;
  authorizedUsers = ['826581856400179210', '1288107772248064044'];
 let lastIncentiveTimestamp = 0; // Unix timestamp in milliseconds
+let usedRiddleIndices = new Set(); // Track used riddles
 
 
 
@@ -809,7 +810,7 @@ const playerMap = new Map(playerArray.map(p => [p.id, p]));
     await wait(6000);
 
     // === Riddle Phase ===
-    await runRiddleEvent(channel, active);
+    await runRiddleEvent(channel, active, usedRiddleIndices);
 
     // === Remove Dead Players ===
     for (let player of active) {
@@ -835,7 +836,17 @@ if (!incentiveTriggered && deadCount >= Math.floor(originalCount / 2) && (now - 
 }
 
 
-    eventNumber++;
+   eventNumber++;
+
+// === Run Incentive Unlock After Event #3 ===
+if (!incentiveTriggered && eventNumber === 4) {
+  incentiveTriggered = true;
+  await channel.send(`🧠 **The charm hums... a forbidden chance emerges.**`);
+  await runIncentiveUnlock(channel, playerMap, originalCount);
+  await wait(3000);
+}
+
+
     await wait(3000);
   }
 
@@ -1016,9 +1027,27 @@ async function runMiniGameEvent(players, channel, eventNumber, playerMap) {
 
 // === Mint Incentive Ops (Corrected Trigger Logic & Number Guess Event) ===
 async function runIncentiveUnlock(channel, playerMap, originalCount) {
-  const deadCount = [...playerMap.values()].filter(p => p.lives <= 0).length;
-  if (deadCount < Math.floor(originalCount / 2)) return; // Only trigger if half or more are eliminated
+  const now = Date.now();
+  const twentyFourHours = 24 * 60 * 60 * 1000;
 
+  // ⛔ Check if cooldown is active
+  if (now - lastIncentiveTimestamp < twentyFourHours) {
+    const lockedEmbed = new EmbedBuilder()
+      .setTitle('🔒 Incentive Sealed')
+      .setDescription(
+        `The charm’s power lingers from the last ritual...\n` +
+        `The incentive remains **locked** for now.\n\n` +
+        `⏳ Try again <t:${Math.floor((lastIncentiveTimestamp + twentyFourHours) / 1000)}:R>.`
+      )
+      .setColor(0x555555)
+      .setThumbnail('https://media.discordapp.net/attachments/1086418283131048156/1378206999421915187/The_Gauntlet.png?format=webp&quality=lossless&width=128&height=128')
+      .setFooter({ text: 'The charm must rest before it rewards again.' });
+
+    await channel.send({ embeds: [lockedEmbed] });
+    return;
+  }
+
+  // 🎯 Start incentive challenge
   const targetNumber = Math.floor(Math.random() * 50) + 1;
   const guesses = new Map();
   const correctMessages = [];
@@ -1036,7 +1065,7 @@ async function runIncentiveUnlock(channel, playerMap, originalCount) {
     .setDescription(
       `An eerie silence falls over the arena... but the air tingles with potential.\n\n` +
       `**Guess a number between 1 and 50.**\n` +
-      `If ANYONE gets it right, a global community incentive will be unlocked!\n\n` +
+      `If **ANYONE** gets it right, a global community incentive will be unlocked!\n\n` +
       `⏳ You have 10 seconds...`
     )
     .setImage(monsterImg)
@@ -1077,6 +1106,9 @@ async function runIncentiveUnlock(channel, playerMap, originalCount) {
     const winners = correctMessages.map(m => `<@${m.author.id}>`);
 
     if (winners.length > 0) {
+      // ✅ Apply cooldown if someone wins
+      lastIncentiveTimestamp = Date.now();
+
       const incentive = incentiveRewards[Math.floor(Math.random() * incentiveRewards.length)];
       const winEmbed = new EmbedBuilder()
         .setTitle('🎉 Incentive Unlocked!')
@@ -1106,6 +1138,7 @@ async function runIncentiveUnlock(channel, playerMap, originalCount) {
     }
   });
 }
+
 }
 
 
@@ -1196,8 +1229,24 @@ async function showResultsRound(results, wasAliveBefore, channel, players) {
 
 
 // === Riddle Phase with Countdown & Monster Image ===
-async function runRiddleEvent(channel, players) {
-  const currentRiddle = riddles[Math.floor(Math.random() * riddles.length)];
+async function runRiddleEvent(channel, players, usedRiddleIndices) {
+  // Filter to only unused riddles
+  let availableRiddles = riddles
+    .map((r, idx) => ({ riddle: r, index: idx }))
+    .filter(r => !usedRiddleIndices.has(r.index));
+
+  // If all riddles have been used, reset the pool
+  if (availableRiddles.length === 0) {
+    console.warn('⚠️ All riddles exhausted. Reusing from full list.');
+    availableRiddles = riddles.map((r, idx) => ({ riddle: r, index: idx }));
+    usedRiddleIndices.clear(); // Optional: reset to allow reuse
+  }
+
+  // Pick a new unused riddle
+  const picked = availableRiddles[Math.floor(Math.random() * availableRiddles.length)];
+  const { riddle: currentRiddle, index: riddleIndex } = picked;
+  usedRiddleIndices.add(riddleIndex);
+
   const { riddle, answers } = currentRiddle;
   const safeAnswers = Array.isArray(answers)
     ? answers.map(a => a?.toLowerCase().trim())
@@ -1280,6 +1329,7 @@ async function runRiddleEvent(channel, players) {
 
   await wait(5000);
 }
+
 
 // === Sudden Death : The Final Ritual VOTE ===
 async function runTiebreaker(tiedPlayersInput, channel) {
