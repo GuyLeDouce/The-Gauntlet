@@ -1020,6 +1020,12 @@ async function runMiniGameEvent(players, channel, eventNumber, playerMap) {
     resultMap.set(p.id, 'eliminate');
     p.wasInactive = true; // 🧊 Flag them for results
   }
+const survivors = players.filter(p => p.lives > 0).length;
+
+await channel.send({
+  content: `🧍 **${survivors} player${survivors !== 1 ? 's' : ''} remain in the Gauntlet...**`,
+  allowedMentions: { parse: [] }
+});
 
   return { resultMap, wasAliveBefore };
 }
