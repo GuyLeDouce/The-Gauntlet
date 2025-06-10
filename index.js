@@ -866,9 +866,8 @@ if (survivors.length > 3) {
 // === Final Ritual or Podium ===
 if (survivors.length > 1) {
   await channel.send(`🔮 **FINAL RITUAL**\nToo many remain... The charm demands one final judgment.`);
-  await runTiebreaker(survivors, channel);
-  podiumShown = true; // Final podium is shown inside runTiebreaker
-  await wait(3000);
+  await runTiebreaker(survivors, channel); // This function should handle the podium if needed
+  podiumShown = true;
 } else if (survivors.length === 1) {
   await channel.send(`👑 Only one remains...`);
 } else {
@@ -880,11 +879,13 @@ if (!podiumShown) {
   await showPodium(channel, [...playerMap.values()]);
 }
 
-await wait(5000); // Let the Final Podium breathe
-activeGame = null;
+// === Delay to ensure podium display comes first
+await wait(5000); // Give podium time to display cleanly
 
 // === Rematch Offer ===
+activeGame = null;
 rematchCount++;
+
 if (rematchCount < maxRematches) {
   await channel.send(`📯 *The spirits stir... perhaps one more trial awaits?*`);
   await wait(2000);
@@ -1339,114 +1340,115 @@ async function runRiddleEvent(channel, players, usedRiddleIndices) {
 
 // === Sudden Death : The Final Ritual VOTE ===
 async function runTiebreaker(tiedPlayersInput, channel) {
-  const tiedPlayers = Array.isArray(tiedPlayersInput)
-    ? tiedPlayersInput
-    : Array.from(tiedPlayersInput.values?.() || []);
+  return new Promise(async resolve => {
+    const tiedPlayers = Array.isArray(tiedPlayersInput)
+      ? tiedPlayersInput
+      : Array.from(tiedPlayersInput.values?.() || []);
 
-  const voteCounts = new Map(tiedPlayers.map(p => [p.id, 0]));
-  const votedUsers = new Set();
+    const voteCounts = new Map(tiedPlayers.map(p => [p.id, 0]));
+    const votedUsers = new Set();
 
-  const introEmbed = new EmbedBuilder()
-    .setTitle('🩸 𝙏𝙃𝙀 𝙁𝙄𝙉𝘼𝙇 𝙍𝙄𝙏𝙐𝘼𝙇 🩸')
-    .setDescription(
-      `The charm cannot choose...\n\n` +
-      `🗳️ *Cast your vote for who deserves to survive the final ritual.*\n` +
-      `All players, fallen or not, may vote.\n\n` +
-      `If fate is undecided, all shall perish.`
-    )
-    .setColor(0xff0033)
-    .setThumbnail('https://media.discordapp.net/attachments/1086418283131048156/1378206999421915187/The_Gauntlet.png?format=webp&quality=lossless&width=128&height=128')
-    .setFooter({ text: '⏳ 30 seconds to vote...' });
+    const introEmbed = new EmbedBuilder()
+      .setTitle('🩸 𝙏𝙃𝙀 𝙁𝙄𝙉𝘼𝙇 𝙍𝙄𝙏𝙐𝘼𝙇 🩸')
+      .setDescription(
+        `The charm cannot choose...\n\n` +
+        `🗳️ *Cast your vote for who deserves to survive the final ritual.*\n` +
+        `All players, fallen or not, may vote.\n\n` +
+        `If fate is undecided, all shall perish.`
+      )
+      .setColor(0xff0033)
+      .setThumbnail('https://media.discordapp.net/attachments/1086418283131048156/1378206999421915187/The_Gauntlet.png?format=webp&quality=lossless&width=128&height=128')
+      .setFooter({ text: '⏳ 30 seconds to vote...' });
 
-  const rows = [];
-  let currentRow = new ActionRowBuilder();
+    const rows = [];
+    let currentRow = new ActionRowBuilder();
 
-  tiedPlayers.forEach((p, i) => {
-    if (i > 0 && i % 5 === 0) {
-      rows.push(currentRow);
-      currentRow = new ActionRowBuilder();
-    }
+    tiedPlayers.forEach((p, i) => {
+      if (i > 0 && i % 5 === 0) {
+        rows.push(currentRow);
+        currentRow = new ActionRowBuilder();
+      }
 
-    currentRow.addComponents(
-      new ButtonBuilder()
-        .setCustomId(`vote_${p.id}`)
-        .setLabel(`Vote: ${p.username || p.tag || p.id}`)
-        .setStyle(ButtonStyle.Primary)
-    );
-  });
-
-  if (currentRow.components.length > 0) rows.push(currentRow);
-
-  const msg = await channel.send({ embeds: [introEmbed], components: rows });
-
-  const collector = msg.createMessageComponentCollector({ time: 30_000 });
-
-  collector.on('collect', async i => {
-    if (votedUsers.has(i.user.id)) {
-      await i.reply({ content: '🗳️ You already voted!', flags: 64 });
-      return;
-    }
-
-    votedUsers.add(i.user.id);
-
-    const votedId = i.customId.replace('vote_', '');
-    if (voteCounts.has(votedId)) {
-      voteCounts.set(votedId, voteCounts.get(votedId) + 1);
-    }
-
-    await i.reply({ content: `🗳️ Your vote has been cast.`, flags: 64 });
-  });
-
-collector.on('end', async () => {
-  const sorted = [...voteCounts.entries()].sort((a, b) => b[1] - a[1]);
-  const highest = sorted[0][1];
-  const topVoted = sorted.filter(([_, count]) => count === highest);
-
-  const voteTally = sorted
-    .map(([id, count]) => {
-      const player = tiedPlayers.find(p => p.id === id);
-      const name = `<@${id}>`;
-      return `🗳️ ${name} — **${count} vote${count !== 1 ? 's' : ''}**`;
-    })
-    .join('\n');
-
-  if (topVoted.length === 1) {
-    const winnerId = topVoted[0][0];
-    const winner = tiedPlayers.find(p => p.id === winnerId);
-    if (winner) winner.lives = 1;
-
-    const winEmbed = new EmbedBuilder()
-      .setTitle('👑 The Charm Has Spoken 👑')
-      .setDescription(`${voteTally}\n\n<@${winner.id}> is chosen by the will of many.\nThey survive the final ritual.`)
-      .setColor(0xffcc00)
-      .setFooter({ text: '🏆 The charm accepts this verdict.' });
-
-    const winnerTag = winner.username || `<@${winner.id}>`;
-
-    await wait(1000);
-    await channel.send({ embeds: [winEmbed] });
-
-    await wait(4000);
-    await showPodium(channel, tiedPlayers);
-
-  } else {
-    const failEmbed = new EmbedBuilder()
-      .setTitle('💀 No Clear Victor 💀')
-      .setDescription(`${voteTally}\n\nThe vote ended in a tie.\nThe charm chooses **none**.\nAll are consumed by the void.`)
-      .setColor(0x222222)
-      .setFooter({ text: '🕳️ Balance requires sacrifice.' });
-
-    await channel.send({ embeds: [failEmbed] });
-
-    topVoted.forEach(([id]) => {
-      const loser = tiedPlayers.find(p => p.id === id);
-      if (loser) loser.lives = 0;
+      currentRow.addComponents(
+        new ButtonBuilder()
+          .setCustomId(`vote_${p.id}`)
+          .setLabel(`Vote: ${p.username || p.tag || p.id}`)
+          .setStyle(ButtonStyle.Primary)
+      );
     });
 
-    await wait(4000);
-    await showPodium(channel, tiedPlayers);
-  }
-});
+    if (currentRow.components.length > 0) rows.push(currentRow);
+
+    const msg = await channel.send({ embeds: [introEmbed], components: rows });
+
+    const collector = msg.createMessageComponentCollector({ time: 30_000 });
+
+    collector.on('collect', async i => {
+      if (votedUsers.has(i.user.id)) {
+        await i.reply({ content: '🗳️ You already voted!', flags: 64 });
+        return;
+      }
+
+      votedUsers.add(i.user.id);
+
+      const votedId = i.customId.replace('vote_', '');
+      if (voteCounts.has(votedId)) {
+        voteCounts.set(votedId, voteCounts.get(votedId) + 1);
+      }
+
+      await i.reply({ content: `🗳️ Your vote has been cast.`, flags: 64 });
+    });
+
+    collector.on('end', async () => {
+      const sorted = [...voteCounts.entries()].sort((a, b) => b[1] - a[1]);
+      const highest = sorted[0][1];
+      const topVoted = sorted.filter(([_, count]) => count === highest);
+
+      const voteTally = sorted
+        .map(([id, count]) => {
+          const name = `<@${id}>`;
+          return `🗳️ ${name} — **${count} vote${count !== 1 ? 's' : ''}**`;
+        })
+        .join('\n');
+
+      if (topVoted.length === 1) {
+        const winnerId = topVoted[0][0];
+        const winner = tiedPlayers.find(p => p.id === winnerId);
+        if (winner) winner.lives = 1;
+
+        const winEmbed = new EmbedBuilder()
+          .setTitle('👑 The Charm Has Spoken 👑')
+          .setDescription(`${voteTally}\n\n<@${winner.id}> is chosen by the will of many.\nThey survive the final ritual.`)
+          .setColor(0xffcc00)
+          .setFooter({ text: '🏆 The charm accepts this verdict.' });
+
+        await wait(1000);
+        await channel.send({ embeds: [winEmbed] });
+
+        await wait(4000);
+        await showPodium(channel, tiedPlayers);
+        resolve();
+
+      } else {
+        const failEmbed = new EmbedBuilder()
+          .setTitle('💀 No Clear Victor 💀')
+          .setDescription(`${voteTally}\n\nThe vote ended in a tie.\nThe charm chooses **none**.\nAll are consumed by the void.`)
+          .setColor(0x222222)
+          .setFooter({ text: '🕳️ Balance requires sacrifice.' });
+
+        await channel.send({ embeds: [failEmbed] });
+
+        topVoted.forEach(([id]) => {
+          const loser = tiedPlayers.find(p => p.id === id);
+          if (loser) loser.lives = 0;
+        });
+
+        await wait(4000);
+        await showPodium(channel, tiedPlayers);
+        resolve();
+      }
+    });
+  });
 }
 
 // === Show Final Podium ===
