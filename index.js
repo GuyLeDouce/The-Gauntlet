@@ -1414,7 +1414,15 @@ async function runTiebreaker(tiedPlayersInput, channel) {
       if (topVoted.length === 1) {
         const winnerId = topVoted[0][0];
         const winner = tiedPlayers.find(p => p.id === winnerId);
-        if (winner) winner.lives = 1;
+
+        if (winner) {
+          winner.lives = 1;
+
+          // 💀 Eliminate everyone else in the tiebreaker
+          tiedPlayers.forEach(p => {
+            if (p.id !== winner.id) p.lives = 0;
+          });
+        }
 
         const winEmbed = new EmbedBuilder()
           .setTitle('👑 The Charm Has Spoken 👑')
@@ -1450,6 +1458,7 @@ async function runTiebreaker(tiedPlayersInput, channel) {
     });
   });
 }
+
 
 // === Show Final Podium ===
 async function showPodium(channel, players) {
