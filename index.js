@@ -850,8 +850,7 @@ if (!incentiveTriggered && eventNumber === 4 && active.length > 3) {
     await wait(3000);
   }
 
-  // === Endgame: Ritual or Podium ===
-// === Final Phase: Ritual or Podium ===
+// === Endgame: Ritual or Podium ===
 let podiumShown = false;
 
 // === Final Survivors Check ===
@@ -881,13 +880,14 @@ if (!podiumShown) {
   await showPodium(channel, [...playerMap.values()]);
 }
 
-await wait(2000);
+await wait(5000); // Let the Final Podium breathe
 activeGame = null;
-
 
 // === Rematch Offer ===
 rematchCount++;
 if (rematchCount < maxRematches) {
+  await channel.send(`📯 *The spirits stir... perhaps one more trial awaits?*`);
+  await wait(2000);
   await showRematchButton(channel, [...playerMap.values()]);
 }
 
