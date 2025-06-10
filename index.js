@@ -839,7 +839,7 @@ if (!incentiveTriggered && deadCount >= Math.floor(originalCount / 2) && (now - 
    eventNumber++;
 
 // === Run Incentive Unlock After Event #3 ===
-if (!incentiveTriggered && eventNumber === 4) {
+if (!incentiveTriggered && eventNumber === 4 && active.length > 3) {
   incentiveTriggered = true;
   await channel.send(`🧠 **The charm hums... a forbidden chance emerges.**`);
   await runIncentiveUnlock(channel, playerMap, originalCount);
