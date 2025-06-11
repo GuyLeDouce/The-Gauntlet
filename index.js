@@ -783,7 +783,12 @@ const playerMap = new Map(playerArray.map(p => [p.id, p]));
   let active = [...playerMap.values()];
 
   while (active.length > 3 && eventNumber <= maxEvents) {
-    // === Embed 1: Lore & Ugly Image ===
+const survivorCount = active.filter(p => p.lives > 0).length;
+await channel.send({
+  content: `🧍 **${survivorCount} player${survivorCount !== 1 ? 's' : ''} remain in the Gauntlet...**`,
+  allowedMentions: { parse: [] }
+});
+// === Embed 1: Lore & Ugly Image ===
     const introEmbed = new EmbedBuilder()
       .setTitle(`⚔️ Event #${eventNumber}`)
       .setDescription(`🌀 *The warp churns... new horrors rise...*`)
@@ -1021,13 +1026,6 @@ async function runMiniGameEvent(players, channel, eventNumber, playerMap) {
     resultMap.set(p.id, 'eliminate');
     p.wasInactive = true; // 🧊 Flag them for results
   }
-const survivors = players.filter(p => p.lives > 0).length;
-
-await channel.send({
-  content: `🧍 **${survivors} player${survivors !== 1 ? 's' : ''} remain in the Gauntlet...**`,
-  allowedMentions: { parse: [] }
-});
-
   return { resultMap, wasAliveBefore };
 }
 
