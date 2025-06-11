@@ -1073,7 +1073,7 @@ async function runIncentiveUnlock(channel, playerMap, originalCount) {
       `An eerie silence falls over the arena... but the air tingles with potential.\n\n` +
       `**Guess a number between 1 and 50.**\n` +
       `If **ANYONE** gets it right, a global community incentive will be unlocked!\n\n` +
-      `⏳ You have 10 seconds...`
+      `⏳ You have 30 seconds...`
     )
     .setImage(monsterImg)
     .setColor(0xff6600)
@@ -1087,7 +1087,7 @@ async function runIncentiveUnlock(channel, playerMap, originalCount) {
     return !isNaN(guess) && guess >= 1 && guess <= 50 && !guesses.has(m.author.id);
   };
 
-  const collector = channel.createMessageCollector({ filter, time: 10000 });
+  const collector = channel.createMessageCollector({ filter, time: 30000 });
 
   collector.on('collect', msg => {
     const guess = parseInt(msg.content.trim());
