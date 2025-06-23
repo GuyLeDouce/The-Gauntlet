@@ -70,7 +70,6 @@ let rematchCount = 0;
 let gameChannel = null;
 let joinMessageLink = null;
  authorizedUsers = ['826581856400179210', '1288107772248064044'];
-let lastIncentiveTimestamp = 0; // Unix timestamp in milliseconds
 let usedRiddleIndices = new Set(); // Track used riddles
 
 
@@ -776,7 +775,6 @@ async function runGauntlet(players, channel) {
 const playerMap = new Map(playerArray.map(p => [p.id, p]));
   let eliminated = new Map();
   let eventNumber = 1;
-  let incentiveTriggered = false;
   const maxEvents = 100;
   const originalCount = players.length;
 
@@ -828,29 +826,8 @@ await channel.send({
     // === Update Active Players ===
     active = [...playerMap.values()].filter(p => !eliminated.has(p.id));
 
-// === Incentive Unlock Trigger (Only Once, based on dead players) ===
-const deadCount = [...playerMap.values()].filter(p => p.lives <= 0).length;
-const now = Date.now();
-const twentyFourHours = 24 * 60 * 60 * 1000;
-
-if (!incentiveTriggered && deadCount >= Math.floor(originalCount / 2) && (now - lastIncentiveTimestamp > twentyFourHours)) {
-  incentiveTriggered = true;
-  lastIncentiveTimestamp = now;
-  await runIncentiveUnlock(channel);
-  await wait(3000);
-}
-
 
    eventNumber++;
-
-// === Run Incentive Unlock After Event #3 ===
-if (!incentiveTriggered && eventNumber === 4 && active.length > 3) {
-  incentiveTriggered = true;
-  await channel.send(`🧠 **The charm hums... a forbidden chance emerges.**`);
-  await runIncentiveUnlock(channel, playerMap, originalCount);
-  await wait(3000);
-}
-
 
     await wait(3000);
   }
@@ -1028,122 +1005,6 @@ async function runMiniGameEvent(players, channel, eventNumber, playerMap) {
   }
   return { resultMap, wasAliveBefore };
 }
-
-
-// === Mint Incentive Ops (Corrected Trigger Logic & Number Guess Event) ===
-async function runIncentiveUnlock(channel, playerMap, originalCount) {
-  const now = Date.now();
-  const twentyFourHours = 24 * 60 * 60 * 1000;
-
-  // ⛔ Check if cooldown is active
-  if (now - lastIncentiveTimestamp < twentyFourHours) {
-    const lockedEmbed = new EmbedBuilder()
-      .setTitle('🔒 Incentive Sealed')
-      .setDescription(
-        `The charm’s power lingers from the last ritual...\n` +
-        `The incentive remains **locked** for now.\n\n` +
-        `⏳ Try again <t:${Math.floor((lastIncentiveTimestamp + twentyFourHours) / 1000)}:R>.`
-      )
-      .setColor(0x555555)
-      .setThumbnail('https://media.discordapp.net/attachments/1086418283131048156/1378206999421915187/The_Gauntlet.png?format=webp&quality=lossless&width=128&height=128')
-      .setFooter({ text: 'The charm must rest before it rewards again.' });
-
-    await channel.send({ embeds: [lockedEmbed] });
-    return;
-  }
-
-  // 🎯 Start incentive challenge
-  const targetNumber = Math.floor(Math.random() * 50) + 1;
-  const guesses = new Map();
-  const correctMessages = [];
-
-  const incentiveRewards = [
-    '🎁 Mint 3 Uglys → Get 1 Free!',
-    '💸 Every mint earns **double $CHARM**!',
-    '👹 Only 2 burns needed to summon a Monster!',
-  ];
-
-  const monsterImg = getMonsterImageUrl();
-
-  const embed = new EmbedBuilder()
-    .setTitle('🧠 Incentive Unlock Challenge')
-    .setDescription(
-      `An eerie silence falls over the arena... but the air tingles with potential.\n\n` +
-      `**Guess a number between 1 and 50.**\n` +
-      `If **ANYONE** gets it right, a global community incentive will be unlocked!\n\n` +
-      `⏳ You have 30 seconds...`
-    )
-    .setImage(monsterImg)
-    .setColor(0xff6600)
-    .setFooter({ text: 'Type your number in the chat now. Only 1 try!' });
-
-  await channel.send({ embeds: [embed] });
-
-  const filter = m => {
-    if (!m.content || typeof m.content !== 'string') return false;
-    const guess = parseInt(m.content.trim());
-    return !isNaN(guess) && guess >= 1 && guess <= 50 && !guesses.has(m.author.id);
-  };
-
-  const collector = channel.createMessageCollector({ filter, time: 30000 });
-
-  collector.on('collect', msg => {
-    const guess = parseInt(msg.content.trim());
-    guesses.set(msg.author.id, guess);
-    if (guess === targetNumber) {
-      correctMessages.push(msg);
-    }
-  });
-
-  collector.on('end', async () => {
-    for (const msg of correctMessages) {
-      try {
-        await msg.react('✅');
-        await msg.reply({
-          content: `🎯 You guessed it! **${targetNumber}** was correct — you helped unlock the incentive!`,
-          allowedMentions: { repliedUser: true }
-        });
-      } catch (err) {
-        console.error('Failed to react or reply to a correct guess:', err);
-      }
-    }
-
-    const winners = correctMessages.map(m => `<@${m.author.id}>`);
-
-    if (winners.length > 0) {
-      // ✅ Apply cooldown if someone wins
-      lastIncentiveTimestamp = Date.now();
-
-      const incentive = incentiveRewards[Math.floor(Math.random() * incentiveRewards.length)];
-      const winEmbed = new EmbedBuilder()
-        .setTitle('🎉 Incentive Unlocked!')
-        .setDescription(
-          `🧠 The magic number was **${targetNumber}**.\n` +
-          `✅ ${winners.join(', ')} guessed correctly!\n\n` +
-          `🎁 **New Community Incentive Unlocked:**\n${incentive}\n\n` +
-          `📩 Open a ticket to claim. This expires in **24 hours** — act fast!`
-        )
-        .setImage(monsterImg)
-        .setColor(0x33ff66)
-        .setFooter({ text: 'Unlocked by the power of the malformed minds.' });
-
-      await channel.send({ embeds: [winEmbed] });
-    } else {
-      const failEmbed = new EmbedBuilder()
-        .setTitle('🧤 The Offer Remains Sealed...')
-        .setDescription(
-          `No one guessed the correct number (**${targetNumber}**).\n\n` +
-          `The incentive stays locked, its power fading into the void... for now.`
-        )
-        .setImage(monsterImg)
-        .setColor(0x990000)
-        .setFooter({ text: 'The Charm rewards those who dare... and guess well.' });
-
-      await channel.send({ embeds: [failEmbed] });
-    }
-  });
-}
-
 }
 
 
