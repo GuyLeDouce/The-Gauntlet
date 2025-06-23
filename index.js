@@ -152,6 +152,19 @@ const funnyEliminations = [
   "🎲 gambled everything on a 7-sided die. Rolled despair.",
   "📎 challenged reality with a paperclip. Paperclip won."
 ];
+const squigCatastrophes = [
+  "🔭 OH NO!! A laser-eyed Squig just looked through the telescope — not realizing they melted the following players:",
+  "🧠 A Squig tried to solve a riddle and exploded. The brainwave took these players with it:",
+  "🤯 A Squig misunderstood the concept of numbers and deleted half the population to prove a point:",
+  "🧠 A Squig tried to think two thoughts at once. Reality couldn't handle it. The result was this casualty list:",
+  "🫠 A Squig tried to define 'the self'. These players failed its philosophical test:",
+  "📺 The Squigs plugged in an old TV and summoned static beasts. These players got glitch-snacked:",
+  "🎨 A Squig tried to finger-paint fate. These were the brushstrokes it erased:",
+  "🦑 A Squig glitched through a wall and deleted half the lobby by accident. Whoops:",
+  "🎤 A Squig grabbed the mic and started freestyling... the feedback eliminated:"
+];
+
+
 const lostLifeMoments = [
   "🥴 tried to freestyle a chant. Summoned a headache and lost a life.",
   "🪙 flipped a CHARM coin and called ‘banana.’ Wrong.",
@@ -822,6 +835,13 @@ await channel.send({
         if (currentPlayers) currentPlayers.delete(player.id);
       }
     }
+if (!squigMassElimTriggered && eventNumber === 5 && active.length > 6) {
+  squigMassElimTriggered = true;
+  await runSquigCatastrophe(active, playerMap, channel);
+  // Refilter actives
+  active = [...playerMap.values()].filter(p => p.lives > 0 && !eliminated.has(p.id));
+  await wait(5000);
+}
 
     // === Update Active Players ===
     active = [...playerMap.values()].filter(p => !eliminated.has(p.id));
@@ -1008,6 +1028,27 @@ async function runMiniGameEvent(players, channel, eventNumber, playerMap) {
 }
 
 
+async function runSquigCatastrophe(activePlayers, playerMap, channel) {
+  const lore = squigCatastrophes[Math.floor(Math.random() * squigCatastrophes.length)];
+
+  const shuffled = activePlayers.sort(() => Math.random() - 0.5);
+  const doomed = shuffled.slice(0, Math.floor(activePlayers.length / 2));
+
+  doomed.forEach(p => {
+    p.lives = 0;
+  });
+
+  const list = doomed.map(p => `💀 <@${p.id}>`).join('\n');
+
+  const embed = new EmbedBuilder()
+    .setTitle('😵‍💫 SQUIG CATASTROPHE OCCURRED')
+    .setDescription(`${lore}\n\n${list}`)
+    .setColor(0xff0088)
+    .setThumbnail('https://media.discordapp.net/attachments/1086418283131048156/1378218212037046343/squig-burst.png') // optional
+    .setFooter({ text: '💥 The Squigs did a whoopsie.' });
+
+  await channel.send({ embeds: [embed] });
+}
 
 
 // === Show Results Round (Dramatic Lore Edition) ===
