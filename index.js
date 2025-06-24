@@ -414,31 +414,37 @@ const miniGameLorePool = [
 
 
 const riddles = [
-  { riddle: "I have keys but open no doors. What am I?", answers: ["piano"] },
-{ riddle: "The more you take from me, the bigger I get. What am I?", answers: ["hole"] },
-{ riddle: "I have hands but no arms, a face but no eyes. What am I?", answers: ["clock"] },
-{ riddle: "I fly without wings. I cry without eyes. What am I?", answers: ["cloud"] },
-{ riddle: "I follow you everywhere but vanish in darkness. What am I?", answers: ["shadow"] },
-{ riddle: "You can hold me without touching me. I disappear when shared. What am I?", answers: ["secret"] },
-{ riddle: "I’m always running but never move. What am I?", answers: ["time"] },
-{ riddle: "I have no throat but can still roar. What am I?", answers: ["ocean"] },
-{ riddle: "I can be cracked, made, told, and played. What am I?", answers: ["joke"] },
-{ riddle: "I go up but never come down. What am I?", answers: ["age"] },
-{ riddle: "You can break me without touching me. What am I?", answers: ["promise"] },
-{ riddle: "I’m full of words but say nothing. What am I?", answers: ["book"] },
-{ riddle: "You can hear me but never see me. I only speak when spoken to. What am I?", answers: ["echo"] },
-{ riddle: "I’m always ahead but never seen. What am I?", answers: ["future"] },
-{ riddle: "I’m tall when I’m young and short when I’m old. What am I?", answers: ["candle"] },
-{ riddle: "I get wetter the more I dry. What am I?", answers: ["towel"] },
-{ riddle: "I shrink smaller every time I take a bath. What am I?", answers: ["soap"] },
-{ riddle: "I have no eyes, no mouth, and yet I speak loudest in the dark. What am I?", answers: ["fear"] },
-{ riddle: "You throw me out when you need me and bring me back when you're done. What am I?", answers: ["anchor"] },
-{ riddle: "The more I dry, the more I disappear. What am I?", answers: ["puddle"] },
-{ riddle: "I have a neck but no head. What am I?", answers: ["bottle"] },
-{ riddle: "I stand on four legs in the morning, two at noon, and three at night. What am I?", answers: ["human"] },
-{ riddle: "I’m not alive, but I grow. I don’t have lungs, but I need air. What am I?", answers: ["fire"] },
-{ riddle: "I exist between two mirrors but cannot be touched. What am I?", answers: ["reflection"] },
-{ riddle: "I connect people but break when used too much. What am I?", answers: ["silence"] }
+  // 🟢 Easy
+  { riddle: "What has to be broken before you can use it?", answers: ["egg"] },
+  { riddle: "What has a face and two hands but no arms or legs?", answers: ["clock"] },
+  { riddle: "What goes up and down but never moves?", answers: ["stairs"] },
+  { riddle: "What gets sharper the more you use it?", answers: ["brain"] },
+  { riddle: "What can fill a room but takes up no space?", answers: ["light"] },
+  { riddle: "What comes down but never goes up?", answers: ["rain"] },
+  { riddle: "What has one eye but cannot see?", answers: ["needle"] },
+  { riddle: "What can run but never walks?", answers: ["water"] },
+
+  // 🟡 Medium
+  { riddle: "I speak without a mouth and hear without ears. What am I?", answers: ["echo"] },
+  { riddle: "What has cities but no houses, rivers but no water?", answers: ["map"] },
+  { riddle: "The more of me you take, the more you leave behind. What am I?", answers: ["footsteps"] },
+  { riddle: "I can fill a house or empty it. What am I?", answers: ["noise"] },
+  { riddle: "I am taken from a mine and used by the smith. What am I?", answers: ["iron"] },
+  { riddle: "What has a ring but no finger?", answers: ["phone"] },
+  { riddle: "What flies forever, rests never?", answers: ["time"] },
+  { riddle: "You see me once in June, twice in November, never in May. What am I?", answers: ["e"] },
+  { riddle: "I’m not alive, but I grow; I don’t have a mouth, but water kills me. What am I?", answers: ["fire"] },
+  { riddle: "What can you catch but not throw?", answers: ["cold"] },
+  { riddle: "What has roots but never grows?", answers: ["mountain"] },
+  { riddle: "What can travel the world while staying in one corner?", answers: ["stamp"] },
+  { riddle: "What has teeth but cannot bite?", answers: ["comb"] },
+
+  // 🔴 Hard
+  { riddle: "I am always hungry, I must always be fed. What am I?", answers: ["fire"] },
+  { riddle: "I am invisible, weigh nothing, and if you put me in a barrel, it becomes lighter. What am I?", answers: ["hole"] },
+  { riddle: "What begins with T, ends with T, and has T inside?", answers: ["teapot"] },
+  { riddle: "I am born in silence, yet heard in death. What am I?", answers: ["echo"] },
+  { riddle: "You measure my life in hours, I serve by being devoured. What am I?", answers: ["candle"] }
 ];
 
 
