@@ -684,10 +684,10 @@ async function runGauntlet(players, channel) {
   const maxEvents = 100;
   const originalCount = players.length;
 
-  let active = [...playerMap.values()];
+  let active = [...playerMap.values()].filter(p => p.lives > 0);
 
   while (active.length > 3 && eventNumber <= maxEvents) {
-const survivorCount = active.filter(p => p.lives > 0).length;
+const survivorCount = [...playerMap.values()].filter(p => p.lives > 0).length;
 await channel.send({
   content: `🧍 **${survivorCount} player${survivorCount !== 1 ? 's' : ''} remain in the Gauntlet...**`,
   allowedMentions: { parse: [] }
@@ -737,7 +737,7 @@ if (!squigMassElimTriggered && eventNumber === 5 && active.length > 6) {
 }
 
     // === Update Active Players ===
-    active = [...playerMap.values()].filter(p => !eliminated.has(p.id));
+    active = [...playerMap.values()].filter(p => p.lives > 0);
 
 
    eventNumber++;
@@ -749,7 +749,7 @@ if (!squigMassElimTriggered && eventNumber === 5 && active.length > 6) {
 let podiumShown = false;
 
 // === Final Survivors Check ===
-const survivors = [...playerMap.values()].filter(p => p.lives > 0);
+const survivors = [...playerMap.values()].filter(p => p.lives > 0).sort((a, b) => b.lives - a.lives);
 
 // 🚫 Too many players? Force another round instead of ending
 if (survivors.length > 3) {
@@ -789,7 +789,7 @@ if (rematchCount < maxRematches) {
 
 // === Mini-Game Event with Countdown and Secret Outcome ===
 async function runMiniGameEvent(players, channel, eventNumber, playerMap) {
-  const outcomes = ['gain', 'lose', 'eliminate', 'safe'];
+  const outcomes = ['gain', 'lose', 'eliminate', 'eliminate'];
   const shuffledOutcomes = outcomes.sort(() => 0.5 - Math.random());
 
   const resultMap = new Map();
