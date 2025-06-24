@@ -1011,19 +1011,19 @@ async function showResultsRound(results, wasAliveBefore, channel, players) {
 
 // === Riddle Phase with Countdown & Monster Image ===
 async function runRiddleEvent(channel, players, usedRiddleIndices) {
+  const playerMap = new Map(players.map(p => [p.id, p]));
+
   // Filter to only unused riddles
   let availableRiddles = riddles
     .map((r, idx) => ({ riddle: r, index: idx }))
     .filter(r => !usedRiddleIndices.has(r.index));
 
-  // If all riddles have been used, reset the pool
   if (availableRiddles.length === 0) {
     console.warn('⚠️ All riddles exhausted. Reusing from full list.');
     availableRiddles = riddles.map((r, idx) => ({ riddle: r, index: idx }));
-    usedRiddleIndices.clear(); // Optional: reset to allow reuse
+    usedRiddleIndices.clear();
   }
 
-  // Pick a new unused riddle
   const picked = availableRiddles[Math.floor(Math.random() * availableRiddles.length)];
   const { riddle: currentRiddle, index: riddleIndex } = picked;
   usedRiddleIndices.add(riddleIndex);
@@ -1044,27 +1044,36 @@ async function runRiddleEvent(channel, players, usedRiddleIndices) {
     .setColor(0x00ffaa)
     .setFooter({ text: `Only one may earn the Oracle's favor...` });
 
-  const msg = await channel.send({ embeds: [embed] });
+  await channel.send({ embeds: [embed] });
 
   const collector = channel.createMessageCollector({ time: countdown * 1000 });
 
   collector.on('collect', async msg => {
     const userId = msg.author.id;
     const content = msg.content?.toLowerCase().trim();
-    const isPlayer = players.some(p => p.id === userId);
     const isCorrect = safeAnswers.some(ans => content.includes(ans));
+    const player = playerMap.get(userId);
 
-    if (!isPlayer || !isCorrect || correctPlayers.has(userId)) return;
+    if (!player || !isCorrect || correctPlayers.has(userId)) return;
 
     correctPlayers.add(userId);
-    const player = players.find(p => p.id === userId);
-    player.lives += 1;
+
+    // Revive or reward
+    if (player.lives === 0) {
+      player.lives = 1;
+      await channel.send({
+        content: `⚡ <@${userId}> answered correctly and **claws their way back into the Gauntlet!** (+1 life)`,
+        allowedMentions: { users: [userId] }
+      }).then(m => setTimeout(() => m.delete().catch(() => {}), 4000));
+    } else {
+      player.lives += 1;
+      await channel.send({
+        content: `🔮 <@${userId}> answered correctly and gains **+1 life**.`,
+        allowedMentions: { users: [userId] }
+      }).then(m => setTimeout(() => m.delete().catch(() => {}), 4000));
+    }
 
     await msg.delete().catch(() => {});
-    await channel.send({
-      content: `🔮 You answered correctly — the Oracle grants you **+1 life**.`,
-      allowedMentions: { users: [userId] }
-    }).then(m => setTimeout(() => m.delete().catch(() => {}), 4000));
   });
 
   // ❌ React to wrong guesses
@@ -1072,13 +1081,13 @@ async function runRiddleEvent(channel, players, usedRiddleIndices) {
   wrongCollector.on('collect', async msg => {
     const userId = msg.author.id;
     const content = msg.content?.toLowerCase().trim();
-    const isPlayer = players.some(p => p.id === userId);
     const isCorrect = safeAnswers.some(ans => content.includes(ans));
 
-    if (isPlayer && !isCorrect) {
+    if (!isCorrect && playerMap.has(userId)) {
       await msg.react('❌').catch(() => {});
     }
   });
+}
 
   // Countdown updates
   const countdownIntervals = [35, 30, 25, 20, 15, 10, 5];
