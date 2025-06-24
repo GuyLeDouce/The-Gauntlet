@@ -74,6 +74,7 @@ let usedRiddleIndices = new Set(); // Track used riddles
 
 
 
+
 // === Lore Arrays ===
 const funnyEliminations = [
   "🩴 tripped over their own sandal and fell into the Charmhole.",
@@ -680,19 +681,19 @@ async function runGauntlet(players, channel) {
   let eliminated = new Map();
   let eventNumber = 1;
   let incentiveTriggered = false;
-  let squigMassElimTriggered = false; // ✅ Fixes your error
+  let squigMassElimTriggered = false;
   const maxEvents = 100;
   const originalCount = players.length;
 
   let active = [...playerMap.values()].filter(p => p.lives > 0);
 
   while (active.length > 3 && eventNumber <= maxEvents) {
-const survivorCount = [...playerMap.values()].filter(p => p.lives > 0).length;
-await channel.send({
-  content: `🧍 **${survivorCount} player${survivorCount !== 1 ? 's' : ''} remain in the Gauntlet...**`,
-  allowedMentions: { parse: [] }
-});
-// === Embed 1: Lore & Ugly Image ===
+    const survivorCount = [...playerMap.values()].filter(p => p.lives > 0).length;
+    await channel.send({
+      content: `🧍 **${survivorCount} player${survivorCount !== 1 ? 's' : ''} remain in the Gauntlet...**`,
+      allowedMentions: { parse: [] }
+    });
+
     const introEmbed = new EmbedBuilder()
       .setTitle(`⚔️ Event #${eventNumber}`)
       .setDescription(`🌀 *The warp churns... new horrors rise...*`)
@@ -701,10 +702,8 @@ await channel.send({
     await channel.send({ embeds: [introEmbed] });
     await wait(5000);
 
-    // === Embed 2: Mini-Game ===
     const { resultMap: miniGameResults, wasAliveBefore } = await runMiniGameEvent(active, channel, eventNumber, playerMap);
 
-    // === Apply Mini-Game Outcomes ===
     for (const [userId, outcome] of miniGameResults.entries()) {
       const player = playerMap.get(userId);
       if (!player) continue;
@@ -713,79 +712,62 @@ await channel.send({
       else if (outcome === 'eliminate' || outcome === 'frozen') player.lives = 0;
     }
 
-    // === Embed 3: Results Round ===
     await showResultsRound(miniGameResults, wasAliveBefore, channel, [...playerMap.values()]);
-
     await wait(6000);
 
-    // === Riddle Phase ===
     await runRiddleEvent(channel, active, usedRiddleIndices);
 
-    // === Remove Dead Players ===
     for (let player of active) {
       if (player.lives <= 0 && !eliminated.has(player.id)) {
         eliminated.set(player.id, player);
         if (currentPlayers) currentPlayers.delete(player.id);
       }
     }
-if (!squigMassElimTriggered && eventNumber === 5 && active.length > 6) {
-  squigMassElimTriggered = true;
-  await runSquigCatastrophe(active, playerMap, channel);
-  // Refilter actives
-  active = [...playerMap.values()].filter(p => p.lives > 0 && !eliminated.has(p.id));
-  await wait(5000);
-}
 
-    // === Update Active Players ===
+    if (!squigMassElimTriggered && eventNumber === 5 && active.length > 6) {
+      squigMassElimTriggered = true;
+      await runSquigCatastrophe(active, playerMap, channel);
+      active = [...playerMap.values()].filter(p => p.lives > 0 && !eliminated.has(p.id));
+      await wait(5000);
+    }
+
     active = [...playerMap.values()].filter(p => p.lives > 0);
-
-
-   eventNumber++;
-
+    eventNumber++;
     await wait(3000);
   }
 
-// === Endgame: Ritual or Podium ===
-let podiumShown = false;
+  let podiumShown = false;
+  const survivors = [...playerMap.values()].filter(p => p.lives > 0).sort((a, b) => b.lives - a.lives);
 
-// === Final Survivors Check ===
-const survivors = [...playerMap.values()].filter(p => p.lives > 0).sort((a, b) => b.lives - a.lives);
+  if (survivors.length > 3) {
+    await channel.send(`⚠️ **Too many players remain (${survivors.length})**\nThe Gauntlet is not finished with you yet...`);
+    await wait(3000);
+    return await runGauntlet(playerMap, channel);
+  }
 
-// 🚫 Too many players? Force another round instead of ending
-if (survivors.length > 3) {
-  await channel.send(`⚠️ **Too many players remain (${survivors.length})**\nThe Gauntlet is not finished with you yet...`);
-  await wait(3000);
-  return await runGauntlet(playerMap, channel); // Recurse with updated state
-}
+  if (survivors.length > 1) {
+    await channel.send(`🔮 **FINAL RITUAL**\nToo many remain... The charm demands one final judgment.`);
+    await runTiebreaker(survivors, channel);
+    podiumShown = true;
+  } else if (survivors.length === 1) {
+    await channel.send(`👑 Only one remains...`);
+  } else {
+    await channel.send(`💀 No survivors remain. The arena claims them all.`);
+  }
 
-// === Final Ritual or Podium ===
-if (survivors.length > 1) {
-  await channel.send(`🔮 **FINAL RITUAL**\nToo many remain... The charm demands one final judgment.`);
-  await runTiebreaker(survivors, channel); // This function should handle the podium if needed
-  podiumShown = true;
-} else if (survivors.length === 1) {
-  await channel.send(`👑 Only one remains...`);
-} else {
-  await channel.send(`💀 No survivors remain. The arena claims them all.`);
-}
+  if (!podiumShown) {
+    await showPodium(channel, [...playerMap.values()]);
+  }
 
-// === Show Podium (if not already shown) ===
-if (!podiumShown) {
-  await showPodium(channel, [...playerMap.values()]);
-}
+  await wait(5000);
+  activeGame = null;
+  rematchCount++;
 
-// === Delay to ensure podium display comes first
-await wait(5000); // Give podium time to display cleanly
-
-// === Rematch Offer ===
-activeGame = null;
-rematchCount++;
-
-if (rematchCount < maxRematches) {
-  await channel.send(`📯 *The spirits stir... perhaps one more trial awaits?*`);
-  await wait(2000);
-  await showRematchButton(channel, [...playerMap.values()]);
-}
+  if (rematchCount < maxRematches) {
+    await channel.send(`📯 *The spirits stir... perhaps one more trial awaits?*`);
+    await wait(2000);
+    await showRematchButton(channel, [...playerMap.values()]);
+  }
 
 // === Mini-Game Event with Countdown and Secret Outcome ===
 async function runMiniGameEvent(players, channel, eventNumber, playerMap) {
@@ -919,7 +901,6 @@ async function runMiniGameEvent(players, channel, eventNumber, playerMap) {
   return { resultMap, wasAliveBefore };
 }
 }
-
 
 async function runSquigCatastrophe(activePlayers, playerMap, channel) {
   const lore = squigCatastrophes[Math.floor(Math.random() * squigCatastrophes.length)];
