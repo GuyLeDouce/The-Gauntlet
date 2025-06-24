@@ -1087,7 +1087,6 @@ async function runRiddleEvent(channel, players, usedRiddleIndices) {
       await msg.react('❌').catch(() => {});
     }
   });
-}
 
   // Countdown updates
   const countdownIntervals = [35, 30, 25, 20, 15, 10, 5];
