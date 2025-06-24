@@ -715,7 +715,7 @@ async function runGauntlet(players, channel) {
     await showResultsRound(miniGameResults, wasAliveBefore, channel, [...playerMap.values()]);
     await wait(6000);
 
-    await runRiddleEvent(channel, active, usedRiddleIndices);
+    await runRiddleEvent(channel, [...playerMap.values()], usedRiddleIndices);
 
     for (let player of active) {
       if (player.lives <= 0 && !eliminated.has(player.id)) {
