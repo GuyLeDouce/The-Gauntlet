@@ -1044,7 +1044,7 @@ async function runRiddleEvent(channel, players, usedRiddleIndices) {
     .setColor(0x00ffaa)
     .setFooter({ text: `Only one may earn the Oracle's favor...` });
 
-  await channel.send({ embeds: [embed] });
+  const sentMessage = await channel.send({ embeds: [embed] });
 
   const collector = channel.createMessageCollector({ time: countdown * 1000 });
 
@@ -1095,7 +1095,7 @@ async function runRiddleEvent(channel, players, usedRiddleIndices) {
     const delay = (i === 0 ? countdown - secondsLeft : countdownIntervals[i - 1] - secondsLeft) * 1000;
     await wait(delay);
     embed.setDescription(`**“${riddle}”**\n\nType the correct answer in chat.\n⏳ Time left: **${secondsLeft} seconds**`);
-    await msg.edit({ embeds: [embed] });
+    await sentMessage.edit({ embeds: [embed] }).catch(() => {});
   }
 
   collector.on('end', async () => {
@@ -1118,6 +1118,7 @@ async function runRiddleEvent(channel, players, usedRiddleIndices) {
 
   await wait(5000);
 }
+
 
 
 // === Sudden Death : The Final Ritual VOTE ===
