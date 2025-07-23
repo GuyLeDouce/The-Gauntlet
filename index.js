@@ -265,8 +265,8 @@ async function runPointsGauntlet(channel, overrideRounds = 10, isTestMode = fals
 
   while (round <= maxRounds) {
     // === Lore + Round Intro ===
-    const lore = miniGameFateDescriptions[Math.floor(Math.random() * miniGameFateDescriptions.length)];
-    const flavor = miniGameLorePool[Math.floor(Math.random() * miniGameLorePool.length)];
+    const lore = miniGameLorePool[Math.floor(Math.random() * miniGameLorePool.length)];
+    const flavor = miniGameFateDescriptions[Math.floor(Math.random() * miniGameFateDescriptions.length)];
 
     const intro = new EmbedBuilder()
       .setTitle(`🌪️ ROUND ${round} — ${lore.title}`)
@@ -292,14 +292,22 @@ async function runPointsGauntlet(channel, overrideRounds = 10, isTestMode = fals
 }
 async function runMiniGamePoints(players, channel, round, isTestMode = false) {
   const outcomes = [-2, -1, 1, 2];
-
-  // Pick random mini-game
   const miniGame = miniGameLorePool[Math.floor(Math.random() * miniGameLorePool.length)];
+  const flavor = miniGameFateDescriptions[Math.floor(Math.random() * miniGameFateDescriptions.length)];
 
-  // Send the mini-game embed and buttons
-  const embed = new EmbedBuilder()
+  // === ROUND ANNOUNCEMENT WITH FLAVOR ===
+  const roundIntro = new EmbedBuilder()
+    .setTitle(`🌪️ ROUND ${round} — ${miniGame.title}`)
+    .setDescription(`${miniGame.lore}\n\n${flavor}`)
+    .setColor(0xaa00ff);
+
+  await channel.send({ embeds: [roundIntro] });
+  await wait(5000); // give time to read lore
+
+  // === MINI-GAME CHALLENGE EMBED ===
+  const challengeEmbed = new EmbedBuilder()
     .setTitle(`🎲 MINI-GAME CHALLENGE — ${miniGame.title}`)
-    .setDescription(`${miniGame.lore}\n\n⏳ You have 30 seconds to decide.`)
+    .setDescription(`${miniGame.lore}\n⏳ You have 30 seconds to decide.`)
     .setColor(0xff33cc);
 
   const row = new ActionRowBuilder().addComponents(
@@ -311,22 +319,26 @@ async function runMiniGamePoints(players, channel, round, isTestMode = false) {
     )
   );
 
-  await channel.send({ embeds: [embed], components: [row] });
+  await channel.send({ embeds: [challengeEmbed], components: [row] });
 
-  // Timed countdown messages
+  // Timed alerts
   setTimeout(() => channel.send("⏳ 20 seconds left...").catch(() => {}), 10000);
   setTimeout(() => channel.send("⏳ 10 seconds left...").catch(() => {}), 20000);
   setTimeout(() => channel.send("🎲 Time’s up. The charm decides.").catch(() => {}), 30000);
 
-  const clickedUsers = new Set();
   const collector = channel.createMessageComponentCollector({ componentType: 2, time: 30000 });
+  const clickedUsers = new Set();
 
   collector.on('collect', async i => {
     if (i.user.bot || clickedUsers.has(i.user.id)) return;
     clickedUsers.add(i.user.id);
 
     if (!players.has(i.user.id)) {
-      players.set(i.user.id, { id: i.user.id, username: i.user.username, points: 0 });
+      players.set(i.user.id, {
+        id: i.user.id,
+        username: i.user.username,
+        points: 0
+      });
     }
 
     const outcome = outcomes[Math.floor(Math.random() * outcomes.length)];
@@ -342,23 +354,21 @@ async function runMiniGamePoints(players, channel, round, isTestMode = false) {
     }
   });
 
-  // When the timer ends
-  return new Promise(resolve => {
-    collector.on('end', async () => {
-      if (isTestMode) {
-        for (const player of players.values()) {
-          if (player.isMock) {
-            const result = outcomes[Math.floor(Math.random() * outcomes.length)];
-            player.points += result;
-          }
-        }
-      }
+  // Ensure we wait out the full window
+  await wait(31000); // full 30 sec + 1s buffer to avoid overlap
 
-      await channel.send(`🧮 Mini-game complete. Round ${round} points have been applied.`);
-      resolve();
-    });
-  });
+  if (isTestMode) {
+    for (const player of players.values()) {
+      if (player.isMock) {
+        const result = outcomes[Math.floor(Math.random() * outcomes.length)];
+        player.points += result;
+      }
+    }
+  }
+
+  await channel.send(`🧮 Mini-game complete. Round ${round} points have been applied.`);
 }
+
 
 
 
