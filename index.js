@@ -334,6 +334,9 @@ collector.on('collect', async i => {
         }
       }
     }
+// Wait full 30 seconds before ending
+await wait(30000);
+collector.stop(); // End collection after wait
 
     await channel.send(`🧮 Mini-game complete. Round ${round} points have been applied.`);
   });
@@ -352,13 +355,13 @@ function ensurePlayer(user, playerMap) {
   return playerMap.get(user.id);
 }
 async function runRiddlePoints(players, channel) {
-  const difficulties = ['easy', 'medium', 'hard'];
-  const chosenDifficulty = difficulties[Math.floor(Math.random() * difficulties.length)];
-  const pointsForCorrect = chosenDifficulty === 'easy' ? 1 : chosenDifficulty === 'medium' ? 2 : 3;
+  const difficultyLevels = [1, 2, 3];
+  const chosenDifficulty = difficultyLevels[Math.floor(Math.random() * difficultyLevels.length)];
+  const pointsForCorrect = chosenDifficulty;
 
   const filteredRiddles = riddles.filter(r => r.difficulty === chosenDifficulty);
   if (filteredRiddles.length === 0) {
-    await channel.send(`⚠️ No riddles available for difficulty: ${chosenDifficulty}. Skipping riddle...`);
+    await channel.send(`⚠️ No riddles available for difficulty level: ${chosenDifficulty}. Skipping riddle...`);
     return;
   }
 
@@ -371,7 +374,7 @@ async function runRiddlePoints(players, channel) {
   const embed = new EmbedBuilder()
     .setTitle("🧠 RIDDLE CHALLENGE")
     .setDescription(
-      `_${riddle.riddle}_\n\n🌀 Difficulty: **${chosenDifficulty.toUpperCase()}** — Worth **+${pointsForCorrect}** points.\n⏳ You have 30 seconds to decide your fate...`
+      `_${riddle.riddle}_\n\n🌀 Difficulty Level: **${chosenDifficulty}** — Worth **+${pointsForCorrect}** points.\n⏳ You have 30 seconds to decide your fate...`
     )
     .setColor(0xff66cc);
 
@@ -402,27 +405,37 @@ async function runRiddlePoints(players, channel) {
     }
   });
 
-  // Optional: update countdown messages
+  // Countdown messages
   setTimeout(() => channel.send("⏳ 10 seconds left...").catch(() => {}), 20000);
   setTimeout(() => channel.send("⏰ Time’s almost up!").catch(() => {}), 29000);
 
   collector.on('end', () => {
-    channel.send(`Riddle completed. ${correctPlayers.length} player(s) answered correctly and gained +${pointsForCorrect} points.`);
+    channel.send(`Riddle completed. ${correctPlayers.length} player(s) answered correctly and gained +${pointsForCorrect} point(s).`);
   });
 }
 
 
 
+
 async function showFinalScores(playerMap, channel) {
   const players = [...playerMap.values()];
+
+  if (players.length === 0) {
+    await channel.send('⚠️ No players to score. The charm is confused.');
+    activeGame = null;
+    return;
+  }
+
   const sorted = players.sort((a, b) => b.points - a.points);
-
   const top3 = sorted.slice(0, 3);
-  const uniqueScores = new Set(top3.map(p => p.points));
+  const topScore = top3[0].points;
 
-  if (uniqueScores.size < 3) {
+  // Check if there's a tie for 1st place
+  const tiedTopScorers = sorted.filter(p => p.points === topScore);
+
+  if (tiedTopScorers.length > 1) {
     await channel.send('⚖️ There is a tie among the top scorers. The charm demands a vote to break it.');
-    await runPointTiebreaker(top3, channel);
+    await runPointTiebreaker(tiedTopScorers, channel);
   } else {
     await showFinalPodium(channel, players);
   }
@@ -437,6 +450,7 @@ async function showFinalScores(playerMap, channel) {
     await showRematchButton(channel);
   }
 }
+
 
 async function showFinalPodium(channel, playerMap) {
   const players = [...playerMap.values()];
