@@ -263,30 +263,77 @@ async function runPointsGauntlet(channel, overrideRounds = 10, isTestMode = fals
 
   let round = 1;
 
-  while (round <= maxRounds) {
-    // === Lore + Round Intro ===
-    const lore = miniGameLorePool[Math.floor(Math.random() * miniGameLorePool.length)];
-    const flavor = miniGameFateDescriptions[Math.floor(Math.random() * miniGameFateDescriptions.length)];
+while (round <= maxRounds) {
+  const miniGame = miniGameLorePool[Math.floor(Math.random() * miniGameLorePool.length)];
+  const flavor = miniGameFateDescriptions[Math.floor(Math.random() * miniGameFateDescriptions.length)];
 
-    const intro = new EmbedBuilder()
-      .setTitle(`🌪️ ROUND ${round} — ${lore.title}`)
-      .setDescription(`_${lore.lore}_\n\n${flavor}`)
-      .setImage(getUglyImageUrl())
-      .setColor(0xaa00ff);
+  // === Unified Round Intro + Mini-Game ===
+  const embed = new EmbedBuilder()
+    .setTitle(`🌪️ ROUND ${round} — ${miniGame.title}`)
+    .setDescription(`${miniGame.lore}\n\n_${flavor}_\n\n⏳ You have 30 seconds to decide.`)
+    .setImage(getUglyImageUrl())
+    .setColor(0xff33cc);
 
-    await channel.send({ embeds: [intro] });
-    await wait(5000);
+  const row = new ActionRowBuilder().addComponents(
+    miniGame.buttons.map((label, idx) =>
+      new ButtonBuilder()
+        .setCustomId(`choice${idx + 1}`)
+        .setLabel(label)
+        .setStyle([ButtonStyle.Primary, ButtonStyle.Danger, ButtonStyle.Secondary, ButtonStyle.Success][idx % 4])
+    )
+  );
 
-    // === Mini-Game Phase ===
-    await runMiniGamePoints(playerMap, channel, round, lore);
-    await wait(5000);
+  await channel.send({ embeds: [embed], components: [row] });
 
-    // === Riddle Phase ===
-    await runRiddlePoints(playerMap, channel);
-    await wait(5000);
+  setTimeout(() => channel.send("⏳ 20 seconds left...").catch(() => {}), 10000);
+  setTimeout(() => channel.send("⏳ 10 seconds left...").catch(() => {}), 20000);
+  setTimeout(() => channel.send("🎲 Time’s up. The charm decides.").catch(() => {}), 30000);
 
-    round++;
-  }
+  const collector = channel.createMessageComponentCollector({ componentType: 2, time: 30000 });
+  const clickedUsers = new Set();
+
+  collector.on('collect', async i => {
+    if (i.user.bot || clickedUsers.has(i.user.id)) return;
+    clickedUsers.add(i.user.id);
+
+    if (!playerMap.has(i.user.id)) {
+      playerMap.set(i.user.id, {
+        id: i.user.id,
+        username: i.user.username,
+        points: 0
+      });
+    }
+
+    const outcomes = [-2, -1, 1, 2];
+    const result = outcomes[Math.floor(Math.random() * outcomes.length)];
+    playerMap.get(i.user.id).points += result;
+
+    const flavorList = pointFlavors[result > 0 ? `+${result}` : `${result}`] || [];
+    const flavorText = flavorList.length ? flavorList[Math.floor(Math.random() * flavorList.length)] : "";
+
+    try {
+      await i.reply({
+        content: `You chose **${i.component.label}**\nYour fate: **${result > 0 ? '+' : ''}${result} point${Math.abs(result) !== 1 ? 's' : ''}**\n${flavorText}`,
+        flags: 64
+      });
+    } catch (err) {
+      console.warn(`⚠️ Failed to reply to interaction: ${err.message}`);
+    }
+  });
+
+  await wait(30000);
+  collector.stop();
+
+  await channel.send(`🧮 Mini-game complete. Round ${round} points have been applied.`);
+  await wait(5000);
+
+  // === Riddle Phase ===
+  await runRiddlePoints(playerMap, channel);
+  await wait(5000);
+
+  round++;
+}
+
 
   await showFinalScores(playerMap, channel);
 }
