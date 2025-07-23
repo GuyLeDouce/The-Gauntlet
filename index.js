@@ -265,8 +265,8 @@ async function runPointsGauntlet(channel, overrideRounds = 10, isTestMode = fals
 
   while (round <= maxRounds) {
     // === Lore + Round Intro ===
-    const lore = miniGameLorePool[Math.floor(Math.random() * miniGameLorePool.length)];
-    const flavor = miniGameFateDescriptions[Math.floor(Math.random() * miniGameFateDescriptions.length)];
+    const lore = miniGameFateDescriptions[Math.floor(Math.random() * miniGameFateDescriptions.length)];
+    const flavor = miniGameLorePool[Math.floor(Math.random() * miniGameLorePool.length)];
 
     const intro = new EmbedBuilder()
       .setTitle(`🌪️ ROUND ${round} — ${lore.title}`)
