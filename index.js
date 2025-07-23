@@ -422,51 +422,12 @@ async function showFinalScores(playerMap, channel) {
     await showRematchButton(channel);
   }
 }
-async function runPointTiebreaker(tiedPlayers, channel) {
-  const voteCounts = new Map(tiedPlayers.map(p => [p.id, 0]));
-  const voters = new Set();
 
-  const embed = new EmbedBuilder()
-    .setTitle('🩸 FINAL TIEBREAKER VOTE 🩸')
-    .setDescription(
-      `Multiple players are tied.\n\n` +
-      `🗳️ *Vote to determine their final ranking.*\n` +
-      `All may vote — the charm will sort the rest.`
-    )
-    .setColor(0xff0033);
+async function showFinalPodium(channel, playerMap) {
+  const players = [...playerMap.values()];
+  const sorted = players.sort((a, b) => b.points - a.points);
+  let top3 = sorted.slice(0, 3);
 
-  const row = new ActionRowBuilder();
-  tiedPlayers.forEach(p => {
-    row.addComponents(
-      new ButtonBuilder()
-        .setCustomId(`vote_${p.id}`)
-        .setLabel(p.username)
-        .setStyle(ButtonStyle.Secondary)
-    );
-  });
-
-  const msg = await channel.send({ embeds: [embed], components: [row] });
-
-  const collector = msg.createMessageComponentCollector({ time: 30000 });
-
-  collector.on('collect', async i => {
-    if (voters.has(i.user.id)) {
-      return i.reply({ content: '❌ You already voted!', flags: 64 });
-    }
-
-    voters.add(i.user.id);
-    const votedId = i.customId.replace('vote_', '');
-    voteCounts.set(votedId, (voteCounts.get(votedId) || 0) + 1);
-    await i.reply({ content: `🗳️ Your vote has been cast!`, flags: 64 });
-  });
-
-  collector.on('end', async () => {
-    const ranked = [...voteCounts.entries()].sort((a, b) => b[1] - a[1]);
-    const finalRanking = ranked.map(([id]) => tiedPlayers.find(p => p.id === id));
-    await showPointsPodium(finalRanking, channel);
-  });
-}
-async function showPointsPodium(top3, channel) {
   const medals = ['👑🥇', '🩸🥈', '💀🥉'];
   const titles = [
     "⚔️ **Champion of the Charm** ⚔️",
@@ -474,38 +435,110 @@ async function showPointsPodium(top3, channel) {
     "🕳️ **Last One Dragged from the Void** 🕳️"
   ];
 
-  const embed = new EmbedBuilder()
-    .setTitle('🌌👁‍🗨️ THE FINAL PODIUM 👁‍🗨️🌌')
-    .setDescription(`The charm acknowledges those who rose above...`)
-    .setColor(0x8e44ad)
-    .setThumbnail('https://media.discordapp.net/attachments/1086418283131048156/1378206999421915187/The_Gauntlet.png')
-    .setFooter({ text: '💀 The charm remembers all...' });
+  const podiumEmbed = new EmbedBuilder()
+    .setTitle("👁‍🗨️ THE FINAL PODIUM 👁‍🗨️")
+    .setDescription("The charm acknowledges those who rose above...")
+    .setColor(0xaa00ff);
 
-  for (let i = 0; i < top3.length; i++) {
-    const p = top3[i];
-    embed.addFields({
-      name: `${medals[i]} ${p.username}`,
-      value: `${titles[i]}\nTotal Points: **${p.points}**`,
-      inline: false
-    });
+  // Handle 2nd/3rd place ties ONLY (1st place remains highest scorer)
+  const firstPlacePoints = top3[0].points;
+  const secondAndThird = top3.slice(1);
+  const tiePoints = secondAndThird[0]?.points;
+  const tiedForSecond = secondAndThird.filter(p => p.points === tiePoints);
+
+  if (tiedForSecond.length > 1) {
+    const resolved = await runTiebreaker(tiedForSecond, channel);
+    top3 = [top3[0], ...resolved]; // Keep 1st as-is, replace 2nd/3rd with vote result
   }
 
-  await channel.send({ embeds: [embed] });
+  top3.forEach((player, index) => {
+    podiumEmbed.addFields({
+      name: `${medals[index]} ${titles[index]}`,
+      value: `<@${player.id}> \n**Total Points:** ${player.points}`,
+      inline: false
+    });
+  });
+
+  await channel.send({ embeds: [podiumEmbed] });
+
+  await wait(5000);
+  await showRematchButton(channel);
+}
+async function runTiebreaker(tiedPlayers, channel) {
+  return new Promise(async (resolve) => {
+    const voteCounts = new Map(tiedPlayers.map(p => [p.id, 0]));
+    const votedUsers = new Set();
+
+    const buttons = tiedPlayers.map((player, index) => {
+      return new ButtonBuilder()
+        .setCustomId(`vote_${player.id}`)
+        .setLabel(player.username)
+        .setStyle(ButtonStyle.Primary);
+    });
+
+    const row = new ActionRowBuilder().addComponents(buttons);
+
+    const voteEmbed = new EmbedBuilder()
+      .setTitle("🩸 FINAL TIEBREAKER VOTE 🩸")
+      .setDescription(
+        `Multiple players are tied.\n\n` +
+        `Vote to determine their final ranking.\nAll may vote — the charm will sort the rest.\n\n` +
+        tiedPlayers.map(p => `• ${p.username}`).join('\n')
+      )
+      .setColor(0xff0033);
+
+    const voteMessage = await channel.send({
+      embeds: [voteEmbed],
+      components: [row]
+    });
+
+    const collector = voteMessage.createMessageComponentCollector({
+      componentType: ComponentType.Button,
+      time: 20000
+    });
+
+    collector.on('collect', async (interaction) => {
+      if (votedUsers.has(interaction.user.id)) {
+        await interaction.reply({ content: "You already voted!", ephemeral: true });
+        return;
+      }
+
+      const votedId = interaction.customId.split('_')[1];
+      if (!voteCounts.has(votedId)) {
+        await interaction.reply({ content: "Invalid vote!", ephemeral: true });
+        return;
+      }
+
+      voteCounts.set(votedId, voteCounts.get(votedId) + 1);
+      votedUsers.add(interaction.user.id);
+      await interaction.reply({ content: "Vote counted!", ephemeral: true });
+    });
+
+    collector.on('end', async () => {
+      const sortedTied = [...tiedPlayers].sort((a, b) => {
+        const aVotes = voteCounts.get(a.id) || 0;
+        const bVotes = voteCounts.get(b.id) || 0;
+        return bVotes - aVotes;
+      });
+
+      await channel.send("🗳️ Tiebreaker vote complete. The charm has decided.");
+      resolve(sortedTied);
+    });
+  });
 }
 
 async function showRematchButton(channel) {
-  const row = new ActionRowBuilder().addComponents(
+  const rematchRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId('rematch_vote')
+      .setCustomId('rematch')
       .setLabel('🔁 Call for Rematch')
-      .setStyle(ButtonStyle.Success)
+      .setStyle(ButtonStyle.Secondary)
   );
 
-  const msg = await channel.send({
-    content: 'Should we go again? Click below to signal your will.',
-    components: [row]
+  await channel.send({
+    content: "Should we go again? Click below to signal your will.",
+    components: [rematchRow]
   });
-
   const collector = msg.createMessageComponentCollector({ time: 60000 });
   let votes = 0;
 
