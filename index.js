@@ -231,7 +231,7 @@ client.on('messageCreate', async (message) => {
 
     setTimeout(async () => {
       await message.channel.send(`🎮 The Gauntlet has begun!`);
-      await runPointsGauntlet(message.channel, 10, false); // ✅ fixed argument order
+      await runPointsGauntlet(message.channel, 10, false, isTestMode); // ✅ fixed argument order
     }, msUntilStart);
   }
 });
@@ -268,7 +268,7 @@ async function runPointsGauntlet(channel, overrideRounds = 10, isTestMode = fals
 
   await showFinalScores(playerMap, channel);
 }
-async function runMiniGamePoints(playerMap, channel, roundNum, lore) {
+async function runMiniGamePoints(playerMap, channel, roundNum, lore, isTestMode = false) {
   const outcomes = [2, 1, -1, -2].sort(() => 0.5 - Math.random());
   const buttons = lore.buttons || ["A", "B", "C", "D"];
   const outcomeMap = new Map(buttons.map((label, i) => [label, outcomes[i]]));
