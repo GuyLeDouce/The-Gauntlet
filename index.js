@@ -409,7 +409,7 @@ async function showFinalScores(playerMap, channel) {
     await channel.send('⚖️ There is a tie among the top scorers. The charm demands a vote to break it.');
     await runPointTiebreaker(top3, channel);
   } else {
-    await showPointsPodium(top3, channel);
+    await showFinalPodium(channel, players);
   }
 
   await wait(5000);
