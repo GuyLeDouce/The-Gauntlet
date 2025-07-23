@@ -563,33 +563,99 @@ client.on('messageCreate', async (message) => {
 });
 client.on('messageCreate', async (message) => {
   if (message.content === '!testgauntlet') {
+    // Restrict to authorized users only
     if (!authorizedUsers.includes(message.author.id)) {
       return message.reply("⛔ Only authorized users can run test mode.");
     }
 
-    if (activeGame) return message.reply('⛔ A Gauntlet is already running.');
+    // Ensure no other Gauntlet is running
+    if (activeGame) {
+      return message.reply('⛔ A Gauntlet is already in progress.');
+    }
 
-    // Mock 10 fake players
-    const players = new Map();
+    // Create 10 mock players
+    const mockPlayers = new Map();
     for (let i = 1; i <= 10; i++) {
-      const id = `mock_${i}`;
-      players.set(id, {
-        id,
+      mockPlayers.set(`mock_${i}`, {
+        id: `mock_${i}`,
         username: `MockPlayer${i}`,
         points: 0,
         isMock: true
       });
     }
 
+    // Set global activeGame state
     activeGame = {
-      players,
+      players: mockPlayers,
       startTime: Date.now()
     };
 
-    await message.channel.send(`🧪 Starting **Test Gauntlet** with 10 mock players...`);
-    await runPointsGauntlet(message.channel, 10, true); // true = test mode
+    try {
+      await message.channel.send('🧪 Starting **Test Gauntlet** with 10 mock players...');
+      await runPointsGauntletSimulation(message.channel, mockPlayers);
+    } catch (err) {
+      console.error('❌ Error running test gauntlet:', err);
+      await message.channel.send('❌ Failed to run test gauntlet.');
+      activeGame = null;
+    }
   }
 });
+
+// Simulation runner function
+async function runPointsGauntletSimulation(channel, mockPlayers) {
+  const playerMap = new Map(mockPlayers);
+  let round = 1;
+  const maxRounds = 10;
+
+  while (round <= maxRounds) {
+    const roundIntro = new EmbedBuilder()
+      .setTitle(`🌪️ ROUND ${round}`)
+      .setDescription(`🌀 *The charm stirs once more...*`)
+      .setColor(0xaa00ff);
+
+    await channel.send({ embeds: [roundIntro] });
+    await wait(2000);
+
+    // Mini-game simulation
+    const outcomes = [1, 2, -1, -2].sort(() => 0.5 - Math.random());
+    const buttons = ['A', 'B', 'C', 'D'];
+
+    for (const player of playerMap.values()) {
+      const randomIndex = Math.floor(Math.random() * 4);
+      const result = outcomes[randomIndex];
+      player.points += result;
+    }
+
+    await channel.send(`🎮 Mock players completed mini-game. Round ${round} points have been applied.`);
+    await wait(2000);
+
+    // Riddle simulation
+    const riddlePool = riddles
+      .map((r, i) => ({ ...r, index: i }))
+      .filter(r => !usedRiddleIndices.has(r.index));
+
+    const picked = riddlePool[Math.floor(Math.random() * riddlePool.length)];
+    if (!picked) break;
+
+    usedRiddleIndices.add(picked.index);
+    const difficulty = picked.difficulty;
+
+    // Simulate 40% of players getting it right
+    const shuffledPlayers = [...playerMap.values()].sort(() => 0.5 - Math.random());
+    const correctCount = Math.floor(playerMap.size * 0.4);
+    for (let i = 0; i < correctCount; i++) {
+      shuffledPlayers[i].points += difficulty;
+    }
+
+    await channel.send(`🧠 Riddle completed. ${correctCount} players answered correctly and gained +${difficulty} points.`);
+    await wait(2000);
+
+    round++;
+  }
+
+  // Final results
+  await showFinalScores(playerMap, channel);
+}
 // === On Bot Ready ===
 client.once('ready', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
