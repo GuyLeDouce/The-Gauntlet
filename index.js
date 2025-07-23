@@ -93,48 +93,70 @@ const miniGameLorePool = [
 ];
 
 const miniGameFateDescriptions = [
-  "The charm stirs. One button is blessed, the others are bitter.",
-  "Only one fate uplifts. The rest whisper in riddles.",
-  "Squigs have meddled here. Nothing makes sense anymore.",
-  "Pick fast. The walls are starting to breathe.",
-  "The charm’s eye is open. It will remember your choice.",
-  "All outcomes are rigged. You just don’t know how.",
-  "Your gut lies. Your brain lies. Just click something.",
-  "Behind one door: hope. Behind the rest? Ha.",
-  "Click now or regret it forever.",
-  "You can’t win them all. But maybe you can survive this one."
+  "They say the ugliest Squig once survived this by sneezing.",
+  "The floorboards are judging you. Quietly.",
+  "None of these were tested. Proceed accordingly.",
+  "A Squig once solved this blindfolded. Then got lost forever.",
+  "Just pick what smells right. Trust your nose.",
+  "Legends say the correct answer tastes like burnt syrup.",
+  "This choice once decided a mayoral race in Uglytown.",
+  "Worms know the answer. Unfortunately, they won’t say.",
+  "History will not remember what you picked. But we will.",
+  "One button leads to treasure. The others... paperwork.",
+  "If you guess with confidence, it counts double. Psych.",
+  "This scenario was predicted by a Squig horoscope in 1997.",
+  "You had a dream about this once. Probably shouldn’t trust it.",
+  "The correct answer was scratched into a bathroom stall.",
+  "A toad guessed right last time. That toad is now a CEO.",
+  "Try not to overthink it. That's how the fog gets in.",
+  "This round is sponsored by nothing and regrets.",
+  "Even the ugliest choice might be the right one.",
+  "Your ancestors are watching. Some are laughing.",
+  "Only fools rush in. Also, they win sometimes.",
+  "A squig with a broken antenna won this round once. Barely.",
+  "Nothing about this is fair. But it is fabulous.",
+  "It’s not random. It’s just curated chaos.",
+  "Whispers say the correct answer glows under moonlight.",
+  "Someone flipped a coin for this once. The coin exploded.",
+  "Do not trust anything that rhymes with ‘bingo’.",
+  "This moment is 42% fate, 58% vibes.",
+  "Your shadow just tried to warn you. Too late.",
+  "Statistically speaking, someone is always wrong.",
+  "The fourth option was banned in two dimensions. Not this one."
 ];
+
 
 const pointFlavors = {
   "+2": [
-    "✨ bathed in CHARM and came out dazzling.",
-    "🧃 drank ancient juice. Gained weird strength.",
-    "📜 read a prophecy upside-down. It still worked.",
-    "🐸 kissed a Squig. Somehow gained points.",
-    "🌀 stared into the void. It winked back, approvingly."
+    "✨ Bathed in the forbidden glow of a Squig lamp. **+2 points!**",
+    "🧃 Drank something that blinked back. Felt stronger. **+2 points!**",
+    "📜 Misread the prophecy but impressed the paper. **+2 points!**",
+    "🐸 Kissed a Squig out of curiosity. Got rewarded. **+2 points!**",
+    "🌀 Stared into the static void. It whispered 'nice'. **+2 points!**"
   ],
   "+1": [
-    "🎈 floated through the challenge unscathed.",
-    "💡 guessed right by accident. The charm shrugged.",
-    "📦 opened the least cursed box.",
-    "🔮 squinted at the sigils and kinda got it.",
-    "🎤 blurted out an answer with confidence. It worked."
+    "🎈 Floated past danger like a confused balloon. **+1 point!**",
+    "💡 Guessed wrong twice, then guessed right. **+1 point!**",
+    "📦 Opened the least cursed option. Just barely. **+1 point!**",
+    "🔮 Licked the charm instead of solving it. Unexpected success. **+1 point!**",
+    "🎤 Answered with total confidence. It was even right. **+1 point!**"
   ],
   "-1": [
-    "🍄 stepped on a lore mushroom. Slippery.",
-    "🧤 picked the sticky option. Ew. Minus one.",
-    "📺 watched cursed static too long.",
-    "🧻 slipped on ritual TP. Classic fail.",
-    "📉 tried to trade SquigCoin. It crashed. Hard."
+    "🍄 Stepped on a lore mushroom. Instant regret. **-1 point!**",
+    "🧤 Chose the sticky button. Ew. **-1 point!**",
+    "📺 Watched cursed SquigTV for too long. **-1 point!**",
+    "🧻 Slipped on ceremonial toilet paper. **-1 point!**",
+    "📉 Traded UglyBucks for SquigCoin. Market tanked. **-1 point!**"
   ],
   "-2": [
-    "🥴 called the charm ugly. It heard.",
-    "🪦 tripped into a portable grave.",
-    "🍖 stole meat from a Squig BBQ. Bad move.",
-    "🎭 mocked the ritual. Got cursed with a new face.",
-    "🪞 lost a staring contest with their reflection."
+    "🥴 Called a Squig 'mid'. It hexed you. **-2 points!**",
+    "🪦 Tripped over lore and landed in a portable grave. **-2 points!**",
+    "🍖 Tried to eat the Monster’s leftovers. Got slapped. **-2 points!**",
+    "🎭 Mocked the ritual with a sock puppet. It mocked back harder. **-2 points!**",
+    "🪞 Challenged your reflection. Lost everything. **-2 points!**"
   ]
 };
+
 const riddles = [
   { riddle: "I have keys but no locks. I have space but no room. You can enter but not go outside. What am I?", answers: ["keyboard"], difficulty: 1 },
   { riddle: "I get wetter the more I dry. What am I?", answers: ["towel"], difficulty: 1 },
