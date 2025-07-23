@@ -273,28 +273,71 @@ async function runMiniGamePoints(players, channel, round, lore, isTestMode = fal
 
   const embed = new EmbedBuilder()
     .setTitle("🎲 MINI-GAME CHALLENGE")
-    .setDescription(`The charm demands a trial...\nChoose wisely.\n⏳ You have 30 seconds to decide your fate...`)
-    .setColor(0x33ff99);
+    .setDescription(`The charm demands a trial...\nChoose your fate.\n⏳ You have 30 seconds to decide.`)
+    .setColor(0xff33cc);
 
-  await channel.send({ embeds: [embed] });
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('choice1')
+      .setLabel('🌀 Embrace the Charm')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId('choice2')
+      .setLabel('⚔️ Defy the Charm')
+      .setStyle(ButtonStyle.Danger),
+    new ButtonBuilder()
+      .setCustomId('choice3')
+      .setLabel('💤 Ignore the Charm')
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId('choice4')
+      .setLabel('🧪 Offer a Trade')
+      .setStyle(ButtonStyle.Success)
+  );
 
-  setTimeout(() => channel.send("⏳ 20 seconds left..."), 10000);
-  setTimeout(() => channel.send("⏳ 10 seconds left..."), 20000);
-  setTimeout(() => channel.send("🎲 Time’s up. The charm will decide."), 30000);
+  await channel.send({ embeds: [embed], components: [row] });
 
-  for (const player of players.values()) {
-    if (isTestMode && player.isMock) {
-      const mockResult = outcomes[Math.floor(Math.random() * outcomes.length)];
-      player.points += mockResult;
-    } else {
-      const result = outcomes[Math.floor(Math.random() * outcomes.length)];
-      player.points += result;
+  // Countdown
+  setTimeout(() => channel.send("⏳ 20 seconds left...").catch(() => {}), 10000);
+  setTimeout(() => channel.send("⏳ 10 seconds left...").catch(() => {}), 20000);
+  setTimeout(() => channel.send("🎲 Time’s up. The charm decides.").catch(() => {}), 30000);
+
+  const collector = channel.createMessageComponentCollector({ componentType: 2, time: 30000 });
+  const clickedUsers = new Set();
+
+  collector.on('collect', async i => {
+    if (i.user.bot || clickedUsers.has(i.user.id)) return;
+    clickedUsers.add(i.user.id);
+
+    if (!players.has(i.user.id)) {
+      players.set(i.user.id, {
+        id: i.user.id,
+        username: i.user.username,
+        points: 0
+      });
     }
-  }
 
-  await wait(30000); // Let the countdown run its course
+    const outcome = outcomes[Math.floor(Math.random() * outcomes.length)];
+    players.get(i.user.id).points += outcome;
 
-  await channel.send(`Mock players completed mini-game. Round ${round} points have been applied.`);
+    await i.reply({
+      content: `You chose **${i.component.label}**\nYour fate: **${outcome > 0 ? '+' : ''}${outcome} point${Math.abs(outcome) !== 1 ? 's' : ''}**`,
+      ephemeral: true
+    });
+  });
+
+  collector.on('end', async () => {
+    if (isTestMode) {
+      for (const player of players.values()) {
+        if (player.isMock) {
+          const result = outcomes[Math.floor(Math.random() * outcomes.length)];
+          player.points += result;
+        }
+      }
+    }
+
+    await channel.send(`🧮 Mini-game complete. Round ${round} points have been applied.`);
+  });
 }
 
 
