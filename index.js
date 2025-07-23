@@ -135,28 +135,6 @@ const pointFlavors = {
     "🪞 lost a staring contest with their reflection."
   ]
 };
-const miniGameLorePool = [
-  {
-    title: "The Watching Begins",
-    lore: "A Squig perches on a powerline, drooling static. Your skin itches where it gazes."
-  },
-  {
-    title: "The Ugly Chorus",
-    lore: "Chanting from beneath the sewer lids... is that harmony or horror?"
-  },
-  {
-    title: "Midnight Transmission",
-    lore: "A blinking eye on your screen. You didn't put it there. It blinks in Morse code: 'RUN'."
-  },
-  {
-    title: "Worms in the Wires",
-    lore: "Every device starts playing static. In it, you hear your name, whispered by Squigs."
-  },
-  {
-    title: "Squigstep",
-    lore: "A bass drop rumbles from the void. Everyone's heads bob uncontrollably. A Squig DJ cackles from behind a glowing rig."
-  }
-];
 const miniGameFateDescriptions = [
   "A Squig leaps onto the button you *didn’t* press and vanishes. You wonder what would’ve happened.",
   "You hear distant laughter as the button clicks. Was it mocking or amused?",
