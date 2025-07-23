@@ -231,7 +231,7 @@ client.on('messageCreate', async (message) => {
 
     setTimeout(async () => {
       await message.channel.send(`🎮 The Gauntlet has begun!`);
-      await runPointsGauntlet(message.channel, 10, false, isTestMode); // ✅ fixed argument order
+      await runPointsGauntlet(message.channel, 10, false); // ✅ fixed argument order
     }, msUntilStart);
   }
 });
