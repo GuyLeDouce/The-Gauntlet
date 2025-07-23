@@ -300,26 +300,30 @@ async function runMiniGamePoints(players, channel, round, isTestMode = false) {
   const collector = channel.createMessageComponentCollector({ componentType: 2, time: 30000 });
   const clickedUsers = new Set();
 
-  collector.on('collect', async i => {
-    if (i.user.bot || clickedUsers.has(i.user.id)) return;
-    clickedUsers.add(i.user.id);
+collector.on('collect', async i => {
+  if (i.user.bot || clickedUsers.has(i.user.id)) return;
+  clickedUsers.add(i.user.id);
 
-    if (!players.has(i.user.id)) {
-      players.set(i.user.id, {
-        id: i.user.id,
-        username: i.user.username,
-        points: 0
-      });
-    }
+  if (!players.has(i.user.id)) {
+    players.set(i.user.id, {
+      id: i.user.id,
+      username: i.user.username,
+      points: 0
+    });
+  }
 
-    const outcome = outcomes[Math.floor(Math.random() * outcomes.length)];
-    players.get(i.user.id).points += outcome;
+  const outcome = outcomes[Math.floor(Math.random() * outcomes.length)];
+  players.get(i.user.id).points += outcome;
 
+  try {
     await i.reply({
       content: `You chose **${i.component.label}**\nYour fate: **${outcome > 0 ? '+' : ''}${outcome} point${Math.abs(outcome) !== 1 ? 's' : ''}**`,
-      ephemeral: true
+      flags: 64 // Equivalent to ephemeral: true
     });
-  });
+  } catch (err) {
+    console.warn(`⚠️ Failed to reply to interaction: ${err.message}`);
+  }
+});
 
   collector.on('end', async () => {
     if (isTestMode) {
