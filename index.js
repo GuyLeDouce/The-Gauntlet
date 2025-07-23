@@ -135,19 +135,6 @@ const pointFlavors = {
     "🪞 lost a staring contest with their reflection."
   ]
 };
-const miniGameFateDescriptions = [
-  "A Squig leaps onto the button you *didn’t* press and vanishes. You wonder what would’ve happened.",
-  "You hear distant laughter as the button clicks. Was it mocking or amused?",
-  "Static crackles under your fingers. You smell burnt ozone. Fate has chosen.",
-  "The Charm hums as if satisfied. You may have made the right call. Or not.",
-  "Something slithers past your ankle as you commit. You don’t look down."
-];
-const pointFlavors = [
-  "⚡ The Charm jolts you with arcane voltage. **+2 points**!",
-  "💫 A Squig flickers into view and salutes you. **+1 point**!",
-  "😵‍💫 You hit the wrong glyph. A psychic slap. **-1 point**.",
-  "☠️ You step on an ancient rune. You *probably* won’t die. **-2 points**..."
-];
 const riddles = [
   { riddle: "I have keys but no locks. I have space but no room. You can enter but not go outside. What am I?", answers: ["keyboard"], difficulty: 1 },
   { riddle: "I get wetter the more I dry. What am I?", answers: ["towel"], difficulty: 1 },
