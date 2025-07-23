@@ -355,8 +355,8 @@ function ensurePlayer(user, playerMap) {
   return playerMap.get(user.id);
 }
 async function runRiddlePoints(players, channel) {
-  const difficultyLevels = [1, 2, 3];
-  const chosenDifficulty = difficultyLevels[Math.floor(Math.random() * difficultyLevels.length)];
+  const difficulties = [1, 2, 3]; // 1 = easy, 2 = medium, 3 = hard
+  const chosenDifficulty = difficulties[Math.floor(Math.random() * difficulties.length)];
   const pointsForCorrect = chosenDifficulty;
 
   const filteredRiddles = riddles.filter(r => r.difficulty === chosenDifficulty);
@@ -371,25 +371,26 @@ async function runRiddlePoints(players, channel) {
     return;
   }
 
+  const difficultyLabel = chosenDifficulty === 1 ? "EASY" : chosenDifficulty === 2 ? "MEDIUM" : "HARD";
+
   const embed = new EmbedBuilder()
     .setTitle("🧠 RIDDLE CHALLENGE")
     .setDescription(
-      `_${riddle.riddle}_\n\n🌀 Difficulty Level: **${chosenDifficulty}** — Worth **+${pointsForCorrect}** points.\n⏳ You have 30 seconds to decide your fate...`
+      `_${riddle.riddle}_\n\n🌀 Difficulty: **${difficultyLabel}** — Worth **+${pointsForCorrect}** point${pointsForCorrect > 1 ? 's' : ''}.\n⏳ You have 30 seconds to decide your fate...`
     )
     .setColor(0xff66cc);
 
   await channel.send({ embeds: [embed] });
 
-  // Set up answer collection
   const filter = m => !m.author.bot;
   const collector = channel.createMessageCollector({ filter, time: 30000 });
   const correctPlayers = [];
 
   collector.on('collect', message => {
-    const player = players.get(message.author.id);
-    if (!player) {
-      players.set(message.author.id, {
-        id: message.author.id,
+    const playerId = message.author.id;
+    if (!players.has(playerId)) {
+      players.set(playerId, {
+        id: playerId,
         username: message.author.username,
         points: 0,
         isMock: false,
@@ -398,21 +399,21 @@ async function runRiddlePoints(players, channel) {
 
     const answer = message.content.trim().toLowerCase();
     if (riddle.answers.map(a => a.toLowerCase()).includes(answer)) {
-      if (!correctPlayers.includes(message.author.id)) {
-        correctPlayers.push(message.author.id);
-        players.get(message.author.id).points += pointsForCorrect;
+      if (!correctPlayers.includes(playerId)) {
+        correctPlayers.push(playerId);
+        players.get(playerId).points += pointsForCorrect;
       }
     }
   });
 
-  // Countdown messages
   setTimeout(() => channel.send("⏳ 10 seconds left...").catch(() => {}), 20000);
   setTimeout(() => channel.send("⏰ Time’s almost up!").catch(() => {}), 29000);
 
   collector.on('end', () => {
-    channel.send(`Riddle completed. ${correctPlayers.length} player(s) answered correctly and gained +${pointsForCorrect} point(s).`);
+    channel.send(`Riddle completed. ${correctPlayers.length} player(s) answered correctly and gained +${pointsForCorrect} point${pointsForCorrect > 1 ? 's' : ''}.`);
   });
 }
+
 
 
 
