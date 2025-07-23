@@ -268,31 +268,26 @@ async function runPointsGauntlet(channel, overrideRounds = 10, isTestMode = fals
 
   await showFinalScores(playerMap, channel);
 }
-async function runMiniGamePoints(players, channel, round, lore, isTestMode = false) {
+async function runMiniGamePoints(players, channel, round, isTestMode = false) {
   const outcomes = [-2, -1, 1, 2];
 
+  // Pick random mini-game from pool
+  const miniGame = miniGameLorePool[Math.floor(Math.random() * miniGameLorePool.length)];
+
+  // Build embed
   const embed = new EmbedBuilder()
-    .setTitle("🎲 MINI-GAME CHALLENGE")
-    .setDescription(`The charm demands a trial...\nChoose your fate.\n⏳ You have 30 seconds to decide.`)
+    .setTitle(`🎲 MINI-GAME CHALLENGE — ${miniGame.title}`)
+    .setDescription(`${miniGame.lore}\n⏳ You have 30 seconds to decide.`)
     .setColor(0xff33cc);
 
+  // Build dynamic buttons
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('choice1')
-      .setLabel('🌀 Embrace the Charm')
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId('choice2')
-      .setLabel('⚔️ Defy the Charm')
-      .setStyle(ButtonStyle.Danger),
-    new ButtonBuilder()
-      .setCustomId('choice3')
-      .setLabel('💤 Ignore the Charm')
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId('choice4')
-      .setLabel('🧪 Offer a Trade')
-      .setStyle(ButtonStyle.Success)
+    miniGame.buttons.map((label, idx) =>
+      new ButtonBuilder()
+        .setCustomId(`choice${idx + 1}`)
+        .setLabel(label)
+        .setStyle([ButtonStyle.Primary, ButtonStyle.Danger, ButtonStyle.Secondary, ButtonStyle.Success][idx % 4])
+    )
   );
 
   await channel.send({ embeds: [embed], components: [row] });
@@ -355,54 +350,63 @@ function ensurePlayer(user, playerMap) {
 async function runRiddlePoints(players, channel) {
   const difficulties = ['easy', 'medium', 'hard'];
   const chosenDifficulty = difficulties[Math.floor(Math.random() * difficulties.length)];
-  const filteredRiddles = riddles.filter(r => r.difficulty === chosenDifficulty);
-  const riddle = filteredRiddles[Math.floor(Math.random() * filteredRiddles.length)];
   const pointsForCorrect = chosenDifficulty === 'easy' ? 1 : chosenDifficulty === 'medium' ? 2 : 3;
+
+  const filteredRiddles = riddles.filter(r => r.difficulty === chosenDifficulty);
+  if (filteredRiddles.length === 0) {
+    await channel.send(`⚠️ No riddles available for difficulty: ${chosenDifficulty}. Skipping riddle...`);
+    return;
+  }
+
+  const riddle = filteredRiddles[Math.floor(Math.random() * filteredRiddles.length)];
+  if (!riddle || !riddle.riddle) {
+    await channel.send(`⚠️ Failed to retrieve a valid riddle. Skipping...`);
+    return;
+  }
 
   const embed = new EmbedBuilder()
     .setTitle("🧠 RIDDLE CHALLENGE")
-    .setDescription(`_${riddle.riddle}_\n\n🌀 Difficulty: **${chosenDifficulty.toUpperCase()}** — Worth **+${pointsForCorrect}** points.\n⏳ You have 30 seconds to decide your fate...`)
-    .setColor(0xff00aa);
+    .setDescription(
+      `_${riddle.riddle}_\n\n🌀 Difficulty: **${chosenDifficulty.toUpperCase()}** — Worth **+${pointsForCorrect}** points.\n⏳ You have 30 seconds to decide your fate...`
+    )
+    .setColor(0xff66cc);
 
   await channel.send({ embeds: [embed] });
 
-  setTimeout(() => channel.send("⏳ 20 seconds left..."), 10000);
-  setTimeout(() => channel.send("⏳ 10 seconds left..."), 20000);
-  setTimeout(() => channel.send("🧠 Riddle time is over. Wisdom waits for no one."), 30000);
+  // Set up answer collection
+  const filter = m => !m.author.bot;
+  const collector = channel.createMessageCollector({ filter, time: 30000 });
+  const correctPlayers = [];
 
-  const correctAnswer = riddle.answers[0].toLowerCase();
-  const responders = new Map();
+  collector.on('collect', message => {
+    const player = players.get(message.author.id);
+    if (!player) {
+      players.set(message.author.id, {
+        id: message.author.id,
+        username: message.author.username,
+        points: 0,
+        isMock: false,
+      });
+    }
 
-  const collector = channel.createMessageCollector({ time: 30000 });
-
-  collector.on('collect', msg => {
-    if (msg.author.bot || responders.has(msg.author.id)) return;
-
-    if (msg.content.toLowerCase().includes(correctAnswer)) {
-      responders.set(msg.author.id, true);
-
-      if (!players.has(msg.author.id)) {
-        players.set(msg.author.id, {
-          id: msg.author.id,
-          username: msg.author.username,
-          points: 0,
-        });
+    const answer = message.content.trim().toLowerCase();
+    if (riddle.answers.map(a => a.toLowerCase()).includes(answer)) {
+      if (!correctPlayers.includes(message.author.id)) {
+        correctPlayers.push(message.author.id);
+        players.get(message.author.id).points += pointsForCorrect;
       }
-
-      players.get(msg.author.id).points += pointsForCorrect;
-    } else {
-      responders.set(msg.author.id, false);
     }
   });
 
-  return new Promise(resolve => {
-    collector.on('end', () => {
-      const correct = [...responders.values()].filter(val => val).length;
-      channel.send(`Riddle completed. ${correct} player${correct !== 1 ? 's' : ''} answered correctly and gained +${pointsForCorrect} point${pointsForCorrect !== 1 ? 's' : ''}.`);
-      resolve();
-    });
+  // Optional: update countdown messages
+  setTimeout(() => channel.send("⏳ 10 seconds left...").catch(() => {}), 20000);
+  setTimeout(() => channel.send("⏰ Time’s almost up!").catch(() => {}), 29000);
+
+  collector.on('end', () => {
+    channel.send(`Riddle completed. ${correctPlayers.length} player(s) answered correctly and gained +${pointsForCorrect} points.`);
   });
 }
+
 
 
 async function showFinalScores(playerMap, channel) {
