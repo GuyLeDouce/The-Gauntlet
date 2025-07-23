@@ -231,7 +231,7 @@ client.on('messageCreate', async (message) => {
 
     setTimeout(async () => {
       await message.channel.send(`🎮 The Gauntlet has begun!`);
-      await runPointsGauntlet(activeGame.players, message.channel);
+      await runPointsGauntlet(message.channel, 10, false); // ✅ fixed argument order
     }, msUntilStart);
   }
 });
@@ -499,19 +499,19 @@ async function runTiebreaker(tiedPlayers, channel) {
 
     collector.on('collect', async (interaction) => {
       if (votedUsers.has(interaction.user.id)) {
-        await interaction.reply({ content: "You already voted!", ephemeral: true });
+        await interaction.reply({ content: "You already voted!", flags: 64 });
         return;
       }
 
       const votedId = interaction.customId.split('_')[1];
       if (!voteCounts.has(votedId)) {
-        await interaction.reply({ content: "Invalid vote!", ephemeral: true });
+        await interaction.reply({ content: "Invalid vote!", flags: 64 });
         return;
       }
 
       voteCounts.set(votedId, voteCounts.get(votedId) + 1);
       votedUsers.add(interaction.user.id);
-      await interaction.reply({ content: "Vote counted!", ephemeral: true });
+      await interaction.reply({ content: "Vote counted!", flags: 64 });
     });
 
     collector.on('end', async () => {
@@ -547,12 +547,12 @@ async function showRematchButton(channel) {
   collector.on('collect', async i => {
     if (!i.member || i.member.user.bot) return;
     if (votedUsers.has(i.user.id)) {
-      return i.reply({ content: '🛑 You already voted!', ephemeral: true });
+      return i.reply({ content: '🛑 You already voted!', flags: 64 });
     }
 
     votedUsers.add(i.user.id);
     votes++;
-    await i.reply({ content: '🔁 Rematch vote counted!', ephemeral: true });
+    await i.reply({ content: '🔁 Rematch vote counted!', flags: 64 });
   });
 
   collector.on('end', async () => {
