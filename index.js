@@ -535,17 +535,24 @@ async function showRematchButton(channel) {
       .setStyle(ButtonStyle.Secondary)
   );
 
-  await channel.send({
+  const msg = await channel.send({
     content: "Should we go again? Click below to signal your will.",
     components: [rematchRow]
   });
+
   const collector = msg.createMessageComponentCollector({ time: 60000 });
   let votes = 0;
+  const votedUsers = new Set();
 
   collector.on('collect', async i => {
     if (!i.member || i.member.user.bot) return;
+    if (votedUsers.has(i.user.id)) {
+      return i.reply({ content: '🛑 You already voted!', ephemeral: true });
+    }
+
+    votedUsers.add(i.user.id);
     votes++;
-    await i.reply({ content: '🔁 Rematch vote counted!', flags: 64 });
+    await i.reply({ content: '🔁 Rematch vote counted!', ephemeral: true });
   });
 
   collector.on('end', async () => {
