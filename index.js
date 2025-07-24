@@ -742,6 +742,28 @@ client.on('messageCreate', async (message) => {
 
     message.channel.send({ embeds: [embed] });
   }
+if (message.content === '!info') {
+  const infoEmbed = new EmbedBuilder()
+    .setTitle("📖 Welcome to The Gauntlet")
+    .setDescription(
+      "**The Gauntlet** is a 10-round Discord mini-game of chaos, riddles, and unpredictable rewards.\n\n" +
+      "**🔹 How it works:**\n" +
+      "• Each round includes a **mini-game** (random button choice) and a **riddle** challenge.\n" +
+      "• Mini-games are luck-based and reward or subtract points based on your fate.\n" +
+      "• Riddles test your brain — answer correctly for bonus points.\n" +
+      "• Watch for mid-game bonus events like the Charm's Bonus Wheel — react quickly to win extra points!\n" +
+      "• The goal is to earn the most points by the end. Top 3 are crowned in the Final Podium.\n\n" +
+      "**🎮 Game Commands:**\n" +
+      "`!points` — Check your current points during a game\n" +
+      "`!leaderboard` — View the top players in the current game\n" +
+      "`!info` — Shows this help message\n\n" +
+      "_Watch for chaos rounds, bonus events, and lore surprises. The charm is always watching._"
+    )
+    .setColor(0x00ccff);
+
+  await message.channel.send({ embeds: [infoEmbed] });
+}
+
 });
 client.on('messageCreate', async (message) => {
   if (message.content === '!testgauntlet') {
