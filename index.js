@@ -564,10 +564,16 @@ async function showFinalPodium(channel, playerMap) {
     "🕳️ **Last One Dragged from the Void** 🕳️"
   ];
 
-  const podiumEmbed = new EmbedBuilder()
-    .setTitle("👁‍🗨️ THE FINAL PODIUM 👁‍🗨️")
-    .setDescription("The charm acknowledges those who rose above...")
-    .setColor(0xaa00ff);
+const totalParticipants = players.length;
+
+const podiumEmbed = new EmbedBuilder()
+  .setTitle("👁‍🗨️ THE FINAL PODIUM 👁‍🗨️")
+  .setDescription(
+    `The charm acknowledges those who rose above...\n` +
+    `👥 **${totalParticipants} player${totalParticipants === 1 ? '' : 's'}** participated in this Gauntlet.`
+  )
+  .setColor(0xaa00ff);
+
 
   // Handle 2nd/3rd place ties ONLY (1st place remains highest scorer)
   const firstPlacePoints = top3[0].points;
