@@ -338,10 +338,10 @@ while (round <= maxRounds) {
 if (!bonusSpinUsed && round > 2 && round < 9 && Math.random() < 0.25) {
   bonusSpinUsed = true;
 
-  const spinEmbed = new EmbedBuilder()
-    .setTitle("🎡 The Charm's Bonus Wheel Appears!")
-    .setDescription("React with 🌀 within **15 seconds** to tempt fate.\nOne lucky participant will gain **+3 bonus points**.")
-    .setColor(0x00ffff);
+const spinEmbed = new EmbedBuilder()
+  .setTitle("🎯 The Squig’s Ugly Selector Activates!")
+  .setDescription("React with 🌀 within **15 seconds** to tempt fate.\nOne lucky participant will be granted **+3 bonus points** by pure Squig chaos.")
+  .setColor(0xff77ff);
 
   const spinMessage = await channel.send({ embeds: [spinEmbed] });
   await spinMessage.react("🌀");
@@ -374,7 +374,7 @@ if (!bonusSpinUsed && round > 2 && round < 9 && Math.random() < 0.25) {
 
     playerMap.get(winnerId).points += 3;
 
-    await channel.send(`🎉 The charm has chosen... <@${winnerId}> gains **+3 bonus points!**\n_The wheel wobbles and disappears._`);
+   await channel.send(`🎉 The Squig’s Ugly Selector has spoken... <@${winnerId}> gains **+3 bonus points!**\n_The static fizzles and the charm forgets what it just did._`);
   });
 }
 
