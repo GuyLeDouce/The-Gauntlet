@@ -640,45 +640,6 @@ async function runTiebreaker(tiedPlayers, channel) {
   });
 }
 
-async function showRematchButton(channel) {
-  const rematchRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('rematch')
-      .setLabel('🔁 Call for Rematch')
-      .setStyle(ButtonStyle.Secondary)
-  );
-
-  const msg = await channel.send({
-    content: "Should we go again? Click below to signal your will.",
-    components: [rematchRow]
-  });
-
-  const collector = msg.createMessageComponentCollector({ time: 60000 });
-  let votes = 0;
-  const votedUsers = new Set();
-
-  collector.on('collect', async i => {
-    if (!i.member || i.member.user.bot) return;
-    if (votedUsers.has(i.user.id)) {
-      return i.reply({ content: '🛑 You already voted!', flags: 64 });
-    }
-
-    votedUsers.add(i.user.id);
-    votes++;
-    await i.reply({ content: '🔁 Rematch vote counted!', flags: 64 });
-  });
-
-  collector.on('end', async () => {
-    if (votes >= 3) {
-      await channel.send('🧿 Enough voices call for more. The next Gauntlet awakens...');
-      setTimeout(() => {
-        channel.send('Use `!gauntlet 3` to begin again.');
-      }, 2000);
-    } else {
-      await channel.send('⏳ The charm settles. Perhaps another time...');
-    }
-  });
-}
 client.on('messageCreate', async (message) => {
   if (message.content === '!points') {
     if (!activeGame || !activeGame.players) {
@@ -693,7 +654,7 @@ client.on('messageCreate', async (message) => {
     return message.reply(`📊 You currently have **${player.points}** point${player.points === 1 ? '' : 's'}.`);
   }
 
-  if (message.content === '!leaderboard') {
+  if (message.content === '!lb') {
     if (!activeGame || !activeGame.players) {
       return message.reply('⚠️ No Gauntlet is currently running.');
     }
