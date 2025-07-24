@@ -335,54 +335,50 @@ while (round <= maxRounds) {
 
   round++;
 // === BONUS RNG SPIN EVENT ===
-if (!bonusSpinUsed && round > 2 && round < 9 && Math.random() < 0.25) {
-  bonusSpinUsed = true;
-  await runUglySelector(channel, playerMap);
-}
+// === RUN UGLY SELECTOR ===
+async function runUglySelector(channel, playerMap) {
+  const embed = new EmbedBuilder()
+    .setTitle("🎯 The Squig’s Ugly Selector Activates!")
+    .setDescription("React with 🌀 within **15 seconds** to tempt fate.\nOne lucky participant will be granted **+3 bonus points** by pure Squig chaos.")
+    .setColor(0xff77ff);
 
-const spinEmbed = new EmbedBuilder()
-  .setTitle("🎯 The Squig’s Ugly Selector Activates!")
-  .setDescription("React with 🌀 within **15 seconds** to tempt fate.\nOne lucky participant will be granted **+3 bonus points** by pure Squig chaos.")
-  .setColor(0xff77ff);
-
-  const spinMessage = await channel.send({ embeds: [spinEmbed] });
-  await spinMessage.react("🌀");
+  const msg = await channel.send({ embeds: [embed] });
+  await msg.react("🌀");
 
   const filter = (reaction, user) => reaction.emoji.name === "🌀" && !user.bot;
-  const reactionCollector = spinMessage.createReactionCollector({ filter, time: 15000 });
+  const reactionCollector = msg.createReactionCollector({ filter, time: 15000 });
 
   const users = new Set();
-
   reactionCollector.on('collect', (reaction, user) => {
     users.add(user.id);
   });
 
-  reactionCollector.on('end', async () => {
-    if (users.size === 0) {
-      await channel.send("🌀 No one dared tempt fate. The charm spins alone...");
-      return;
-    }
+  return new Promise((resolve) => {
+    reactionCollector.on('end', async () => {
+      if (users.size === 0) {
+        await channel.send("🌀 No one dared tempt fate. The charm spins alone...");
+        return resolve();
+      }
 
-    const userIdArray = Array.from(users);
-    const winnerId = userIdArray[Math.floor(Math.random() * userIdArray.length)];
+      const userIdArray = Array.from(users);
+      const winnerId = userIdArray[Math.floor(Math.random() * userIdArray.length)];
 
-    if (!playerMap.has(winnerId)) {
-      playerMap.set(winnerId, {
-        id: winnerId,
-        username: "Unknown",
-        points: 0
-      });
-    }
+      if (!playerMap.has(winnerId)) {
+        playerMap.set(winnerId, {
+          id: winnerId,
+          username: "Unknown",
+          points: 0
+        });
+      }
 
-    playerMap.get(winnerId).points += 3;
+      playerMap.get(winnerId).points += 3;
 
-   await channel.send(`🎉 The Squig’s Ugly Selector has spoken... <@${winnerId}> gains **+3 bonus points!**\n_The static fizzles and the charm forgets what it just did._`);
+      await channel.send(`🎉 The Squig’s Ugly Selector has spoken... <@${winnerId}> gains **+3 bonus points!**\n_The static fizzles and the charm forgets what it just did._`);
+      resolve();
+    });
   });
 }
-
-}
-
-
+ }
   await showFinalScores(playerMap, channel);
 }
 async function runMiniGamePoints(players, channel, round, isTestMode = false) {
