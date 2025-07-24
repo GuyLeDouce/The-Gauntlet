@@ -337,6 +337,8 @@ while (round <= maxRounds) {
 // === BONUS RNG SPIN EVENT ===
 if (!bonusSpinUsed && round > 2 && round < 9 && Math.random() < 0.25) {
   bonusSpinUsed = true;
+  await runUglySelector(channel, playerMap);
+}
 
 const spinEmbed = new EmbedBuilder()
   .setTitle("🎯 The Squig’s Ugly Selector Activates!")
@@ -809,6 +811,7 @@ client.on('messageCreate', async (message) => {
 async function runPointsGauntletSimulation(channel, mockPlayers) {
   const playerMap = new Map(mockPlayers.map(p => [p.id, { ...p }])); // Deep clone to avoid mutation
   let round = 1;
+let bonusSpinUsed = false;
   const maxRounds = 10;
   const usedIndices = new Set();
 
