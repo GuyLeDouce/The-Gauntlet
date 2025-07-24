@@ -262,6 +262,8 @@ async function runPointsGauntlet(channel, overrideRounds = 10, isTestMode = fals
   const playerMap = activeGame.players;
 
   let round = 1;
+let bonusSpinUsed = false;
+
 
 while (round <= maxRounds) {
   const miniGame = miniGameLorePool[Math.floor(Math.random() * miniGameLorePool.length)];
@@ -332,6 +334,50 @@ while (round <= maxRounds) {
   await wait(5000);
 
   round++;
+// === BONUS RNG SPIN EVENT ===
+if (!bonusSpinUsed && round > 2 && round < 9 && Math.random() < 0.25) {
+  bonusSpinUsed = true;
+
+  const spinEmbed = new EmbedBuilder()
+    .setTitle("🎡 The Charm's Bonus Wheel Appears!")
+    .setDescription("React with 🌀 within **15 seconds** to tempt fate.\nOne lucky participant will gain **+3 bonus points**.")
+    .setColor(0x00ffff);
+
+  const spinMessage = await channel.send({ embeds: [spinEmbed] });
+  await spinMessage.react("🌀");
+
+  const filter = (reaction, user) => reaction.emoji.name === "🌀" && !user.bot;
+  const reactionCollector = spinMessage.createReactionCollector({ filter, time: 15000 });
+
+  const users = new Set();
+
+  reactionCollector.on('collect', (reaction, user) => {
+    users.add(user.id);
+  });
+
+  reactionCollector.on('end', async () => {
+    if (users.size === 0) {
+      await channel.send("🌀 No one dared tempt fate. The charm spins alone...");
+      return;
+    }
+
+    const userIdArray = Array.from(users);
+    const winnerId = userIdArray[Math.floor(Math.random() * userIdArray.length)];
+
+    if (!playerMap.has(winnerId)) {
+      playerMap.set(winnerId, {
+        id: winnerId,
+        username: "Unknown",
+        points: 0
+      });
+    }
+
+    playerMap.get(winnerId).points += 3;
+
+    await channel.send(`🎉 The charm has chosen... <@${winnerId}> gains **+3 bonus points!**\n_The wheel wobbles and disappears._`);
+  });
+}
+
 }
 
 
