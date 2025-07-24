@@ -463,8 +463,12 @@ async function runRiddlePoints(players, channel) {
     const filter = m => !m.author.bot;
     const collector = channel.createMessageCollector({ filter, time: 30000 });
 
-    collector.on('collect', message => {
+    collector.on('collect', async message => {
       const playerId = message.author.id;
+      const answer = message.content.trim().toLowerCase();
+      const isCorrect = riddle.answers.map(a => a.toLowerCase()).includes(answer);
+
+      // Ensure player is tracked
       if (!players.has(playerId)) {
         players.set(playerId, {
           id: playerId,
@@ -474,11 +478,24 @@ async function runRiddlePoints(players, channel) {
         });
       }
 
-      const answer = message.content.trim().toLowerCase();
-      if (riddle.answers.map(a => a.toLowerCase()).includes(answer)) {
+      if (isCorrect) {
         if (!correctPlayers.includes(playerId)) {
           correctPlayers.push(playerId);
           players.get(playerId).points += pointsForCorrect;
+
+          try {
+            await message.delete();
+          } catch (err) {
+            console.warn(`⚠️ Could not delete correct message: ${err.message}`);
+          }
+
+          await channel.send(`🧠 <@${playerId}> answered correctly and gained **+${pointsForCorrect}** point${pointsForCorrect > 1 ? 's' : ''}!`);
+        }
+      } else {
+        try {
+          await message.react('❌');
+        } catch (err) {
+          console.warn(`⚠️ Failed to react to incorrect guess: ${err.message}`);
         }
       }
     });
@@ -488,15 +505,14 @@ async function runRiddlePoints(players, channel) {
     setTimeout(() => channel.send("⏰ Time’s almost up!").catch(() => {}), 29000);
 
     collector.on('end', () => {
-      channel.send(
-        `Riddle completed. ${correctPlayers.length} player(s) answered correctly and gained +${pointsForCorrect} point${pointsForCorrect > 1 ? 's' : ''}.`
-      ).catch(() => {});
+      const answerText = riddle.answers[0];
+channel.send(
+  `✅ Riddle completed. ${correctPlayers.length} player(s) answered correctly and gained +${pointsForCorrect} point${pointsForCorrect > 1 ? 's' : ''}.\n🧩 The correct answer was: **${answerText}**.`
+).catch(() => {});
       resolve();
     });
   });
 }
-
-
 
 
 
