@@ -575,7 +575,7 @@ async function showFinalPodium(channel, playerMap) {
   await channel.send({ embeds: [podiumEmbed] });
 
   await wait(5000);
-  await showRematchButton(channel);
+  
 }
 async function runTiebreaker(tiedPlayers, channel) {
   return new Promise(async (resolve) => {
