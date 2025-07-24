@@ -591,7 +591,6 @@ async function showFinalScores(playerMap, channel) {
   if (rematchCount < maxRematches) {
     await channel.send(`📯 *The spirits stir... perhaps one more trial awaits?*`);
     await wait(2000);
-    await showRematchButton(channel);
   }
 }
 
