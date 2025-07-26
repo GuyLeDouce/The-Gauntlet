@@ -34,6 +34,8 @@ let gameChannel = null;
 let joinMessageLink = null;
 const authorizedUsers = ['826581856400179210', '1288107772248064044'];
 let usedRiddleIndices = new Set();
+let usedMiniGameIndices = new Set();
+
 
 // === Utility ===
 function wait(ms) {
@@ -240,7 +242,19 @@ let bonusSpinUsed = false;
 
 
 while (round <= maxRounds) {
-  const miniGame = miniGameLorePool[Math.floor(Math.random() * miniGameLorePool.length)];
+  let availableMiniGames = miniGameLorePool
+  .map((g, i) => ({ ...g, index: i }))
+  .filter(g => !usedMiniGameIndices.has(g.index));
+
+if (availableMiniGames.length === 0) {
+  usedMiniGameIndices.clear(); // reset if all have been used
+  availableMiniGames = miniGameLorePool.map((g, i) => ({ ...g, index: i }));
+}
+
+const selectedMiniGame = availableMiniGames[Math.floor(Math.random() * availableMiniGames.length)];
+usedMiniGameIndices.add(selectedMiniGame.index);
+const miniGame = selectedMiniGame;
+
   const flavor = miniGameFateDescriptions[Math.floor(Math.random() * miniGameFateDescriptions.length)];
 
   // === Unified Round Intro + Mini-Game ===
@@ -555,6 +569,7 @@ async function showFinalScores(playerMap, channel) {
   if (players.length === 0) {
     await channel.send('⚠️ No players to score. The charm is confused.');
     activeGame = null;
+    usedMiniGameIndices.clear();
     return;
   }
 
@@ -580,6 +595,7 @@ async function showFinalScores(playerMap, channel) {
 
   await wait(5000);
   activeGame = null;
+  usedMiniGameIndices.clear();
   rematchCount++;
 
   if (rematchCount < maxRematches) {
