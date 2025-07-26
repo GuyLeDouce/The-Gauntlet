@@ -307,7 +307,26 @@ while (round <= maxRounds) {
   await runRiddlePoints(playerMap, channel);
   await wait(5000);
 
-  round++;
+    round++;
+
+  if (round === 7) {
+    await channel.send({
+      content: "⛔ **THE GAUNTLET PAUSES** ⛔",
+      embeds: [
+        new EmbedBuilder()
+          .setTitle("🌪️ MID-GAME INTERRUPTION")
+          .setDescription("The static thickens...\nSomething hideous stirs...\n\nPrepare yourselves. **The Ugly Selector is awakening.**")
+          .setColor(0xff00cc)
+          .setImage(getMonsterImageUrl())
+      ]
+    });
+    await wait(3000);
+    await runUglySelector(channel, playerMap);
+    await wait(3000);
+    await channel.send("🎭 The charm returns to its chaotic rhythm...");
+    await wait(3000);
+  }
+
 // === BONUS RNG SPIN EVENT ===
 // === RUN UGLY SELECTOR ===
 async function runUglySelector(channel, playerMap) {
