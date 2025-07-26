@@ -160,67 +160,39 @@ const pointFlavors = {
 };
 
 const riddles = [
-  { riddle: "I have keys but no locks. I have space but no room. You can enter but not go outside. What am I?", answers: ["keyboard"], difficulty: 1 },
-  { riddle: "I get wetter the more I dry. What am I?", answers: ["towel"], difficulty: 1 },
-  { riddle: "The more you take from me, the bigger I become. What am I?", answers: ["hole"], difficulty: 1 },
-  { riddle: "I go up but never come down. What am I?", answers: ["age"], difficulty: 1 },
-  { riddle: "I speak without a mouth and hear without ears. What am I?", answers: ["echo"], difficulty: 1 },
-  { riddle: "What has hands but can’t clap?", answers: ["clock"], difficulty: 1 },
-  { riddle: "What has legs but doesn’t walk?", answers: ["table"], difficulty: 1 },
-  { riddle: "I follow you everywhere but disappear in the dark. What am I?", answers: ["shadow"], difficulty: 1 },
-  { riddle: "I’m tall when I’m young and short when I’m old. What am I?", answers: ["candle"], difficulty: 1 },
-  { riddle: "What comes down but never goes up?", answers: ["rain"], difficulty: 1 },
-  { riddle: "I fly without wings. I cry without eyes. What am I?", answers: ["cloud"], difficulty: 1 },
-  { riddle: "You buy me to eat, but never eat me. What am I?", answers: ["plate"], difficulty: 1 },
-  { riddle: "What can you catch but not throw?", answers: ["cold"], difficulty: 1 },
-  { riddle: "I have a face but no eyes, hands but no arms. What am I?", answers: ["clock"], difficulty: 1 },
-  { riddle: "I run but never walk, have a bed but never sleep. What am I?", answers: ["river"], difficulty: 1 },
-  { riddle: "The more you have of me, the less you see. What am I?", answers: ["darkness"], difficulty: 1 },
-  { riddle: "What has a head, a tail, but no body?", answers: ["coin"], difficulty: 1 },
-  { riddle: "What can fill a room but takes up no space?", answers: ["light"], difficulty: 1 },
-  { riddle: "What gets broken without being held?", answers: ["promise"], difficulty: 1 },
-  { riddle: "What has one eye but can’t see?", answers: ["needle"], difficulty: 1 },
-  { riddle: "I can be cracked, made, told, and played. What am I?", answers: ["joke"], difficulty: 2 },
-  { riddle: "I’m taken from a mine and shut in a wooden case, but I help you express yourself. What am I?", answers: ["pencil"], difficulty: 2 },
-  { riddle: "I shrink smaller every time you use me, yet I never complain. What am I?", answers: ["soap"], difficulty: 2 },
-  { riddle: "I fall but never rise. I’m part of night and day, but never seen. What am I?", answers: ["darkness"], difficulty: 2 },
-  { riddle: "I connect two people but touch only one. What am I?", answers: ["phone"], difficulty: 2 },
-  { riddle: "You see me once in June, twice in November, but not at all in May. What am I?", answers: ["e"], difficulty: 2 },
-  { riddle: "What begins with T, ends with T, and has T in it?", answers: ["teapot"], difficulty: 2 },
-  { riddle: "What has cities but no houses, rivers but no water, and roads but no cars?", answers: ["map"], difficulty: 2 },
-  { riddle: "I am full of holes but I hold water. What am I?", answers: ["sponge"], difficulty: 2 },
-  { riddle: "What five-letter word becomes shorter when you add two letters to it?", answers: ["short"], difficulty: 2 },
-  { riddle: "What comes once in a minute, twice in a moment, but never in a thousand years?", answers: ["m"], difficulty: 2 },
-  { riddle: "What has many teeth but can’t bite?", answers: ["comb"], difficulty: 2 },
-  { riddle: "I have branches but no trunk, leaves, or fruit. What am I?", answers: ["bank"], difficulty: 2 },
-  { riddle: "I travel the world while staying in the same spot. What am I?", answers: ["stamp"], difficulty: 2 },
-  { riddle: "The more you take, the more you leave behind. What am I?", answers: ["footsteps"], difficulty: 2 },
-  { riddle: "I’m always in front of you but can’t be seen. What am I?", answers: ["future"], difficulty: 2 },
-  { riddle: "What has to be broken before you can use it?", answers: ["egg"], difficulty: 2 },
-  { riddle: "I have no life, but I can die. What am I?", answers: ["battery"], difficulty: 2 },
-  { riddle: "I’m lighter than a feather, yet the strongest person can’t hold me for long. What am I?", answers: ["breath"], difficulty: 2 },
-  { riddle: "I have eyes but no sight, a crown but no head. What am I?", answers: ["potato"], difficulty: 2 },
-  { riddle: "The person who makes it has no use for it. The person who buys it doesn’t need it. The person who uses it doesn’t know it. What is it?", answers: ["coffin"], difficulty: 3 },
-  { riddle: "What walks on four legs in the morning, two legs at noon, and three legs in the evening?", answers: ["man", "human"], difficulty: 3 },
-  { riddle: "I am always hungry, I must always be fed. The finger I touch will soon turn red. What am I?", answers: ["fire"], difficulty: 3 },
-  { riddle: "I can only live where there is light, but I die if the light shines on me. What am I?", answers: ["shadow"], difficulty: 3 },
-  { riddle: "What comes back but never arrives?", answers: ["tomorrow"], difficulty: 3 },
-  { riddle: "The more you remove from me, the stronger I become. What am I?", answers: ["hole"], difficulty: 3 },
-  { riddle: "You measure my life in hours, I serve you by expiring. I'm quick when I'm thin and slow when I'm fat. What am I?", answers: ["candle"], difficulty: 3 },
-  { riddle: "What belongs to you, but others use it more than you do?", answers: ["name"], difficulty: 3 },
-  { riddle: "I turn once, what is out will not get in. I turn again, what is in will not get out. What am I?", answers: ["key"], difficulty: 3 },
-  { riddle: "I have no voice, yet I speak to you. I tell of all things in the world that people do. I have leaves, but I’m not a tree. What am I?", answers: ["book"], difficulty: 3 },
-  { riddle: "Forward I am heavy, but backward I’m not. What am I?", answers: ["ton"], difficulty: 3 },
-  { riddle: "The more you look at me, the less you can see. What am I?", answers: ["darkness"], difficulty: 3 },
-  { riddle: "I am taken from the ground and shut up in a box, from which I’m never released, and yet I am used by almost every person. What am I?", answers: ["pencil lead", "lead"], difficulty: 3 },
-  { riddle: "I have lakes with no water, mountains with no stone, and cities with no people. What am I?", answers: ["map"], difficulty: 3 },
-  { riddle: "The more I dry, the wetter I become. What am I?", answers: ["towel"], difficulty: 3 },
-  { riddle: "I am not alive, but I grow. I don’t have lungs, but I need air. I don’t have a mouth, but water kills me. What am I?", answers: ["fire"], difficulty: 3 },
-  { riddle: "I build up castles. I tear down mountains. I make some men blind, I help others to see. What am I?", answers: ["sand"], difficulty: 3 },
-  { riddle: "What flies forever, rests never?", answers: ["time"], difficulty: 3 },
-  { riddle: "Whoever makes me, tells me not. Whoever takes me, knows me not. Whoever knows me, wants me not. What am I?", answers: ["counterfeit", "fake", "secret"], difficulty: 3 },
-  { riddle: "What can run but never walks, has a bed but never sleeps, and has a mouth but never talks?", answers: ["river"], difficulty: 3 }
+  { riddle: "I tick but have no tock. What am I?", answers: ["watch"], difficulty: 1 },
+  { riddle: "I’m written in ink but speak no words. What am I?", answers: ["book"], difficulty: 1 },
+  { riddle: "You use me to write, then rub me out. What am I?", answers: ["pencil"], difficulty: 1 },
+  { riddle: "I buzz but don’t fly. I connect calls but I’m not alive. What am I?", answers: ["phone"], difficulty: 1 },
+  { riddle: "I store your thoughts but have no mind. What am I?", answers: ["notebook"], difficulty: 1 },
+  { riddle: "I’m clear as day but can’t be seen at night. What am I?", answers: ["window"], difficulty: 1 },
+  { riddle: "I glow but am not the sun. I help you read when the day is done. What am I?", answers: ["lamp"], difficulty: 1 },
+  { riddle: "You sit on me but I have no legs. What am I?", answers: ["couch"], difficulty: 1 },
+  { riddle: "I stretch but never tear. You wear me everywhere. What am I?", answers: ["shirt"], difficulty: 1 },
+  { riddle: "I’m soft, warm, and full of dreams. What am I?", answers: ["bed"], difficulty: 1 },
+  { riddle: "I move without legs. I rumble, then stop. I often carry a crowd. What am I?", answers: ["train"], difficulty: 2 },
+  { riddle: "I have stripes but no colors. I guide your feet but never move. What am I?", answers: ["crosswalk"], difficulty: 2 },
+  { riddle: "I spin tales but I’m no liar. I weave webs with threads much finer. What am I?", answers: ["spider"], difficulty: 2 },
+  { riddle: "I’m the start of everything and the end of nothing. What letter am I?", answers: ["e"], difficulty: 2 },
+  { riddle: "I stay in one spot but travel the world. What am I?", answers: ["postcard"], difficulty: 2 },
+  { riddle: "I go up dirty and come down clean. What am I?", answers: ["elevator"], difficulty: 2 },
+  { riddle: "I’m full of gas but not a balloon. I drive without legs. What am I?", answers: ["car"], difficulty: 2 },
+  { riddle: "You can hear me, but never see me. I exist only when others speak. What am I?", answers: ["voice"], difficulty: 2 },
+  { riddle: "I hold time but I’m not alive. I’m worn but not torn. What am I?", answers: ["watch"], difficulty: 2 },
+  { riddle: "I live in the corner but travel the web. What am I?", answers: ["router"], difficulty: 2 },
+  { riddle: "I lie in the earth, yet I move cities. I sleep for centuries, then roar in flame. What am I?", answers: ["volcano"], difficulty: 3 },
+  { riddle: "I have no form, no weight, no smell, yet I’m feared in every spell. What am I?", answers: ["curse"], difficulty: 3 },
+  { riddle: "I leave no footprints but I can drown. I arrive in silence, then crush towns. What am I?", answers: ["fog"], difficulty: 3 },
+  { riddle: "The more you know me, the less I exist. What am I?", answers: ["mystery"], difficulty: 3 },
+  { riddle: "I vanish if you name me. What am I?", answers: ["silence"], difficulty: 3 },
+  { riddle: "I’m always on your back but never complain. I disappear when you stand still. What am I?", answers: ["burden"], difficulty: 3 },
+  { riddle: "I can’t be touched, but I can be broken. I bind and divide. What am I?", answers: ["trust"], difficulty: 3 },
+  { riddle: "I grow without rain, bloom without sun, and disappear without warning. What am I?", answers: ["mold"], difficulty: 3 },
+  { riddle: "You carry me for life, but I weigh nothing. What am I?", answers: ["name"], difficulty: 3 },
+  { riddle: "I see everything but remain unseen. I reflect what you won’t admit. What am I?", answers: ["mirror"], difficulty: 3 }
 ];
+
+
 
 
 client.on('messageCreate', async (message) => {
@@ -597,7 +569,7 @@ async function showFinalScores(playerMap, channel) {
   rematchCount++;
 
   if (rematchCount < maxRematches) {
-    await channel.send(`📯 *The spirits stir... perhaps one more trial awaits?*`);
+    await channel.send(`📯 *Maybe enough reactions will encourage another game 👀*`);
     await wait(2000);
   }
 }
