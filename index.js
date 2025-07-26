@@ -9,8 +9,10 @@ const {
   ButtonBuilder,
   ButtonStyle,
   EmbedBuilder,
-  Collection
+  Collection,
+  ComponentType // ✅ Add this
 } = require('discord.js');
+
 
 const TOKEN = process.env.BOT_TOKEN;
 
@@ -574,14 +576,20 @@ async function showFinalScores(playerMap, channel) {
   const top3 = sorted.slice(0, 3);
   const topScore = top3[0].points;
 
-  // Check if there's a tie for 1st place
   const tiedTopScorers = sorted.filter(p => p.points === topScore);
 
   if (tiedTopScorers.length > 1) {
     await channel.send('⚖️ There is a tie among the top scorers. The charm demands a vote to break it.');
-    await runPointTiebreaker(tiedTopScorers, channel);
+    
+    const resolvedTiebreaker = await runPointTiebreaker(tiedTopScorers, channel);
+
+    // Merge resolved tie order with the rest of the players
+    const remaining = sorted.filter(p => !tiedTopScorers.find(tp => tp.id === p.id));
+    const finalOrderedPlayers = [...resolvedTiebreaker, ...remaining];
+
+    await showFinalPodium(channel, finalOrderedPlayers);
   } else {
-    await showFinalPodium(channel, players);
+    await showFinalPodium(channel, sorted);
   }
 
   await wait(5000);
@@ -595,9 +603,9 @@ async function showFinalScores(playerMap, channel) {
 }
 
 
-async function showFinalPodium(channel, playerMap) {
-  const players = [...playerMap.values()];
-  const sorted = players.sort((a, b) => b.points - a.points);
+
+async function showFinalPodium(channel, players) {
+  const sorted = [...players].sort((a, b) => b.points - a.points);
   let top3 = sorted.slice(0, 3);
 
   const medals = ['👑🥇', '🩸🥈', '💀🥉'];
@@ -607,18 +615,17 @@ async function showFinalPodium(channel, playerMap) {
     "🕳️ **Last One Dragged from the Void** 🕳️"
   ];
 
-const totalParticipants = players.length;
+  const totalParticipants = players.length;
 
-const podiumEmbed = new EmbedBuilder()
-  .setTitle("👁‍🗨️ THE FINAL PODIUM 👁‍🗨️")
-  .setDescription(
-    `The charm acknowledges those who rose above...\n` +
-    `👥 **${totalParticipants} player${totalParticipants === 1 ? '' : 's'}** participated in this Gauntlet.`
-  )
-  .setColor(0xaa00ff);
+  const podiumEmbed = new EmbedBuilder()
+    .setTitle("👁‍🗨️ THE FINAL PODIUM 👁‍🗨️")
+    .setDescription(
+      `The charm acknowledges those who rose above...\n` +
+      `👥 **${totalParticipants} player${totalParticipants === 1 ? '' : 's'}** participated in this Gauntlet.`
+    )
+    .setColor(0xaa00ff);
 
-
-  // Handle 2nd/3rd place ties ONLY (1st place remains highest scorer)
+  // Handle 2nd/3rd place ties (excluding 1st place)
   const firstPlacePoints = top3[0].points;
   const secondAndThird = top3.slice(1);
   const tiePoints = secondAndThird[0]?.points;
@@ -626,7 +633,7 @@ const podiumEmbed = new EmbedBuilder()
 
   if (tiedForSecond.length > 1) {
     const resolved = await runTiebreaker(tiedForSecond, channel);
-    top3 = [top3[0], ...resolved]; // Keep 1st as-is, replace 2nd/3rd with vote result
+    top3 = [top3[0], ...resolved]; // Keep 1st, replace rest
   }
 
   top3.forEach((player, index) => {
@@ -638,10 +645,9 @@ const podiumEmbed = new EmbedBuilder()
   });
 
   await channel.send({ embeds: [podiumEmbed] });
-
   await wait(5000);
-  
 }
+
 async function runTiebreaker(tiedPlayers, channel) {
   return new Promise(async (resolve) => {
     const voteCounts = new Map(tiedPlayers.map(p => [p.id, 0]));
