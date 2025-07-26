@@ -449,21 +449,21 @@ function ensurePlayer(user, playerMap) {
   return playerMap.get(user.id);
 }
 async function runRiddlePoints(players, channel) {
-  const difficulties = [1, 2, 3]; // 1 = easy, 2 = medium, 3 = hard
+  const difficulties = [1, 2, 3];
   const chosenDifficulty = difficulties[Math.floor(Math.random() * difficulties.length)];
   const pointsForCorrect = chosenDifficulty;
 
-  const filteredRiddles = riddles.filter(r => r.difficulty === chosenDifficulty);
-  if (filteredRiddles.length === 0) {
-    await channel.send(`⚠️ No riddles available for difficulty level: ${chosenDifficulty}. Skipping riddle...`);
+  const availableRiddles = riddles
+    .map((r, i) => ({ ...r, index: i }))
+    .filter(r => r.difficulty === chosenDifficulty && !usedRiddleIndices.has(r.index));
+
+  if (availableRiddles.length === 0) {
+    await channel.send(`⚠️ No unused riddles available for difficulty level: ${chosenDifficulty}. Skipping riddle...`);
     return;
   }
 
-  const riddle = filteredRiddles[Math.floor(Math.random() * filteredRiddles.length)];
-  if (!riddle || !riddle.riddle) {
-    await channel.send(`⚠️ Failed to retrieve a valid riddle. Skipping...`);
-    return;
-  }
+  const riddle = availableRiddles[Math.floor(Math.random() * availableRiddles.length)];
+  usedRiddleIndices.add(riddle.index);
 
   const difficultyLabel = chosenDifficulty === 1 ? "EASY" : chosenDifficulty === 2 ? "MEDIUM" : "HARD";
 
@@ -486,7 +486,6 @@ async function runRiddlePoints(players, channel) {
       const answer = message.content.trim().toLowerCase();
       const isCorrect = riddle.answers.map(a => a.toLowerCase()).includes(answer);
 
-      // Ensure player is tracked
       if (!players.has(playerId)) {
         players.set(playerId, {
           id: playerId,
@@ -496,19 +495,17 @@ async function runRiddlePoints(players, channel) {
         });
       }
 
-      if (isCorrect) {
-        if (!correctPlayers.includes(playerId)) {
-          correctPlayers.push(playerId);
-          players.get(playerId).points += pointsForCorrect;
+      if (isCorrect && !correctPlayers.includes(playerId)) {
+        correctPlayers.push(playerId);
+        players.get(playerId).points += pointsForCorrect;
 
-          try {
-            await message.delete();
-          } catch (err) {
-            console.warn(`⚠️ Could not delete correct message: ${err.message}`);
-          }
-
-          await channel.send(`🧠 <@${playerId}> answered correctly and gained **+${pointsForCorrect}** point${pointsForCorrect > 1 ? 's' : ''}!`);
+        try {
+          await message.delete();
+        } catch (err) {
+          console.warn(`⚠️ Could not delete correct message: ${err.message}`);
         }
+
+        await channel.send(`🧠 <@${playerId}> answered correctly and gained **+${pointsForCorrect}** point${pointsForCorrect > 1 ? 's' : ''}!`);
       } else {
         try {
           await message.react('❌');
@@ -518,20 +515,18 @@ async function runRiddlePoints(players, channel) {
       }
     });
 
-    // Countdown alerts
     setTimeout(() => channel.send("⏳ 10 seconds left...").catch(() => {}), 20000);
     setTimeout(() => channel.send("⏰ Time’s almost up!").catch(() => {}), 29000);
 
     collector.on('end', () => {
       const answerText = riddle.answers[0];
-channel.send(
-  `✅ Riddle completed. ${correctPlayers.length} player(s) answered correctly and gained +${pointsForCorrect} point${pointsForCorrect > 1 ? 's' : ''}.\n🧩 The correct answer was: **${answerText}**.`
-).catch(() => {});
+      channel.send(
+        `✅ Riddle completed. ${correctPlayers.length} player(s) answered correctly and gained +${pointsForCorrect} point${pointsForCorrect > 1 ? 's' : ''}.\n🧩 The correct answer was: **${answerText}**.`
+      ).catch(() => {});
       resolve();
     });
   });
 }
-
 
 
 
