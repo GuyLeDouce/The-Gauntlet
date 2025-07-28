@@ -334,7 +334,7 @@ if (miniGame.image) {
     }
   });
 
-  await wait(30000);
+  await wait(46000);
   collector.stop();
 
   await channel.send(`🧮 Mini-game complete. Round ${round} points have been applied.`);
@@ -451,11 +451,12 @@ async function runMiniGamePoints(players, channel, round, isTestMode = false) {
   await channel.send({ embeds: [challengeEmbed], components: [row] });
 
   // Timed alerts
-  setTimeout(() => channel.send("⏳ 20 seconds left...").catch(() => {}), 10000);
-  setTimeout(() => channel.send("⏳ 10 seconds left...").catch(() => {}), 20000);
-  setTimeout(() => channel.send("🎲 Time’s up. The charm decides.").catch(() => {}), 30000);
+setTimeout(() => channel.send("⏳ 30 seconds left...").catch(() => {}), 15000);
+setTimeout(() => channel.send("⏳ 10 seconds left...").catch(() => {}), 35000);
+setTimeout(() => channel.send("🎲 Time’s up. The charm decides.").catch(() => {}), 45000);
 
-  const collector = channel.createMessageComponentCollector({ componentType: 2, time: 30000 });
+
+  const collector = channel.createMessageComponentCollector({ componentType: 2, time: 45000 });
   const clickedUsers = new Set();
 
   collector.on('collect', async i => {
