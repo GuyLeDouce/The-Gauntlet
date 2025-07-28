@@ -278,11 +278,14 @@ const miniGame = selectedMiniGame;
   const flavor = miniGameFateDescriptions[Math.floor(Math.random() * miniGameFateDescriptions.length)];
 
   // === Unified Round Intro + Mini-Game ===
-  const embed = new EmbedBuilder()
-    .setTitle(`🌪️ ROUND ${round} — ${miniGame.title}`)
-    .setDescription(`${miniGame.lore}\n\n_${flavor}_\n\n⏳ You have 30 seconds to decide.`)
-    .setImage(getUglyImageUrl())
-    .setColor(0xff33cc);
+const embed = new EmbedBuilder()
+  .setTitle(`🌪️ ROUND ${round} — ${miniGame.title}`)
+  .setDescription(`${miniGame.lore}\n\n_${flavor}_\n\n⏳ You have 30 seconds to decide.`)
+  .setColor(0xff33cc);
+
+if (miniGame.image) {
+  embed.setImage(miniGame.image);
+}
 
   const row = new ActionRowBuilder().addComponents(
     miniGame.buttons.map((label, idx) =>
