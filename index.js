@@ -55,44 +55,64 @@ function getMonsterImageUrl() {
 
 const miniGameLorePool = [
   {
-    title: "🎁 Pick a Prize",
-    lore: "It’s totally random. Just pick one and hope for the best.",
-    buttons: ["Box A", "Box B", "Box C", "Box D"]
+    title: "🎁 Chamber of the Ugly",
+    lore: "A Squig leads you into a crumbling cavern deep beneath the old arcade. Four boxes glow under flickering slime lights. One holds a blessing. One holds a trap. The others? Maybe a snack. Maybe a scream. You must choose. The Squig is already giggling.",
+    buttons: ["Box A", "Box B", "Box C", "Box D"],
+    image: "https://i.imgur.com/7G2PMce.png"
   },
   {
-    title: "🍕 Mystery Snack Time",
-    lore: "You’re hungry. One of these snacks might help. Or not.",
-    buttons: ["Cold Pizza", "Weird Burrito", "Melted Ice Cream", "Mystery Meat"]
+    title: "🍕 Feast of Regret",
+    lore: "Inside a crooked Squig diner with flickering lights and a suspicious chef, you’re handed a tray of “snacks.” One bite might grant vision. Another might cause a week-long nap. The rest? Unknown. The menu was written in crayon and some kind of fluid. Choose carefully.",
+    buttons: ["Cold Pizza", "Weird Burrito", "Melted Ice Cream", "Mystery Meat"],
+    image: "https://i.imgur.com/3nzMYZp.jpeg"
   },
   {
-    title: "🛏️ Dream Options",
-    lore: "Four dreams float in the air. Choose one to nap in. Outcomes vary.",
-    buttons: ["Flying Dream", "Falling Dream", "Late-for-Class Dream", "Totally Blank Dream"]
+    title: "🛏️ Inception? Never Heard of Her",
+    lore: "You’ve drifted off in a Squig nap pod. Suddenly, dreams begin to drift around your head like lazy jellyfish. One is lovely. One is loud. One is endless stairs. One is just static and screaming. The Squig monitoring your vitals is snoring louder than you are. Choose a dream.",
+    buttons: ["Flying Dream", "Falling Dream", "Late-for-Class Dream", "Totally Blank Dream"], 
+    image: "https://i.imgur.com/eTJISg9.jpeg"
   },
   {
     title: "🧼 Clean or Cursed?",
-    lore: "One of these soaps is cursed. The rest are just... soap.",
-    buttons: ["Lemon Fresh", "Minty One", "Sketchy Bar", "Unknown Goo"]
+    lore: "The Squigs don’t really understand hygiene, but they’re trying. You’re shown four soaps on a stone plinth. One cured a rash that never existed. One dissolved a hand. One smells like trauma. The last might be fruit-scented? A Squig proudly says, We made them ourselves. " ,
+    buttons: ["Lemon Fresh", "Minty One", "Sketchy Bar", "Unknown Goo"],
+    image: "https://i.imgur.com/1J8oNW4.png"
   },
   {
-    title: "🚪 Door Decision",
-    lore: "Pick a door. Don’t overthink it. Or do. Won’t help.",
-    buttons: ["Red Door", "Blue Door", "Green Door", "Wiggly Door"]
+    title: "🚪 Ugly Door Policy",
+    lore: "A Squig stands beside four doors. “Only one leads to safety,” they whisper. Another leads to a hallway of teeth. One just loops forever. The last is… moist? You won’t know until you open one. The Squig won’t make eye contact. The doors hum. Choose wrong, and you’re furniture now.",
+    buttons: ["Red Door", "Blue Door", "Green Door", "Wiggly Door"],
+    image: "https://i.imgur.com/utSECnX.jpeg"
   },
   {
-    title: "📺 Channel Surfing",
-    lore: "You're flipping channels. What’s on might be your fate.",
-    buttons: ["Cooking Show", "Weather Alert", "Cartoon Hour", "Static"]
+    title: "📺 SquigVision™ Live",
+    lore: "You grab the remote. The screen flashes violently. Each channel is broadcasting something — a bubbling stew of eyeballs, a Category 9 wind warning in space, a haunted cartoon rerun, and one is just... static, but it feels like it’s watching you. The Squig says, “Pick fast. It gets worse.”",
+    buttons: ["Cooking Show", "Weather Alert", "Cartoon Hour", "Static"],
+    image: "https://i.imgur.com/I2QB6Ls.png"
   },
   {
-    title: "🎨 Squig Expressionism",
-    lore: "Each Squig drew one. Each is cursed in a different way.",
-    buttons: ["Squig A", "Squig B", "Squig C", "Squig D"]
+    title: "🎨 Gallery of Regret",
+    lore: "Four Squigs submitted artwork to the Ugly Labs gallery. One piece is pure genius. Another caused a nosebleed in five viewers. One might be a summoning circle. The last… we don’t talk about the last. Pick your favorite. The Squigs are watching. Closely.",
+    buttons: ["Squig A", "Squig B", "Squig C", "Squig D"],
+    image: "https://i.imgur.com/HdQtSol.jpeg"
   },
   {
     title: "🔮 Charm Coin Flip",
-    lore: "The coins are spinning mid-air. Choose your side — fast.",
-    buttons: ["Heads", "Tails", "Edge", "Melted"]
+    lore: "Every Squig carries a Charm Coin — not for luck, but because sometimes reality needs a decision. One of these coins knows your fate. One lies. One screams. One is still warm. You’re told to flip one. No one tells you why. The room starts humming.",
+    buttons: ["Truth Coin", "Liar Coin", "Screaming Coin", "Still Warm"],
+    image: "https://i.imgur.com/7IoCjbB.jpeg"
+  },
+{
+    title: "🧃 Pick Your Potion",
+    lore: "A Squig offers you a tray of bubbling concoctions. “Each one changes something,” they say, avoiding eye contact. One makes your thoughts louder. One makes you see sounds. One makes your past self allergic to soup. One makes nothing happen — which is the most suspicious of all.",
+    buttons: ["Blue Bubbler", "Echo Juice", "Time Syrup", "Definitely Nothing"],
+    image: "https://i.imgur.com/23BxgsM.jpeg"
+  },
+{
+    title: "🪑 The Seat of Consequence",
+    lore: "You enter a room with four chairs. One hums softly. One smells like ozone and regret. One has teeth marks. One is already warm, but no one’s here. A Squig gestures politely: “Sit wherever you feel… least endangered.” The lights flicker. Something growls under the floor.",
+    buttons: ["Wobbly Chair", "Warm Chair", "Gnawed Chair", "Humming Chair"],
+    image: "https://i.imgur.com/hHVScHi.jpeg"
   }
 ];
 
@@ -162,36 +182,36 @@ const pointFlavors = {
 };
 
 const riddles = [
-  { riddle: "I tick but have no tock. What am I?", answers: ["watch"], difficulty: 1 },
-  { riddle: "I’m written in ink but speak no words. What am I?", answers: ["book"], difficulty: 1 },
-  { riddle: "You use me to write, then rub me out. What am I?", answers: ["pencil"], difficulty: 1 },
-  { riddle: "I buzz but don’t fly. I connect calls but I’m not alive. What am I?", answers: ["phone"], difficulty: 1 },
-  { riddle: "I store your thoughts but have no mind. What am I?", answers: ["notebook"], difficulty: 1 },
-  { riddle: "I’m clear as day but can’t be seen at night. What am I?", answers: ["window"], difficulty: 1 },
-  { riddle: "I glow but am not the sun. I help you read when the day is done. What am I?", answers: ["lamp"], difficulty: 1 },
-  { riddle: "You sit on me but I have no legs. What am I?", answers: ["couch"], difficulty: 1 },
-  { riddle: "I stretch but never tear. You wear me everywhere. What am I?", answers: ["shirt"], difficulty: 1 },
-  { riddle: "I’m soft, warm, and full of dreams. What am I?", answers: ["bed"], difficulty: 1 },
-  { riddle: "I move without legs. I rumble, then stop. I often carry a crowd. What am I?", answers: ["train"], difficulty: 2 },
-  { riddle: "I have stripes but no colors. I guide your feet but never move. What am I?", answers: ["crosswalk"], difficulty: 2 },
-  { riddle: "I spin tales but I’m no liar. I weave webs with threads much finer. What am I?", answers: ["spider"], difficulty: 2 },
-  { riddle: "I’m the start of everything and the end of nothing. What letter am I?", answers: ["e"], difficulty: 2 },
-  { riddle: "I stay in one spot but travel the world. What am I?", answers: ["postcard"], difficulty: 2 },
-  { riddle: "I go up dirty and come down clean. What am I?", answers: ["elevator"], difficulty: 2 },
-  { riddle: "I’m full of gas but not a balloon. I drive without legs. What am I?", answers: ["car"], difficulty: 2 },
-  { riddle: "You can hear me, but never see me. I exist only when others speak. What am I?", answers: ["voice"], difficulty: 2 },
-  { riddle: "I hold time but I’m not alive. I’m worn but not torn. What am I?", answers: ["watch"], difficulty: 2 },
-  { riddle: "I live in the corner but travel the web. What am I?", answers: ["router"], difficulty: 2 },
-  { riddle: "I lie in the earth, yet I move cities. I sleep for centuries, then roar in flame. What am I?", answers: ["volcano"], difficulty: 3 },
-  { riddle: "I have no form, no weight, no smell, yet I’m feared in every spell. What am I?", answers: ["curse"], difficulty: 3 },
-  { riddle: "I leave no footprints but I can drown. I arrive in silence, then crush towns. What am I?", answers: ["fog"], difficulty: 3 },
-  { riddle: "The more you know me, the less I exist. What am I?", answers: ["mystery"], difficulty: 3 },
-  { riddle: "I vanish if you name me. What am I?", answers: ["silence"], difficulty: 3 },
-  { riddle: "I’m always on your back but never complain. I disappear when you stand still. What am I?", answers: ["burden"], difficulty: 3 },
-  { riddle: "I can’t be touched, but I can be broken. I bind and divide. What am I?", answers: ["trust"], difficulty: 3 },
-  { riddle: "I grow without rain, bloom without sun, and disappear without warning. What am I?", answers: ["mold"], difficulty: 3 },
-  { riddle: "You carry me for life, but I weigh nothing. What am I?", answers: ["name"], difficulty: 3 },
-  { riddle: "I see everything but remain unseen. I reflect what you won’t admit. What am I?", answers: ["mirror"], difficulty: 3 }
+  { riddle: "I count seconds but don’t speak. What am I?", answers: ["watch"], difficulty: 1 },
+  { riddle: "I’m full of pages but never speak. What am I?", answers: ["book"], difficulty: 1 },
+  { riddle: "I can draw a line and then erase it. What am I?", answers: ["pencil"], difficulty: 1 },
+  { riddle: "I ring, I buzz, and you talk through me. What am I?", answers: ["phone"], difficulty: 1 },
+  { riddle: "You write thoughts in me, but I have none. What am I?", answers: ["notebook"], difficulty: 1 },
+  { riddle: "I let you see outside, but I can’t see you. What am I?", answers: ["window"], difficulty: 1 },
+  { riddle: "I light your way when the sun is gone. What am I?", answers: ["lamp"], difficulty: 1 },
+  { riddle: "I’m soft, have cushions, and take your weight. What am I?", answers: ["couch"], difficulty: 1 },
+  { riddle: "I cover your body but have no bones. What am I?", answers: ["shirt"], difficulty: 1 },
+  { riddle: "You lie on me to rest and dream. What am I?", answers: ["bed"], difficulty: 1 },
+  { riddle: "I carry people on tracks, but I have no wheels. What am I?", answers: ["train"], difficulty: 2 },
+  { riddle: "I have white stripes but no animals. I help you cross. What am I?", answers: ["crosswalk"], difficulty: 2 },
+  { riddle: "I spin silk but I’m not fabric. What am I?", answers: ["spider"], difficulty: 2 },
+  { riddle: "I appear once in 'everything' but not in 'nothing'. What letter am I?", answers: ["e"], difficulty: 2 },
+  { riddle: "You send me to others, but I never move. What am I?", answers: ["postcard"], difficulty: 2 },
+  { riddle: "I carry dirt up and come down clean. What am I?", answers: ["elevator"], difficulty: 2 },
+  { riddle: "I run on fuel, not feet. What am I?", answers: ["car"], difficulty: 2 },
+  { riddle: "You hear me when people talk, but you can't see me. What am I?", answers: ["voice"], difficulty: 2 },
+  { riddle: "I wrap around your wrist and tell time. What am I?", answers: ["watch"], difficulty: 2 },
+  { riddle: "I stay in one spot, but give you internet. What am I?", answers: ["router"], difficulty: 2 },
+  { riddle: "I sleep under ground for years, then explode without warning. What am I?", answers: ["volcano"], difficulty: 3 },
+  { riddle: "You can’t see or hold me, but people fear me in spells. What am I?", answers: ["curse"], difficulty: 3 },
+  { riddle: "I move in silence, block the sun, and erase skylines. What am I?", answers: ["fog"], difficulty: 3 },
+  { riddle: "The more you try to solve me, the less I remain. What am I?", answers: ["mystery"], difficulty: 3 },
+  { riddle: "Say my name and I disappear. What am I?", answers: ["silence"], difficulty: 3 },
+  { riddle: "You carry me always, but only feel me when it’s too late. What am I?", answers: ["burden"], difficulty: 3 },
+  { riddle: "I can break trust without touching it. What am I?", answers: ["trust"], difficulty: 3 },
+  { riddle: "I grow in the dark, vanish in light. What am I?", answers: ["mold"], difficulty: 3 },
+  { riddle: "I go with you everywhere but weigh nothing. What am I?", answers: ["name"], difficulty: 3 },
+  { riddle: "I show you the truth, even if you look away. What am I?", answers: ["mirror"], difficulty: 3 }
 ];
 
 
@@ -399,6 +419,10 @@ async function runMiniGamePoints(players, channel, round, isTestMode = false) {
     .setDescription(`${miniGame.lore}\n\n${flavor}`)
     .setColor(0xaa00ff);
 
+  if (miniGame.image) {
+    roundIntro.setImage(miniGame.image);
+  }
+
   await channel.send({ embeds: [roundIntro] });
   await wait(5000); // give time to read lore
 
@@ -407,6 +431,10 @@ async function runMiniGamePoints(players, channel, round, isTestMode = false) {
     .setTitle(`🎲 MINI-GAME CHALLENGE — ${miniGame.title}`)
     .setDescription(`${miniGame.lore}\n⏳ You have 30 seconds to decide.`)
     .setColor(0xff33cc);
+
+  if (miniGame.image) {
+    challengeEmbed.setImage(miniGame.image);
+  }
 
   const row = new ActionRowBuilder().addComponents(
     miniGame.buttons.map((label, idx) =>
