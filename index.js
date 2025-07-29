@@ -182,37 +182,43 @@ const pointFlavors = {
 };
 
 const riddles = [
-  { riddle: "I count seconds but don’t speak. What am I?", answers: ["watch"], difficulty: 1 },
-  { riddle: "I’m full of pages but never speak. What am I?", answers: ["book"], difficulty: 1 },
-  { riddle: "I can draw a line and then erase it. What am I?", answers: ["pencil"], difficulty: 1 },
-  { riddle: "I ring, I buzz, and you talk through me. What am I?", answers: ["phone"], difficulty: 1 },
-  { riddle: "You write thoughts in me, but I have none. What am I?", answers: ["notebook"], difficulty: 1 },
-  { riddle: "I let you see outside, but I can’t see you. What am I?", answers: ["window"], difficulty: 1 },
-  { riddle: "I light your way when the sun is gone. What am I?", answers: ["lamp"], difficulty: 1 },
-  { riddle: "I’m soft, have cushions, and take your weight. What am I?", answers: ["couch"], difficulty: 1 },
-  { riddle: "I cover your body but have no bones. What am I?", answers: ["shirt"], difficulty: 1 },
-  { riddle: "You lie on me to rest and dream. What am I?", answers: ["bed"], difficulty: 1 },
-  { riddle: "I carry people on tracks, but I have no wheels. What am I?", answers: ["train"], difficulty: 2 },
-  { riddle: "I have white stripes but no animals. I help you cross. What am I?", answers: ["crosswalk"], difficulty: 2 },
-  { riddle: "I spin silk but I’m not fabric. What am I?", answers: ["spider"], difficulty: 2 },
-  { riddle: "I appear once in 'everything' but not in 'nothing'. What letter am I?", answers: ["e"], difficulty: 2 },
-  { riddle: "You send me to others, but I never move. What am I?", answers: ["postcard"], difficulty: 2 },
-  { riddle: "I carry dirt up and come down clean. What am I?", answers: ["elevator"], difficulty: 2 },
-  { riddle: "I run on fuel, not feet. What am I?", answers: ["car"], difficulty: 2 },
-  { riddle: "You hear me when people talk, but you can't see me. What am I?", answers: ["voice"], difficulty: 2 },
-  { riddle: "I wrap around your wrist and tell time. What am I?", answers: ["watch"], difficulty: 2 },
-  { riddle: "I stay in one spot, but give you internet. What am I?", answers: ["router"], difficulty: 2 },
-  { riddle: "I sleep under ground for years, then explode without warning. What am I?", answers: ["volcano"], difficulty: 3 },
-  { riddle: "You can’t see or hold me, but people fear me in spells. What am I?", answers: ["curse"], difficulty: 3 },
-  { riddle: "I move in silence, block the sun, and erase skylines. What am I?", answers: ["fog"], difficulty: 3 },
-  { riddle: "The more you try to solve me, the less I remain. What am I?", answers: ["mystery"], difficulty: 3 },
-  { riddle: "Say my name and I disappear. What am I?", answers: ["silence"], difficulty: 3 },
-  { riddle: "You carry me always, but only feel me when it’s too late. What am I?", answers: ["burden"], difficulty: 3 },
-  { riddle: "I can break trust without touching it. What am I?", answers: ["trust"], difficulty: 3 },
-  { riddle: "I grow in the dark, vanish in light. What am I?", answers: ["mold"], difficulty: 3 },
-  { riddle: "I go with you everywhere but weigh nothing. What am I?", answers: ["name"], difficulty: 3 },
-  { riddle: "I show you the truth, even if you look away. What am I?", answers: ["mirror"], difficulty: 3 }
+  // === EASY (1) ===
+  { riddle: "I make ticks but have no tocks. What am I?", answers: ["watch", "clock"], difficulty: 1 },
+  { riddle: "I open up worlds with no voice at all. What am I?", answers: ["book"], difficulty: 1 },
+  { riddle: "Snap me in half, and I’ll still draw. What am I?", answers: ["pencil"], difficulty: 1 },
+  { riddle: "I sit in your hand, scream at times, and show you faces. What am I?", answers: ["phone"], difficulty: 1 },
+  { riddle: "I hold your secrets with spiral arms. What am I?", answers: ["notebook", "journal"], difficulty: 1 },
+  { riddle: "I show you the outside, but never see in. What am I?", answers: ["window"], difficulty: 1 },
+  { riddle: "I push back the dark but fear the unplug. What am I?", answers: ["lamp", "light"], difficulty: 1 },
+  { riddle: "I cushion your behind and hold your remote. What am I?", answers: ["couch", "sofa"], difficulty: 1 },
+  { riddle: "I cling to your torso and come in sizes. What am I?", answers: ["shirt"], difficulty: 1 },
+  { riddle: "I welcome your dreams without a word. What am I?", answers: ["bed"], difficulty: 1 },
+
+  // === MEDIUM (2) ===
+  { riddle: "I travel on rails but never steer. What am I?", answers: ["train"], difficulty: 2 },
+  { riddle: "I’m striped but never a tiger. What am I?", answers: ["crosswalk", "zebra crossing"], difficulty: 2 },
+  { riddle: "I craft webs without a loom. What am I?", answers: ["spider"], difficulty: 2 },
+  { riddle: "I’m hidden inside ‘everything’ but not in ‘nothing’. What am I?", answers: ["e"], difficulty: 2 },
+  { riddle: "I deliver a message, but I don’t travel. What am I?", answers: ["postcard", "letter"], difficulty: 2 },
+  { riddle: "I carry you up, then back down, but never take a step. What am I?", answers: ["elevator"], difficulty: 2 },
+  { riddle: "I zoom past feet and drink fuel. What am I?", answers: ["car"], difficulty: 2 },
+  { riddle: "I’m sound without form. What am I?", answers: ["voice"], difficulty: 2 },
+  { riddle: "I circle your wrist and count down your life. What am I?", answers: ["watch"], difficulty: 2 },
+  { riddle: "I stand still but give you the web. What am I?", answers: ["router", "modem"], difficulty: 2 },
+
+  // === HARD (3) ===
+  { riddle: "I sleep for centuries and then erupt with rage. What am I?", answers: ["volcano"], difficulty: 3 },
+  { riddle: "I haunt stories and hex the careless. What am I?", answers: ["curse"], difficulty: 3 },
+  { riddle: "I eat skylines and speak in silence. What am I?", answers: ["fog"], difficulty: 3 },
+  { riddle: "The more you chase me, the less you see. What am I?", answers: ["mystery"], difficulty: 3 },
+  { riddle: "Speak me aloud, and I vanish. What am I?", answers: ["silence"], difficulty: 3 },
+  { riddle: "You never notice me until I’m crushing you. What am I?", answers: ["burden"], difficulty: 3 },
+  { riddle: "I shatter bonds with whispers. What am I?", answers: ["trust"], difficulty: 3 },
+  { riddle: "I grow in shadow and flee the light. What am I?", answers: ["mold"], difficulty: 3 },
+  { riddle: "You take me everywhere, but I weigh nothing. What am I?", answers: ["name"], difficulty: 3 },
+  { riddle: "I reflect your truth whether you like it or not. What am I?", answers: ["mirror"], difficulty: 3 }
 ];
+
 
 
 
@@ -298,9 +304,9 @@ if (miniGame.image) {
 
   await channel.send({ embeds: [embed], components: [row] });
 
-  setTimeout(() => channel.send("⏳ 20 seconds left...").catch(() => {}), 10000);
-  setTimeout(() => channel.send("⏳ 10 seconds left...").catch(() => {}), 20000);
-  setTimeout(() => channel.send("🎲 Time’s up. The charm decides.").catch(() => {}), 30000);
+  setTimeout(() => channel.send("⏳ 25 seconds left...").catch(() => {}), 10000);
+  setTimeout(() => channel.send("⏳ 15 seconds left...").catch(() => {}), 25000);
+  setTimeout(() => channel.send("🎲 Time’s up. The charm decides.").catch(() => {}), 40000);
 
   const collector = channel.createMessageComponentCollector({ componentType: 2, time: 30000 });
   const clickedUsers = new Set();
