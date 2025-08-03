@@ -183,42 +183,41 @@ const pointFlavors = {
 
 const riddles = [
   // === EASY (1) ===
-  { riddle: "I light the dark, but I’m scared of wind. What am I?", answers: ["candle"], difficulty: 1 },
-  { riddle: "I spill without moving. What am I?", answers: ["light"], difficulty: 1 },
-  { riddle: "I’m a pet rock’s worst nightmare. What am I?", answers: ["hammer"], difficulty: 1 },
-  { riddle: "I leave trails but have no feet. What am I?", answers: ["snail"], difficulty: 1 },
-  { riddle: "I disappear when the sun comes out. What am I?", answers: ["dew"], difficulty: 1 },
-  { riddle: "I snap but have no fingers. What am I?", answers: ["twig"], difficulty: 1 },
-  { riddle: "I wear rings but have no hands. What am I?", answers: ["tree"], difficulty: 1 },
-  { riddle: "I hum in wires but hate silence. What am I?", answers: ["electricity"], difficulty: 1 },
-  { riddle: "I chill drinks but melt under pressure. What am I?", answers: ["ice"], difficulty: 1 },
-  { riddle: "You can eat me or skip me. What am I?", answers: ["meal"], difficulty: 1 },
+  { riddle: "I’m worn on your head, block the sun, and often get lost. What am I?", answers: ["hat"], difficulty: 1 },
+  { riddle: "I rise in the morning and vanish by night, but never sleep. What am I?", answers: ["sun"], difficulty: 1 },
+  { riddle: "I tickle your face but have no fingers. What am I?", answers: ["breeze", "wind"], difficulty: 1 },
+  { riddle: "I grow in rows, wear green, and get eaten. What am I?", answers: ["corn"], difficulty: 1 },
+  { riddle: "I sit on your wrist and count for you. What am I?", answers: ["watch"], difficulty: 1 },
+  { riddle: "I go on your feet, hate mud, and come in pairs. What am I?", answers: ["shoes"], difficulty: 1 },
+  { riddle: "I bark without biting and stand guard outside. What am I?", answers: ["tree"], difficulty: 1 },
+  { riddle: "I’m cracked for breakfast but hated on the floor. What am I?", answers: ["egg"], difficulty: 1 },
+  { riddle: "I fly without wings and cry without eyes. What am I?", answers: ["cloud"], difficulty: 1 },
+  { riddle: "I open doors without a hand. What am I?", answers: ["key"], difficulty: 1 },
 
   // === MEDIUM (2) ===
-  { riddle: "I stretch but never tear. What am I?", answers: ["shadow"], difficulty: 2 },
-  { riddle: "I’m loudest when broken. What am I?", answers: ["silence"], difficulty: 2 },
-  { riddle: "I see all, but only through glass. What am I?", answers: ["window"], difficulty: 2 },
-  { riddle: "I flip things but hate commitment. What am I?", answers: ["coin"], difficulty: 2 },
-  { riddle: "I eat hours but never grow. What am I?", answers: ["clock"], difficulty: 2 },
-  { riddle: "I copy you, but only in reverse. What am I?", answers: ["mirror"], difficulty: 2 },
-  { riddle: "I get sharper with friction. What am I?", answers: ["mind"], difficulty: 2 },
-  { riddle: "I jump between clouds, but I’m not rain. What am I?", answers: ["lightning"], difficulty: 2 },
-  { riddle: "I’m always behind but try to lead. What am I?", answers: ["history"], difficulty: 2 },
-  { riddle: "I write without ink, and erase without touch. What am I?", answers: ["thought"], difficulty: 2 },
+  { riddle: "I have a face and hands but no mouth or fingers. What am I?", answers: ["clock"], difficulty: 2 },
+  { riddle: "I rise when the heat comes and vanish in cold. What am I?", answers: ["steam"], difficulty: 2 },
+  { riddle: "I’m never still, never seen, and always felt. What am I?", answers: ["air", "wind"], difficulty: 2 },
+  { riddle: "I wait in silence until you step on me. What am I?", answers: ["leaf"], difficulty: 2 },
+  { riddle: "I move without legs, grow without roots, and whisper in crowds. What am I?", answers: ["rumor"], difficulty: 2 },
+  { riddle: "I’m buried but not dead, and I bloom when fed. What am I?", answers: ["seed"], difficulty: 2 },
+  { riddle: "I cross the sky but never walk. What am I?", answers: ["moon"], difficulty: 2 },
+  { riddle: "I hold knowledge but have no mind. What am I?", answers: ["book"], difficulty: 2 },
+  { riddle: "I reflect sound but make none. What am I?", answers: ["echo"], difficulty: 2 },
+  { riddle: "I go up hungry, come down full. What am I?", answers: ["elevator"], difficulty: 2 },
 
   // === HARD (3) ===
-  { riddle: "I only exist when ignored. What am I?", answers: ["background"], difficulty: 3 },
-  { riddle: "I end every journey and begin the next. What am I?", answers: ["door"], difficulty: 3 },
-  { riddle: "I live in minds and feed on truth. What am I?", answers: ["doubt"], difficulty: 3 },
-  { riddle: "I exist between decisions. What am I?", answers: ["hesitation"], difficulty: 3 },
-  { riddle: "I mimic chaos with perfect order. What am I?", answers: ["pattern"], difficulty: 3 },
-  { riddle: "You fear me when I’m empty. What am I?", answers: ["room"], difficulty: 3 },
-  { riddle: "I vanish the second you name me. What am I?", answers: ["secret"], difficulty: 3 },
-  { riddle: "I am what remains when everything else is gone. What am I?", answers: ["memory"], difficulty: 3 },
-  { riddle: "I answer without asking and vanish when sought. What am I?", answers: ["instinct"], difficulty: 3 },
-  { riddle: "You search for me in lies and find me in mirrors. What am I?", answers: ["truth"], difficulty: 3 }
+  { riddle: "I am found where nothing is and feared when everything fades. What am I?", answers: ["void"], difficulty: 3 },
+  { riddle: "I grow stronger the more you deny me. What am I?", answers: ["fear"], difficulty: 3 },
+  { riddle: "I move faster than light but cast no shadow. What am I?", answers: ["thought"], difficulty: 3 },
+  { riddle: "I arrive with endings and live in beginnings. What am I?", answers: ["change"], difficulty: 3 },
+  { riddle: "You chase me daily but never catch me. What am I?", answers: ["tomorrow"], difficulty: 3 },
+  { riddle: "I echo in silence and hide in noise. What am I?", answers: ["memory"], difficulty: 3 },
+  { riddle: "I never lie but can’t always be heard. What am I?", answers: ["intuition"], difficulty: 3 },
+  { riddle: "I am full when empty and light when weighed. What am I?", answers: ["hope"], difficulty: 3 },
+  { riddle: "I’m shaped by loss, held by time, and blurred by joy. What am I?", answers: ["grief"], difficulty: 3 },
+  { riddle: "You create me with every choice, yet I never existed. What am I?", answers: ["future"], difficulty: 3 }
 ];
-
 
 
 
