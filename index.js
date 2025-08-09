@@ -493,30 +493,33 @@ async function runLabyrinthAdventure(channel, playerMap) {
     }
   });
 
-  collector.on('end', async () => {
-    // Disable public buttons
-    try { await startMsg.edit({ components: [] }); } catch {}
+  return new Promise((resolve) => {
+    collector.on('end', async () => {
+      // Disable public buttons
+      try { await startMsg.edit({ components: [] }); } catch {}
 
-    // Tally & post verdict
-    let verdict = "**The Labyrinth’s Verdict:**\n";
-    for (const [userId, s] of state.entries()) {
-      // apply points to scoreboard
-      const p = playerMap.get(userId) || { id: userId, username: "Player", points: 0 };
-      p.points = (p.points || 0) + (s.points || 0);
-      playerMap.set(userId, p);
+      // Tally & post verdict
+      let verdict = "**The Labyrinth’s Verdict:**\n";
+      for (const [userId, s] of state.entries()) {
+        const p = playerMap.get(userId) || { id: userId, username: "Player", points: 0 };
+        p.points = (p.points || 0) + (s.points || 0);
+        playerMap.set(userId, p);
 
-      if (s.finished && s.step >= 4) {
-        verdict += `<@${userId}> **escaped in glory!** **+${s.points} points**\n`;
-      } else if (s.points > 0) {
-        verdict += `<@${userId}> reached step ${s.step} — **+${s.points} points**\n`;
-      } else if (s.started) {
-        verdict += `<@${userId}> was lost at the first turn — **0 points**\n`;
-      } else {
-        verdict += `<@${userId}> did not enter the Labyrinth.\n`;
+        if (s.finished && s.step >= 4) {
+          verdict += `<@${userId}> **escaped in glory!** **+${s.points} points**\n`;
+        } else if (s.points > 0) {
+          verdict += `<@${userId}> reached step ${s.step} — **+${s.points} points**\n`;
+        } else if (s.started) {
+          verdict += `<@${userId}> was lost at the first turn — **0 points**\n`;
+        } else {
+          verdict += `<@${userId}> did not enter the Labyrinth.\n`;
+        }
       }
-    }
 
-    await channel.send({ embeds: [{ title: "🏚 The Labyrinth’s Verdict", description: verdict, color: 0xff0066 }] });
+      await channel.send({ embeds: [{ title: "🏚 The Labyrinth’s Verdict", description: verdict, color: 0xff0066 }] });
+
+      resolve(); // ✅ Now runLabyrinthAdventure waits until verdict is posted
+    });
   });
 }
 async function runPointsGauntlet(channel, overrideRounds = 10, isTestMode = false) {
