@@ -10,8 +10,11 @@ const {
   ButtonStyle,
   EmbedBuilder,
   Collection,
-  ComponentType // ✅ Add this
+  ComponentType,
+  InteractionCollector        // ⬅️ ADD THIS
 } = require('discord.js');
+
+const { randomUUID } = require('crypto'); // ⬅️ ADD THIS (new)
 
 
 const TOKEN = process.env.BOT_TOKEN;
@@ -281,6 +284,241 @@ client.on('messageCreate', async (message) => {
     }, msUntilStart);
   }
 });
+// =======================
+// 🌀 LABYRINTH (In-Channel, Ephemeral Steps)
+// Runs for 60s. +1 per correct step, +2 bonus on perfect escape (+6 total).
+// =======================
+async function runLabyrinthAdventure(channel, playerMap) {
+  const eventTitle = "🌀 The Labyrinth of Wrong Turns";
+  const sessionId = randomUUID(); // isolate this run’s interactions
+
+  // Per-step flavor
+  const correctStepLore = [
+    "The tunnel curves like the spine of some old beast. You press onward, hearing faint dripping ahead.",
+    "Your footsteps echo, but the echoes don’t match your pace.",
+    "The air grows warm, almost metallic. Something scurries away just out of sight.",
+    "The walls here breathe, slow and heavy, as if the stone itself is alive.",
+    "A faint glow pulses from deeper in the passage — you can’t tell if it’s inviting or warning.",
+    "The floor tilts sharply, but you manage to keep your footing as the hum grows louder.",
+    "Shadows crawl along the ceiling, but none belong to you."
+  ];
+  const wrongStepLore = [
+    "The floor vanishes beneath your feet, and cold water swallows you whole.",
+    "A shadow steps out from the wall, wearing your face, and everything goes black.",
+    "The air becomes too thick to breathe; you collapse before you can turn back.",
+    "A heavy door slams shut behind you, and the path ahead is gone.",
+    "Your reflection appears in the wall — smiling, waving — and pulls you in.",
+    "Roots wrap around your ankles and drag you into the dark.",
+    "The light fades completely, and you know you are not alone."
+  ];
+  const epicEscapeLore = [
+    "You shove open the final stone door, and the labyrinth screams as if alive. The light beyond is blinding — and when it fades, you stand in the Gauntlet arena, dripping with shadow and triumph. The Squigs fall silent… then erupt into manic applause.",
+    "A final turn, a final breath — and the walls collapse behind you like they’ve given up the hunt. You tumble through the portal and into the Gauntlet floor, Squigs pounding the ground in celebration. Your name will be etched into the Labyrinth’s memory — and that’s not always a good thing.",
+    "The last corridor is narrow, breathing on your neck as you run. With a leap, you crash through the exit and land before the gathered Squigs. They hiss your name, then chant it, then scream it until the air vibrates. You have beaten what swallows most whole.",
+    "You push past the final threshold, dragging with you a wind that smells of cold iron and fear. The Gauntlet crowd stares in awe. Somewhere deep in the Labyrinth, something sighs — or maybe laughs. You have made it out… for now."
+  ];
+
+  // Secret 4-step code (e.g., ["Left","Up","Right","Down"])
+  const dirs = ["Left", "Right", "Up", "Down"];
+  const correctPath = Array.from({ length: 4 }, () => dirs[Math.floor(Math.random() * dirs.length)]);
+
+  // Per-player state (created lazily on first click too)
+  const state = new Map(); // userId -> { step, finished, points, started }
+
+  // Public announcement + first-choice buttons (everyone clicks here)
+  const publicRow = new ActionRowBuilder().addComponents(
+    dirs.map(d =>
+      new ButtonBuilder()
+        .setCustomId(`lab:init:${sessionId}:${d}`)
+        .setLabel(d)
+        .setStyle(ButtonStyle.Primary)
+    )
+  );
+
+  const startMsg = await channel.send({
+    embeds: [{
+      title: eventTitle,
+      description:
+        "The ground tilts, and you tumble into the Squigs’ infamous labyrinth.\n" +
+        "Find the **exact** sequence of turns — four correct choices in a row — before the Squigs decide you’ve been in here too long.\n\n" +
+        "⏳ **You have 60 seconds to make it through the Labyrinth.**\n" +
+        "✅ Each correct step: **+1 point**\n" +
+        "🏆 Escape all 4 steps: **+2 bonus** (total **+6**).\n\n" +
+        "_Click your **first** turn below. After that, your path continues in **private embeds only you can see**._",
+      color: 0x7f00ff
+    }],
+    components: [publicRow]
+  });
+
+  // Build ephemeral step row for a given user
+  const stepRowFor = (userId) =>
+    new ActionRowBuilder().addComponents(
+      dirs.map(d =>
+        new ButtonBuilder()
+          .setCustomId(`lab:step:${sessionId}:${userId}:${d}`)
+          .setLabel(d)
+          .setStyle(ButtonStyle.Primary)
+      )
+    );
+
+  // Collector for both public first click and all subsequent ephemeral steps
+  const filter = (i) => {
+    if (!i.isButton()) return false;
+    const parts = i.customId.split(":");
+    if (parts[0] !== "lab") return false;
+    const isInit = parts[1] === "init" && parts[2] === sessionId;
+    const isStep = parts[1] === "step" && parts[2] === sessionId;
+    return isInit || isStep;
+  };
+
+  const collector = new InteractionCollector(channel.client, {
+    componentType: ComponentType.Button,
+    time: 60_000,
+    filter
+  });
+
+  // Helper to ensure player exists on the scoreboard
+  const ensurePlayer = (user) => {
+    if (!playerMap.has(user.id)) {
+      playerMap.set(user.id, { id: user.id, username: user.username || "Player", points: 0 });
+    }
+    if (!state.has(user.id)) {
+      state.set(user.id, { step: 0, finished: false, points: 0, started: false });
+    }
+  };
+
+  const handleProgress = async (interaction, userId, choice, isInitialClick=false) => {
+    const s = state.get(userId);
+    if (!s || s.finished) {
+      try { await interaction.deferUpdate(); } catch {}
+      return;
+    }
+
+    const isCorrect = (choice === correctPath[s.step]);
+
+    if (isCorrect) {
+      s.points += 1;
+      s.step += 1;
+
+      // Escape!
+      if (s.step >= 4) {
+        s.finished = true;
+        s.points += 2; // +2 bonus for perfect escape
+        const payload = {
+          embeds: [{
+            title: `${eventTitle} – Escape!`,
+            description: `${epicEscapeLore[Math.floor(Math.random() * epicEscapeLore.length)]}\n\n**+${s.points} points earned** (includes **+2** escape bonus)`,
+            color: 0x00ff88
+          }],
+          components: []
+        };
+        try {
+          if (isInitialClick) await interaction.reply({ ...payload, ephemeral: true });
+          else await interaction.update(payload);
+        } catch {}
+        return;
+      }
+
+      // Next step (ephemeral)
+      const payload = {
+        embeds: [{
+          title: `${eventTitle} – Step ${s.step + 1}`,
+          description: `${correctStepLore[Math.floor(Math.random() * correctStepLore.length)]}\n\nChoose your next path…`,
+          color: 0x7f00ff
+        }],
+        components: [stepRowFor(userId)],
+        ephemeral: true
+      };
+
+      try {
+        if (isInitialClick) {
+          await interaction.reply(payload);
+        } else {
+          await interaction.update({ embeds: payload.embeds, components: payload.components });
+        }
+      } catch {}
+    } else {
+      // Wrong turn — end
+      s.finished = true;
+      const payload = {
+        embeds: [{
+          title: `${eventTitle} – Dead End`,
+          description: `${wrongStepLore[Math.floor(Math.random() * wrongStepLore.length)]}\n\n**Run ends – you earned ${s.points} point${s.points === 1 ? "" : "s"}.**`,
+          color: 0xff0066
+        }],
+        components: []
+      };
+      try {
+        if (isInitialClick) await interaction.reply({ ...payload, ephemeral: true });
+        else await interaction.update(payload);
+      } catch {}
+    }
+  };
+
+  collector.on('collect', async (i) => {
+    const parts = i.customId.split(":");
+
+    // First public click: lab:init:<sessionId>:<dir>
+    if (parts[1] === "init") {
+      const dir = parts[3];
+      ensurePlayer(i.user);
+      const s = state.get(i.user.id);
+      if (s.started || s.finished) {
+        try { await i.deferUpdate(); } catch {}
+        return;
+      }
+      s.started = true;
+      await handleProgress(i, i.user.id, dir, true);
+      return;
+    }
+
+    // Ephemeral steps: lab:step:<sessionId>:<userId>:<dir>
+    if (parts[1] === "step") {
+      const userId = parts[3];
+      const dir = parts[4];
+
+      if (i.user.id !== userId) {
+        try { await i.reply({ content: "That’s not your path to walk.", ephemeral: true }); } catch {}
+        return;
+      }
+
+      // Make sure scoreboard has this player
+      if (!playerMap.has(userId)) {
+        playerMap.set(userId, { id: userId, username: i.user.username || "Player", points: 0 });
+      }
+      if (!state.has(userId)) state.set(userId, { step: 0, finished: false, points: 0, started: true });
+
+      await handleProgress(i, userId, dir, false);
+      return;
+    }
+  });
+
+  collector.on('end', async () => {
+    // Disable public buttons
+    try { await startMsg.edit({ components: [] }); } catch {}
+
+    // Tally & post verdict
+    let verdict = "**The Labyrinth’s Verdict:**\n";
+    for (const [userId, s] of state.entries()) {
+      // apply points to scoreboard
+      const p = playerMap.get(userId) || { id: userId, username: "Player", points: 0 };
+      p.points = (p.points || 0) + (s.points || 0);
+      playerMap.set(userId, p);
+
+      if (s.finished && s.step >= 4) {
+        verdict += `<@${userId}> **escaped in glory!** **+${s.points} points**\n`;
+      } else if (s.points > 0) {
+        verdict += `<@${userId}> reached step ${s.step} — **+${s.points} points**\n`;
+      } else if (s.started) {
+        verdict += `<@${userId}> was lost at the first turn — **0 points**\n`;
+      } else {
+        verdict += `<@${userId}> did not enter the Labyrinth.\n`;
+      }
+    }
+
+    await channel.send({ embeds: [{ title: "🏚 The Labyrinth’s Verdict", description: verdict, color: 0xff0066 }] });
+  });
+}
 async function runPointsGauntlet(channel, overrideRounds = 10, isTestMode = false) {
   const maxRounds = 10;
   const playerMap = activeGame.players;
@@ -372,7 +610,15 @@ if (miniGame.image) {
   await runRiddlePoints(playerMap, channel);
   await wait(5000);
 
+  // ⬇️ INSERT: Intermission mini-adventure after Round 3's riddle
+  if (round === 3) {
+    await channel.send("🌫️ The floor tilts… a hush falls over the Squigs.");
+    await runLabyrinthAdventure(channel, playerMap); // 60s self-contained event
+    await wait(2000);
+  }
+
   round++;
+
 
   // === RISK IT PHASE BEFORE FINAL ROUND ===
   if (round === 10) {
