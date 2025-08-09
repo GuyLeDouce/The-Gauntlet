@@ -347,7 +347,26 @@ if (miniGame.image) {
   await runRiddlePoints(playerMap, channel);
   await wait(5000);
 
-    round++;
+  round++;
+
+  // === RISK IT PHASE BEFORE FINAL ROUND ===
+  if (round === 10) {
+    await channel.send("🪙 The charm leans in… a chance to **Risk It** before the final chaos.");
+    await runRiskItPhase(channel, playerMap);
+    await wait(3000);
+  }
+
+  if (round === 7) {
+    await channel.send({
+      content: "⛔ **THE GAUNTLET PAUSES** ⛔",
+      embeds: [
+        new EmbedBuilder()
+          .setTitle("🌪️ MID-GAME INTERRUPTION")
+          .setDescription("The static thickens...\nSomething hideous stirs...\n\nPrepare yourselves. **The Ugly Selector is awakening.**")
+          .setColor(0xff00cc)
+          .setImage(getMonsterImageUrl())
+      ]
+    });
 
   if (round === 7) {
     await channel.send({
@@ -594,6 +613,136 @@ async function runRiddlePoints(players, channel) {
       resolve();
     });
   });
+}
+async function runRiskItPhase(channel, playerMap) {
+  // Build intro
+  const intro = new EmbedBuilder()
+    .setTitle("🎲 RISK IT — The Charm Tempts You")
+    .setDescription(
+      "Between rounds, the static parts... and a Squig grins.\n" +
+      "Risk your points for a shot at more — or lose them to the void.\n\n" +
+      "• **Risk All** — stake everything\n" +
+      "• **Risk Half** — stake half your current points\n" +
+      "• **Risk Quarter** — stake a quarter (min 1)\n" +
+      "• **No Risk** — sit out and watch the chaos\n\n" +
+      "⏳ You have **20 seconds** to decide."
+    )
+    .setColor(0xffaa00)
+    .setImage(getUglyImageUrl());
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId("risk_all").setLabel("Risk All").setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId("risk_half").setLabel("Risk Half").setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId("risk_quarter").setLabel("Risk Quarter").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("risk_none").setLabel("No Risk").setStyle(ButtonStyle.Success)
+  );
+
+  const msg = await channel.send({ embeds: [intro], components: [row] });
+
+  // Track choices
+  const entrants = new Map(); // userId -> { stake, choiceLabel }
+  const optedOut = new Set();
+  const seen = new Set();
+
+  const collector = msg.createMessageComponentCollector({
+    componentType: ComponentType.Button,
+    time: 20000
+  });
+
+  collector.on("collect", async (i) => {
+    if (i.user.bot) return;
+
+    if (seen.has(i.user.id)) {
+      return i.reply({ content: "You already locked a choice.", flags: 64 });
+    }
+
+    // Ensure player exists
+    if (!playerMap.has(i.user.id)) {
+      return i.reply({ content: "You’re not on the scoreboard yet — join a round first!", flags: 64 });
+    }
+    const player = playerMap.get(i.user.id);
+    const pts = Math.floor(player.points || 0);
+
+    // Compute stake per button
+    let stake = 0;
+    let label = "";
+
+    switch (i.customId) {
+      case "risk_all":
+        if (pts <= 0) return i.reply({ content: "You need **positive points** to risk them.", flags: 64 });
+        stake = pts;
+        label = "Risk All";
+        break;
+      case "risk_half":
+        if (pts <= 0) return i.reply({ content: "You need **positive points** to risk them.", flags: 64 });
+        stake = Math.max(1, Math.floor(pts / 2));
+        label = "Risk Half";
+        break;
+      case "risk_quarter":
+        if (pts <= 0) return i.reply({ content: "You need **positive points** to risk them.", flags: 64 });
+        stake = Math.max(1, Math.floor(pts / 4));
+        label = "Risk Quarter";
+        break;
+      case "risk_none":
+        optedOut.add(i.user.id);
+        seen.add(i.user.id);
+        return i.reply({ content: "You sit out. The charm respects cautious cowards. (Sometimes.)", flags: 64 });
+    }
+
+    entrants.set(i.user.id, { stake, choiceLabel: label });
+    seen.add(i.user.id);
+    return i.reply({ content: `Locked: **${label}** (Stake: ${stake} point${stake === 1 ? "" : "s"})`, flags: 64 });
+  });
+
+  // Mid-timer nudge
+  setTimeout(() => channel.send("⏳ 10 seconds left to **Risk It**...").catch(() => {}), 10000);
+
+  // Wrap-up
+  await new Promise((res) => collector.on("end", res));
+
+  // Disable buttons
+  try {
+    await msg.edit({ components: [new ActionRowBuilder().addComponents(
+      row.components.map(b => ButtonBuilder.from(b).setDisabled(true))
+    )] });
+  } catch {}
+
+  if (entrants.size === 0) {
+    await channel.send("😴 No one dared. The charm yawns and moves on.");
+    return;
+  }
+
+  // Outcomes: net change relative to stake
+  const outcomes = [
+    { key: "lose", mult: -1, label: "💀 Lost it all", lore: "The charm nibbles your points like day-old fries." },
+    { key: "even", mult: 0,  label: "😮 Broke even",  lore: "Static fizzles; the charm shrugs. Nothing gained, nothing lost." },
+    { key: "x1_5", mult: 0.5, label: "✨ Won 1.5×",    lore: "A bright hiss in the air. Luck tastes like ozone." },
+    { key: "double", mult: 1, label: "👑 Doubled",     lore: "The charm purrs. Reality briefly applauds." }
+  ];
+
+  // Build results
+  const lines = [];
+  for (const [userId, { stake, choiceLabel }] of entrants.entries()) {
+    const player = playerMap.get(userId);
+    const outcome = outcomes[Math.floor(Math.random() * outcomes.length)];
+
+    // Net delta: -S, 0, +0.5S, +1S
+    let delta = outcome.mult === -1 ? -stake : Math.round(stake * outcome.mult);
+    player.points = (player.points || 0) + delta;
+
+    const sign = delta > 0 ? "+" : "";
+    lines.push(
+      `<@${userId}> • **${choiceLabel}** (staked ${stake}) → ${outcome.label} ` +
+      `• **${sign}${delta}** • new total: **${player.points}**\n_${outcome.lore}_`
+    );
+  }
+
+  const resEmbed = new EmbedBuilder()
+    .setTitle("🧮 Risk It — Results")
+    .setDescription(lines.join("\n\n"))
+    .setColor(0xff66cc);
+
+  await channel.send({ embeds: [resEmbed] });
 }
 
 
