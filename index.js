@@ -72,6 +72,18 @@ const miniGameLorePool = [
     buttons: ["Flying Dream", "Falling Dream", "Late-for-Class Dream", "Totally Blank Dream"], 
     image: "https://i.imgur.com/eTJISg9.jpeg"
   },
+{
+  title: "🥄 The Soup of Uncertainty",
+  lore: "A Squig invites you to sit at a crooked wooden table. Four steaming bowls sit before you, each with a smell you can’t quite place. One glows faintly. One has bubbles that form tiny faces. One makes your teeth feel cold just looking at it. The last… looks normal. Which is the most dangerous of all.",
+  buttons: ["Glowing Bowl", "Face Bubbles", "Cold Teeth", "Normal Soup"],
+  image: "https://i.imgur.com/FNYqXHz.jpeg" // art will be made after
+},
+{
+  title: "🧳 Luggage Claim of the Damned",
+  lore: "You stand at a slow-moving carousel in a dim, echoing room. Four strange suitcases pass by. One drips water. One hums softly. One is breathing. One is perfectly still, which somehow feels worse. The Squig at your side whispers, 'One of these is yours now.'",
+  buttons: ["Dripping Case", "Humming Case", "Breathing Case", "Still Case"],
+  image: "https://i.imgur.com/UsrlWEx.jpeg" // art after
+},
   {
     title: "🧼 Clean or Cursed?",
     lore: "The Squigs don’t really understand hygiene, but they’re trying. You’re shown four soaps on a stone plinth. One cured a rash that never existed. One dissolved a hand. One smells like trauma. The last might be fruit-scented? A Squig proudly says, We made them ourselves. " ,
@@ -84,6 +96,12 @@ const miniGameLorePool = [
     buttons: ["Red Door", "Blue Door", "Green Door", "Wiggly Door"],
     image: "https://i.imgur.com/utSECnX.jpeg"
   },
+  {
+  title: "🌌 The Archive of Forgotten Things",
+  lore: "Deep inside the Squigs’ oldest vault, shelves stretch into darkness, each piled with objects that never belonged to this world. A Squig librarian shuffles beside you, its lantern casting warped shadows. Four artifacts are placed on a cracked marble table: a jar of unmoving smoke, a coin that hums like bees, a mask with too many straps, and a small cube that’s warm in your hand. The Squig leans close: 'Choose carefully — these remember their last owners.'",
+  buttons: ["Smoke Jar", "Humming Coin", "Strap Mask", "Warm Cube"],
+  image: "https://i.imgur.com/35OO8T1.jpeg" // art after
+},
   {
     title: "📺 SquigVision™ Live",
     lore: "You grab the remote. The screen flashes violently. Each channel is broadcasting something — a bubbling stew of eyeballs, a Category 9 wind warning in space, a haunted cartoon rerun, and one is just... static, but it feels like it’s watching you. The Squig says, “Pick fast. It gets worse.”",
@@ -113,7 +131,14 @@ const miniGameLorePool = [
     lore: "You enter a room with four chairs. One hums softly. One smells like ozone and regret. One has teeth marks. One is already warm, but no one’s here. A Squig gestures politely: “Sit wherever you feel… least endangered.” The lights flicker. Something growls under the floor.",
     buttons: ["Wobbly Chair", "Warm Chair", "Gnawed Chair", "Humming Chair"],
     image: "https://i.imgur.com/hHVScHi.jpeg"
-  }
+  },
+{
+  title: "🪞 Reflections That Aren’t",
+  lore: "You step into a dusty hall lined with warped mirrors. A Squig stands behind you, but in the glass, it’s wearing your face. Each mirror shows a different version of you — taller, shorter, missing, or… smiling too wide. The Squig taps the glass and says, 'Pick one. Quickly.'",
+  buttons: ["Tall You", "Small You", "No You", "Too Many Teeth"],
+  image: "https://i.imgur.com/xc6aIXP.jpeg" 
+}
+
 ];
 
 const miniGameFateDescriptions = [
@@ -419,7 +444,12 @@ async function runUglySelector(channel, playerMap) {
   });
 }
  }
-  await showFinalScores(playerMap, channel);
+   await showFinalScores(playerMap, channel);
+
+  // clean up per game
+  activeGame = null;
+  usedMiniGameIndices.clear();
+  usedRiddleIndices.clear();
 }
 async function runMiniGamePoints(players, channel, round, isTestMode = false) {
   const outcomes = [-2, -1, 1, 2];
