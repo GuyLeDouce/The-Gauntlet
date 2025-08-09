@@ -367,18 +367,6 @@ if (miniGame.image) {
           .setImage(getMonsterImageUrl())
       ]
     });
-
-  if (round === 7) {
-    await channel.send({
-      content: "⛔ **THE GAUNTLET PAUSES** ⛔",
-      embeds: [
-        new EmbedBuilder()
-          .setTitle("🌪️ MID-GAME INTERRUPTION")
-          .setDescription("The static thickens...\nSomething hideous stirs...\n\nPrepare yourselves. **The Ugly Selector is awakening.**")
-          .setColor(0xff00cc)
-          .setImage(getMonsterImageUrl())
-      ]
-    });
     await wait(3000);
     await runUglySelector(channel, playerMap);
     await wait(3000);
