@@ -335,20 +335,24 @@ async function runLabyrinthAdventure(channel, playerMap) {
     )
   );
 
-  const startMsg = await channel.send({
-    embeds: [{
-      title: eventTitle,
-      description:
-        "The ground tilts, and you tumble into the Squigs’ infamous labyrinth.\n" +
-        "Find the **exact** sequence of turns — four correct choices in a row — before the Squigs decide you’ve been in here too long.\n\n" +
-        "⏳ **You have 60 seconds to make it through the Labyrinth.**\n" +
-        "✅ Each correct step: **+1 point**\n" +
-        "🏆 Escape all 4 steps: **+2 bonus** (total **+6**).\n\n" +
-        "_Click your **first** turn below. After that, your path continues in **private embeds only you can see**._",
-      color: 0x7f00ff
-    }],
-    components: [publicRow]
-  });
+const startMsg = await channel.send({
+  embeds: [{
+    title: eventTitle,
+    description:
+      "The ground tilts, and you tumble into the Squigs’ infamous labyrinth.\n" +
+      "Find the **exact** sequence of turns — four correct choices in a row — before the Squigs decide you’ve been in here too long.\n\n" +
+      "⏳ **You have 60 seconds to make it through the Labyrinth.**\n" +
+      "✅ Each correct step: **+1 point**\n" +
+      "🏆 Escape all 4 steps: **+2 bonus** (total **+6**).\n\n" +
+      "_Click your **first** turn below. After that, your path continues in **private embeds only you can see**._",
+    color: 0x7f00ff,
+    image: {
+      url: "https://i.imgur.com/MA1CdEC.jpeg"
+    }
+  }],
+  components: [publicRow]
+});
+
 
   // Build ephemeral step row for a given user
   const stepRowFor = (userId) =>
