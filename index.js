@@ -270,6 +270,18 @@ const riddles = [
   { riddle: "I’m the shadow of tomorrow cast on today. What am I?", answers: ["hope"], difficulty: 3 },
   { riddle: "I’m the cage built by the mind itself. What am I?", answers: ["fear"], difficulty: 3 },
   { riddle: "I exist only when shared, yet vanish when kept. What am I?", answers: ["secret"], difficulty: 3 },
+
+  // === Add Squig Special (4 points) ===
+{ riddle: "A Squig watches you through the wrong end of a telescope. What color is its laughter?", answers: ["green", "purple"], difficulty: 4 },
+{ riddle: "The Squigs once tried pizza. Which topping made them weep with joy?", answers: ["pineapple"], difficulty: 4 },
+{ riddle: "When Squigs count to three, what number do they skip?", answers: ["two", "2"], difficulty: 4 },
+{ riddle: "A portal opens in Ugly Labs. Which snack bribes it shut?", answers: ["donut", "doughnut"], difficulty: 4 },
+{ riddle: "What’s the Squigs’ favorite weather phenomenon?", answers: ["fog"], difficulty: 4 },
+{ riddle: "When a Squig is scared, what part of its body squeaks?", answers: ["nose"], difficulty: 4 },
+{ riddle: "Squigs built a throne out of something useless. What was it?", answers: ["spoons"], difficulty: 4 },
+{ riddle: "Squigs write poems to what object every Tuesday?", answers: ["lamp"], difficulty: 4 },
+{ riddle: "What fruit do Squigs believe controls gravity?", answers: ["banana"], difficulty: 4 },
+{ riddle: "The Squigs voted on a national anthem. What sound won?", answers: ["static"], difficulty: 4 },
 ];
 
 // === Command to start Gauntlet ===
@@ -320,7 +332,7 @@ function ensurePlayer(user, playerMap) {
 // 🧩 Riddles (points = difficulty)
 // =======================
 async function runRiddlePoints(players, channel) {
-  const difficulties = [1, 2, 3];
+  const difficulties = [1, 2, 3, 4]; // now includes Squig specials
   const chosenDifficulty = difficulties[Math.floor(Math.random() * difficulties.length)];
   const pointsForCorrect = chosenDifficulty;
 
@@ -349,7 +361,13 @@ async function runRiddlePoints(players, channel) {
 }
 
 async function presentRiddle(players, channel, riddle, points) {
-  const difficultyLabel = points === 1 ? "EASY" : points === 2 ? "MEDIUM" : "HARD";
+  const difficultyLabel =  
+  points === 1 ? "EASY" : 
+  points === 2 ? "MEDIUM" : 
+  points === 3 ? "HARD" : 
+  points === 4 ? "SQUIG SPECIAL" : 
+  "UNKNOWN";
+
 
   const embed = new EmbedBuilder()
     .setTitle("🧠 MID-ROUND RIDDLE")
