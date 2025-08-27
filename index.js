@@ -361,18 +361,19 @@ async function runRiddlePoints(players, channel) {
 }
 
 async function presentRiddle(players, channel, riddle, points) {
-  const difficultyLabel =  
-  points === 1 ? "EASY" : 
-  points === 2 ? "MEDIUM" : 
-  points === 3 ? "HARD" : 
-  points === 4 ? "SQUIG SPECIAL" : 
-  "UNKNOWN";
-
+  const difficultyLabel =
+    points === 1 ? "EASY" :
+    points === 2 ? "MEDIUM" :
+    points === 3 ? "HARD" :
+    points === 4 ? "SQUIG SPECIAL" :
+    "UNKNOWN";
 
   const embed = new EmbedBuilder()
     .setTitle("🧠 MID-ROUND RIDDLE")
     .setDescription(
-      `_${riddle.riddle}_\n\n🌀 Difficulty: **${difficultyLabel}** — Worth **+${points}** point${points > 1 ? 's' : ''}.\n⏳ You have 30 seconds to decide your fate...`
+      `_${riddle.riddle}_\n\n` +
+      `🌀 Difficulty: **${difficultyLabel}** — Worth **+${points}** point${points > 1 ? 's' : ''}.\n` +
+      `⏳ You have 30 seconds to decide your fate...`
     )
     .setColor(0xff66cc);
 
@@ -414,12 +415,14 @@ async function presentRiddle(players, channel, riddle, points) {
     collector.on('end', () => {
       const answerText = riddle.answers[0];
       channel.send(
-        `✅ Riddle completed. ${correctPlayers.length} player(s) answered correctly and gained +${points} point${points > 1 ? 's' : ''}.\n🧩 The correct answer was: **${answerText}**.`
+        `✅ Riddle completed. ${correctPlayers.length} player(s) answered correctly and gained +${points} point${points > 1 ? 's' : ''}.\n` +
+        `🧩 The correct answer was: **${answerText}**.`
       ).catch(() => {});
       resolve();
     });
   });
 }
+
 
 // =======================
 // 🎮 Mini-Game (30s, ±2/±1)
