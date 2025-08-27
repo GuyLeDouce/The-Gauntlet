@@ -506,173 +506,186 @@ async function runLabyrinthAdventure(channel, playerMap) {
     "You push past the final threshold, dragging with you a wind that smells of cold iron and fear. The Gauntlet crowd stares in awe. Somewhere deep in the Labyrinth, something sighs — or maybe laughs. You have made it out… for now."
   ];
 
-  const dirs = ["Left", "Right", "Up", "Down"];
-  const correctPath = Array.from({ length: 4 }, () => dirs[Math.floor(Math.random() * dirs.length)]);
+// === Labyrinth with 2-button alternating directions ===
+const dirPairs = [
+  ["Left", "Right"],
+  ["Up", "Down"],
+  ["Left", "Down"],
+  ["Right", "Up"]
+];
 
-  const state = new Map(); // userId -> { step, finished, points, started }
+// pick correct path: 4 steps, each random from that step’s pair
+const correctPath = Array.from({ length: 4 }, (_, step) => {
+  const pair = dirPairs[step % dirPairs.length];
+  return pair[Math.floor(Math.random() * pair.length)];
+});
 
-  const publicRow = new ActionRowBuilder().addComponents(
-    dirs.map(d =>
+const state = new Map(); // userId -> { step, finished, points, started }
+
+// Public row: first step’s pair
+const publicRow = new ActionRowBuilder().addComponents(
+  dirPairs[0].map(d =>
+    new ButtonBuilder()
+      .setCustomId(`lab:init:${sessionId}:${d}`)
+      .setLabel(d)
+      .setStyle(ButtonStyle.Primary)
+  )
+);
+
+const startMsg = await channel.send({
+  embeds: [{
+    title: eventTitle,
+    description:
+      "The ground tilts, and you tumble into the Squigs’ infamous labyrinth.\n" +
+      "Find the **exact** sequence of turns — four correct choices in a row — before the Squigs decide you’ve been in here too long.\n\n" +
+      "⏳ **You have 60 seconds.**\n" +
+      "✅ Each correct step: **+1 point**\n" +
+      "🏆 Escape all 4 steps: **+2 bonus** (total **+6**)\n\n" +
+      "_Click your **first** turn below. After that, your path continues in **private embeds** only you can see._",
+    color: 0x7f00ff,
+    image: { url: "https://i.imgur.com/MA1CdEC.jpeg" }
+  }],
+  components: [publicRow]
+});
+
+// Build step row with 2 buttons (based on current step)
+const stepRowFor = (userId, step) =>
+  new ActionRowBuilder().addComponents(
+    dirPairs[step % dirPairs.length].map(d =>
       new ButtonBuilder()
-        .setCustomId(`lab:init:${sessionId}:${d}`)
+        .setCustomId(`lab:step:${sessionId}:${userId}:${d}`)
         .setLabel(d)
         .setStyle(ButtonStyle.Primary)
     )
   );
 
-  const startMsg = await channel.send({
-    embeds: [{
-      title: eventTitle,
-      description:
-        "The ground tilts, and you tumble into the Squigs’ infamous labyrinth.\n" +
-        "Find the **exact** sequence of turns — four correct choices in a row — before the Squigs decide you’ve been in here too long.\n\n" +
-        "⏳ **You have 60 seconds.**\n" +
-        "✅ Each correct step: **+1 point**\n" +
-        "🏆 Escape all 4 steps: **+2 bonus** (total **+6**)\n\n" +
-        "_Click your **first** turn below. After that, your path continues in **private embeds** only you can see._",
-      color: 0x7f00ff,
-      image: { url: "https://i.imgur.com/MA1CdEC.jpeg" }
-    }],
-    components: [publicRow]
-  });
+const filter = (i) => {
+  if (!i.isButton()) return false;
+  const parts = i.customId.split(":");
+  if (parts[0] !== "lab") return false;
+  const isInit = parts[1] === "init" && parts[2] === sessionId;
+  const isStep = parts[1] === "step" && parts[2] === sessionId;
+  return isInit || isStep;
+};
 
-  const stepRowFor = (userId) =>
-    new ActionRowBuilder().addComponents(
-      dirs.map(d =>
-        new ButtonBuilder()
-          .setCustomId(`lab:step:${sessionId}:${userId}:${d}`)
-          .setLabel(d)
-          .setStyle(ButtonStyle.Primary)
-      )
-    );
+const collector = new InteractionCollector(channel.client, {
+  componentType: ComponentType.Button,
+  time: 60_000,
+  filter
+});
 
-  const filter = (i) => {
-    if (!i.isButton()) return false;
-    const parts = i.customId.split(":");
-    if (parts[0] !== "lab") return false;
-    const isInit = parts[1] === "init" && parts[2] === sessionId;
-    const isStep = parts[1] === "step" && parts[2] === sessionId;
-    return isInit || isStep;
-  };
+const ensurePlayerLocal = (user) => {
+  if (!playerMap.has(user.id)) {
+    playerMap.set(user.id, { id: user.id, username: user.username || "Player", points: 0 });
+  }
+  if (!state.has(user.id)) {
+    state.set(user.id, { step: 0, finished: false, points: 0, started: false });
+  }
+};
 
-  const collector = new InteractionCollector(channel.client, {
-    componentType: ComponentType.Button,
-    time: 60_000,
-    filter
-  });
+const handleProgress = async (interaction, userId, choice, isInitialClick=false) => {
+  const s = state.get(userId);
+  if (!s || s.finished) { try { await interaction.deferUpdate(); } catch {} return; }
 
-  const ensurePlayerLocal = (user) => {
-    if (!playerMap.has(user.id)) {
-      playerMap.set(user.id, { id: user.id, username: user.username || "Player", points: 0 });
-    }
-    if (!state.has(user.id)) {
-      state.set(user.id, { step: 0, finished: false, points: 0, started: false });
-    }
-  };
+  const isCorrect = (choice === correctPath[s.step]);
 
-  const handleProgress = async (interaction, userId, choice, isInitialClick=false) => {
-    const s = state.get(userId);
-    if (!s || s.finished) { try { await interaction.deferUpdate(); } catch {} return; }
+  if (isCorrect) {
+    s.points += 1;
+    s.step += 1;
 
-    const isCorrect = (choice === correctPath[s.step]);
-
-    if (isCorrect) {
-      s.points += 1;
-      s.step += 1;
-
-      if (s.step >= 4) {
-        s.finished = true;
-        s.points += 2; // escape bonus
-        const payload = {
-          embeds: [{
-            title: `${eventTitle} – Escape!`,
-            description: `${epicEscapeLore[Math.floor(Math.random() * epicEscapeLore.length)]}\n\n**+${s.points} points earned** (includes **+2** escape bonus)`,
-            color: 0x00ff88
-          }],
-          components: []
-        };
-        try { if (isInitialClick) await interaction.reply({ ...payload, ephemeral: true }); else await interaction.update(payload); } catch {}
-        return;
-      }
-
-      const payload = {
-        embeds: [{
-          title: `${eventTitle} – Step ${s.step + 1}`,
-          description: `${correctStepLore[Math.floor(Math.random() * correctStepLore.length)]}\n\nChoose your next path…`,
-          color: 0x7f00ff
-        }],
-        components: [stepRowFor(userId)],
-        ephemeral: true
-      };
-      try { if (isInitialClick) await interaction.reply(payload); else await interaction.update({ embeds: payload.embeds, components: payload.components }); } catch {}
-    } else {
+    if (s.step >= 4) {
       s.finished = true;
+      s.points += 2; // escape bonus
       const payload = {
         embeds: [{
-          title: `${eventTitle} – Dead End`,
-          description: `${wrongStepLore[Math.floor(Math.random() * wrongStepLore.length)]}\n\n**Run ends – you earned ${s.points} point${s.points === 1 ? "" : "s"}.**`,
-          color: 0xff0066
+          title: `${eventTitle} – Escape!`,
+          description: `${epicEscapeLore[Math.floor(Math.random() * epicEscapeLore.length)]}\n\n**+${s.points} points earned** (includes **+2** escape bonus)`,
+          color: 0x00ff88
         }],
         components: []
       };
       try { if (isInitialClick) await interaction.reply({ ...payload, ephemeral: true }); else await interaction.update(payload); } catch {}
-    }
-  };
-
-  collector.on('collect', async (i) => {
-    const parts = i.customId.split(":");
-
-    if (parts[1] === "init") {
-      const dir = parts[3];
-      ensurePlayerLocal(i.user);
-      const s = state.get(i.user.id);
-      if (s.started || s.finished) { try { await i.deferUpdate(); } catch {} return; }
-      s.started = true;
-      await handleProgress(i, i.user.id, dir, true);
       return;
     }
 
-    if (parts[1] === "step") {
-      const userId = parts[3];
-      const dir = parts[4];
+    const payload = {
+      embeds: [{
+        title: `${eventTitle} – Step ${s.step + 1}`,
+        description: `${correctStepLore[Math.floor(Math.random() * correctStepLore.length)]}\n\nChoose your next path…`,
+        color: 0x7f00ff
+      }],
+      components: [stepRowFor(userId, s.step)],
+      ephemeral: true
+    };
+    try { if (isInitialClick) await interaction.reply(payload); else await interaction.update({ embeds: payload.embeds, components: payload.components }); } catch {}
+  } else {
+    s.finished = true;
+    const payload = {
+      embeds: [{
+        title: `${eventTitle} – Dead End`,
+        description: `${wrongStepLore[Math.floor(Math.random() * wrongStepLore.length)]}\n\n**Run ends – you earned ${s.points} point${s.points === 1 ? "" : "s"}.**`,
+        color: 0xff0066
+      }],
+      components: []
+    };
+    try { if (isInitialClick) await interaction.reply({ ...payload, ephemeral: true }); else await interaction.update(payload); } catch {}
+  }
+};
 
-      if (i.user.id !== userId) {
-        try { await i.reply({ content: "That’s not your path to walk.", ephemeral: true }); } catch {}
-        return;
-      }
+collector.on('collect', async (i) => {
+  const parts = i.customId.split(":");
 
-      if (!playerMap.has(userId)) playerMap.set(userId, { id: userId, username: i.user.username || "Player", points: 0 });
-      if (!state.has(userId)) state.set(userId, { step: 0, finished: false, points: 0, started: true });
+  if (parts[1] === "init") {
+    const dir = parts[3];
+    ensurePlayerLocal(i.user);
+    const s = state.get(i.user.id);
+    if (s.started || s.finished) { try { await i.deferUpdate(); } catch {} return; }
+    s.started = true;
+    await handleProgress(i, i.user.id, dir, true);
+    return;
+  }
 
-      await handleProgress(i, userId, dir, false);
+  if (parts[1] === "step") {
+    const userId = parts[3];
+    const dir = parts[4];
+
+    if (i.user.id !== userId) {
+      try { await i.reply({ content: "That’s not your path to walk.", ephemeral: true }); } catch {}
       return;
     }
-  });
 
-  await new Promise((resolve) => {
-    collector.on('end', async () => {
-      try { await startMsg.edit({ components: [] }); } catch {}
-      let verdict = "**The Labyrinth’s Verdict:**\n";
-      for (const [userId, s] of state.entries()) {
-        const p = playerMap.get(userId) || { id: userId, username: "Player", points: 0 };
-        p.points = (p.points || 0) + (s.points || 0);
-        playerMap.set(userId, p);
+    if (!playerMap.has(userId)) playerMap.set(userId, { id: userId, username: i.user.username || "Player", points: 0 });
+    if (!state.has(userId)) state.set(userId, { step: 0, finished: false, points: 0, started: true });
 
-        if (s.finished && s.step >= 4) {
-          verdict += `<@${userId}> **escaped in glory!** **+${s.points} points**\n`;
-        } else if (s.points > 0) {
-          verdict += `<@${userId}> reached step ${s.step} — **+${s.points} points**\n`;
-        } else if (s.started) {
-          verdict += `<@${userId}> was lost at the first turn — **0 points**\n`;
-        } else {
-          verdict += `<@${userId}> did not enter the Labyrinth.\n`;
-        }
+    await handleProgress(i, userId, dir, false);
+    return;
+  }
+});
+
+await new Promise((resolve) => {
+  collector.on('end', async () => {
+    try { await startMsg.edit({ components: [] }); } catch {}
+    let verdict = "**The Labyrinth’s Verdict:**\n";
+    for (const [userId, s] of state.entries()) {
+      const p = playerMap.get(userId) || { id: userId, username: "Player", points: 0 };
+      p.points = (p.points || 0) + (s.points || 0);
+      playerMap.set(userId, p);
+
+      if (s.finished && s.step >= 4) {
+        verdict += `<@${userId}> **escaped in glory!** **+${s.points} points**\n`;
+      } else if (s.points > 0) {
+        verdict += `<@${userId}> reached step ${s.step} — **+${s.points} points**\n`;
+      } else if (s.started) {
+        verdict += `<@${userId}> was lost at the first turn — **0 points**\n`;
+      } else {
+        verdict += `<@${userId}> did not enter the Labyrinth.\n`;
       }
+    }
 
-      await channel.send({ embeds: [{ title: "🏚 The Labyrinth’s Verdict", description: verdict, color: 0xff0066 }] });
-      resolve();
-    });
+    await channel.send({ embeds: [{ title: "🏚 The Labyrinth’s Verdict", description: verdict, color: 0xff0066 }] });
+    resolve();
   });
+});
 }
 
 // =======================
