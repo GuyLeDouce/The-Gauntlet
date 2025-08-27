@@ -1,6 +1,6 @@
-// === GAUNTLET: POINTS-BASED VERSION WITH LORE ===
-
+// === GAUNTLET: SHORTER ROUNDS EDITION (MiniGames + Labyrinth + RiskIt) ===
 require('dotenv').config();
+
 const {
   Client,
   GatewayIntentBits,
@@ -11,11 +11,10 @@ const {
   EmbedBuilder,
   Collection,
   ComponentType,
-  InteractionCollector        // ⬅️ ADD THIS
+  InteractionCollector
 } = require('discord.js');
 
-const { randomUUID } = require('crypto'); // ⬅️ ADD THIS (new)
-
+const { randomUUID } = require('crypto');
 
 const TOKEN = process.env.BOT_TOKEN;
 
@@ -36,9 +35,9 @@ const maxRematches = 4;
 let gameChannel = null;
 let joinMessageLink = null;
 const authorizedUsers = ['826581856400179210', '1288107772248064044'];
+
 let usedRiddleIndices = new Set();
 let usedMiniGameIndices = new Set();
-
 
 // === Utility ===
 function wait(ms) {
@@ -54,8 +53,8 @@ function getMonsterImageUrl() {
   const tokenId = Math.floor(Math.random() * 126) + 1;
   return `https://ipfs.io/ipfs/bafybeicydaui66527mumvml5ushq5ngloqklh6rh7hv3oki2ieo6q25ns4/${tokenId}.webp`;
 }
-// === Mini-Game Lore Pools & Flavor ===
 
+// === Mini-Game Lore Pools & Flavor ===
 const miniGameLorePool = [
   {
     title: "🎁 Chamber of the Ugly",
@@ -72,24 +71,24 @@ const miniGameLorePool = [
   {
     title: "🛏️ Inception? Never Heard of Her",
     lore: "You’ve drifted off in a Squig nap pod. Suddenly, dreams begin to drift around your head like lazy jellyfish. One is lovely. One is loud. One is endless stairs. One is just static and screaming. The Squig monitoring your vitals is snoring louder than you are. Choose a dream.",
-    buttons: ["Flying Dream", "Falling Dream", "Late-for-Class Dream", "Totally Blank Dream"], 
+    buttons: ["Flying Dream", "Falling Dream", "Late-for-Class Dream", "Totally Blank Dream"],
     image: "https://i.imgur.com/eTJISg9.jpeg"
   },
-{
-  title: "🥄 The Soup of Uncertainty",
-  lore: "A Squig invites you to sit at a crooked wooden table. Four steaming bowls sit before you, each with a smell you can’t quite place. One glows faintly. One has bubbles that form tiny faces. One makes your teeth feel cold just looking at it. The last… looks normal. Which is the most dangerous of all.",
-  buttons: ["Glowing Bowl", "Face Bubbles", "Cold Teeth", "Normal Soup"],
-  image: "https://i.imgur.com/FNYqXHz.jpeg" // art will be made after
-},
-{
-  title: "🧳 Luggage Claim of the Damned",
-  lore: "You stand at a slow-moving carousel in a dim, echoing room. Four strange suitcases pass by. One drips water. One hums softly. One is breathing. One is perfectly still, which somehow feels worse. The Squig at your side whispers, 'One of these is yours now.'",
-  buttons: ["Dripping Case", "Humming Case", "Breathing Case", "Still Case"],
-  image: "https://i.imgur.com/UsrlWEx.jpeg" // art after
-},
+  {
+    title: "🥄 The Soup of Uncertainty",
+    lore: "A Squig invites you to sit at a crooked wooden table. Four steaming bowls sit before you, each with a smell you can’t quite place. One glows faintly. One has bubbles that form tiny faces. One makes your teeth feel cold just looking at it. The last… looks normal. Which is the most dangerous of all.",
+    buttons: ["Glowing Bowl", "Face Bubbles", "Cold Teeth", "Normal Soup"],
+    image: "https://i.imgur.com/FNYqXHz.jpeg"
+  },
+  {
+    title: "🧳 Luggage Claim of the Damned",
+    lore: "You stand at a slow-moving carousel in a dim, echoing room. Four strange suitcases pass by. One drips water. One hums softly. One is breathing. One is perfectly still, which somehow feels worse. The Squig at your side whispers, 'One of these is yours now.'",
+    buttons: ["Dripping Case", "Humming Case", "Breathing Case", "Still Case"],
+    image: "https://i.imgur.com/UsrlWEx.jpeg"
+  },
   {
     title: "🧼 Clean or Cursed?",
-    lore: "The Squigs don’t really understand hygiene, but they’re trying. You’re shown four soaps on a stone plinth. One cured a rash that never existed. One dissolved a hand. One smells like trauma. The last might be fruit-scented? A Squig proudly says, We made them ourselves. " ,
+    lore: "The Squigs don’t really understand hygiene, but they’re trying. You’re shown four soaps on a stone plinth. One cured a rash that never existed. One dissolved a hand. One smells like trauma. The last might be fruit-scented? A Squig proudly says, We made them ourselves.",
     buttons: ["Lemon Fresh", "Minty One", "Sketchy Bar", "Unknown Goo"],
     image: "https://i.imgur.com/1J8oNW4.png"
   },
@@ -100,11 +99,11 @@ const miniGameLorePool = [
     image: "https://i.imgur.com/utSECnX.jpeg"
   },
   {
-  title: "🌌 The Archive of Forgotten Things",
-  lore: "Deep inside the Squigs’ oldest vault, shelves stretch into darkness, each piled with objects that never belonged to this world. A Squig librarian shuffles beside you, its lantern casting warped shadows. Four artifacts are placed on a cracked marble table: a jar of unmoving smoke, a coin that hums like bees, a mask with too many straps, and a small cube that’s warm in your hand. The Squig leans close: 'Choose carefully — these remember their last owners.'",
-  buttons: ["Smoke Jar", "Humming Coin", "Strap Mask", "Warm Cube"],
-  image: "https://i.imgur.com/35OO8T1.jpeg" // art after
-},
+    title: "🌌 The Archive of Forgotten Things",
+    lore: "Deep inside the Squigs’ oldest vault, shelves stretch into darkness, each piled with objects that never belonged to this world. A Squig librarian shuffles beside you, its lantern casting warped shadows. Four artifacts are placed on a cracked marble table: a jar of unmoving smoke, a coin that hums like bees, a mask with too many straps, and a small cube that’s warm in your hand. The Squig leans close: 'Choose carefully — these remember their last owners.'",
+    buttons: ["Smoke Jar", "Humming Coin", "Strap Mask", "Warm Cube"],
+    image: "https://i.imgur.com/35OO8T1.jpeg"
+  },
   {
     title: "📺 SquigVision™ Live",
     lore: "You grab the remote. The screen flashes violently. Each channel is broadcasting something — a bubbling stew of eyeballs, a Category 9 wind warning in space, a haunted cartoon rerun, and one is just... static, but it feels like it’s watching you. The Squig says, “Pick fast. It gets worse.”",
@@ -123,25 +122,24 @@ const miniGameLorePool = [
     buttons: ["Truth Coin", "Liar Coin", "Screaming Coin", "Still Warm"],
     image: "https://i.imgur.com/7IoCjbB.jpeg"
   },
-{
+  {
     title: "🧃 Pick Your Potion",
     lore: "A Squig offers you a tray of bubbling concoctions. “Each one changes something,” they say, avoiding eye contact. One makes your thoughts louder. One makes you see sounds. One makes your past self allergic to soup. One makes nothing happen — which is the most suspicious of all.",
     buttons: ["Blue Bubbler", "Echo Juice", "Time Syrup", "Definitely Nothing"],
     image: "https://i.imgur.com/23BxgsM.jpeg"
   },
-{
+  {
     title: "🪑 The Seat of Consequence",
     lore: "You enter a room with four chairs. One hums softly. One smells like ozone and regret. One has teeth marks. One is already warm, but no one’s here. A Squig gestures politely: “Sit wherever you feel… least endangered.” The lights flicker. Something growls under the floor.",
     buttons: ["Wobbly Chair", "Warm Chair", "Gnawed Chair", "Humming Chair"],
     image: "https://i.imgur.com/hHVScHi.jpeg"
   },
-{
-  title: "🪞 Reflections That Aren’t",
-  lore: "You step into a dusty hall lined with warped mirrors. A Squig stands behind you, but in the glass, it’s wearing your face. Each mirror shows a different version of you — taller, shorter, missing, or… smiling too wide. The Squig taps the glass and says, 'Pick one. Quickly.'",
-  buttons: ["Tall You", "Small You", "No You", "Too Many Teeth"],
-  image: "https://i.imgur.com/xc6aIXP.jpeg" 
-}
-
+  {
+    title: "🪞 Reflections That Aren’t",
+    lore: "You step into a dusty hall lined with warped mirrors. A Squig stands behind you, but in the glass, it’s wearing your face. Each mirror shows a different version of you — taller, shorter, missing, or… smiling too wide. The Squig taps the glass and says, 'Pick one. Quickly.'",
+    buttons: ["Tall You", "Small You", "No You", "Too Many Teeth"],
+    image: "https://i.imgur.com/xc6aIXP.jpeg"
+  }
 ];
 
 const miniGameFateDescriptions = [
@@ -177,7 +175,6 @@ const miniGameFateDescriptions = [
   "The fourth option was banned in two dimensions. Not this one."
 ];
 
-
 const pointFlavors = {
   "+2": [
     "✨ Bathed in the forbidden glow of a Squig lamp. **+2 points!**",
@@ -208,9 +205,9 @@ const pointFlavors = {
     "🪞 Challenged your reflection. Lost everything. **-2 points!**"
   ]
 };
-
+// === Riddles ===
 const riddles = [
-  // === EASY (1) ===
+  // EASY (1)
   { riddle: "I’m round and bright, vanish in day, shine at night. What am I?", answers: ["moon"], difficulty: 1 },
   { riddle: "I have rings but no fingers. What am I?", answers: ["tree", "saturn"], difficulty: 1 },
   { riddle: "I melt when I get hot but I’m not chocolate. What am I?", answers: ["ice", "ice cube"], difficulty: 1 },
@@ -232,7 +229,7 @@ const riddles = [
   { riddle: "I hide in caves and fear the sun. What am I?", answers: ["bat"], difficulty: 1 },
   { riddle: "I have a face but no mouth. What am I?", answers: ["clock", "watch"], difficulty: 1 },
 
-  // === MEDIUM (2) ===
+  // MEDIUM (2)
   { riddle: "I speak without a voice, move without legs, and am copied without hands. What am I?", answers: ["echo"], difficulty: 2 },
   { riddle: "I build bridges of words but I am not stone. What am I?", answers: ["language"], difficulty: 2 },
   { riddle: "I’m measured in knots but I’m not rope. What am I?", answers: ["wind", "speed"], difficulty: 2 },
@@ -253,7 +250,7 @@ const riddles = [
   { riddle: "I rise without a sun, fall without a cloud. What am I?", answers: ["tide"], difficulty: 2 },
   { riddle: "I spin but I’m not dizzy, and I weave but I’m not alive. What am I?", answers: ["spider", "spiderweb"], difficulty: 2 },
 
-  // === HARD (3) ===
+  // HARD (3)
   { riddle: "I’m the father of questions, the enemy of certainty. What am I?", answers: ["doubt"], difficulty: 3 },
   { riddle: "I bind all without rope and break all without force. What am I?", answers: ["trust"], difficulty: 3 },
   { riddle: "I’m taken before you know me and lost before you find me. What am I?", answers: ["breath"], difficulty: 3 },
@@ -275,568 +272,53 @@ const riddles = [
   { riddle: "I exist only when shared, yet vanish when kept. What am I?", answers: ["secret"], difficulty: 3 },
 ];
 
-
-
-
-
+// === Command to start Gauntlet ===
 client.on('messageCreate', async (message) => {
-  if (message.content.startsWith('!gauntlet')) {
-    if (!authorizedUsers.includes(message.author.id)) {
-      return message.reply("⛔ Only authorized users can start the Gauntlet.");
-    }
+  if (!message.content.startsWith('!gauntlet')) return;
 
-    if (activeGame) {
-      return message.reply('⚠️ A Gauntlet is already running!');
-    }
-
-    const minutes = parseFloat(message.content.split(' ')[1]) || 3;
-    const msUntilStart = minutes * 60 * 1000;
-    const reminderInterval = msUntilStart / 3;
-
-    activeGame = {
-      players: new Map(),
-      startTime: Date.now(),
-    };
-    gameChannel = message.channel;
-
-    await message.channel.send(`@everyone ⚔️ A new Gauntlet begins in **${minutes}** minute(s)! Prepare your minds.`);
-
-    setTimeout(async () => {
-      await message.channel.send('⌛ One third of the time has passed... the charm is flexing.');
-    }, reminderInterval);
-
-    setTimeout(async () => {
-      await message.channel.send('⏳ Two-thirds down... it’s almost time. Sharpen your weird.');
-    }, reminderInterval * 2);
-
-    setTimeout(async () => {
-      await message.channel.send(`🎮 The Gauntlet has begun!`);
-      await runPointsGauntlet(message.channel, 10, false); // ✅ fixed argument order
-    }, msUntilStart);
+  if (!authorizedUsers.includes(message.author.id)) {
+    return message.reply("⛔ Only authorized users can start the Gauntlet.");
   }
-});
-// =======================
-// 🌀 LABYRINTH (In-Channel, Ephemeral Steps)
-// Runs for 60s. +1 per correct step, +2 bonus on perfect escape (+6 total).
-// =======================
-async function runLabyrinthAdventure(channel, playerMap) {
-  const eventTitle = "🌀 The Labyrinth of Wrong Turns";
-  const sessionId = randomUUID(); // isolate this run’s interactions
+  if (activeGame) {
+    return message.reply('⚠️ A Gauntlet is already running!');
+  }
 
-  // Per-step flavor
-  const correctStepLore = [
-    "The tunnel curves like the spine of some old beast. You press onward, hearing faint dripping ahead.",
-    "Your footsteps echo, but the echoes don’t match your pace.",
-    "The air grows warm, almost metallic. Something scurries away just out of sight.",
-    "The walls here breathe, slow and heavy, as if the stone itself is alive.",
-    "A faint glow pulses from deeper in the passage — you can’t tell if it’s inviting or warning.",
-    "The floor tilts sharply, but you manage to keep your footing as the hum grows louder.",
-    "Shadows crawl along the ceiling, but none belong to you."
-  ];
-  const wrongStepLore = [
-    "The floor vanishes beneath your feet, and cold water swallows you whole.",
-    "A shadow steps out from the wall, wearing your face, and everything goes black.",
-    "The air becomes too thick to breathe; you collapse before you can turn back.",
-    "A heavy door slams shut behind you, and the path ahead is gone.",
-    "Your reflection appears in the wall — smiling, waving — and pulls you in.",
-    "Roots wrap around your ankles and drag you into the dark.",
-    "The light fades completely, and you know you are not alone."
-  ];
-  const epicEscapeLore = [
-    "You shove open the final stone door, and the labyrinth screams as if alive. The light beyond is blinding — and when it fades, you stand in the Gauntlet arena, dripping with shadow and triumph. The Squigs fall silent… then erupt into manic applause.",
-    "A final turn, a final breath — and the walls collapse behind you like they’ve given up the hunt. You tumble through the portal and into the Gauntlet floor, Squigs pounding the ground in celebration. Your name will be etched into the Labyrinth’s memory — and that’s not always a good thing.",
-    "The last corridor is narrow, breathing on your neck as you run. With a leap, you crash through the exit and land before the gathered Squigs. They hiss your name, then chant it, then scream it until the air vibrates. You have beaten what swallows most whole.",
-    "You push past the final threshold, dragging with you a wind that smells of cold iron and fear. The Gauntlet crowd stares in awe. Somewhere deep in the Labyrinth, something sighs — or maybe laughs. You have made it out… for now."
-  ];
+  const minutes = parseFloat(message.content.split(' ')[1]) || 2;
+  const msUntilStart = minutes * 60 * 1000;
+  const reminderInterval = msUntilStart / 3;
 
-  // Secret 4-step code (e.g., ["Left","Up","Right","Down"])
-  const dirs = ["Left", "Right", "Up", "Down"];
-  const correctPath = Array.from({ length: 4 }, () => dirs[Math.floor(Math.random() * dirs.length)]);
+  activeGame = {
+    players: new Map(),
+    startTime: Date.now(),
+  };
+  gameChannel = message.channel;
 
-  // Per-player state (created lazily on first click too)
-  const state = new Map(); // userId -> { step, finished, points, started }
+  await message.channel.send(`@everyone ⚔️ A new Gauntlet begins in **${minutes}** minute(s)! Prepare your minds.`);
 
-  // Public announcement + first-choice buttons (everyone clicks here)
-  const publicRow = new ActionRowBuilder().addComponents(
-    dirs.map(d =>
-      new ButtonBuilder()
-        .setCustomId(`lab:init:${sessionId}:${d}`)
-        .setLabel(d)
-        .setStyle(ButtonStyle.Primary)
-    )
-  );
+  setTimeout(async () => {
+    await message.channel.send('⌛ One third of the time has passed... the charm is flexing.');
+  }, reminderInterval);
 
-const startMsg = await channel.send({
-  embeds: [{
-    title: eventTitle,
-    description:
-      "The ground tilts, and you tumble into the Squigs’ infamous labyrinth.\n" +
-      "Find the **exact** sequence of turns — four correct choices in a row — before the Squigs decide you’ve been in here too long.\n\n" +
-      "⏳ **You have 60 seconds to make it through the Labyrinth.**\n" +
-      "✅ Each correct step: **+1 point**\n" +
-      "🏆 Escape all 4 steps: **+2 bonus** (total **+6**).\n\n" +
-      "_Click your **first** turn below. After that, your path continues in **private embeds only you can see**._",
-    color: 0x7f00ff,
-    image: {
-      url: "https://i.imgur.com/MA1CdEC.jpeg"
-    }
-  }],
-  components: [publicRow]
+  setTimeout(async () => {
+    await message.channel.send('⏳ Two-thirds down... it’s almost time. Sharpen your weird.');
+  }, reminderInterval * 2);
+
+  setTimeout(async () => {
+    await message.channel.send(`🎮 The Gauntlet has begun!`);
+    await runPointsGauntlet_ShortFlow(message.channel); // new flow
+  }, msUntilStart);
 });
 
-
-  // Build ephemeral step row for a given user
-  const stepRowFor = (userId) =>
-    new ActionRowBuilder().addComponents(
-      dirs.map(d =>
-        new ButtonBuilder()
-          .setCustomId(`lab:step:${sessionId}:${userId}:${d}`)
-          .setLabel(d)
-          .setStyle(ButtonStyle.Primary)
-      )
-    );
-
-  // Collector for both public first click and all subsequent ephemeral steps
-  const filter = (i) => {
-    if (!i.isButton()) return false;
-    const parts = i.customId.split(":");
-    if (parts[0] !== "lab") return false;
-    const isInit = parts[1] === "init" && parts[2] === sessionId;
-    const isStep = parts[1] === "step" && parts[2] === sessionId;
-    return isInit || isStep;
-  };
-
-  const collector = new InteractionCollector(channel.client, {
-    componentType: ComponentType.Button,
-    time: 60_000,
-    filter
-  });
-
-  // Helper to ensure player exists on the scoreboard
-  const ensurePlayer = (user) => {
-    if (!playerMap.has(user.id)) {
-      playerMap.set(user.id, { id: user.id, username: user.username || "Player", points: 0 });
-    }
-    if (!state.has(user.id)) {
-      state.set(user.id, { step: 0, finished: false, points: 0, started: false });
-    }
-  };
-
-  const handleProgress = async (interaction, userId, choice, isInitialClick=false) => {
-    const s = state.get(userId);
-    if (!s || s.finished) {
-      try { await interaction.deferUpdate(); } catch {}
-      return;
-    }
-
-    const isCorrect = (choice === correctPath[s.step]);
-
-    if (isCorrect) {
-      s.points += 1;
-      s.step += 1;
-
-      // Escape!
-      if (s.step >= 4) {
-        s.finished = true;
-        s.points += 2; // +2 bonus for perfect escape
-        const payload = {
-          embeds: [{
-            title: `${eventTitle} – Escape!`,
-            description: `${epicEscapeLore[Math.floor(Math.random() * epicEscapeLore.length)]}\n\n**+${s.points} points earned** (includes **+2** escape bonus)`,
-            color: 0x00ff88
-          }],
-          components: []
-        };
-        try {
-          if (isInitialClick) await interaction.reply({ ...payload, ephemeral: true });
-          else await interaction.update(payload);
-        } catch {}
-        return;
-      }
-
-      // Next step (ephemeral)
-      const payload = {
-        embeds: [{
-          title: `${eventTitle} – Step ${s.step + 1}`,
-          description: `${correctStepLore[Math.floor(Math.random() * correctStepLore.length)]}\n\nChoose your next path…`,
-          color: 0x7f00ff
-        }],
-        components: [stepRowFor(userId)],
-        ephemeral: true
-      };
-
-      try {
-        if (isInitialClick) {
-          await interaction.reply(payload);
-        } else {
-          await interaction.update({ embeds: payload.embeds, components: payload.components });
-        }
-      } catch {}
-    } else {
-      // Wrong turn — end
-      s.finished = true;
-      const payload = {
-        embeds: [{
-          title: `${eventTitle} – Dead End`,
-          description: `${wrongStepLore[Math.floor(Math.random() * wrongStepLore.length)]}\n\n**Run ends – you earned ${s.points} point${s.points === 1 ? "" : "s"}.**`,
-          color: 0xff0066
-        }],
-        components: []
-      };
-      try {
-        if (isInitialClick) await interaction.reply({ ...payload, ephemeral: true });
-        else await interaction.update(payload);
-      } catch {}
-    }
-  };
-
-  collector.on('collect', async (i) => {
-    const parts = i.customId.split(":");
-
-    // First public click: lab:init:<sessionId>:<dir>
-    if (parts[1] === "init") {
-      const dir = parts[3];
-      ensurePlayer(i.user);
-      const s = state.get(i.user.id);
-      if (s.started || s.finished) {
-        try { await i.deferUpdate(); } catch {}
-        return;
-      }
-      s.started = true;
-      await handleProgress(i, i.user.id, dir, true);
-      return;
-    }
-
-    // Ephemeral steps: lab:step:<sessionId>:<userId>:<dir>
-    if (parts[1] === "step") {
-      const userId = parts[3];
-      const dir = parts[4];
-
-      if (i.user.id !== userId) {
-        try { await i.reply({ content: "That’s not your path to walk.", ephemeral: true }); } catch {}
-        return;
-      }
-
-      // Make sure scoreboard has this player
-      if (!playerMap.has(userId)) {
-        playerMap.set(userId, { id: userId, username: i.user.username || "Player", points: 0 });
-      }
-      if (!state.has(userId)) state.set(userId, { step: 0, finished: false, points: 0, started: true });
-
-      await handleProgress(i, userId, dir, false);
-      return;
-    }
-  });
-
-  return new Promise((resolve) => {
-    collector.on('end', async () => {
-      // Disable public buttons
-      try { await startMsg.edit({ components: [] }); } catch {}
-
-      // Tally & post verdict
-      let verdict = "**The Labyrinth’s Verdict:**\n";
-      for (const [userId, s] of state.entries()) {
-        const p = playerMap.get(userId) || { id: userId, username: "Player", points: 0 };
-        p.points = (p.points || 0) + (s.points || 0);
-        playerMap.set(userId, p);
-
-        if (s.finished && s.step >= 4) {
-          verdict += `<@${userId}> **escaped in glory!** **+${s.points} points**\n`;
-        } else if (s.points > 0) {
-          verdict += `<@${userId}> reached step ${s.step} — **+${s.points} points**\n`;
-        } else if (s.started) {
-          verdict += `<@${userId}> was lost at the first turn — **0 points**\n`;
-        } else {
-          verdict += `<@${userId}> did not enter the Labyrinth.\n`;
-        }
-      }
-
-      await channel.send({ embeds: [{ title: "🏚 The Labyrinth’s Verdict", description: verdict, color: 0xff0066 }] });
-
-      resolve(); // ✅ Now runLabyrinthAdventure waits until verdict is posted
-    });
-  });
-}
-async function runPointsGauntlet(channel, overrideRounds = 10, isTestMode = false) {
-  const maxRounds = 10;
-  const playerMap = activeGame.players;
-
-  let round = 1;
-let bonusSpinUsed = false;
-
-
-while (round <= maxRounds) {
-  let availableMiniGames = miniGameLorePool
-  .map((g, i) => ({ ...g, index: i }))
-  .filter(g => !usedMiniGameIndices.has(g.index));
-
-if (availableMiniGames.length === 0) {
-  usedMiniGameIndices.clear(); // reset if all have been used
-  availableMiniGames = miniGameLorePool.map((g, i) => ({ ...g, index: i }));
-}
-
-const selectedMiniGame = availableMiniGames[Math.floor(Math.random() * availableMiniGames.length)];
-usedMiniGameIndices.add(selectedMiniGame.index);
-const miniGame = selectedMiniGame;
-
-  const flavor = miniGameFateDescriptions[Math.floor(Math.random() * miniGameFateDescriptions.length)];
-
-  // === Unified Round Intro + Mini-Game ===
-const embed = new EmbedBuilder()
-  .setTitle(`🌪️ ROUND ${round} — ${miniGame.title}`)
-  .setDescription(`${miniGame.lore}\n\n_${flavor}_\n\n⏳ You have 30 seconds to decide.`)
-  .setColor(0xff33cc);
-
-if (miniGame.image) {
-  embed.setImage(miniGame.image);
-}
-
-  const row = new ActionRowBuilder().addComponents(
-    miniGame.buttons.map((label, idx) =>
-      new ButtonBuilder()
-        .setCustomId(`choice${idx + 1}`)
-        .setLabel(label)
-        .setStyle([ButtonStyle.Primary, ButtonStyle.Danger, ButtonStyle.Secondary, ButtonStyle.Success][idx % 4])
-    )
-  );
-
-  await channel.send({ embeds: [embed], components: [row] });
-
-  setTimeout(() => channel.send("⏳ 25 seconds left...").catch(() => {}), 10000);
-  setTimeout(() => channel.send("⏳ 15 seconds left...").catch(() => {}), 25000);
-  setTimeout(() => channel.send("🎲 Time’s up. The charm decides.").catch(() => {}), 40000);
-
-  const collector = channel.createMessageComponentCollector({ componentType: 2, time: 30000 });
-  const clickedUsers = new Set();
-
-  collector.on('collect', async i => {
-    if (i.user.bot || clickedUsers.has(i.user.id)) return;
-    clickedUsers.add(i.user.id);
-
-    if (!playerMap.has(i.user.id)) {
-      playerMap.set(i.user.id, {
-        id: i.user.id,
-        username: i.user.username,
-        points: 0
-      });
-    }
-
-    const outcomes = [-2, -1, 1, 2];
-    const result = outcomes[Math.floor(Math.random() * outcomes.length)];
-    playerMap.get(i.user.id).points += result;
-
-    const flavorList = pointFlavors[result > 0 ? `+${result}` : `${result}`] || [];
-    const flavorText = flavorList.length ? flavorList[Math.floor(Math.random() * flavorList.length)] : "";
-
-    try {
-      await i.reply({
-        content: `You chose **${i.component.label}**\nYour fate: **${result > 0 ? '+' : ''}${result} point${Math.abs(result) !== 1 ? 's' : ''}**\n${flavorText}`,
-        flags: 64
-      });
-    } catch (err) {
-      console.warn(`⚠️ Failed to reply to interaction: ${err.message}`);
-    }
-  });
-
-  await wait(46000);
-  collector.stop();
-
-  await channel.send(`🧮 Mini-game complete. Round ${round} points have been applied.`);
-  await wait(5000);
-
-  // === Riddle Phase ===
-  await runRiddlePoints(playerMap, channel);
-  await wait(5000);
-
-  // ⬇️ INSERT: Intermission mini-adventure after Round 3's riddle
-  if (round === 3) {
-    await channel.send("🌫️ The floor tilts… a hush falls over the Squigs.");
-    await runLabyrinthAdventure(channel, playerMap); // 60s self-contained event
-    await wait(2000);
-  }
-
-  round++;
-
-
-  // === RISK IT PHASE BEFORE FINAL ROUND ===
-  if (round === 10) {
-    await channel.send("🪙 The charm leans in… a chance to **Risk It** before the final chaos.");
-    await runRiskItPhase(channel, playerMap);
-    await wait(3000);
-  }
-
-  if (round === 7) {
-    await channel.send({
-      content: "⛔ **THE GAUNTLET PAUSES** ⛔",
-      embeds: [
-        new EmbedBuilder()
-          .setTitle("🌪️ MID-GAME INTERRUPTION")
-          .setDescription("The static thickens...\nSomething hideous stirs...\n\nPrepare yourselves. **The Ugly Selector is awakening.**")
-          .setColor(0xff00cc)
-          .setImage(getMonsterImageUrl())
-      ]
-    });
-    await wait(3000);
-    await runUglySelector(channel, playerMap);
-    await wait(3000);
-    await channel.send("🎭 The charm returns to its chaotic rhythm...");
-    await wait(3000);
-  }
-
-// === BONUS RNG SPIN EVENT ===
-// === RUN UGLY SELECTOR ===
-async function runUglySelector(channel, playerMap) {
-  const embed = new EmbedBuilder()
-    .setTitle("🎯 The Squig’s Ugly Selector Activates!")
-    .setDescription("React with 🌀 within **15 seconds** to tempt fate.\nOne lucky participant will be granted **+3 bonus points** by pure Squig chaos.")
-    .setColor(0xff77ff);
-
-  const msg = await channel.send({ embeds: [embed] });
-  await msg.react("🌀");
-
-  const filter = (reaction, user) => reaction.emoji.name === "🌀" && !user.bot;
-  const reactionCollector = msg.createReactionCollector({ filter, time: 15000 });
-
-  const users = new Set();
-  reactionCollector.on('collect', (reaction, user) => {
-    users.add(user.id);
-  });
-
-  return new Promise((resolve) => {
-    reactionCollector.on('end', async () => {
-      if (users.size === 0) {
-        await channel.send("🌀 No one dared tempt fate. The charm spins alone...");
-        return resolve();
-      }
-
-      const userIdArray = Array.from(users);
-      const winnerId = userIdArray[Math.floor(Math.random() * userIdArray.length)];
-
-      if (!playerMap.has(winnerId)) {
-        playerMap.set(winnerId, {
-          id: winnerId,
-          username: "Unknown",
-          points: 0
-        });
-      }
-
-      playerMap.get(winnerId).points += 3;
-
-      await channel.send(`🎉 The Squig’s Ugly Selector has spoken... <@${winnerId}> gains **+3 bonus points!**\n_The static fizzles and the charm forgets what it just did._`);
-      resolve();
-    });
-  });
-}
- }
-   await showFinalScores(playerMap, channel);
-
-  // clean up per game
-  activeGame = null;
-  usedMiniGameIndices.clear();
-  usedRiddleIndices.clear();
-}
-async function runMiniGamePoints(players, channel, round, isTestMode = false) {
-  const outcomes = [-2, -1, 1, 2];
-  const miniGame = miniGameLorePool[Math.floor(Math.random() * miniGameLorePool.length)];
-  const flavor = miniGameFateDescriptions[Math.floor(Math.random() * miniGameFateDescriptions.length)];
-
-  // === ROUND ANNOUNCEMENT WITH FLAVOR ===
-  const roundIntro = new EmbedBuilder()
-    .setTitle(`🌪️ ROUND ${round} — ${miniGame.title}`)
-    .setDescription(`${miniGame.lore}\n\n${flavor}`)
-    .setColor(0xaa00ff);
-
-  if (miniGame.image) {
-    roundIntro.setImage(miniGame.image);
-  }
-
-  await channel.send({ embeds: [roundIntro] });
-  await wait(5000); // give time to read lore
-
-  // === MINI-GAME CHALLENGE EMBED ===
-  const challengeEmbed = new EmbedBuilder()
-    .setTitle(`🎲 MINI-GAME CHALLENGE — ${miniGame.title}`)
-    .setDescription(`${miniGame.lore}\n⏳ You have 30 seconds to decide.`)
-    .setColor(0xff33cc);
-
-  if (miniGame.image) {
-    challengeEmbed.setImage(miniGame.image);
-  }
-
-  const row = new ActionRowBuilder().addComponents(
-    miniGame.buttons.map((label, idx) =>
-      new ButtonBuilder()
-        .setCustomId(`choice${idx + 1}`)
-        .setLabel(label)
-        .setStyle([ButtonStyle.Primary, ButtonStyle.Danger, ButtonStyle.Secondary, ButtonStyle.Success][idx % 4])
-    )
-  );
-
-  await channel.send({ embeds: [challengeEmbed], components: [row] });
-
-  // Timed alerts
-setTimeout(() => channel.send("⏳ 30 seconds left...").catch(() => {}), 15000);
-setTimeout(() => channel.send("⏳ 10 seconds left...").catch(() => {}), 35000);
-setTimeout(() => channel.send("🎲 Time’s up. The charm decides.").catch(() => {}), 45000);
-
-
-  const collector = channel.createMessageComponentCollector({ componentType: 2, time: 45000 });
-  const clickedUsers = new Set();
-
-  collector.on('collect', async i => {
-    if (i.user.bot || clickedUsers.has(i.user.id)) return;
-    clickedUsers.add(i.user.id);
-
-    if (!players.has(i.user.id)) {
-      players.set(i.user.id, {
-        id: i.user.id,
-        username: i.user.username,
-        points: 0
-      });
-    }
-
-    const outcome = outcomes[Math.floor(Math.random() * outcomes.length)];
-    players.get(i.user.id).points += outcome;
-
-    try {
-      await i.reply({
-        content: `You chose **${i.component.label}**\nYour fate: **${outcome > 0 ? '+' : ''}${outcome} point${Math.abs(outcome) !== 1 ? 's' : ''}**`,
-        flags: 64
-      });
-    } catch (err) {
-      console.warn(`⚠️ Failed to reply to interaction: ${err.message}`);
-    }
-  });
-
-  // Ensure we wait out the full window
-  await wait(31000); // full 30 sec + 1s buffer to avoid overlap
-
-  if (isTestMode) {
-    for (const player of players.values()) {
-      if (player.isMock) {
-        const result = outcomes[Math.floor(Math.random() * outcomes.length)];
-        player.points += result;
-      }
-    }
-  }
-
-  await channel.send(`🧮 Mini-game complete. Round ${round} points have been applied.`);
-}
-
-
-
-
+// === Helper: ensure player exists ===
 function ensurePlayer(user, playerMap) {
   if (!playerMap.has(user.id)) {
-    const newPlayer = {
-      id: user.id,
-      username: user.username,
-      points: 0
-    };
-    playerMap.set(user.id, newPlayer);
+    playerMap.set(user.id, { id: user.id, username: user.username || "Player", points: 0 });
   }
   return playerMap.get(user.id);
 }
+// =======================
+// 🧩 Riddles (points = difficulty)
+// =======================
 async function runRiddlePoints(players, channel) {
   const difficulties = [1, 2, 3];
   const chosenDifficulty = difficulties[Math.floor(Math.random() * difficulties.length)];
@@ -847,19 +329,32 @@ async function runRiddlePoints(players, channel) {
     .filter(r => r.difficulty === chosenDifficulty && !usedRiddleIndices.has(r.index));
 
   if (availableRiddles.length === 0) {
-    await channel.send(`⚠️ No unused riddles available for difficulty level: ${chosenDifficulty}. Skipping riddle...`);
-    return;
+    // If no riddles left at this difficulty, broaden search
+    const anyAvailable = riddles
+      .map((r, i) => ({ ...r, index: i }))
+      .filter(r => !usedRiddleIndices.has(r.index));
+    if (anyAvailable.length === 0) {
+      await channel.send(`⚠️ No unused riddles remain. Skipping riddle...`);
+      return;
+    }
+    const r = anyAvailable[Math.floor(Math.random() * anyAvailable.length)];
+    usedRiddleIndices.add(r.index);
+    return await presentRiddle(players, channel, r, r.difficulty || 1);
   }
 
   const riddle = availableRiddles[Math.floor(Math.random() * availableRiddles.length)];
   usedRiddleIndices.add(riddle.index);
 
-  const difficultyLabel = chosenDifficulty === 1 ? "EASY" : chosenDifficulty === 2 ? "MEDIUM" : "HARD";
+  await presentRiddle(players, channel, riddle, pointsForCorrect);
+}
+
+async function presentRiddle(players, channel, riddle, points) {
+  const difficultyLabel = points === 1 ? "EASY" : points === 2 ? "MEDIUM" : "HARD";
 
   const embed = new EmbedBuilder()
-    .setTitle("🧠 RIDDLE CHALLENGE")
+    .setTitle("🧠 MID-ROUND RIDDLE")
     .setDescription(
-      `_${riddle.riddle}_\n\n🌀 Difficulty: **${difficultyLabel}** — Worth **+${pointsForCorrect}** point${pointsForCorrect > 1 ? 's' : ''}.\n⏳ You have 30 seconds to decide your fate...`
+      `_${riddle.riddle}_\n\n🌀 Difficulty: **${difficultyLabel}** — Worth **+${points}** point${points > 1 ? 's' : ''}.\n⏳ You have 30 seconds to decide your fate...`
     )
     .setColor(0xff66cc);
 
@@ -886,21 +381,12 @@ async function runRiddlePoints(players, channel) {
 
       if (isCorrect && !correctPlayers.includes(playerId)) {
         correctPlayers.push(playerId);
-        players.get(playerId).points += pointsForCorrect;
+        players.get(playerId).points += points;
 
-        try {
-          await message.delete();
-        } catch (err) {
-          console.warn(`⚠️ Could not delete correct message: ${err.message}`);
-        }
-
-        await channel.send(`🧠 <@${playerId}> answered correctly and gained **+${pointsForCorrect}** point${pointsForCorrect > 1 ? 's' : ''}!`);
+        try { await message.delete(); } catch {}
+        await channel.send(`🧠 <@${playerId}> answered correctly and gained **+${points}** point${points > 1 ? 's' : ''}!`);
       } else {
-        try {
-          await message.react('❌');
-        } catch (err) {
-          console.warn(`⚠️ Failed to react to incorrect guess: ${err.message}`);
-        }
+        try { await message.react('❌'); } catch {}
       }
     });
 
@@ -910,14 +396,324 @@ async function runRiddlePoints(players, channel) {
     collector.on('end', () => {
       const answerText = riddle.answers[0];
       channel.send(
-        `✅ Riddle completed. ${correctPlayers.length} player(s) answered correctly and gained +${pointsForCorrect} point${pointsForCorrect > 1 ? 's' : ''}.\n🧩 The correct answer was: **${answerText}**.`
+        `✅ Riddle completed. ${correctPlayers.length} player(s) answered correctly and gained +${points} point${points > 1 ? 's' : ''}.\n🧩 The correct answer was: **${answerText}**.`
       ).catch(() => {});
       resolve();
     });
   });
 }
+
+// =======================
+// 🎮 Mini-Game (30s, ±2/±1)
+// =======================
+async function runMiniGamePoints(players, channel, roundLabel = "") {
+  const outcomes = [-2, -1, 1, 2];
+
+  // pick unique mini-game until all used
+  let availableMiniGames = miniGameLorePool
+    .map((g, i) => ({ ...g, index: i }))
+    .filter(g => !usedMiniGameIndices.has(g.index));
+  if (availableMiniGames.length === 0) {
+    usedMiniGameIndices.clear();
+    availableMiniGames = miniGameLorePool.map((g, i) => ({ ...g, index: i }));
+  }
+  const selected = availableMiniGames[Math.floor(Math.random() * availableMiniGames.length)];
+  usedMiniGameIndices.add(selected.index);
+
+  const flavor = miniGameFateDescriptions[Math.floor(Math.random() * miniGameFateDescriptions.length)];
+
+  const challengeEmbed = new EmbedBuilder()
+    .setTitle(`${roundLabel ? `🌪️ ${roundLabel} — ` : ''}${selected.title}`)
+    .setDescription(`${selected.lore}\n\n_${flavor}_\n\n⏳ You have **30 seconds** to decide.`)
+    .setColor(0xff33cc);
+
+  if (selected.image) challengeEmbed.setImage(selected.image);
+
+  const row = new ActionRowBuilder().addComponents(
+    selected.buttons.map((label, idx) =>
+      new ButtonBuilder()
+        .setCustomId(`choice_${Date.now()}_${idx + 1}`)
+        .setLabel(label)
+        .setStyle([ButtonStyle.Primary, ButtonStyle.Danger, ButtonStyle.Secondary, ButtonStyle.Success][idx % 4])
+    )
+  );
+
+  const msg = await channel.send({ embeds: [challengeEmbed], components: [row] });
+
+  setTimeout(() => channel.send("⏳ 15 seconds left...").catch(() => {}), 15000);
+  setTimeout(() => channel.send("🎲 Time’s up. The charm decides.").catch(() => {}), 30000);
+
+  const collector = msg.createMessageComponentCollector({ componentType: ComponentType.Button, time: 30000 });
+  const clickedUsers = new Set();
+
+  collector.on('collect', async i => {
+    if (i.user.bot || clickedUsers.has(i.user.id)) return;
+    clickedUsers.add(i.user.id);
+
+    ensurePlayer(i.user, players);
+
+    const result = outcomes[Math.floor(Math.random() * outcomes.length)];
+    players.get(i.user.id).points += result;
+
+    const flavorList = pointFlavors[result > 0 ? `+${result}` : `${result}`] || [];
+    const flavorText = flavorList.length ? flavorList[Math.floor(Math.random() * flavorList.length)] : "";
+
+    try {
+      await i.reply({
+        content: `You chose **${i.component.label}**\nYour fate: **${result > 0 ? '+' : ''}${result} point${Math.abs(result) !== 1 ? 's' : ''}**\n${flavorText}`,
+        flags: 64
+      });
+    } catch {}
+  });
+
+  await new Promise(res => collector.on('end', res));
+  try {
+    await msg.edit({ components: [new ActionRowBuilder().addComponents(row.components.map(b => ButtonBuilder.from(b).setDisabled(true)))] });
+  } catch {}
+
+  await channel.send(`🧮 Mini-game complete. Points applied.`);
+  await wait(2000);
+}
+// =======================
+// 🌀 Labyrinth (60s, +1 per correct step, +2 bonus for perfect)
+// =======================
+async function runLabyrinthAdventure(channel, playerMap) {
+  const eventTitle = "🌀 The Labyrinth of Wrong Turns";
+  const sessionId = randomUUID();
+
+  const correctStepLore = [
+    "The tunnel curves like the spine of some old beast. You press onward, hearing faint dripping ahead.",
+    "Your footsteps echo, but the echoes don’t match your pace.",
+    "The air grows warm, almost metallic. Something scurries away just out of sight.",
+    "The walls here breathe, slow and heavy, as if the stone itself is alive.",
+    "A faint glow pulses from deeper in the passage — you can’t tell if it’s inviting or warning.",
+    "The floor tilts sharply, but you manage to keep your footing as the hum grows louder.",
+    "Shadows crawl along the ceiling, but none belong to you."
+  ];
+  const wrongStepLore = [
+    "The floor vanishes beneath your feet, and cold water swallows you whole.",
+    "A shadow steps out from the wall, wearing your face, and everything goes black.",
+    "The air becomes too thick to breathe; you collapse before you can turn back.",
+    "A heavy door slams shut behind you, and the path ahead is gone.",
+    "Your reflection appears in the wall — smiling, waving — and pulls you in.",
+    "Roots wrap around your ankles and drag you into the dark.",
+    "The light fades completely, and you know you are not alone."
+  ];
+  const epicEscapeLore = [
+    "You shove open the final stone door, and the labyrinth screams as if alive. The light beyond is blinding — and when it fades, you stand in the Gauntlet arena, dripping with shadow and triumph. The Squigs fall silent… then erupt into manic applause.",
+    "A final turn, a final breath — and the walls collapse behind you like they’ve given up the hunt. You tumble through the portal and into the Gauntlet floor, Squigs pounding the ground in celebration. Your name will be etched into the Labyrinth’s memory — and that’s not always a good thing.",
+    "The last corridor is narrow, breathing on your neck as you run. With a leap, you crash through the exit and land before the gathered Squigs. They hiss your name, then chant it, then scream it until the air vibrates. You have beaten what swallows most whole.",
+    "You push past the final threshold, dragging with you a wind that smells of cold iron and fear. The Gauntlet crowd stares in awe. Somewhere deep in the Labyrinth, something sighs — or maybe laughs. You have made it out… for now."
+  ];
+
+  const dirs = ["Left", "Right", "Up", "Down"];
+  const correctPath = Array.from({ length: 4 }, () => dirs[Math.floor(Math.random() * dirs.length)]);
+
+  const state = new Map(); // userId -> { step, finished, points, started }
+
+  const publicRow = new ActionRowBuilder().addComponents(
+    dirs.map(d =>
+      new ButtonBuilder()
+        .setCustomId(`lab:init:${sessionId}:${d}`)
+        .setLabel(d)
+        .setStyle(ButtonStyle.Primary)
+    )
+  );
+
+  const startMsg = await channel.send({
+    embeds: [{
+      title: eventTitle,
+      description:
+        "The ground tilts, and you tumble into the Squigs’ infamous labyrinth.\n" +
+        "Find the **exact** sequence of turns — four correct choices in a row — before the Squigs decide you’ve been in here too long.\n\n" +
+        "⏳ **You have 60 seconds.**\n" +
+        "✅ Each correct step: **+1 point**\n" +
+        "🏆 Escape all 4 steps: **+2 bonus** (total **+6**)\n\n" +
+        "_Click your **first** turn below. After that, your path continues in **private embeds** only you can see._",
+      color: 0x7f00ff,
+      image: { url: "https://i.imgur.com/MA1CdEC.jpeg" }
+    }],
+    components: [publicRow]
+  });
+
+  const stepRowFor = (userId) =>
+    new ActionRowBuilder().addComponents(
+      dirs.map(d =>
+        new ButtonBuilder()
+          .setCustomId(`lab:step:${sessionId}:${userId}:${d}`)
+          .setLabel(d)
+          .setStyle(ButtonStyle.Primary)
+      )
+    );
+
+  const filter = (i) => {
+    if (!i.isButton()) return false;
+    const parts = i.customId.split(":");
+    if (parts[0] !== "lab") return false;
+    const isInit = parts[1] === "init" && parts[2] === sessionId;
+    const isStep = parts[1] === "step" && parts[2] === sessionId;
+    return isInit || isStep;
+  };
+
+  const collector = new InteractionCollector(channel.client, {
+    componentType: ComponentType.Button,
+    time: 60_000,
+    filter
+  });
+
+  const ensurePlayerLocal = (user) => {
+    if (!playerMap.has(user.id)) {
+      playerMap.set(user.id, { id: user.id, username: user.username || "Player", points: 0 });
+    }
+    if (!state.has(user.id)) {
+      state.set(user.id, { step: 0, finished: false, points: 0, started: false });
+    }
+  };
+
+  const handleProgress = async (interaction, userId, choice, isInitialClick=false) => {
+    const s = state.get(userId);
+    if (!s || s.finished) { try { await interaction.deferUpdate(); } catch {} return; }
+
+    const isCorrect = (choice === correctPath[s.step]);
+
+    if (isCorrect) {
+      s.points += 1;
+      s.step += 1;
+
+      if (s.step >= 4) {
+        s.finished = true;
+        s.points += 2; // escape bonus
+        const payload = {
+          embeds: [{
+            title: `${eventTitle} – Escape!`,
+            description: `${epicEscapeLore[Math.floor(Math.random() * epicEscapeLore.length)]}\n\n**+${s.points} points earned** (includes **+2** escape bonus)`,
+            color: 0x00ff88
+          }],
+          components: []
+        };
+        try { if (isInitialClick) await interaction.reply({ ...payload, ephemeral: true }); else await interaction.update(payload); } catch {}
+        return;
+      }
+
+      const payload = {
+        embeds: [{
+          title: `${eventTitle} – Step ${s.step + 1}`,
+          description: `${correctStepLore[Math.floor(Math.random() * correctStepLore.length)]}\n\nChoose your next path…`,
+          color: 0x7f00ff
+        }],
+        components: [stepRowFor(userId)],
+        ephemeral: true
+      };
+      try { if (isInitialClick) await interaction.reply(payload); else await interaction.update({ embeds: payload.embeds, components: payload.components }); } catch {}
+    } else {
+      s.finished = true;
+      const payload = {
+        embeds: [{
+          title: `${eventTitle} – Dead End`,
+          description: `${wrongStepLore[Math.floor(Math.random() * wrongStepLore.length)]}\n\n**Run ends – you earned ${s.points} point${s.points === 1 ? "" : "s"}.**`,
+          color: 0xff0066
+        }],
+        components: []
+      };
+      try { if (isInitialClick) await interaction.reply({ ...payload, ephemeral: true }); else await interaction.update(payload); } catch {}
+    }
+  };
+
+  collector.on('collect', async (i) => {
+    const parts = i.customId.split(":");
+
+    if (parts[1] === "init") {
+      const dir = parts[3];
+      ensurePlayerLocal(i.user);
+      const s = state.get(i.user.id);
+      if (s.started || s.finished) { try { await i.deferUpdate(); } catch {} return; }
+      s.started = true;
+      await handleProgress(i, i.user.id, dir, true);
+      return;
+    }
+
+    if (parts[1] === "step") {
+      const userId = parts[3];
+      const dir = parts[4];
+
+      if (i.user.id !== userId) {
+        try { await i.reply({ content: "That’s not your path to walk.", ephemeral: true }); } catch {}
+        return;
+      }
+
+      if (!playerMap.has(userId)) playerMap.set(userId, { id: userId, username: i.user.username || "Player", points: 0 });
+      if (!state.has(userId)) state.set(userId, { step: 0, finished: false, points: 0, started: true });
+
+      await handleProgress(i, userId, dir, false);
+      return;
+    }
+  });
+
+  await new Promise((resolve) => {
+    collector.on('end', async () => {
+      try { await startMsg.edit({ components: [] }); } catch {}
+      let verdict = "**The Labyrinth’s Verdict:**\n";
+      for (const [userId, s] of state.entries()) {
+        const p = playerMap.get(userId) || { id: userId, username: "Player", points: 0 };
+        p.points = (p.points || 0) + (s.points || 0);
+        playerMap.set(userId, p);
+
+        if (s.finished && s.step >= 4) {
+          verdict += `<@${userId}> **escaped in glory!** **+${s.points} points**\n`;
+        } else if (s.points > 0) {
+          verdict += `<@${userId}> reached step ${s.step} — **+${s.points} points**\n`;
+        } else if (s.started) {
+          verdict += `<@${userId}> was lost at the first turn — **0 points**\n`;
+        } else {
+          verdict += `<@${userId}> did not enter the Labyrinth.\n`;
+        }
+      }
+
+      await channel.send({ embeds: [{ title: "🏚 The Labyrinth’s Verdict", description: verdict, color: 0xff0066 }] });
+      resolve();
+    });
+  });
+}
+
+// =======================
+// 🎯 Ugly Selector (mid-game break)
+// =======================
+async function runUglySelector(channel, playerMap) {
+  const embed = new EmbedBuilder()
+    .setTitle("🎯 The Squig’s Ugly Selector Activates!")
+    .setDescription("React with 🌀 within **15 seconds** to tempt fate.\nOne lucky participant will be granted **+3 bonus points** by pure Squig chaos.")
+    .setColor(0xff77ff);
+
+  const msg = await channel.send({ embeds: [embed] });
+  await msg.react("🌀");
+
+  const filter = (reaction, user) => reaction.emoji.name === "🌀" && !user.bot;
+  const reactionCollector = msg.createReactionCollector({ filter, time: 15000 });
+
+  const users = new Set();
+  reactionCollector.on('collect', (reaction, user) => users.add(user.id));
+
+  await new Promise((resolve) => reactionCollector.on('end', resolve));
+
+  if (users.size === 0) {
+    await channel.send("🌀 No one dared tempt fate. The charm spins alone...");
+    return;
+  }
+
+  const userIdArray = Array.from(users);
+  const winnerId = userIdArray[Math.floor(Math.random() * userIdArray.length)];
+
+  if (!playerMap.has(winnerId)) {
+    playerMap.set(winnerId, { id: winnerId, username: "Unknown", points: 0 });
+  }
+
+  playerMap.get(winnerId).points += 3;
+  await channel.send(`🎉 The Squig’s Ugly Selector has spoken... <@${winnerId}> gains **+3 bonus points!**\n_The static fizzles and the charm forgets what it just did._`);
+}
+// =======================
+// 🪙 Risk It (20s decision window)
+// =======================
 async function runRiskItPhase(channel, playerMap) {
-  // Build intro
   const intro = new EmbedBuilder()
     .setTitle("🎲 RISK IT — The Charm Tempts You")
     .setDescription(
@@ -941,9 +737,7 @@ async function runRiskItPhase(channel, playerMap) {
 
   const msg = await channel.send({ embeds: [intro], components: [row] });
 
-  // Track choices
   const entrants = new Map(); // userId -> { stake, choiceLabel }
-  const optedOut = new Set();
   const seen = new Set();
 
   const collector = msg.createMessageComponentCollector({
@@ -953,40 +747,26 @@ async function runRiskItPhase(channel, playerMap) {
 
   collector.on("collect", async (i) => {
     if (i.user.bot) return;
+    if (seen.has(i.user.id)) return i.reply({ content: "You already locked a choice.", flags: 64 });
 
-    if (seen.has(i.user.id)) {
-      return i.reply({ content: "You already locked a choice.", flags: 64 });
-    }
-
-    // Ensure player exists
-    if (!playerMap.has(i.user.id)) {
-      return i.reply({ content: "You’re not on the scoreboard yet — join a round first!", flags: 64 });
-    }
+    if (!playerMap.has(i.user.id)) return i.reply({ content: "You’re not on the scoreboard yet — join a round first!", flags: 64 });
     const player = playerMap.get(i.user.id);
     const pts = Math.floor(player.points || 0);
 
-    // Compute stake per button
     let stake = 0;
     let label = "";
 
     switch (i.customId) {
       case "risk_all":
         if (pts <= 0) return i.reply({ content: "You need **positive points** to risk them.", flags: 64 });
-        stake = pts;
-        label = "Risk All";
-        break;
+        stake = pts; label = "Risk All"; break;
       case "risk_half":
         if (pts <= 0) return i.reply({ content: "You need **positive points** to risk them.", flags: 64 });
-        stake = Math.max(1, Math.floor(pts / 2));
-        label = "Risk Half";
-        break;
+        stake = Math.max(1, Math.floor(pts / 2)); label = "Risk Half"; break;
       case "risk_quarter":
         if (pts <= 0) return i.reply({ content: "You need **positive points** to risk them.", flags: 64 });
-        stake = Math.max(1, Math.floor(pts / 4));
-        label = "Risk Quarter";
-        break;
+        stake = Math.max(1, Math.floor(pts / 4)); label = "Risk Quarter"; break;
       case "risk_none":
-        optedOut.add(i.user.id);
         seen.add(i.user.id);
         return i.reply({ content: "You sit out. The charm respects cautious cowards. (Sometimes.)", flags: 64 });
     }
@@ -996,17 +776,12 @@ async function runRiskItPhase(channel, playerMap) {
     return i.reply({ content: `Locked: **${label}** (Stake: ${stake} point${stake === 1 ? "" : "s"})`, flags: 64 });
   });
 
-  // Mid-timer nudge
   setTimeout(() => channel.send("⏳ 10 seconds left to **Risk It**...").catch(() => {}), 10000);
 
-  // Wrap-up
   await new Promise((res) => collector.on("end", res));
 
-  // Disable buttons
   try {
-    await msg.edit({ components: [new ActionRowBuilder().addComponents(
-      row.components.map(b => ButtonBuilder.from(b).setDisabled(true))
-    )] });
+    await msg.edit({ components: [new ActionRowBuilder().addComponents(row.components.map(b => ButtonBuilder.from(b).setDisabled(true)))] });
   } catch {}
 
   if (entrants.size === 0) {
@@ -1014,28 +789,24 @@ async function runRiskItPhase(channel, playerMap) {
     return;
   }
 
-  // Outcomes: net change relative to stake
   const outcomes = [
-    { key: "lose", mult: -1, label: "💀 Lost it all", lore: "The charm nibbles your points like day-old fries." },
-    { key: "even", mult: 0,  label: "😮 Broke even",  lore: "Static fizzles; the charm shrugs. Nothing gained, nothing lost." },
-    { key: "x1_5", mult: 0.5, label: "✨ Won 1.5×",    lore: "A bright hiss in the air. Luck tastes like ozone." },
-    { key: "double", mult: 1, label: "👑 Doubled",     lore: "The charm purrs. Reality briefly applauds." }
+    { mult: -1, label: "💀 Lost it all", lore: "The charm nibbles your points like day-old fries." },
+    { mult: 0,  label: "😮 Broke even",  lore: "Static fizzles; the charm shrugs. Nothing gained, nothing lost." },
+    { mult: 0.5, label: "✨ Won 1.5×",    lore: "A bright hiss in the air. Luck tastes like ozone." },
+    { mult: 1, label: "👑 Doubled",       lore: "The charm purrs. Reality briefly applauds." }
   ];
 
-  // Build results
   const lines = [];
   for (const [userId, { stake, choiceLabel }] of entrants.entries()) {
     const player = playerMap.get(userId);
     const outcome = outcomes[Math.floor(Math.random() * outcomes.length)];
 
-    // Net delta: -S, 0, +0.5S, +1S
     let delta = outcome.mult === -1 ? -stake : Math.round(stake * outcome.mult);
     player.points = (player.points || 0) + delta;
 
     const sign = delta > 0 ? "+" : "";
     lines.push(
-      `<@${userId}> • **${choiceLabel}** (staked ${stake}) → ${outcome.label} ` +
-      `• **${sign}${delta}** • new total: **${player.points}**\n_${outcome.lore}_`
+      `<@${userId}> • **${choiceLabel}** (staked ${stake}) → ${outcome.label} • **${sign}${delta}** • new total: **${player.points}**\n_${outcome.lore}_`
     );
   }
 
@@ -1045,10 +816,75 @@ async function runRiskItPhase(channel, playerMap) {
     .setColor(0xff66cc);
 
   await channel.send({ embeds: [resEmbed] });
+  await wait(2000);
 }
 
+// =======================
+// 🧱 New Short Flow Orchestrator
+// =======================
+async function runPointsGauntlet_ShortFlow(channel) {
+  const players = activeGame.players;
 
+  // Round 1: Mini-Game -> Riddle
+  await runMiniGamePoints(players, channel, "ROUND 1");
+  await runRiddlePoints(players, channel);
+  await wait(1500);
 
+  // Round 2: Mini-Game -> Riddle
+  await runMiniGamePoints(players, channel, "ROUND 2");
+  await runRiddlePoints(players, channel);
+  await wait(1500);
+
+  // Round 3: Labyrinth -> Riddle -> Mid-Game Break (Ugly Selector)
+  await channel.send("🌫️ The floor tilts… a hush falls over the Squigs.");
+  await runLabyrinthAdventure(channel, players);
+  await wait(1500);
+  await runRiddlePoints(players, channel);
+  await wait(1500);
+
+  await channel.send({
+    content: "⛔ **THE GAUNTLET PAUSES** ⛔",
+    embeds: [
+      new EmbedBuilder()
+        .setTitle("🌪️ MID-GAME INTERRUPTION")
+        .setDescription("The static thickens...\nSomething hideous stirs...\n\nPrepare yourselves. **The Ugly Selector is awakening.**")
+        .setColor(0xff00cc)
+        .setImage(getMonsterImageUrl())
+    ]
+  });
+  await wait(1500);
+  await runUglySelector(channel, players);
+  await wait(1500);
+  await channel.send("🎭 The charm returns to its chaotic rhythm...");
+  await wait(1500);
+
+  // Round 4: Mini-Game -> Riddle
+  await runMiniGamePoints(players, channel, "ROUND 4");
+  await runRiddlePoints(players, channel);
+  await wait(1500);
+
+  // Round 5: Risk It -> Riddle
+  await channel.send("🪙 The charm leans in… a chance to **Risk It**.");
+  await runRiskItPhase(channel, players);
+  await runRiddlePoints(players, channel);
+  await wait(1500);
+
+  // Round 6: Mini-Game -> Riddle
+  await runMiniGamePoints(players, channel, "ROUND 6");
+  await runRiddlePoints(players, channel);
+  await wait(2000);
+
+  // Final scores + podium (with point tiebreaker if needed)
+  await showFinalScores(players, channel);
+
+  // cleanup
+  activeGame = null;
+  usedMiniGameIndices.clear();
+  usedRiddleIndices.clear();
+}
+// =======================
+// 🏁 Scoring, Tiebreakers, Podium
+// =======================
 async function showFinalScores(playerMap, channel) {
   const players = [...playerMap.values()];
 
@@ -1067,30 +903,80 @@ async function showFinalScores(playerMap, channel) {
 
   if (tiedTopScorers.length > 1) {
     await channel.send('⚖️ There is a tie among the top scorers. The charm demands a vote to break it.');
-    
     const resolvedTiebreaker = await runPointTiebreaker(tiedTopScorers, channel);
-
-    // Merge resolved tie order with the rest of the players
     const remaining = sorted.filter(p => !tiedTopScorers.find(tp => tp.id === p.id));
     const finalOrderedPlayers = [...resolvedTiebreaker, ...remaining];
-
     await showFinalPodium(channel, finalOrderedPlayers);
   } else {
     await showFinalPodium(channel, sorted);
   }
 
-  await wait(5000);
+  await wait(2000);
   activeGame = null;
   usedMiniGameIndices.clear();
   rematchCount++;
-
   if (rematchCount < maxRematches) {
     await channel.send(`📯 *Maybe enough reactions will encourage another game 👀*`);
-    await wait(2000);
   }
 }
 
+// Vote-based tiebreaker (for 1st place ties)
+async function runPointTiebreaker(tiedPlayers, channel) {
+  return new Promise(async (resolve) => {
+    const voteCounts = new Map(tiedPlayers.map(p => [p.id, 0]));
+    const votedUsers = new Set();
 
+    const buttons = tiedPlayers.map((player) =>
+      new ButtonBuilder()
+        .setCustomId(`vote_${player.id}`)
+        .setLabel(player.username)
+        .setStyle(ButtonStyle.Primary)
+    );
+
+    const row = new ActionRowBuilder().addComponents(buttons);
+
+    const voteEmbed = new EmbedBuilder()
+      .setTitle("🩸 FINAL TIEBREAKER VOTE — TOP SPOT 🩸")
+      .setDescription(
+        `Multiple players are tied for the crown.\n\n` +
+        `Vote to determine their final ranking.\nAll may vote — the charm will sort the rest.\n\n` +
+        tiedPlayers.map(p => `• ${p.username}`).join('\n')
+      )
+      .setColor(0xff0033);
+
+    const voteMessage = await channel.send({ embeds: [voteEmbed], components: [row] });
+
+    const collector = voteMessage.createMessageComponentCollector({
+      componentType: ComponentType.Button,
+      time: 20000
+    });
+
+    collector.on('collect', async (interaction) => {
+      if (votedUsers.has(interaction.user.id)) {
+        await interaction.reply({ content: "You already voted!", flags: 64 });
+        return;
+      }
+      const votedId = interaction.customId.split('_')[1];
+      if (!voteCounts.has(votedId)) {
+        await interaction.reply({ content: "Invalid vote!", flags: 64 });
+        return;
+      }
+      voteCounts.set(votedId, voteCounts.get(votedId) + 1);
+      votedUsers.add(interaction.user.id);
+      await interaction.reply({ content: "Vote counted!", flags: 64 });
+    });
+
+    collector.on('end', async () => {
+      const sortedTied = [...tiedPlayers].sort((a, b) => {
+        const aVotes = voteCounts.get(a.id) || 0;
+        const bVotes = voteCounts.get(b.id) || 0;
+        return bVotes - aVotes;
+      });
+      await channel.send("🗳️ Tiebreaker vote complete. The charm has decided.");
+      resolve(sortedTied);
+    });
+  });
+}
 
 async function showFinalPodium(channel, players) {
   const sorted = [...players].sort((a, b) => b.points - a.points);
@@ -1113,15 +999,12 @@ async function showFinalPodium(channel, players) {
     )
     .setColor(0xaa00ff);
 
-  // Handle 2nd/3rd place ties (excluding 1st place)
-  const firstPlacePoints = top3[0].points;
+  // Resolve 2nd/3rd ties (keep 1st intact)
+  const firstPlacePoints = top3[0]?.points ?? 0;
   const secondAndThird = top3.slice(1);
-  const tiePoints = secondAndThird[0]?.points;
-  const tiedForSecond = secondAndThird.filter(p => p.points === tiePoints);
-
-  if (tiedForSecond.length > 1) {
-    const resolved = await runTiebreaker(tiedForSecond, channel);
-    top3 = [top3[0], ...resolved]; // Keep 1st, replace rest
+  if (secondAndThird.length === 2 && secondAndThird[0].points === secondAndThird[1].points) {
+    const resolved = await runTiebreaker(secondAndThird, channel);
+    top3 = [top3[0], ...resolved];
   }
 
   top3.forEach((player, index) => {
@@ -1133,7 +1016,7 @@ async function showFinalPodium(channel, players) {
   });
 
   await channel.send({ embeds: [podiumEmbed] });
-  await wait(5000);
+  await wait(1500);
 }
 
 async function runTiebreaker(tiedPlayers, channel) {
@@ -1141,28 +1024,24 @@ async function runTiebreaker(tiedPlayers, channel) {
     const voteCounts = new Map(tiedPlayers.map(p => [p.id, 0]));
     const votedUsers = new Set();
 
-    const buttons = tiedPlayers.map((player, index) => {
-      return new ButtonBuilder()
+    const buttons = tiedPlayers.map((player) =>
+      new ButtonBuilder()
         .setCustomId(`vote_${player.id}`)
         .setLabel(player.username)
-        .setStyle(ButtonStyle.Primary);
-    });
+        .setStyle(ButtonStyle.Primary)
+    );
 
     const row = new ActionRowBuilder().addComponents(buttons);
 
     const voteEmbed = new EmbedBuilder()
-      .setTitle("🩸 FINAL TIEBREAKER VOTE 🩸")
+      .setTitle("🩸 TIEBREAKER VOTE (Placements 2 & 3) 🩸")
       .setDescription(
-        `Multiple players are tied.\n\n` +
-        `Vote to determine their final ranking.\nAll may vote — the charm will sort the rest.\n\n` +
+        `We have a tie for second/third.\nVote to decide the order.\n\n` +
         tiedPlayers.map(p => `• ${p.username}`).join('\n')
       )
       .setColor(0xff0033);
 
-    const voteMessage = await channel.send({
-      embeds: [voteEmbed],
-      components: [row]
-    });
+    const voteMessage = await channel.send({ embeds: [voteEmbed], components: [row] });
 
     const collector = voteMessage.createMessageComponentCollector({
       componentType: ComponentType.Button,
@@ -1170,17 +1049,9 @@ async function runTiebreaker(tiedPlayers, channel) {
     });
 
     collector.on('collect', async (interaction) => {
-      if (votedUsers.has(interaction.user.id)) {
-        await interaction.reply({ content: "You already voted!", flags: 64 });
-        return;
-      }
-
+      if (votedUsers.has(interaction.user.id)) return interaction.reply({ content: "You already voted!", flags: 64 });
       const votedId = interaction.customId.split('_')[1];
-      if (!voteCounts.has(votedId)) {
-        await interaction.reply({ content: "Invalid vote!", flags: 64 });
-        return;
-      }
-
+      if (!voteCounts.has(votedId)) return interaction.reply({ content: "Invalid vote!", flags: 64 });
       voteCounts.set(votedId, voteCounts.get(votedId) + 1);
       votedUsers.add(interaction.user.id);
       await interaction.reply({ content: "Vote counted!", flags: 64 });
@@ -1192,177 +1063,49 @@ async function runTiebreaker(tiedPlayers, channel) {
         const bVotes = voteCounts.get(b.id) || 0;
         return bVotes - aVotes;
       });
-
-      await channel.send("🗳️ Tiebreaker vote complete. The charm has decided.");
+      await channel.send("🗳️ Tiebreaker vote complete.");
       resolve(sortedTied);
     });
   });
 }
 
+// =======================
+// ℹ️ Utility Commands
+// =======================
 client.on('messageCreate', async (message) => {
   if (message.content === '!points') {
-    if (!activeGame || !activeGame.players) {
-      return message.reply('⚠️ No Gauntlet is currently running.');
-    }
-
+    if (!activeGame || !activeGame.players) return message.reply('⚠️ No Gauntlet is currently running.');
     const player = activeGame.players.get(message.author.id);
-    if (!player) {
-      return message.reply('💀 You haven’t interacted this round.');
-    }
-
+    if (!player) return message.reply('💀 You haven’t interacted this game.');
     return message.reply(`📊 You currently have **${player.points}** point${player.points === 1 ? '' : 's'}.`);
   }
 
-  if (message.content === '!lb') {
-    if (!activeGame || !activeGame.players) {
-      return message.reply('⚠️ No Gauntlet is currently running.');
-    }
+  if (message.content === '!lb' || message.content === '!leaderboard') {
+    if (!activeGame || !activeGame.players) return message.reply('⚠️ No Gauntlet is currently running.');
+    const sorted = [...activeGame.players.values()].sort((a, b) => b.points - a.points).slice(0, 15);
+    const list = sorted.map((p, i) => `**#${i + 1}** ${p.username} — **${p.points}** point${p.points === 1 ? '' : 's'}`).join('\n');
+    const embed = new EmbedBuilder().setTitle('🏆 Current Gauntlet Leaderboard').setDescription(list || 'No players currently tracked.').setColor(0x00ccff);
+    return message.channel.send({ embeds: [embed] });
+  }
 
-    const sorted = [...activeGame.players.values()]
-      .sort((a, b) => b.points - a.points)
-      .slice(0, 15);
-
-    const list = sorted.map((p, i) =>
-      `**#${i + 1}** ${p.username} — **${p.points}** point${p.points === 1 ? '' : 's'}`
-    ).join('\n');
-
-    const embed = new EmbedBuilder()
-      .setTitle('🏆 Current Gauntlet Leaderboard')
-      .setDescription(list || 'No players currently tracked.')
+  if (message.content === '!info') {
+    const infoEmbed = new EmbedBuilder()
+      .setTitle("📖 Welcome to The Gauntlet — Short Edition")
+      .setDescription(
+        "**6 streamlined rounds**:\n" +
+        "1) Mini-Game → Riddle\n" +
+        "2) Mini-Game → Riddle\n" +
+        "3) Labyrinth → Riddle → **Ugly Selector**\n" +
+        "4) Mini-Game → Riddle\n" +
+        "5) Risk It → Riddle\n" +
+        "6) Mini-Game → Riddle\n\n" +
+        "Then: **Tiebreaker if needed → Final Podium**\n\n" +
+        "Earn points from luck, brainpower, and chaos. Highest total wins."
+      )
       .setColor(0x00ccff);
-
-    message.channel.send({ embeds: [embed] });
-  }
-if (message.content === '!info') {
-  const infoEmbed = new EmbedBuilder()
-    .setTitle("📖 Welcome to The Gauntlet")
-    .setDescription(
-      "**The Gauntlet** is a 10-round Discord mini-game of chaos, riddles, and unpredictable rewards.\n\n" +
-      "**🔹 How it works:**\n" +
-      "• Each round includes a **mini-game** (random button choice) and a **riddle** challenge.\n" +
-      "• Mini-games are luck-based and reward or subtract points based on your fate.\n" +
-      "• Riddles test your brain — answer correctly for bonus points.\n" +
-      "• Watch for mid-game bonus events like the Charm's Bonus Wheel — react quickly to win extra points!\n" +
-      "• The goal is to earn the most points by the end. Top 3 are crowned in the Final Podium.\n\n" +
-      "**🎮 Game Commands:**\n" +
-      "`!points` — Check your current points during a game\n" +
-      "`!leaderboard` — View the top players in the current game\n" +
-      "`!info` — Shows this help message\n\n" +
-      "_Watch for chaos rounds, bonus events, and lore surprises. The charm is always watching._"
-    )
-    .setColor(0x00ccff);
-
-  await message.channel.send({ embeds: [infoEmbed] });
-}
-
-});
-client.on('messageCreate', async (message) => {
-  if (message.content === '!testgauntlet') {
-    // Restrict to authorized users only
-    if (!authorizedUsers.includes(message.author.id)) {
-      return message.reply("⛔ Only authorized users can run test mode.");
-    }
-
-    // Ensure no other Gauntlet is running
-    if (activeGame) {
-      return message.reply('⛔ A Gauntlet is already in progress.');
-    }
-
-    // Create 10 mock players
-    const mockPlayers = new Map();
-    for (let i = 1; i <= 10; i++) {
-      mockPlayers.set(`mock_${i}`, {
-        id: `mock_${i}`,
-        username: `MockPlayer${i}`,
-        points: 0,
-        isMock: true
-      });
-    }
-
-    // Set global activeGame state
-    activeGame = {
-      players: mockPlayers,
-      startTime: Date.now()
-    };
-
-    try {
-      await message.channel.send('🧪 Starting **Test Gauntlet** with 10 mock players...');
-      await runPointsGauntletSimulation(message.channel, mockPlayers);
-    } catch (err) {
-      console.error('❌ Error running test gauntlet:', err);
-      await message.channel.send('❌ Failed to run test gauntlet.');
-      activeGame = null;
-    }
+    return message.channel.send({ embeds: [infoEmbed] });
   }
 });
-
-// Simulation runner function
-async function runPointsGauntletSimulation(channel, mockPlayers) {
-  const playerMap = new Map(mockPlayers.map(p => [p.id, { ...p }])); // Deep clone to avoid mutation
-  let round = 1;
-let bonusSpinUsed = false;
-  const maxRounds = 10;
-  const usedIndices = new Set();
-
-  while (round <= maxRounds) {
-    // === ROUND INTRO ===
-    const roundIntro = new EmbedBuilder()
-      .setTitle(`🌪️ ROUND ${round}`)
-      .setDescription(`🌀 *The charm stirs once more...*`)
-      .setColor(0xaa00ff);
-    await channel.send({ embeds: [roundIntro] });
-    await wait(2000);
-
-    // === MINI-GAME SIMULATION ===
-    const outcomes = [1, 2, -1, -2].sort(() => 0.5 - Math.random());
-    for (const player of playerMap.values()) {
-      const result = outcomes[Math.floor(Math.random() * outcomes.length)];
-      player.points += result;
-    }
-    await channel.send(`🎮 Mock players completed mini-game. Round ${round} points have been applied.`);
-    await wait(2000);
-
-    // === RIDDLE SIMULATION ===
-    const availableRiddles = riddles
-      .map((r, i) => ({ ...r, index: i }))
-      .filter(r => !usedIndices.has(r.index));
-
-    if (availableRiddles.length === 0) {
-      await channel.send(`⚠️ No more riddles available. Ending early.`);
-      break;
-    }
-
-    const picked = availableRiddles[Math.floor(Math.random() * availableRiddles.length)];
-    usedIndices.add(picked.index);
-
-    const difficulty = picked.difficulty || 1;
-    const difficultyLabel = difficulty === 1 ? "EASY" : difficulty === 2 ? "MEDIUM" : "HARD";
-
-    await channel.send({
-      embeds: [
-        new EmbedBuilder()
-          .setTitle("🧠 RIDDLE CHALLENGE")
-          .setDescription(`_${picked.riddle}_\n\n🌀 Difficulty: **${difficultyLabel}** — Worth **+${difficulty}** point${difficulty > 1 ? 's' : ''}.`)
-          .setColor(0xff66cc)
-      ]
-    });
-
-    const shuffled = [...playerMap.values()].sort(() => 0.5 - Math.random());
-    const correctCount = Math.floor(playerMap.size * 0.4);
-    for (let i = 0; i < correctCount; i++) {
-      shuffled[i].points += difficulty;
-    }
-
-    await wait(1000);
-    await channel.send(`✅ ${correctCount} players got it right and gained **+${difficulty}** point${difficulty > 1 ? 's' : ''}.`);
-    await wait(2000);
-
-    round++;
-  }
-
-  // === FINAL SCORING ===
-  await showFinalScores(playerMap, channel);
-}
 
 // === On Bot Ready ===
 client.once('ready', () => {
