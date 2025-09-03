@@ -498,6 +498,132 @@ async function runMiniGamePoints(players, channel, roundLabel = "") {
   await wait(2000);
 }
 // =======================
+// 🎲 Squig Roulette (fixed rules: pick 1–6, match = +2, others 0)
+// =======================
+async function runSquigRouletteMini(players, channel, roundLabel = "ROUND 7 — Squig Roulette") {
+  const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ComponentType } = require('discord.js');
+
+  const title = `🎲 ${roundLabel}`;
+  const rules = [
+    "Pick a number **1–6** below.",
+    "I’ll roll a die at the end.",
+    "**Match = +2 points.** No match = 0.",
+  ].join('\n');
+
+  const embed = new EmbedBuilder()
+    .setTitle(title)
+    .setDescription(`${rules}\n\n⏳ You have **30 seconds** to decide.`)
+    .setColor(0x7f00ff);
+
+  // 6 buttons (two rows for neatness)
+  const row1 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('roulette_1').setLabel('1').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('roulette_2').setLabel('2').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('roulette_3').setLabel('3').setStyle(ButtonStyle.Secondary)
+  );
+  const row2 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('roulette_4').setLabel('4').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('roulette_5').setLabel('5').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('roulette_6').setLabel('6').setStyle(ButtonStyle.Secondary)
+  );
+
+  const msg = await channel.send({ embeds: [embed], components: [row1, row2] });
+
+  // Collect picks: userId -> number
+  const picks = new Map();
+  const clickedUsers = new Set();
+
+  const filter = (i) => i.message.id === msg.id && !i.user.bot;
+  const collector = msg.createMessageComponentCollector({
+    componentType: ComponentType.Button,
+    time: 30_000,
+    filter,
+  });
+
+  collector.on('collect', async (i) => {
+    try {
+      // allow updating pick; last click counts (nicer UX)
+      const choice = Number(i.customId.split('_')[1]);
+      if (!Number.isInteger(choice) || choice < 1 || choice > 6) {
+        return i.reply({ content: 'Invalid choice.', flags: 64 });
+      }
+      // ensure they exist on the scoreboard
+      if (!players.has(i.user.id)) {
+        players.set(i.user.id, { id: i.user.id, username: i.user.username || "Player", points: 0 });
+      }
+      picks.set(i.user.id, choice);
+      clickedUsers.add(i.user.id);
+      await i.reply({ content: `You picked **${choice}** 🎯`, flags: 64 });
+    } catch { /* noop */ }
+  });
+
+  // countdown alerts
+  setTimeout(() => channel.send("⏳ 20 seconds left…").catch(() => {}), 10_000);
+  setTimeout(() => channel.send("⏰ 10 seconds left…").catch(() => {}), 20_000);
+
+  await new Promise((res) => collector.on('end', res));
+
+  // Disable buttons
+  try {
+    const disable = (row) => new ActionRowBuilder().addComponents(row.components.map(b => ButtonBuilder.from(b).setDisabled(true)));
+    await msg.edit({ components: [disable(row1), disable(row2)] });
+  } catch {}
+
+  // If nobody picked, exit gracefully
+  if (picks.size === 0) {
+    await channel.send(`😴 No picks. The die rolls off the table and cracks in half.`);
+    return;
+  }
+
+  // Roll 1–6
+  const rolled = 1 + Math.floor(Math.random() * 6);
+
+  // Apply points (+2 for matches)
+  const winners = [];
+  for (const [uid, num] of picks.entries()) {
+    if (num === rolled) {
+      winners.push(uid);
+      const p = players.get(uid) || { id: uid, username: "Player", points: 0 };
+      p.points = (p.points || 0) + 2;
+      players.set(uid, p);
+    }
+  }
+
+  // Pretty results table
+  const nameOf = (uid) => {
+    const p = players.get(uid);
+    return p?.username ? p.username : `<@${uid}>`;
+  };
+  const byNum = new Map(); // num -> [names]
+  for (const [uid, num] of picks) {
+    const arr = byNum.get(num) || [];
+    arr.push(nameOf(uid));
+    byNum.set(num, arr);
+  }
+  const lines = [];
+  for (let n = 1; n <= 6; n++) {
+    const list = byNum.get(n) || [];
+    lines.push(`**${n}** — ${list.length ? list.join(', ') : '—'}`);
+  }
+
+  const summary = new EmbedBuilder()
+    .setTitle('🎲 Squig Roulette — Results')
+    .setDescription([
+      `Rolled: **${rolled}**`,
+      '',
+      '**Picks:**',
+      lines.join('\n'),
+      '',
+      winners.length ? `Winners (+2): ${winners.map(nameOf).join(', ')}` : 'No matches this time!',
+    ].join('\n'))
+    .setColor(0x7f00ff);
+
+  await channel.send({ embeds: [summary] });
+  await wait(1500);
+}
+
+
+// =======================
 // 🌀 Labyrinth (60s, +1 per correct step, +2 bonus for perfect)
 // =======================
 async function runLabyrinthAdventure(channel, playerMap) {
@@ -856,7 +982,8 @@ async function runRiskItPhase(channel, playerMap) {
 }
 
 // =======================
-// 🧱 New Short Flow Orchestrator
+// =======================
+// 🧱 New Short Flow Orchestrator (reordered)
 // =======================
 async function runPointsGauntlet_ShortFlow(channel) {
   const players = activeGame.players;
@@ -871,13 +998,14 @@ async function runPointsGauntlet_ShortFlow(channel) {
   await runRiddlePoints(players, channel);
   await wait(1500);
 
-  // Round 3: Labyrinth -> Riddle -> Mid-Game Break (Ugly Selector)
+  // Round 3: Labyrinth -> Riddle
   await channel.send("🌫️ The floor tilts… a hush falls over the Squigs.");
   await runLabyrinthAdventure(channel, players);
   await wait(1500);
   await runRiddlePoints(players, channel);
   await wait(1500);
 
+  // Ugly Selector — Mid Game Pause
   await channel.send({
     content: "⛔ **THE GAUNTLET PAUSES** ⛔",
     embeds: [
@@ -899,14 +1027,24 @@ async function runPointsGauntlet_ShortFlow(channel) {
   await runRiddlePoints(players, channel);
   await wait(1500);
 
-  // Round 5: Risk It -> Riddle
+  // Round 5: Squig Roulette (no riddle after this round per spec)
+  await channel.send("🎲 The Squigs demand a wager… **Squig Roulette!**");
+  await runSquigRouletteMini(players, channel, "ROUND 5 — Squig Roulette");
+  await wait(1500);
+
+  // Round 6: Mini-Game -> Riddle
+  await runMiniGamePoints(players, channel, "ROUND 6");
+  await runRiddlePoints(players, channel);
+  await wait(1500);
+
+  // Round 7: Risk It -> Riddle
   await channel.send("🪙 The charm leans in… a chance to **Risk It**.");
   await runRiskItPhase(channel, players);
   await runRiddlePoints(players, channel);
   await wait(1500);
 
-  // Round 6: Mini-Game -> Riddle
-  await runMiniGamePoints(players, channel, "ROUND 6");
+  // Round 9: Mini-Game -> Riddle 
+  await runMiniGamePoints(players, channel, "ROUND 8");
   await runRiddlePoints(players, channel);
   await wait(2000);
 
@@ -918,6 +1056,7 @@ async function runPointsGauntlet_ShortFlow(channel) {
   usedMiniGameIndices.clear();
   usedRiddleIndices.clear();
 }
+
 // =======================
 // 🏁 Scoring, Tiebreakers, Podium
 // =======================
