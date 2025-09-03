@@ -498,6 +498,128 @@ async function runMiniGamePoints(players, channel, roundLabel = "") {
   await wait(2000);
 }
 // =======================
+// 🤝 Trust or Doubt (majority Trust = Trusters +1, unless Squig lies → Trusters -1)
+// =======================
+async function runTrustOrDoubtMini(players, channel, roundLabel = "ROUND 9 — Trust or Doubt") {
+  const title = `🤝 ${roundLabel}`;
+  const desc = [
+    "Players click **Trust** or **Doubt**.",
+    "If **majority Trust**, those players gain **+1** —",
+    "👉 **unless the Squig lies this round**, then Trusters **-1** instead.",
+    "Everyone else: **0**.",
+    "⏳ You have **30 seconds**."
+  ].join("\n");
+
+  const prompt = new EmbedBuilder()
+    .setTitle(title)
+    .setDescription(desc)
+    .setColor(0x7f00ff);
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId("trust").setLabel("Trust").setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId("doubt").setLabel("Doubt").setStyle(ButtonStyle.Danger)
+  );
+
+  const msg = await channel.send({ embeds: [prompt], components: [row] });
+
+  // userId -> 'trust' | 'doubt'
+  const picks = new Map();
+
+  const collector = msg.createMessageComponentCollector({
+    componentType: ComponentType.Button,
+    time: 30_000
+  });
+
+  collector.on("collect", async (i) => {
+    if (i.user.bot) return;
+
+    // ensure on scoreboard
+    if (!players.has(i.user.id)) {
+      players.set(i.user.id, { id: i.user.id, username: i.user.username || "Player", points: 0 });
+    }
+
+    const choice = i.customId === "trust" ? "trust" : "doubt";
+    picks.set(i.user.id, choice);
+    await i.reply({ content: `Locked: **${choice === "trust" ? "Trust" : "Doubt"}**`, flags: 64 });
+  });
+
+  setTimeout(() => channel.send("⏳ 20 seconds left…").catch(() => {}), 10_000);
+  setTimeout(() => channel.send("⏰ 10 seconds left…").catch(() => {}), 20_000);
+
+  await new Promise((res) => collector.on("end", res));
+
+  // Disable buttons
+  try {
+    await msg.edit({
+      components: [
+        new ActionRowBuilder().addComponents(row.components.map(b => ButtonBuilder.from(b).setDisabled(true)))
+      ]
+    });
+  } catch {}
+
+  const trusters = [...picks.entries()].filter(([_, v]) => v === "trust").map(([uid]) => uid);
+  const doubters = [...picks.entries()].filter(([_, v]) => v === "doubt").map(([uid]) => uid);
+
+  const nT = trusters.length, nD = doubters.length, total = nT + nD;
+
+  if (total === 0) {
+    await channel.send("😴 No one chose. The Squig shrugs and eats a battery.");
+    return;
+  }
+
+  const majorityTrust = nT > nD;          // tie = no majority
+  const squigLies = Math.random() < 0.33; // ~33% lie chance
+
+  let deltaApplied = 0;
+  let resultLines = [];
+
+  if (majorityTrust) {
+    if (!squigLies) {
+      for (const uid of trusters) {
+        const p = players.get(uid); p.points = (p.points || 0) + 1;
+      }
+      deltaApplied = +1;
+      resultLines.push(`✅ Majority chose **Trust**. Squig told the truth. **Trusters +1**.`);
+    } else {
+      for (const uid of trusters) {
+        const p = players.get(uid); p.points = (p.points || 0) - 1;
+      }
+      deltaApplied = -1;
+      resultLines.push(`🌀 Majority chose **Trust**… but the Squig **lied**. **Trusters -1**.`);
+    }
+  } else {
+    resultLines.push(`🪵 No Trust majority (tie or Doubt). **No points change.**`);
+  }
+
+  const nameOf = (uid) => {
+    const p = players.get(uid);
+    return p?.username ? p.username : `<@${uid}>`;
+  };
+
+  const list = (arr) => {
+    if (arr.length === 0) return "—";
+    const names = arr.map(nameOf);
+    return names.length > 12 ? names.slice(0, 12).join(", ") + `, +${names.length - 12} more` : names.join(", ");
+  };
+
+  const results = new EmbedBuilder()
+    .setTitle("🤝 Trust or Doubt — Results")
+    .setColor(deltaApplied >= 0 ? 0x00c853 : 0xd50000)
+    .setDescription(
+      [
+        `**Trusters (${nT})**: ${list(trusters)}`,
+        `**Doubters (${nD})**: ${list(doubters)}`,
+        "",
+        `**Outcome:** ${resultLines.join(" ")}`
+      ].join("\n")
+    );
+
+  await channel.send({ embeds: [results] });
+  await wait(1500);
+}
+
+
+// =======================
 // 🎲 Squig Roulette (fixed rules: pick 1–6, match = +2, others 0)
 // =======================
 async function runSquigRouletteMini(players, channel, roundLabel = "ROUND 7 — Squig Roulette") {
@@ -982,8 +1104,7 @@ async function runRiskItPhase(channel, playerMap) {
 }
 
 // =======================
-// =======================
-// 🧱 New Short Flow Orchestrator (reordered)
+// 🧱 New Short Flow Orchestrator (10 rounds)
 // =======================
 async function runPointsGauntlet_ShortFlow(channel) {
   const players = activeGame.players;
@@ -1027,7 +1148,7 @@ async function runPointsGauntlet_ShortFlow(channel) {
   await runRiddlePoints(players, channel);
   await wait(1500);
 
-  // Round 5: Squig Roulette (no riddle after this round per spec)
+  // Round 5: Squig Roulette
   await channel.send("🎲 The Squigs demand a wager… **Squig Roulette!**");
   await runSquigRouletteMini(players, channel, "ROUND 5 — Squig Roulette");
   await wait(1500);
@@ -1043,8 +1164,17 @@ async function runPointsGauntlet_ShortFlow(channel) {
   await runRiddlePoints(players, channel);
   await wait(1500);
 
-  // Round 9: Mini-Game -> Riddle 
+  // Round 8: Mini-Game -> Riddle  (you changed wording from 9 → 8)
   await runMiniGamePoints(players, channel, "ROUND 8");
+  await runRiddlePoints(players, channel);
+  await wait(1500);
+
+  // Round 9: Trust or Doubt (majority trust mechanic)
+  await runTrustOrDoubtMini(players, channel, "ROUND 9 — Trust or Doubt");
+  await wait(1500);
+
+  // Round 10: Mini-Game -> Riddle
+  await runMiniGamePoints(players, channel, "ROUND 10");
   await runRiddlePoints(players, channel);
   await wait(2000);
 
@@ -1056,6 +1186,7 @@ async function runPointsGauntlet_ShortFlow(channel) {
   usedMiniGameIndices.clear();
   usedRiddleIndices.clear();
 }
+
 
 // =======================
 // 🏁 Scoring, Tiebreakers, Podium
@@ -1263,24 +1394,31 @@ client.on('messageCreate', async (message) => {
     return message.channel.send({ embeds: [embed] });
   }
 
-  if (message.content === '!info') {
-    const infoEmbed = new EmbedBuilder()
-      .setTitle("📖 Welcome to The Gauntlet — Short Edition")
-      .setDescription(
-        "**6 streamlined rounds**:\n" +
-        "1) Mini-Game → Riddle\n" +
-        "2) Mini-Game → Riddle\n" +
-        "3) Labyrinth → Riddle → **Ugly Selector**\n" +
-        "4) Mini-Game → Riddle\n" +
-        "5) Risk It → Riddle\n" +
-        "6) Mini-Game → Riddle\n\n" +
-        "Then: **Tiebreaker if needed → Final Podium**\n\n" +
-        "Earn points from luck, brainpower, and chaos. Highest total wins."
-      )
-      .setColor(0x00ccff);
-    return message.channel.send({ embeds: [infoEmbed] });
-  }
+if (message.content === '!info') {
+  const infoEmbed = new EmbedBuilder()
+    .setTitle("📖 Welcome to The Gauntlet — Full Edition")
+    .setDescription(
+      "**10 chaotic rounds**:\n" +
+      "1) Mini-Game → Riddle\n" +
+      "2) Mini-Game → Riddle\n" +
+      "3) Labyrinth → Riddle\n" +
+      "   ⏸ Mid-Game Pause: **Ugly Selector**\n" +
+      "4) Mini-Game → Riddle\n" +
+      "5) **Squig Roulette** (match the die = +2)\n" +
+      "6) Mini-Game → Riddle\n" +
+      "7) **Risk It** → Riddle\n" +
+      "8) Mini-Game → Riddle\n" +
+      "9) **Trust or Doubt** (majority Trust = +1, unless the Squig lies…)\n" +
+      "10) Mini-Game → Riddle\n\n" +
+      "Then: **Tiebreaker if needed → Final Podium**\n\n" +
+      "Earn points from luck, brainpower, and chaos. Highest total wins."
+    )
+    .setColor(0x00ccff);
+
+  return message.channel.send({ embeds: [infoEmbed] });
+}
 });
+
 
 // === On Bot Ready ===
 client.once('ready', () => {
