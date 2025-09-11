@@ -208,83 +208,71 @@ const pointFlavors = {
 // === Riddles ===
 const riddles = [
   // EASY (1)
-  { riddle: "I stretch when you yawn, hide when you sleep, and vanish when lights go out. What am I?", answers: ["shadow"], difficulty: 1 },
-  { riddle: "I live in your pocket but I’m not lint. I jingle when you move. What am I?", answers: ["coin", "coins", "change"], difficulty: 1 },
-  { riddle: "I’m cracked to be enjoyed, scrambled to be useful, and fried for fun. What am I?", answers: ["egg"], difficulty: 1 },
-  { riddle: "The more I dry you, the wetter I become. What am I?", answers: ["towel"], difficulty: 1 },
-  { riddle: "I have a neck but no head. What am I?", answers: ["bottle"], difficulty: 1 },
-  { riddle: "I fly but have no feathers, travel but never walk. What am I?", answers: ["time"], difficulty: 1 },
-  { riddle: "I have four wheels and carry loads, but I’m not a car. What am I?", answers: ["cart", "wagon"], difficulty: 1 },
-  { riddle: "You break me before you use me. What am I?", answers: ["egg"], difficulty: 1 },
-  { riddle: "I sit in the corner yet travel the world. What am I?", answers: ["stamp"], difficulty: 1 },
-  { riddle: "I’m soft when new, hard when old, and I help you write stories untold. What am I?", answers: ["pencil", "eraser"], difficulty: 1 },
-  { riddle: "I’m eaten before I’m born, and after I die. What am I?", answers: ["fish"], difficulty: 1 },
-  { riddle: "I have a tongue but no taste. What am I?", answers: ["shoe"], difficulty: 1 },
-  { riddle: "I hold houses, but I’m not a landlord. What am I?", answers: ["key", "keys"], difficulty: 1 },
-  { riddle: "I’m alive without breath, cold as death, and never thirsty. What am I?", answers: ["fish"], difficulty: 1 },
-  { riddle: "The more you eat of me, the bigger I grow. What am I?", answers: ["hole"], difficulty: 1 },
-  { riddle: "I hop on one leg and never stop, even on mountains. What am I?", answers: ["wheel"], difficulty: 1 },
-  { riddle: "I start empty but grow with every meal. What am I?", answers: ["stomach", "belly"], difficulty: 1 },
-  { riddle: "I’m carried everywhere but never move myself. What am I?", answers: ["name"], difficulty: 1 },
-  { riddle: "I go up but never down. What am I?", answers: ["age"], difficulty: 1 },
-  { riddle: "The more I’m shared, the less I’m kept. What am I?", answers: ["secret"], difficulty: 1 },
+  { riddle: "I have keys but no locks, a space but no room, and you can enter but not go inside. What am I?", answers: ["keyboard"], difficulty: 1 },
+  { riddle: "I have rings and grow in forests. What am I?", answers: ["tree"], difficulty: 1 },
+  { riddle: "I answer by repeating you, but I never speak first. What am I?", answers: ["echo"], difficulty: 1 },
+  { riddle: "You can hold me without touching me. Let me go and I return on my own. What am I?", answers: ["breath"], difficulty: 1 },
+  { riddle: "I show you yourself but I’m not a photo. What am I?", answers: ["mirror"], difficulty: 1 },
+  { riddle: "I drink what you pour, then give it back when I’m squeezed. What am I?", answers: ["sponge"], difficulty: 1 },
+  { riddle: "I have roads and borders but no cars or people. What am I?", answers: ["map"], difficulty: 1 },
+  { riddle: "I melt in warmth and harden in cold, and I float when I’m solid. What am I?", answers: ["ice"], difficulty: 1 },
+  { riddle: "I rest your head but never sleep. What am I?", answers: ["pillow"], difficulty: 1 },
+  { riddle: "I have teeth but never eat. What am I?", answers: ["comb"], difficulty: 1 },
+  { riddle: "I have steps but no legs, and I help you change floors. What am I?", answers: ["staircase", "stairs"], difficulty: 1 },
+  { riddle: "I appear after rain and fade in bright light. What am I?", answers: ["rainbow"], difficulty: 1 },
+  { riddle: "Seal me with a lick and send me away. What am I?", answers: ["envelope"], difficulty: 1 },
+  { riddle: "I cross water without getting wet. What am I?", answers: ["bridge"], difficulty: 1 },
+  { riddle: "I change the channel but never watch. What am I?", answers: ["remote", "remote control"], difficulty: 1 },
+  { riddle: "I move up and down all day but never walk. What am I?", answers: ["elevator", "lift"], difficulty: 1 },
+  { riddle: "I go up when the rain comes down. What am I?", answers: ["umbrella"], difficulty: 1 },
+  { riddle: "I have a neck and a spout, and I pour without a mouth. What am I?", answers: ["teapot", "kettle", "beer"], difficulty: 1 },
+  { riddle: "I can be cracked, made, told, and played. What am I?", answers: ["joke"], difficulty: 1 },
 
   // MEDIUM (2)
-  { riddle: "I eat but never swallow, breathe but never sigh. What am I?", answers: ["fire"], difficulty: 2 },
-  { riddle: "The more you take me, the more you leave behind. What am I?", answers: ["footsteps"], difficulty: 2 },
-  { riddle: "I run but have no legs, roar without a mouth, and crash without anger. What am I?", answers: ["wave", "ocean", "sea"], difficulty: 2 },
-  { riddle: "I rise but never fall, set but never climb. What am I?", answers: ["curtain", "sun"], difficulty: 2 },
-  { riddle: "I follow you day and night, but vanish at midnight. What am I?", answers: ["shadow"], difficulty: 2 },
-  { riddle: "I am taken before you use me, and thrown away after. What am I?", answers: ["match"], difficulty: 2 },
-  { riddle: "I’m in your body but I don’t belong, I move when you walk and hum when you’re still. What am I?", answers: ["heart", "heartbeat"], difficulty: 2 },
-  { riddle: "I’m the beginning of eternity and the end of space. What am I?", answers: ["e"], difficulty: 2 },
-  { riddle: "The more you pull from me, the longer I get. What am I?", answers: ["thread", "yarn"], difficulty: 2 },
-  { riddle: "I have no hands, but I strike. What am I?", answers: ["clock"], difficulty: 2 },
-  { riddle: "I’m older than time but always new. What am I?", answers: ["star", "stars"], difficulty: 2 },
-  { riddle: "I hide but I’m always here. Lose me and you disappear. What am I?", answers: ["soul"], difficulty: 2 },
-  { riddle: "I build castles, yet crumble them too. What am I?", answers: ["sand"], difficulty: 2 },
-  { riddle: "I’m a window to the world, but I’m not glass. What am I?", answers: ["eye", "eyes"], difficulty: 2 },
-  { riddle: "I run without moving, sing without a voice, and shine without light. What am I?", answers: ["stream", "river"], difficulty: 2 },
-  { riddle: "I move faster when I’m thin, slower when I’m fat. What am I?", answers: ["candle", "hourglass"], difficulty: 2 },
-  { riddle: "I touch the sky but live in the ground. What am I?", answers: ["tree"], difficulty: 2 },
-  { riddle: "I’m the bed no one sleeps in, with sheets no one touches. What am I?", answers: ["riverbed"], difficulty: 2 },
-  { riddle: "I’m always hungry but never eat food. What am I?", answers: ["fire"], difficulty: 2 },
-  { riddle: "I exist only in the present. Lose me and I’m gone. What am I?", answers: ["moment"], difficulty: 2 },
+  { riddle: "I fly without wings and cry without eyes. What am I?", answers: ["cloud"], difficulty: 2 },
+  { riddle: "I’m often answered but never ask a question. What am I?", answers: ["phone", "telephone"], difficulty: 2 },
+  { riddle: "I run through cities and fields but never move. What am I?", answers: ["road"], difficulty: 2 },
+  { riddle: "I grow without being watered, and I shrink when you wash me. What am I?", answers: ["stain"], difficulty: 2 },
+  { riddle: "I am full of holes and still hold water. What am I?", answers: ["sponge"], difficulty: 2 },
+  { riddle: "I have a bed but never sleep and a mouth but never eat. What am I?", answers: ["river"], difficulty: 2 },
+  { riddle: "I have a head and a tail but no body. What am I?", answers: ["coin"], difficulty: 2 },
+  { riddle: "I cut through paper but I’m not sharp without my twin. What am I?", answers: ["scissors"], difficulty: 2 },
+  { riddle: "I’m taken before you see me and kept to remember you saw me. What am I?", answers: ["photo", "photograph", "picture"], difficulty: 2 },
+  { riddle: "I vanish when you know me. What am I?", answers: ["surprise"], difficulty: 2 },
+  { riddle: "I’m carried by the smallest breeze but can pull down the tallest tree. What am I?", answers: ["firestorm", "wildfire", "fire"], difficulty: 2 },
+  { riddle: "I’m bought for eating but never eaten. What am I?", answers: ["plate", "dishes"], difficulty: 2 },
+  { riddle: "I go in dry and come out wet, and the longer I’m in, the stronger I get. What am I?", answers: ["tea bag", "teabag", "tea"], difficulty: 2 },
+  { riddle: "I’m a 'room' you can't enter. What am I?", answers: ["mushroom"], difficulty: 2 },
+  { riddle: "You can throw me away, but you will never lose me. What am I?", answers: ["trash", "rubbish", "garbage"], difficulty: 2 },
 
   // HARD (3)
-  { riddle: "I’m found in silence, lost in noise. What am I?", answers: ["thought"], difficulty: 3 },
-  { riddle: "I vanish the moment I’m spoken, but I’m not silence. What am I?", answers: ["secret"], difficulty: 3 },
-  { riddle: "I am the twin of truth, but never real. What am I?", answers: ["lie"], difficulty: 3 },
-  { riddle: "I grow without roots, move without legs, and die without wounds. What am I?", answers: ["idea"], difficulty: 3 },
-  { riddle: "I’m the cage of the wise, the prison of the brave. What am I?", answers: ["fear"], difficulty: 3 },
-  { riddle: "I am born in fire, shaped by hands, and broken with a whisper. What am I?", answers: ["glass"], difficulty: 3 },
-  { riddle: "I exist only when forgotten. What am I?", answers: ["dream"], difficulty: 3 },
-  { riddle: "I’m heavier than a mountain yet lighter than a feather. What am I?", answers: ["nothing"], difficulty: 3 },
-  { riddle: "I can’t be seen, can’t be touched, yet I decide your fate. What am I?", answers: ["time"], difficulty: 3 },
-  { riddle: "I’m taken without theft, given without thanks. What am I?", answers: ["advice"], difficulty: 3 },
-  { riddle: "I’m the question behind every answer. What am I?", answers: ["why"], difficulty: 3 },
-  { riddle: "I have no mouth, yet I teach. What am I?", answers: ["book"], difficulty: 3 },
-  { riddle: "I stand tall but vanish in the dark. What am I?", answers: ["shadow"], difficulty: 3 },
-  { riddle: "I break with the weight of nothing. What am I?", answers: ["promise"], difficulty: 3 },
-  { riddle: "I’m carried in silence, but roar when revealed. What am I?", answers: ["truth"], difficulty: 3 },
-  { riddle: "I eat memories, yet I’m never full. What am I?", answers: ["time", "forgetfulness"], difficulty: 3 },
-  { riddle: "I am the twin of chance, but not luck. What am I?", answers: ["risk"], difficulty: 3 },
-  { riddle: "I exist between thought and speech. What am I?", answers: ["pause"], difficulty: 3 },
-  { riddle: "I’m the shadow of possibility that never arrives. What am I?", answers: ["regret"], difficulty: 3 },
-  { riddle: "I am everything and nothing at once. What am I?", answers: ["paradox"], difficulty: 3 },
+  { riddle: "I begin where knowledge ends and end where knowledge begins. What am I?", answers: ["ignorance"], difficulty: 3 },
+  { riddle: "I exist when believed and vanish when proven. What am I?", answers: ["myth"], difficulty: 3 },
+  { riddle: "I bind kings and beggars alike, yet I am only words. What am I?", answers: ["oath", "promise"], difficulty: 3 },
+  { riddle: "I am the first step of every journey but never leave the ground. What am I?", answers: ["decision", "choice"], difficulty: 3 },
+  { riddle: "I am earned by doubt and lost by certainty. What am I?", answers: ["curiosity"], difficulty: 3 },
+  { riddle: "I’m a question that survives every answer. What am I?", answers: ["why"], difficulty: 3 },
+  { riddle: "I make the tallest walls invisible. What am I?", answers: ["perspective"], difficulty: 3 },
+  { riddle: "I am the weight carried by those who cannot forget. What am I?", answers: ["guilt", "regret"], difficulty: 3 },
+  { riddle: "I am the only battle you lose by refusing to fight. What am I?", answers: ["change"], difficulty: 3 },
+  { riddle: "I am the distance between what you said and what I heard. What am I?", answers: ["misunderstanding"], difficulty: 3 },
+  { riddle: "I vanish the moment I arrive. What am I?", answers: ["future", "tomorrow"], difficulty: 3 },
+  { riddle: "I am the echo of choices you didn’t make. What am I?", answers: ["regret"], difficulty: 3 },
+  { riddle: "I begin with hope and end with proof. What am I?", answers: ["experiment"], difficulty: 3 },
+  { riddle: "I am the step between thought and action where time passes by. What am I?", answers: ["hesitation"], difficulty: 3 },
 
-  // === Add Squig Special (4 points) ===
-{ riddle: "A Squig watches you through the wrong end of a telescope. What color is its laughter?", answers: ["green", "purple"], difficulty: 4 },
-{ riddle: "The Squigs once tried pizza. Which topping made them weep with joy?", answers: ["pineapple"], difficulty: 4 },
-{ riddle: "When Squigs count to three, what number do they skip?", answers: ["two", "2"], difficulty: 4 },
-{ riddle: "A portal opens in Ugly Labs. Which snack bribes it shut?", answers: ["donut", "doughnut"], difficulty: 4 },
-{ riddle: "What’s the Squigs’ favorite weather phenomenon?", answers: ["fog"], difficulty: 4 },
-{ riddle: "When a Squig is scared, what part of its body squeaks?", answers: ["nose"], difficulty: 4 },
-{ riddle: "Squigs built a throne out of something useless. What was it?", answers: ["spoons"], difficulty: 4 },
-{ riddle: "Squigs write poems to what object every Tuesday?", answers: ["lamp"], difficulty: 4 },
-{ riddle: "What fruit do Squigs believe controls gravity?", answers: ["banana"], difficulty: 4 },
-{ riddle: "The Squigs voted on a national anthem. What sound won?", answers: ["static"], difficulty: 4 },
+  // === Squig Special (4 points) ===
+  { riddle: "A Squig signs its name with a smear. What color is the smear on a lucky day?", answers: ["pink", "green", "ugly"], difficulty: 4 },
+  { riddle: "The portal hiccups at lunch. Which snack calms it down?", answers: ["pickle", "ugly"], difficulty: 4 },
+  { riddle: "A Squig collects useless trophies. Which one is the champion?", answers: ["spoon", "ugly"], difficulty: 4 },
+  { riddle: "The charm asks for weather. What forecast makes Squigs cheer?", answers: ["fog", "rain"], difficulty: 4 },
+  { riddle: "When a Squig tells a secret, what part squeaks?", answers: ["nose"], difficulty: 4 },
+  { riddle: "A vending machine in Ugly Labs only dispenses one thing that isn’t food. What is it?", answers: ["charm"], difficulty: 4 },
+  { riddle: "On Tuesdays, Squigs write poems to an object. Which one?", answers: ["portal", "uglypot"], difficulty: 4 },
+  { riddle: "Gravity misbehaves in the lab. Which fruit do Squigs blame?", answers: ["banana", "tomato"], difficulty: 4 },
+  { riddle: "The intercom crackles to life. What single word makes every Squig salute?", answers: ["ugly"], difficulty: 4 },
 ];
+
 
 // === Command to start Gauntlet ===
 client.on('messageCreate', async (message) => {
@@ -500,7 +488,7 @@ async function runMiniGamePoints(players, channel, roundLabel = "") {
 // =======================
 // 🤝 Trust or Doubt (majority Trust = Trusters +1, unless Squig lies → Trusters -1)
 // =======================
-async function runTrustOrDoubtMini(players, channel, roundLabel = "ROUND 9 — Trust or Doubt") {
+async function runTrustOrDoubtMini(players, channel, roundLabel = "ROUND 7 — Trust or Doubt") {
   const title = `🤝 ${roundLabel}`;
   const desc = [
     "Players click **Trust** or **Doubt**.",
@@ -513,7 +501,9 @@ async function runTrustOrDoubtMini(players, channel, roundLabel = "ROUND 9 — T
   const prompt = new EmbedBuilder()
     .setTitle(title)
     .setDescription(desc)
-    .setColor(0x7f00ff);
+    .setColor(0x7f00ff)
+    .setImage("https://i.imgur.com/KixyMtH.png");
+
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId("trust").setLabel("Trust").setStyle(ButtonStyle.Success),
@@ -632,10 +622,11 @@ async function runSquigRouletteMini(players, channel, roundLabel = "ROUND 7 — 
     "**Match = +2 points.** No match = 0.",
   ].join('\n');
 
-  const embed = new EmbedBuilder()
-    .setTitle(title)
-    .setDescription(`${rules}\n\n⏳ You have **30 seconds** to decide.`)
-    .setColor(0x7f00ff);
+const embed = new EmbedBuilder()
+  .setTitle(`${roundLabel}`)
+  .setDescription(`${rules}\n\n⏳ You have **30 seconds** to decide.`)
+  .setColor(0x7f00ff)
+  .setImage("https://i.imgur.com/BolGW1m.png");
 
   // 6 buttons (two rows for neatness)
   const row1 = new ActionRowBuilder().addComponents(
@@ -1010,7 +1001,8 @@ async function runRiskItPhase(channel, playerMap) {
       "⏳ You have **20 seconds** to decide."
     )
     .setColor(0xffaa00)
-    .setImage(getUglyImageUrl());
+    .setImage("https://i.imgur.com/GHztzMk.png");
+
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId("risk_all").setLabel("Risk All").setStyle(ButtonStyle.Danger),
@@ -1158,20 +1150,21 @@ async function runPointsGauntlet_ShortFlow(channel) {
   await runRiddlePoints(players, channel);
   await wait(1500);
 
-  // Round 7: Risk It -> Riddle
-  await channel.send("🪙 The charm leans in… a chance to **Risk It**.");
-  await runRiskItPhase(channel, players);
-  await runRiddlePoints(players, channel);
-  await wait(1500);
+// Round 7: Trust or Doubt (majority trust mechanic)
+await runTrustOrDoubtMini(players, channel, "ROUND 7 — Trust or Doubt");
+await wait(1500);
 
   // Round 8: Mini-Game -> Riddle  (you changed wording from 9 → 8)
   await runMiniGamePoints(players, channel, "ROUND 8");
   await runRiddlePoints(players, channel);
   await wait(1500);
 
-  // Round 9: Trust or Doubt (majority trust mechanic)
-  await runTrustOrDoubtMini(players, channel, "ROUND 9 — Trust or Doubt");
-  await wait(1500);
+// Round 9: Risk It -> Riddle
+await channel.send("🪙 The charm leans in… a chance to **Risk It**.");
+await runRiskItPhase(channel, players);
+await runRiddlePoints(players, channel);
+await wait(1500);
+
 
   // Round 10: Mini-Game -> Riddle
   await runMiniGamePoints(players, channel, "ROUND 10");
@@ -1406,10 +1399,11 @@ if (message.content === '!info') {
       "4) Mini-Game → Riddle\n" +
       "5) **Squig Roulette** (match the die = +2)\n" +
       "6) Mini-Game → Riddle\n" +
-      "7) **Risk It** → Riddle\n" +
+      "7) **Trust or Doubt** (majority Trust = +1, unless the Squig lies…)\n" +
       "8) Mini-Game → Riddle\n" +
-      "9) **Trust or Doubt** (majority Trust = +1, unless the Squig lies…)\n" +
+      "9) **Risk It** → Riddle\n" +
       "10) Mini-Game → Riddle\n\n" +
+
       "Then: **Tiebreaker if needed → Final Podium**\n\n" +
       "Earn points from luck, brainpower, and chaos. Highest total wins."
     )
