@@ -1412,7 +1412,7 @@ if (message.content === '!info') {
 
 
 // === On Bot Ready ===
-client.once('ready', () => {
+client.once('clientReady', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
