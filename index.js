@@ -139,7 +139,31 @@ const miniGameLorePool = [
     lore: "You step into a dusty hall lined with warped mirrors. A Squig stands behind you, but in the glass, it’s wearing your face. Each mirror shows a different version of you — taller, shorter, missing, or… smiling too wide. The Squig taps the glass and says, 'Pick one. Quickly.'",
     buttons: ["Tall You", "Small You", "No You", "Too Many Teeth"],
     image: "https://i.imgur.com/xc6aIXP.jpeg"
-  }
+  },
+  {
+  title: "🪁 Ugly Monster Windstorm",
+  lore: "The Monster charges in holding a giant kite made of trash bags and noodles. The wind rips it free, sending debris everywhere. You can only grab one thing before it’s gone forever.",
+  buttons: ["Flying Shoe", "Noodle Kite", "Crumpled Note", "Monster's Wig"],
+  image: "https://i.imgur.com/zCvzLBj.jpeg"
+},
+{
+  title: "🎨 Ugly Monster Art Class",
+  lore: "The Monster sets up easels, splashing paint on the floor and occasionally on Squigs. It insists you “make art,” but the supplies are… unusual.",
+  buttons: ["Crayon Stub", "Mud Brush", "Glitter Bomb", "Soggy Canvas"],
+  image: "https://i.imgur.com/5GrVfwD.jpeg"
+},
+{
+  title: "🚀 Ugly Monster Space Trip",
+  lore: "The Monster unveils a cardboard rocket, duct-taped together and leaking slime. It waves for you to choose a seat. Some look comfy, others… less so.",
+  buttons: ["Pilot Seat", "Middle Seat", "Cargo Hold", "Roof Seat"],
+  image: "https://i.imgur.com/4kGMixf.jpeg"
+},
+  {
+  title: "🍉 Ugly Monster Picnic",
+  lore: "The Monster flops onto a checkered blanket, unpacking a basket of questionable snacks: pickle cupcakes, spaghetti milkshakes, and glowing fruit that hums. It waves at you to dig in. Some bites might be sweet, some sour, and one may never leave your stomach. The Squigs are already drooling.",
+  buttons: ["Glowing Fruit", "Pickle Cupcake", "Spaghetti Milkshake", "Mystery Sandwich"],
+  image: "https://i.imgur.com/jFnYqcm.jpeg"
+}
 ];
 
 const miniGameFateDescriptions = [
