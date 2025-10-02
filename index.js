@@ -10,7 +10,6 @@ const {
   ButtonStyle,
   EmbedBuilder,
   ComponentType,
-  InteractionCollector,
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
@@ -20,7 +19,6 @@ const {
   Routes
 } = require('discord.js');
 
-const { randomUUID } = require('crypto');
 const { Pool } = require('pg');
 
 // ====== ENV ======
@@ -114,6 +112,14 @@ class PgStore {
   async getLbMessages(month){
     const r = await this.pool.query(`SELECT guild_id, channel_id, message_id FROM gauntlet_lb_messages WHERE month=$1`,[month]);
     return r.rows;
+  }
+  async getMyMonth(userId, month){
+    const r = await this.pool.query(`
+      SELECT COALESCE(MAX(score),0) AS best, COALESCE(SUM(score),0) AS total, COUNT(*) AS plays
+      FROM gauntlet_runs
+      WHERE user_id=$1 AND month=$2
+    `,[userId, month]);
+    return r.rows[0] || { best:0, total:0, plays:0 };
   }
 }
 
@@ -406,24 +412,24 @@ const riddles = [
 ];
 
 // ====== PER-SESSION PICKERS ======
-function pickRiddle(usedSet){
+const pickRiddle = (usedSet)=>{
   const d = rand([1,2,3,4]);
   const pool = riddles.map((r,i)=>({...r,index:i})).filter(r=>r.difficulty===d && !usedSet.has(r.index));
   const avail = pool.length? pool : riddles.map((r,i)=>({...r,index:i})).filter(r=>!usedSet.has(r.index));
-  if(!avail.length) return null; const chosen = rand(avail); usedSet.add(chosen.index); return chosen;
-}
-function pickMiniGame(usedSet){
+  if(!avail.length) return null;
+  const chosen = rand(avail); usedSet.add(chosen.index); return chosen;
+};
+const pickMiniGame = (usedSet)=>{
   const avail = miniGameLorePool.map((g,i)=>({...g,index:i})).filter(g=>!usedSet.has(g.index));
   if(!avail.length){ usedSet.clear(); return pickMiniGame(usedSet); }
   const chosen = rand(avail); usedSet.add(chosen.index); return chosen;
-}
+};
 
 // ====== EPHEMERAL HELPERS ======
 async function sendEphemeral(interaction, payload){
   if (interaction.deferred || interaction.replied) return interaction.followUp({ ...payload, ephemeral:true });
   return interaction.reply({ ...payload, ephemeral:true });
 }
-
 async function ephemeralPrompt(interaction, embed, components, timeMs){
   const msg = await sendEphemeral(interaction, { embeds:[embed], components });
   const replyMsg = msg instanceof Promise ? await msg : msg;
@@ -520,7 +526,7 @@ async function runRouletteEphemeral(interaction, player){
   const m = msg instanceof Promise ? await msg : msg;
   const click = await m.awaitMessageComponent({ componentType: ComponentType.Button, time: 30_000 }).catch(()=>null);
   try {
-    const disable = (row)=> new ActionRowBuilder().addComponents(row.components.map(b=>ButtonBuilder.from(b).setDisabled(true)));
+    const disable = (row)=> new ActionRowBuilder().addComponents(row.components.map(b=> ButtonBuilder.from(b).setDisabled(true)));
     await m.edit({ components:[disable(row1), disable(row2)] });
   } catch {}
   if(!click){ await sendEphemeral(interaction, { content:'😴 No pick. The die rolls away.'}); return; }
@@ -554,36 +560,106 @@ async function runRiskItEphemeral(interaction, player){
   await click.reply({ content:`${label} → ${out.label}. **${delta>0?'+':''}${delta}**. New total: **${player.points}**`, ephemeral:true });
 }
 
-// ====== SOLO ORCHESTRATOR (6 rounds, ephemeral in this channel) ======
+// ====== INTERLUDES (to keep the “Gauntlet vibe”) ======
+async function runUglySelectorEphemeral(interaction, player){
+  const embed = new EmbedBuilder()
+    .setTitle("🎯 The Squig’s Ugly Selector Activates!")
+    .setDescription("Click **Tempt Fate** within **15 seconds**.\nOne lucky outcome grants **+3 points**. Otherwise… nothing happens, probably.")
+    .setColor(0xff77ff);
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId("ugly:tempt").setLabel("Tempt Fate").setStyle(ButtonStyle.Primary)
+  );
+
+  const click = await ephemeralPrompt(interaction, embed, [row], 15_000);
+  if(!click){ await sendEphemeral(interaction, { content:"🌀 You hesitated. The charm spins away." }); return; }
+
+  const win = Math.random() < 0.5; // 50/50 chaos
+  if (win){ player.points += 3; await click.reply({ content:"🎉 The charm approves: **+3** bonus points!", ephemeral:true }); }
+  else { await click.reply({ content:"😶 The charm yawns. No change.", ephemeral:true }); }
+}
+
+async function runTrustOrDoubtEphemeral(interaction, player){
+  const embed = new EmbedBuilder()
+    .setTitle("🤝 Trust or Doubt")
+    .setDescription([
+      "Pick **Trust** or **Doubt**.",
+      "If you **Trust**: **+1** — **unless the Squig lies**, then **-1**.",
+      "If you **Doubt**: **0**.",
+      "⏳ **30 seconds**."
+    ].join("\n"))
+    .setColor(0x7f00ff);
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId("tod:trust").setLabel("Trust").setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId("tod:doubt").setLabel("Doubt").setStyle(ButtonStyle.Danger)
+  );
+
+  const click = await ephemeralPrompt(interaction, embed, [row], 30_000);
+  if(!click){ await sendEphemeral(interaction, { content:"⏳ No choice — nothing changes." }); return; }
+
+  if (click.customId === "tod:trust"){
+    const squigLies = Math.random() < 0.33; // ~33% lie chance
+    const delta = squigLies ? -1 : +1;
+    player.points += delta;
+    await click.reply({ content: squigLies ? "🌀 The Squig **lied**. **-1**." : "✅ The Squig told the truth. **+1**.", ephemeral:true });
+  } else {
+    await click.reply({ content:"🪵 You Doubt. **0**.", ephemeral:true });
+  }
+}
+
+// ====== SOLO ORCHESTRATOR (6 rounds + 2 interludes, all ephemeral) ======
 async function runSoloGauntletEphemeral(interaction){
   const player = { id: interaction.user.id, username: interaction.user.username || interaction.user.globalName || 'Player', points: 0 };
   const usedRiddle = new Set(); const usedMini = new Set();
-  await sendEphemeral(interaction, { embeds:[ new EmbedBuilder().setTitle('⚔️ The Gauntlet — Solo Mode').setDescription('6 rounds. Brain, luck, chaos. Good luck!').setColor(0x00ccff) ] });
 
-  // 1. MiniGame + Riddle
+  await sendEphemeral(interaction, { embeds:[ new EmbedBuilder()
+    .setTitle('⚔️ The Gauntlet — Solo Mode')
+    .setDescription('6 rounds. Brain, luck, chaos. Good luck!')
+    .setColor(0x00ccff) ] });
+
+  // 1) Mini + Riddle
   await runMiniGameEphemeral(interaction, player, usedMini);
   await runRiddleEphemeral(interaction, player, usedRiddle);
 
-  // 2. The Labyrinth
+  // 2) Labyrinth
   await runLabyrinthEphemeral(interaction, player);
 
-  // 3. MiniGame + Riddle
+  // Interlude A — Ugly Selector
+  await runUglySelectorEphemeral(interaction, player);
+
+  // 3) Mini + Riddle
   await runMiniGameEphemeral(interaction, player, usedMini);
   await runRiddleEphemeral(interaction, player, usedRiddle);
 
-  // 4. Squig Roulette
+  // 4) Squig Roulette
   await runRouletteEphemeral(interaction, player);
 
-  // 5. MiniGame + Riddle
+  // 5) Mini + Riddle
   await runMiniGameEphemeral(interaction, player, usedMini);
   await runRiddleEphemeral(interaction, player, usedRiddle);
 
-  // 6. Risk It
+  // Interlude B — Trust or Doubt
+  await runTrustOrDoubtEphemeral(interaction, player);
+
+  // 6) Risk It
   await runRiskItEphemeral(interaction, player);
 
   // Final + persist & refresh LB
   const final = player.points;
-  await sendEphemeral(interaction, { embeds:[ new EmbedBuilder().setTitle('🏁 Your Final Score').setDescription(`**${final}** point${final===1?'':'s'}`).setColor(0x00ff88) ] });
+  const flavor = final >= 12
+    ? "👑 The charm purrs. You wear the static like a crown."
+    : final >= 6
+      ? "💫 The Squigs nod in approval. You’ll be remembered by at least three of them."
+      : final >= 0
+        ? "🪵 You survived the weird. The weird survived you."
+        : "💀 The void learned your name. It may return it later.";
+
+  await sendEphemeral(interaction, { embeds:[ new EmbedBuilder()
+    .setTitle('🏁 Your Final Score')
+    .setDescription(`**${final}** point${final===1?'':'s'}\n\n_${flavor}_`)
+    .setColor(0x00ff88) ] });
+
   const month = currentMonthStr();
   await Store.insertRun(interaction.user.id, player.username, month, final);
   await Store.recordPlay(interaction.user.id, torontoDateStr());
@@ -594,11 +670,13 @@ async function runSoloGauntletEphemeral(interaction){
 // ====== LEADERBOARD RENDER/UPDATE ======
 async function renderLeaderboardEmbed(month){
   const rows = await Store.getMonthlyTop(month, 10);
-  const lines = rows.length ? rows.map((r,i)=> `**#${i+1}** ${r.username || `<@${r.user_id}>`} — **${r.best}**`).join('\n') : 'No runs yet.';
+  const lines = rows.length
+    ? rows.map((r,i)=> `**#${i+1}** ${r.username || `<@${r.user_id}>`} — **${r.best}**`).join('\n')
+    : 'No runs yet.';
   return new EmbedBuilder()
     .setTitle(`🏆 Leaderboard — ${month}`)
     .setDescription(lines)
-    .setFooter({ text: 'Ranked by highest single-game score, ties broken by total monthly points.' })
+    .setFooter({ text: 'Ranked by highest single-game score; ties broken by total monthly points.' })
     .setColor(0x00ccff);
 }
 async function updateAllLeaderboards(client, month){
@@ -621,7 +699,9 @@ async function registerCommands(){
     new SlashCommandBuilder().setName('gauntletlb').setDescription('Show the monthly leaderboard (best score per user, totals tie-break).')
       .addStringOption(o=> o.setName('month').setDescription('YYYY-MM (default: current)').setRequired(false)),
     new SlashCommandBuilder().setName('gauntletrecent').setDescription('Show recent runs this month')
-      .addIntegerOption(o=> o.setName('limit').setDescription('How many (default 10)').setRequired(false))
+      .addIntegerOption(o=> o.setName('limit').setDescription('How many (default 10)').setRequired(false)),
+    new SlashCommandBuilder().setName('gauntletinfo').setDescription('How Solo Gauntlet works (rounds & rules).'),
+    new SlashCommandBuilder().setName('mygauntlet').setDescription('Your current-month stats (best, total, plays).')
   ].map(c=>c.toJSON());
   const rest = new REST({ version:'10' }).setToken(TOKEN);
   if(GUILD_IDS.length){
@@ -634,14 +714,17 @@ function startPanelEmbed(){
     .setTitle('🎮 The Gauntlet — Solo Mode')
     .setDescription([
       'Click **Start** to play privately via **ephemeral** messages in this channel.',
-      'You can play **once per day** (Toronto time). Every run is **saved**. Monthly LB shows **best** per user (total points = tiebreaker).',
+      'You can play **once per day** (Toronto time). Every run is **saved**.',
+      'Monthly leaderboard shows your **best** score; **total points** break ties.',
       '',
-      '**Rounds (6):**',
+      '**Rounds (6) + vibes:**',
       '1) MiniGame + Riddle',
       '2) The Labyrinth',
+      '   🔸 Interlude: Ugly Selector (bonus chance)',
       '3) MiniGame + Riddle',
       '4) Squig Roulette',
       '5) MiniGame + Riddle',
+      '   🔸 Interlude: Trust or Doubt',
       '6) Risk It',
     ].join('\n'))
     .setColor(0xaa00ff)
@@ -685,9 +768,42 @@ client.on('interactionCreate', async (interaction)=>{
       const month = currentMonthStr();
       const limit = interaction.options.getInteger('limit') || 10;
       const rows = await Store.getRecentRuns(month, limit);
-      const lines = rows.length? rows.map(r=> `• <@${r.user_id}> — **${r.score}**  _(at ${new Intl.DateTimeFormat('en-CA',{ timeZone:'America/Toronto', month:'short', day:'2-digit', hour:'2-digit', minute:'2-digit' }).format(new Date(r.finished_at))})_`).join('\n') : 'No recent runs.';
+      const lines = rows.length
+        ? rows.map(r=> `• <@${r.user_id}> — **${r.score}**  _(at ${new Intl.DateTimeFormat('en-CA',{ timeZone:'America/Toronto', month:'short', day:'2-digit', hour:'2-digit', minute:'2-digit' }).format(new Date(r.finished_at))})_`).join('\n')
+        : 'No recent runs.';
       const embed = new EmbedBuilder().setTitle(`🧾 Recent Runs — ${month}`).setDescription(lines).setColor(0x00ccff);
       return interaction.reply({ embeds:[embed] });
+    }
+    // /gauntletinfo
+    if (interaction.isChatInputCommand() && interaction.commandName==='gauntletinfo'){
+      const embed = new EmbedBuilder()
+        .setTitle("📖 Welcome to The Gauntlet — Solo Edition")
+        .setDescription([
+          "Play **any time** via ephemeral messages. One run per day (Toronto time).",
+          "",
+          "**Flow:**",
+          "1) MiniGame → Riddle",
+          "2) Labyrinth  🔸 Interlude: Ugly Selector",
+          "3) MiniGame → Riddle",
+          "4) Squig Roulette",
+          "5) MiniGame → Riddle  🔸 Interlude: Trust or Doubt",
+          "6) Risk It",
+          "",
+          "**Scoring:** Luck, riddles, labyrinth steps, roulette, risk bonuses.",
+          "Leaderboard ranks **highest single-game score**, with **total monthly points** as tiebreaker."
+        ].join('\n'))
+        .setColor(0x00ccff);
+      return interaction.reply({ embeds:[embed], ephemeral:true });
+    }
+    // /mygauntlet
+    if (interaction.isChatInputCommand() && interaction.commandName==='mygauntlet'){
+      const month = currentMonthStr();
+      const mine = await Store.getMyMonth(interaction.user.id, month);
+      const embed = new EmbedBuilder()
+        .setTitle(`📊 Your Gauntlet — ${month}`)
+        .setDescription(`**Best:** ${mine.best}\n**Total:** ${mine.total}\n**Plays:** ${mine.plays}`)
+        .setColor(0x00ccff);
+      return interaction.reply({ embeds:[embed], ephemeral:true });
     }
 
     // Start button → daily limit check → run (ephemeral in-channel)
