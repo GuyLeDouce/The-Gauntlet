@@ -427,9 +427,21 @@ const pickMiniGame = (usedSet)=>{
 
 // ====== EPHEMERAL HELPERS ======
 async function sendEphemeral(interaction, payload){
-  if (interaction.deferred || interaction.replied) return interaction.followUp({ ...payload, ephemeral:true });
-  return interaction.reply({ ...payload, ephemeral:true });
+  let msg;
+  if (interaction.deferred || interaction.replied) {
+    msg = await interaction.followUp({ ...payload, ephemeral:true, fetchReply:true });
+  } else {
+    msg = await interaction.reply({ ...payload, ephemeral:true, fetchReply:true });
+  }
+
+  // Schedule auto-delete after 60s
+  setTimeout(async ()=>{
+    try { await msg.delete(); } catch(e) { /* ignore if already gone */ }
+  }, 60_000);
+
+  return msg;
 }
+
 async function ephemeralPrompt(interaction, embed, components, timeMs){
   const msg = await sendEphemeral(interaction, { embeds:[embed], components });
   const replyMsg = msg instanceof Promise ? await msg : msg;
