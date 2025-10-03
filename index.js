@@ -168,6 +168,10 @@ function getMonsterImageUrl() {
   const tokenId = Math.floor(Math.random() * 126) + 1;
   return `https://ipfs.io/ipfs/bafybeicydaui66527mumvml5ushq5ngloqklh6rh7hv3oki2ieo6q25ns4/${tokenId}.webp`;
 }
+function withScore(embed, player){
+  try { return embed.setFooter({ text: `Current score: ${player.points}` }); }
+  catch { return embed; }
+}
 
 // === Mini-Game Lore Pools & Flavor (FULL) ===
 const miniGameLorePool = [
