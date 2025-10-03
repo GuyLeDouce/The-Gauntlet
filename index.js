@@ -494,11 +494,13 @@ async function runMiniGameEphemeral(interaction, player, usedMini){
 async function runRiddleEphemeral(interaction, player, usedRiddle){
   const r = pickRiddle(usedRiddle);
   if(!r){
-    await sendEphemeral(interaction, { content:'⚠️ No riddles left. Skipping.' });
+    await sendEphemeral(interaction,{content:'⚠️ No riddles left. Skipping.'});
     return;
   }
 
   const difficultyLabel = r.difficulty===1? 'EASY' : r.difficulty===2? 'MEDIUM' : r.difficulty===3? 'HARD' : 'SQUIG SPECIAL';
+
+  // 1) Show the riddle + "Answer" button
   const embed = withScore(
     new EmbedBuilder()
       .setTitle('🧠 RIDDLE TIME')
@@ -506,59 +508,62 @@ async function runRiddleEphemeral(interaction, player, usedRiddle){
       .setColor(0xff66cc),
     player
   );
-
   const answerRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('riddle:answer').setLabel('Answer').setStyle(ButtonStyle.Primary)
   );
+  const riddleMsg = await sendEphemeral(interaction, { embeds:[embed], components:[answerRow] });
 
-  // show the riddle + "Answer" button
-  const open = await sendEphemeral(interaction, { embeds:[embed], components:[answerRow] });
-  let buttonClick;
+  // 30s window starts now
+  const windowMs = 30_000;
+  const endAt = Date.now() + windowMs;
+
+  // 2) Wait for the Answer button (same user), within the window
+  let buttonClick = null;
   try {
-    buttonClick = await open.awaitMessageComponent({
+    buttonClick = await riddleMsg.awaitMessageComponent({
       componentType: ComponentType.Button,
-      time: 30_000,
+      time: windowMs,
       filter: (i) => i.customId === 'riddle:answer' && i.user.id === interaction.user.id
     });
   } catch { /* timeout */ }
 
-  // disable button
+  // disable the button either way
   try {
-    const disabled = new ActionRowBuilder().addComponents(answerRow.components.map(b => ButtonBuilder.from(b).setDisabled(true)));
-    await open.edit({ components:[disabled] });
+    const disabled = new ActionRowBuilder().addComponents(
+      answerRow.components.map(b => ButtonBuilder.from(b).setDisabled(true))
+    );
+    await riddleMsg.edit({ components:[disabled] });
   } catch {}
 
+  // If user never clicked Answer → reveal and exit (BLOCKS until now)
   if (!buttonClick) {
     await sendEphemeral(interaction, { content:`⏰ Time’s up! Correct answer: **${r.answers[0]}**.` });
     return;
   }
 
-  // show modal
+  // 3) Show modal, then wait for submit within the *remaining* time
+  const remaining = Math.max(1000, endAt - Date.now()); // never less than 1s
   const modal = new ModalBuilder().setCustomId('riddle:modal').setTitle('Your Answer');
   modal.addComponents(new ActionRowBuilder().addComponents(
-    new TextInputBuilder()
-      .setCustomId('riddle:input')
-      .setLabel('Type your answer')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true)
+    new TextInputBuilder().setCustomId('riddle:input').setLabel('Type your answer').setStyle(TextInputStyle.Short).setRequired(true)
   ));
-  try { await buttonClick.showModal(modal); } catch { /* ignore */ }
+  try { await buttonClick.showModal(modal); } catch {}
 
-  // wait for modal submit on the CLIENT (more robust)
-  let submit;
+  let submit = null;
   try {
+    // Listen on the CLIENT for robustness
     submit = await interaction.client.awaitModalSubmit({
-      time: 30_000,
+      time: remaining,
       filter: (i) => i.customId === 'riddle:modal' && i.user.id === interaction.user.id
     });
   } catch { /* timeout */ }
 
+  // 4) Grade OR timeout (this function only returns after one of these)
   if (!submit) {
     await sendEphemeral(interaction, { content:`⏰ No answer submitted. Correct: **${r.answers[0]}**.` });
     return;
   }
 
-  // score and reply (never let failures crash the bot)
   const ans = submit.fields.getTextInputValue('riddle:input').trim().toLowerCase();
   const correct = r.answers.map(a => a.toLowerCase()).includes(ans);
 
@@ -570,7 +575,7 @@ async function runRiddleEphemeral(interaction, player, usedRiddle){
       await submit.reply({ content:`❌ Not quite. Correct: **${r.answers[0]}**.\n**Current total:** ${player.points}`, flags: 64 });
     }
   } catch {
-    // if the modal interaction token was invalid/expired, fall back to a normal ephemeral follow-up
+    // Fallback if the modal interaction token expired
     await sendEphemeral(interaction, {
       content: correct
         ? `✅ Correct! **+${r.difficulty}**. **Current total:** ${player.points}`
@@ -578,6 +583,7 @@ async function runRiddleEphemeral(interaction, player, usedRiddle){
     });
   }
 }
+
 
 
 
