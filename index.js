@@ -699,54 +699,6 @@ async function runRiskItEphemeral(interaction, player){
   await click.reply({ content:`${label} → ${out.label}. **${delta>0?'+':''}${delta}**. New total: **${player.points}**`, ephemeral:true });
 }
 
-// ====== INTERLUDES (to keep the “Gauntlet vibe”) ======
-async function runUglySelectorEphemeral(interaction, player){
-  const embed = new EmbedBuilder()
-    .setTitle("🎯 The Squig’s Ugly Selector Activates!")
-    .setDescription("Click **Tempt Fate** within **15 seconds**.\nOne lucky outcome grants **+3 points**. Otherwise… nothing happens, probably.")
-    .setColor(0xff77ff);
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId("ugly:tempt").setLabel("Tempt Fate").setStyle(ButtonStyle.Primary)
-  );
-
-  const click = await ephemeralPrompt(interaction, embed, [row], 15_000);
-  if(!click){ await sendEphemeral(interaction, { content:"🌀 You hesitated. The charm spins away." }); return; }
-
-  const win = Math.random() < 0.5; // 50/50 chaos
-  if (win){ player.points += 3; await click.reply({ content:"🎉 The charm approves: **+3** bonus points!", ephemeral:true }); }
-  else { await click.reply({ content:"😶 The charm yawns. No change.", ephemeral:true }); }
-}
-
-async function runTrustOrDoubtEphemeral(interaction, player){
-  const embed = new EmbedBuilder()
-    .setTitle("🤝 Trust or Doubt")
-    .setDescription([
-      "Pick **Trust** or **Doubt**.",
-      "If you **Trust**: **+1** — **unless the Squig lies**, then **-1**.",
-      "If you **Doubt**: **0**.",
-      "⏳ **30 seconds**."
-    ].join("\n"))
-    .setColor(0x7f00ff);
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId("tod:trust").setLabel("Trust").setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId("tod:doubt").setLabel("Doubt").setStyle(ButtonStyle.Danger)
-  );
-
-  const click = await ephemeralPrompt(interaction, embed, [row], 30_000);
-  if(!click){ await sendEphemeral(interaction, { content:"⏳ No choice — nothing changes." }); return; }
-
-  if (click.customId === "tod:trust"){
-    const squigLies = Math.random() < 0.33; // ~33% lie chance
-    const delta = squigLies ? -1 : +1;
-    player.points += delta;
-    await click.reply({ content: squigLies ? "🌀 The Squig **lied**. **-1**." : "✅ The Squig told the truth. **+1**.", ephemeral:true });
-  } else {
-    await click.reply({ content:"🪵 You Doubt. **0**.", ephemeral:true });
-  }
-}
-
 // ====== SOLO ORCHESTRATOR (6 rounds + 2 interludes, all ephemeral) ======
 async function runSoloGauntletEphemeral(interaction){
   const player = { id: interaction.user.id, username: interaction.user.username || interaction.user.globalName || 'Player', points: 0 };
@@ -766,9 +718,6 @@ await sendEphemeral(interaction, {
   // 2) Labyrinth
   await runLabyrinthEphemeral(interaction, player);
 
-  // Interlude A — Ugly Selector
-  await runUglySelectorEphemeral(interaction, player);
-
   // 3) Mini + Riddle
   await runMiniGameEphemeral(interaction, player, usedMini);
   await runRiddleEphemeral(interaction, player, usedRiddle);
@@ -779,9 +728,6 @@ await sendEphemeral(interaction, {
   // 5) Mini + Riddle
   await runMiniGameEphemeral(interaction, player, usedMini);
   await runRiddleEphemeral(interaction, player, usedRiddle);
-
-  // Interlude B — Trust or Doubt
-  await runTrustOrDoubtEphemeral(interaction, player);
 
   // 6) Risk It
   await runRiskItEphemeral(interaction, player);
@@ -856,21 +802,18 @@ function startPanelEmbed(){
     .setTitle('🎮 The Gauntlet — Solo Mode')
     .setDescription([
       'Click **Start** to play privately via **ephemeral** messages in this channel.',
-      'You can play **once per day** (Toronto time). Every run is **saved**.',
-      'Monthly leaderboard shows your **best** score; **total points** break ties.',
+      'You can play **once per day** (Toronto time). Every run is **saved**. Monthly LB shows **best** per user (total points = tiebreaker).',
       '',
-      '**Rounds (6) + vibes:**',
+      '**Rounds (6):**',
       '1) MiniGame + Riddle',
       '2) The Labyrinth',
-      '   🔸 Interlude: Ugly Selector (bonus chance)',
       '3) MiniGame + Riddle',
       '4) Squig Roulette',
       '5) MiniGame + Riddle',
-      '   🔸 Interlude: Trust or Doubt',
       '6) Risk It',
     ].join('\n'))
     .setColor(0xaa00ff)
-    .setImage(getMonsterImageUrl());
+    .setImage("https://i.imgur.com/MKHosuC.png");  // static image now
 }
 function startPanelRow(){
   return new ActionRowBuilder().addComponents(
