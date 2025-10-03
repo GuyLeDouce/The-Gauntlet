@@ -431,20 +431,26 @@ const pickMiniGame = (usedSet)=>{
 
 // ====== EPHEMERAL HELPERS ======
 async function sendEphemeral(interaction, payload){
+  // Pull noExpire off the payload so it doesn't get forwarded to Discord
+  const { noExpire, ...out } = payload || {};
+
   let msg;
   if (interaction.deferred || interaction.replied) {
-    msg = await interaction.followUp({ ...payload, ephemeral:true, fetchReply:true });
+    msg = await interaction.followUp({ ...out, ephemeral:true, fetchReply:true });
   } else {
-    msg = await interaction.reply({ ...payload, ephemeral:true, fetchReply:true });
+    msg = await interaction.reply({ ...out, ephemeral:true, fetchReply:true });
   }
 
-  // Schedule auto-delete after 60s
-  setTimeout(async ()=>{
-    try { await msg.delete(); } catch(e) { /* ignore if already gone */ }
-  }, 60_000);
+  // Only auto-delete if NO noExpire flag
+  if (!noExpire) {
+    setTimeout(async ()=>{
+      try { await msg.delete(); } catch(e) { /* ignore if already gone */ }
+    }, 60_000);
+  }
 
   return msg;
 }
+
 
 async function ephemeralPrompt(interaction, embed, components, timeMs){
   const msg = await sendEphemeral(interaction, { embeds:[embed], components });
@@ -596,6 +602,9 @@ async function runRiddleEphemeral(interaction, player, usedRiddle){
       await sendEphemeral(interaction, { content:`⏰ Time’s up! Correct answer: **${r.answers[0]}**.` });
     }
   });
+
+  // 🔒 IMPORTANT: block until the riddle fully resolves (prevents next round from starting early)
+  await new Promise(resolve => collector.once('end', resolve));
 }
 
 
