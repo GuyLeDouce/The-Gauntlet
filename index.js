@@ -456,9 +456,12 @@ async function ephemeralPrompt(interaction, embed, components, timeMs){
 // ====== ROUNDS (Ephemeral in-channel) ======
 async function runMiniGameEphemeral(interaction, player, usedMini){
   const selected = pickMiniGame(usedMini);
-  const embed = new EmbedBuilder().setTitle(selected.title)
-    .setDescription(`${selected.lore}\n\n_${rand(miniGameFateDescriptions)}_\n\n⏳ You have **30 seconds** to choose.`)
-    .setColor(0xff33cc);
+  const embed = withScore(
+    new EmbedBuilder()
+      .setTitle(selected.title)
+      .setDescription(`${selected.lore}\n\n_${rand(miniGameFateDescriptions)}_\n\n⏳ You have **30 seconds** to choose.`)
+      .setColor(0xff33cc)
+  , player);
   if (selected.image) embed.setImage(selected.image);
 
   const row = new ActionRowBuilder().addComponents(
@@ -479,35 +482,134 @@ async function runMiniGameEphemeral(interaction, player, usedMini){
 }
 
 async function runRiddleEphemeral(interaction, player, usedRiddle){
-  const r = pickRiddle(usedRiddle); if(!r){ await sendEphemeral(interaction,{content:'⚠️ No riddles left. Skipping.'}); return; }
-  const difficultyLabel = r.difficulty===1? 'EASY' : r.difficulty===2? 'MEDIUM' : r.difficulty===3? 'HARD' : 'SQUIG SPECIAL';
-  const embed = new EmbedBuilder().setTitle('🧠 RIDDLE TIME')
-    .setDescription(`_${r.riddle}_\n\n🌀 Difficulty: **${difficultyLabel}** — Worth **+${r.difficulty}**.\n⏳ You have **30 seconds**.`)
-    .setColor(0xff66cc);
+  const r = pickRiddle(usedRiddle);
+  if(!r){
+    await sendEphemeral(interaction,{content:'⚠️ No riddles left. Skipping.'});
+    return;
+  }
 
+  const difficultyLabel =
+    r.difficulty===1? 'EASY' :
+    r.difficulty===2? 'MEDIUM' :
+    r.difficulty===3? 'HARD' :
+    'SQUIG SPECIAL';
+
+  const baseEmbed = withScore(
+    new EmbedBuilder()
+      .setTitle('🧠 RIDDLE TIME')
+      .setDescription(`_${r.riddle}_\n\n🌀 Difficulty: **${difficultyLabel}** — Worth **+${r.difficulty}**.\n⏳ You have **30 seconds**.`)
+      .setColor(0xff66cc),
+    player
+  );
+
+  // 1) Send the riddle with an "Answer" button and keep it clickable
   const answerRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('riddle:answer').setLabel('Answer').setStyle(ButtonStyle.Primary)
   );
-  const open = await ephemeralPrompt(interaction, embed, [answerRow], 30_000);
-  if(!open){ await sendEphemeral(interaction, { content:`⏰ Time’s up! Correct answer: **${r.answers[0]}**.` }); return; }
 
-  const modal = new ModalBuilder().setCustomId('riddle:modal').setTitle('Your Answer');
-  const input = new TextInputBuilder().setCustomId('riddle:input').setLabel('Type your answer').setStyle(TextInputStyle.Short).setRequired(true);
-  modal.addComponents(new ActionRowBuilder().addComponents(input));
-  await open.showModal(modal);
-  const submit = await open.awaitModalSubmit({ time: 30_000, filter:(i)=> i.customId==='riddle:modal' }).catch(()=>null);
-  if(!submit){ await sendEphemeral(interaction, { content:`⏰ No answer submitted. Correct: **${r.answers[0]}**.` }); return; }
-  const ans = submit.fields.getTextInputValue('riddle:input').trim().toLowerCase();
-  const correct = r.answers.map(a=>a.toLowerCase()).includes(ans);
-  if(correct){ player.points += r.difficulty; await submit.reply({ content:`✅ Correct! **+${r.difficulty}**.`, ephemeral:true }); }
-  else { await submit.reply({ content:`❌ Not quite. Correct: **${r.answers[0]}**.`, ephemeral:true }); }
+  const msg = await sendEphemeral(interaction, { embeds:[baseEmbed], components:[answerRow] });
+  const m = msg instanceof Promise ? await msg : msg;
+
+  // 30s window; allow reopening the modal until submit or timeout
+  const endAt = Date.now() + 30_000;
+
+  // small helper to disable the button safely
+  const disableAnswer = async () => {
+    try {
+      const disabledRow = new ActionRowBuilder().addComponents(
+        answerRow.components.map(b => ButtonBuilder.from(b).setDisabled(true))
+      );
+      await m.edit({ components:[disabledRow] });
+    } catch {}
+  };
+
+  // 2) Collector for the Answer button (same user, 30s)
+  const collector = m.createMessageComponentCollector({
+    componentType: ComponentType.Button,
+    time: 30_000,
+    filter: i => i.customId === 'riddle:answer' && i.user.id === interaction.user.id
+  });
+
+  let answered = false;
+
+  collector.on('collect', async (i) => {
+    // Recompute remaining time for the modal (so it can't extend beyond the 30s riddle window)
+    const remaining = Math.max(1000, endAt - Date.now()); // min 1s buffer
+
+    // 3) Show modal on each click (lets user close & reopen)
+    const modal = new ModalBuilder().setCustomId('riddle:modal').setTitle('Your Answer');
+    const input = new TextInputBuilder()
+      .setCustomId('riddle:input')
+      .setLabel('Type your answer')
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true);
+    modal.addComponents(new ActionRowBuilder().addComponents(input));
+
+    try {
+      await i.showModal(modal);
+    } catch {
+      // If Discord complains about interaction state, just ignore and let them try again
+      return;
+    }
+
+    // 4) Wait for submit; if user closes modal, we do NOTHING (button stays active)
+    const submit = await i.awaitModalSubmit({
+      time: remaining,
+      filter: (s) => s.customId === 'riddle:modal' && s.user.id === interaction.user.id
+    }).catch(() => null);
+
+    if (!submit) {
+      // user closed the modal or time ran out; collector continues if time remains
+      return;
+    }
+
+    // 5) Grade answer (only on first successful submission)
+    if (answered) {
+      try { await submit.reply({ content:'You already answered.', ephemeral:true }); } catch {}
+      return;
+    }
+
+    const ans = submit.fields.getTextInputValue('riddle:input').trim().toLowerCase();
+    const correct = r.answers.map(a => a.toLowerCase()).includes(ans);
+
+    if (correct) {
+      player.points += r.difficulty;
+      await submit.reply({ content:`✅ Correct! **+${r.difficulty}**. **Current total:** ${player.points}`, ephemeral:true });
+    } else {
+      await submit.reply({ content:`❌ Not quite. Correct: **${r.answers[0]}**.\n**Current total:** ${player.points}`, ephemeral:true });
+    }
+
+    answered = true;
+    collector.stop('answered');
+  });
+
+  collector.on('end', async (collected, reason) => {
+    // Disable the button when done (answered or timed out)
+    await disableAnswer();
+
+    if (!answered && reason !== 'messageDelete') {
+      // Timed out without a submission
+      await sendEphemeral(interaction, { content:`⏰ Time’s up! Correct answer: **${r.answers[0]}**.` });
+    }
+  });
 }
+
 
 async function runLabyrinthEphemeral(interaction, player){
   const title = '🌀 The Labyrinth of Wrong Turns';
   const dirPairs = [['Left','Right'],['Up','Down'],['Left','Down'],['Right','Up']];
   const correctPath = Array.from({length:4},(_,i)=> rand(dirPairs[i%dirPairs.length]));
-  await sendEphemeral(interaction, { embeds:[ new EmbedBuilder().setTitle(title).setDescription('Find the exact **4-step** path.\n✅ Each step **+1**, 🏆 escape **+2**.\n⏳ **60s** total.').setColor(0x7f00ff).setImage('https://i.imgur.com/MA1CdEC.jpeg') ] });
+
+  await sendEphemeral(interaction, {
+    embeds:[ withScore(
+      new EmbedBuilder()
+        .setTitle(title)
+        .setDescription('Find the exact **4-step** path.\n✅ Each step **+1**, 🏆 escape **+2**.\n⏳ **60s** total.')
+        .setColor(0x7f00ff)
+        .setImage('https://i.imgur.com/MA1CdEC.jpeg')
+    , player) ]
+  });
+
   let step=0, earned=0, alive=true; const deadline = Date.now()+60_000;
   while(alive && step<4){
     const pair = dirPairs[step%dirPairs.length];
@@ -531,7 +633,13 @@ async function runLabyrinthEphemeral(interaction, player){
 }
 
 async function runRouletteEphemeral(interaction, player){
-  const embed = new EmbedBuilder().setTitle('🎲 Squig Roulette').setDescription('Pick **1–6**. Roll at end. Match = **+2**, else **0**. **30s**.').setColor(0x7f00ff).setImage('https://i.imgur.com/BolGW1m.png');
+  const embed = withScore(
+    new EmbedBuilder()
+      .setTitle('🎲 Squig Roulette')
+      .setDescription('Pick **1–6**. Roll at end. Match = **+2**, else **0**. **30s**.')
+      .setColor(0x7f00ff)
+      .setImage('https://i.imgur.com/BolGW1m.png')
+  , player);
   const row1 = new ActionRowBuilder().addComponents([1,2,3].map(n=> new ButtonBuilder().setCustomId(`rou:${n}`).setLabel(String(n)).setStyle(ButtonStyle.Secondary)));
   const row2 = new ActionRowBuilder().addComponents([4,5,6].map(n=> new ButtonBuilder().setCustomId(`rou:${n}`).setLabel(String(n)).setStyle(ButtonStyle.Secondary)));
   const msg = await sendEphemeral(interaction, { embeds:[embed], components:[row1,row2] });
@@ -549,7 +657,13 @@ async function runRouletteEphemeral(interaction, player){
 }
 
 async function runRiskItEphemeral(interaction, player){
-  const embed = new EmbedBuilder().setTitle('🪙 Risk It').setDescription('Risk **All**, **Half**, **Quarter**, or **None**. **20s**.').setColor(0xffaa00).setImage('https://i.imgur.com/GHztzMk.png');
+  const embed = withScore(
+    new EmbedBuilder()
+      .setTitle('🪙 Risk It')
+      .setDescription('Risk **All**, **Half**, **Quarter**, or **None**. **20s**.')
+      .setColor(0xffaa00)
+      .setImage('https://i.imgur.com/GHztzMk.png')
+  , player);
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('risk:all').setLabel('Risk All').setStyle(ButtonStyle.Danger),
     new ButtonBuilder().setCustomId('risk:half').setLabel('Risk Half').setStyle(ButtonStyle.Primary),
@@ -625,10 +739,12 @@ async function runSoloGauntletEphemeral(interaction){
   const player = { id: interaction.user.id, username: interaction.user.username || interaction.user.globalName || 'Player', points: 0 };
   const usedRiddle = new Set(); const usedMini = new Set();
 
-  await sendEphemeral(interaction, { embeds:[ new EmbedBuilder()
-    .setTitle('⚔️ The Gauntlet — Solo Mode')
-    .setDescription('6 rounds. Brain, luck, chaos. Good luck!')
-    .setColor(0x00ccff) ] });
+await sendEphemeral(interaction, { 
+  embeds:[ withScore(
+    new EmbedBuilder().setTitle('⚔️ The Gauntlet — Solo Mode').setDescription('6 rounds. Brain, luck, chaos. Good luck!').setColor(0x00ccff)
+  , player) ]
+});
+
 
   // 1) Mini + Riddle
   await runMiniGameEphemeral(interaction, player, usedMini);
@@ -667,10 +783,11 @@ async function runSoloGauntletEphemeral(interaction){
         ? "🪵 You survived the weird. The weird survived you."
         : "💀 The void learned your name. It may return it later.";
 
-  await sendEphemeral(interaction, { embeds:[ new EmbedBuilder()
-    .setTitle('🏁 Your Final Score')
-    .setDescription(`**${final}** point${final===1?'':'s'}\n\n_${flavor}_`)
-    .setColor(0x00ff88) ] });
+await sendEphemeral(interaction, { 
+  embeds:[ new EmbedBuilder().setTitle('🏁 Your Final Score').setDescription(`**${final}** point${final===1?'':'s'}`).setColor(0x00ff88) ],
+  noExpire: true
+});
+
 
   const month = currentMonthStr();
   await Store.insertRun(interaction.user.id, player.username, month, final);
