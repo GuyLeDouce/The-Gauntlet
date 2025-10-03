@@ -430,26 +430,26 @@ const pickMiniGame = (usedSet)=>{
 };
 
 // ====== EPHEMERAL HELPERS ======
+// ====== EPHEMERAL HELPERS ======
 async function sendEphemeral(interaction, payload){
-  // Pull noExpire off the payload so it doesn't get forwarded to Discord
-  const { noExpire, ...out } = payload || {};
-
+  const { noExpire, ...rest } = payload;
   let msg;
+
+  // use flags: 64 (ephemeral) to avoid deprecation warning
+  const base = { ...rest, flags: 64, fetchReply: true };
+
   if (interaction.deferred || interaction.replied) {
-    msg = await interaction.followUp({ ...out, ephemeral:true, fetchReply:true });
+    msg = await interaction.followUp(base);
   } else {
-    msg = await interaction.reply({ ...out, ephemeral:true, fetchReply:true });
+    msg = await interaction.reply(base);
   }
 
-  // Only auto-delete if NO noExpire flag
   if (!noExpire) {
-    setTimeout(async ()=>{
-      try { await msg.delete(); } catch(e) { /* ignore if already gone */ }
-    }, 60_000);
+    setTimeout(async () => { try { await msg.delete(); } catch {} }, 60_000);
   }
-
   return msg;
 }
+
 
 
 async function ephemeralPrompt(interaction, embed, components, timeMs){
@@ -494,17 +494,12 @@ async function runMiniGameEphemeral(interaction, player, usedMini){
 async function runRiddleEphemeral(interaction, player, usedRiddle){
   const r = pickRiddle(usedRiddle);
   if(!r){
-    await sendEphemeral(interaction,{content:'⚠️ No riddles left. Skipping.'});
+    await sendEphemeral(interaction, { content:'⚠️ No riddles left. Skipping.' });
     return;
   }
 
-  const difficultyLabel =
-    r.difficulty===1? 'EASY' :
-    r.difficulty===2? 'MEDIUM' :
-    r.difficulty===3? 'HARD' :
-    'SQUIG SPECIAL';
-
-  const baseEmbed = withScore(
+  const difficultyLabel = r.difficulty===1? 'EASY' : r.difficulty===2? 'MEDIUM' : r.difficulty===3? 'HARD' : 'SQUIG SPECIAL';
+  const embed = withScore(
     new EmbedBuilder()
       .setTitle('🧠 RIDDLE TIME')
       .setDescription(`_${r.riddle}_\n\n🌀 Difficulty: **${difficultyLabel}** — Worth **+${r.difficulty}**.\n⏳ You have **30 seconds**.`)
@@ -512,100 +507,78 @@ async function runRiddleEphemeral(interaction, player, usedRiddle){
     player
   );
 
-  // 1) Send the riddle with an "Answer" button and keep it clickable
   const answerRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('riddle:answer').setLabel('Answer').setStyle(ButtonStyle.Primary)
   );
 
-  const msg = await sendEphemeral(interaction, { embeds:[baseEmbed], components:[answerRow] });
-  const m = msg instanceof Promise ? await msg : msg;
+  // show the riddle + "Answer" button
+  const open = await sendEphemeral(interaction, { embeds:[embed], components:[answerRow] });
+  let buttonClick;
+  try {
+    buttonClick = await open.awaitMessageComponent({
+      componentType: ComponentType.Button,
+      time: 30_000,
+      filter: (i) => i.customId === 'riddle:answer' && i.user.id === interaction.user.id
+    });
+  } catch { /* timeout */ }
 
-  // 30s window; allow reopening the modal until submit or timeout
-  const endAt = Date.now() + 30_000;
+  // disable button
+  try {
+    const disabled = new ActionRowBuilder().addComponents(answerRow.components.map(b => ButtonBuilder.from(b).setDisabled(true)));
+    await open.edit({ components:[disabled] });
+  } catch {}
 
-  // small helper to disable the button safely
-  const disableAnswer = async () => {
-    try {
-      const disabledRow = new ActionRowBuilder().addComponents(
-        answerRow.components.map(b => ButtonBuilder.from(b).setDisabled(true))
-      );
-      await m.edit({ components:[disabledRow] });
-    } catch {}
-  };
+  if (!buttonClick) {
+    await sendEphemeral(interaction, { content:`⏰ Time’s up! Correct answer: **${r.answers[0]}**.` });
+    return;
+  }
 
-  // 2) Collector for the Answer button (same user, 30s)
-  const collector = m.createMessageComponentCollector({
-    componentType: ComponentType.Button,
-    time: 30_000,
-    filter: i => i.customId === 'riddle:answer' && i.user.id === interaction.user.id
-  });
-
-  let answered = false;
-
-  collector.on('collect', async (i) => {
-    // Recompute remaining time for the modal (so it can't extend beyond the 30s riddle window)
-    const remaining = Math.max(1000, endAt - Date.now()); // min 1s buffer
-
-    // 3) Show modal on each click (lets user close & reopen)
-    const modal = new ModalBuilder().setCustomId('riddle:modal').setTitle('Your Answer');
-    const input = new TextInputBuilder()
+  // show modal
+  const modal = new ModalBuilder().setCustomId('riddle:modal').setTitle('Your Answer');
+  modal.addComponents(new ActionRowBuilder().addComponents(
+    new TextInputBuilder()
       .setCustomId('riddle:input')
       .setLabel('Type your answer')
       .setStyle(TextInputStyle.Short)
-      .setRequired(true);
-    modal.addComponents(new ActionRowBuilder().addComponents(input));
+      .setRequired(true)
+  ));
+  try { await buttonClick.showModal(modal); } catch { /* ignore */ }
 
-    try {
-      await i.showModal(modal);
-    } catch {
-      // If Discord complains about interaction state, just ignore and let them try again
-      return;
-    }
+  // wait for modal submit on the CLIENT (more robust)
+  let submit;
+  try {
+    submit = await interaction.client.awaitModalSubmit({
+      time: 30_000,
+      filter: (i) => i.customId === 'riddle:modal' && i.user.id === interaction.user.id
+    });
+  } catch { /* timeout */ }
 
-    // 4) Wait for submit; if user closes modal, we do NOTHING (button stays active)
-    const submit = await i.awaitModalSubmit({
-      time: remaining,
-      filter: (s) => s.customId === 'riddle:modal' && s.user.id === interaction.user.id
-    }).catch(() => null);
+  if (!submit) {
+    await sendEphemeral(interaction, { content:`⏰ No answer submitted. Correct: **${r.answers[0]}**.` });
+    return;
+  }
 
-    if (!submit) {
-      // user closed the modal or time ran out; collector continues if time remains
-      return;
-    }
+  // score and reply (never let failures crash the bot)
+  const ans = submit.fields.getTextInputValue('riddle:input').trim().toLowerCase();
+  const correct = r.answers.map(a => a.toLowerCase()).includes(ans);
 
-    // 5) Grade answer (only on first successful submission)
-    if (answered) {
-      try { await submit.reply({ content:'You already answered.', ephemeral:true }); } catch {}
-      return;
-    }
-
-    const ans = submit.fields.getTextInputValue('riddle:input').trim().toLowerCase();
-    const correct = r.answers.map(a => a.toLowerCase()).includes(ans);
-
+  try {
     if (correct) {
       player.points += r.difficulty;
-      await submit.reply({ content:`✅ Correct! **+${r.difficulty}**. **Current total:** ${player.points}`, ephemeral:true });
+      await submit.reply({ content:`✅ Correct! **+${r.difficulty}**. **Current total:** ${player.points}`, flags: 64 });
     } else {
-      await submit.reply({ content:`❌ Not quite. Correct: **${r.answers[0]}**.\n**Current total:** ${player.points}`, ephemeral:true });
+      await submit.reply({ content:`❌ Not quite. Correct: **${r.answers[0]}**.\n**Current total:** ${player.points}`, flags: 64 });
     }
-
-    answered = true;
-    collector.stop('answered');
-  });
-
-  collector.on('end', async (collected, reason) => {
-    // Disable the button when done (answered or timed out)
-    await disableAnswer();
-
-    if (!answered && reason !== 'messageDelete') {
-      // Timed out without a submission
-      await sendEphemeral(interaction, { content:`⏰ Time’s up! Correct answer: **${r.answers[0]}**.` });
-    }
-  });
-
-  // 🔒 IMPORTANT: block until the riddle fully resolves (prevents next round from starting early)
-  await new Promise(resolve => collector.once('end', resolve));
+  } catch {
+    // if the modal interaction token was invalid/expired, fall back to a normal ephemeral follow-up
+    await sendEphemeral(interaction, {
+      content: correct
+        ? `✅ Correct! **+${r.difficulty}**. **Current total:** ${player.points}`
+        : `❌ Not quite. Correct: **${r.answers[0]}**.\n**Current total:** ${player.points}`
+    });
+  }
 }
+
 
 
 async function runLabyrinthEphemeral(interaction, player){
