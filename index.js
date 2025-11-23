@@ -1920,7 +1920,7 @@ function isAdminUser(interaction){
 }
 
 // ====== EVENTS ======
-client.once('ready', async ()=>{
+client.once('clientReady', async ()=>{
   console.log(`✅ Logged in as ${client.user.tag}`);
   await Store.init();
   try { await registerCommands(); } catch(e){ console.warn('Command registration failed:', e.message); }
