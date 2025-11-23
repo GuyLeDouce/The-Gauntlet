@@ -1,14 +1,4 @@
 // src/groupGauntlet.js
-// Live multi-player Gauntlet (classic style) used by /groupgauntlet [minutes]
-//
-// NOTE: This mode is self-contained (doesn't write to Postgres).
-// It runs fully in-channel with joins, public rounds, and a final podium.
-
-const {
-  SlashCommandBuilder,
-  EmbedBuilder,
-  ActionRowBuilder,
-// src/groupGauntlet.js
 // Live multi-player Gauntlet (classic style) with /groupgauntlet [minutes]
 //
 // - Runs fully in-channel (no Postgres writes)
@@ -38,7 +28,6 @@ const {
 const {
   miniGameLorePool,
   miniGameFateDescriptions,
-  pointFlavors,
   pickMiniGame,
   pickRiddle,
   riddles,
@@ -959,5 +948,3 @@ module.exports = {
   registerGroupCommands,
   handleGroupInteractionCreate,
 };
-
-
