@@ -352,210 +352,1151 @@ const pointFlavors = {
 // === Riddles (EXPANDED: 50 per tier) ===
 const riddles = [
   // EASY (1) — 50
-  { riddle: "I have keys but no locks, a space but no room, and you can enter but not go inside. What am I?", answers: ["keyboard"], difficulty: 1 },
-  { riddle: "What has an eye but cannot see?", answers: ["needle"], difficulty: 1 },
-  { riddle: "What has to be broken before you can use it?", answers: ["egg"], difficulty: 1 },
-  { riddle: "What is full of holes but still holds water?", answers: ["sponge"], difficulty: 1 },
-  { riddle: "What is always in front of you but can’t be seen?", answers: ["future"], difficulty: 1 },
-  { riddle: "What has a neck but no head?", answers: ["bottle", "shirt", "blouse"], difficulty: 1 },
-  { riddle: "What can you catch but not throw?", answers: ["cold", "a cold"], difficulty: 1 },
-  { riddle: "I have mountains but no trees, and oceans but no water. What am I?", answers: ["map"], difficulty: 1 },
-  { riddle: "What is so fragile that saying its name breaks it?", answers: ["silence"], difficulty: 1 },
-  { riddle: "What has a thumb and four fingers but is not alive?", answers: ["glove", "mitten"], difficulty: 1 },
-  { riddle: "What word is spelled wrong in every dictionary?", answers: ["wrong"], difficulty: 1 },
-  { riddle: "What goes up but never comes down?", answers: ["age"], difficulty: 1 },
-  { riddle: "What can travel around the world while staying in a corner?", answers: ["stamp"], difficulty: 1 },
-  { riddle: "What has to be paid but uses no money?", answers: ["attention"], difficulty: 1 },
-  { riddle: "What has no voice but can tell you a story?", answers: ["book"], difficulty: 1 },
-  { riddle: "What do you throw away when you need it and take in when you don’t?", answers: ["anchor"], difficulty: 1 },
-  { riddle: "What has a tongue but cannot talk?", answers: ["shoe", "boot", "sneaker"], difficulty: 1 },
-  { riddle: "What gets wetter the more it dries?", answers: ["towel"], difficulty: 1 },
-  { riddle: "What belongs to you but other people use more?", answers: ["name"], difficulty: 1 },
-  { riddle: "What has hands but can’t clap?", answers: ["clock", "watch"], difficulty: 1 },
-  { riddle: "What has a face and two hands but no arms or legs?", answers: ["clock", "watch"], difficulty: 1 },
-  { riddle: "What can fill a room but takes up no space?", answers: ["light"], difficulty: 1 },
-  { riddle: "What runs but never walks?", answers: ["water", "river", "nose"], difficulty: 1 },
-  { riddle: "What has ears but cannot hear?", answers: ["cornfield", "corn field", "corn"], difficulty: 1 },
-  { riddle: "What has many teeth but cannot bite?", answers: ["comb"], difficulty: 1 },
-  { riddle: "What gets bigger when turned upside down?", answers: ["nine", "6", "six"], difficulty: 1 },
-  { riddle: "What can you hold without ever touching it?", answers: ["breath", "your breath"], difficulty: 1 },
-  { riddle: "What kind of room has no doors or windows?", answers: ["mushroom"], difficulty: 1 },
-  { riddle: "What has one head, one foot, and four legs?", answers: ["bed"], difficulty: 1 },
-  { riddle: "Where does today come before yesterday?", answers: ["dictionary"], difficulty: 1 },
-  { riddle: "What kind of coat is best put on wet?", answers: ["paint"], difficulty: 1 },
-  { riddle: "What can be cracked, made, told, and played?", answers: ["joke"], difficulty: 1 },
-  { riddle: "I shave every day, but my beard stays the same. Who am I?", answers: ["barber"], difficulty: 1 },
-  { riddle: "If you drop me I’m sure to crack, but smile at me and I’ll smile back. What am I?", answers: ["mirror"], difficulty: 1 },
-  { riddle: "What begins with T, ends with T, and has T in it?", answers: ["teapot", "tea pot"], difficulty: 1 },
-  { riddle: "What can you keep after giving it to someone?", answers: ["word", "promise"], difficulty: 1 },
-  { riddle: "The more of me there is, the less you see. What am I?", answers: ["darkness", "fog"], difficulty: 1 },
-  { riddle: "What has legs but doesn’t move?", answers: ["table"], difficulty: 1 },
-  { riddle: "What is made of water but if you put it into water it dies?", answers: ["ice"], difficulty: 1 },
-  { riddle: "What can you break without touching it?", answers: ["promise", "silence"], difficulty: 1 },
-  { riddle: "I’m tall when I’m young and short when I’m old. What am I?", answers: ["candle"], difficulty: 1 },
-  { riddle: "What has a head and a tail but no body?", answers: ["coin"], difficulty: 1 },
-  { riddle: "What building has the most stories?", answers: ["library"], difficulty: 1 },
-  { riddle: "What kind of tree can you carry in your hand?", answers: ["palm"], difficulty: 1 },
-  { riddle: "What can you hear but not see or touch, even though you control it?", answers: ["voice"], difficulty: 1 },
-  { riddle: "What gets sharper the more you use it?", answers: ["brain", "mind"], difficulty: 1 },
-  { riddle: "What invention lets you look right through a wall?", answers: ["window"], difficulty: 1 },
-  { riddle: "What has many keys but can’t open a door?", answers: ["piano", "keyboard"], difficulty: 1 },
-  { riddle: "If you have me, you want to share me. Once you share me, you don’t have me. What am I?", answers: ["secret"], difficulty: 1 },
-  { riddle: "What has four fingers and a thumb but isn’t alive?", answers: ["glove", "mitten"], difficulty: 1 },
+  // 1
+  { 
+    riddle: "I live by your sink, I fight tiny battles, I vanish each day but leave you less dirty. What am I?", 
+    answers: ["soap"], 
+    difficulty: 1 
+  },
+  // 2
+  { 
+    riddle: "I rest on your bed, I hold up your head, and I never complain when you drool on me. What am I?", 
+    answers: ["pillow"], 
+    difficulty: 1 
+  },
+  // 3
+  { 
+    riddle: "I follow you in sunlight but hide in the dark. You move, I move. What am I?", 
+    answers: ["shadow"], 
+    difficulty: 1 
+  },
+  // 4
+  { 
+    riddle: "I repeat what you say, but I never start a conversation. What am I?", 
+    answers: ["echo"], 
+    difficulty: 1 
+  },
+  // 5
+  { 
+    riddle: "I have numbers but I’m not a test, I have hands but I’m not a person. What am I?", 
+    answers: ["clock", "watch"], 
+    difficulty: 1 
+  },
+  // 6
+  { 
+    riddle: "I show you other people all day, but I never take a selfie. What am I?", 
+    answers: ["mirror"], 
+    difficulty: 1 
+  },
+  // 7
+  { 
+    riddle: "You go up me and down me, but I stay in the same place. What am I?", 
+    answers: ["stairs", "staircase"], 
+    difficulty: 1 
+  },
+  // 8
+  { 
+    riddle: "I get sharpened to work, but if you use me too much I disappear. What am I?", 
+    answers: ["pencil"], 
+    difficulty: 1 
+  },
+  // 9
+  { 
+    riddle: "I’m full of stories, but I never speak unless you open me. What am I?", 
+    answers: ["book"], 
+    difficulty: 1 
+  },
+  // 10
+  { 
+    riddle: "I appear after rain when the sun comes back, wearing many colors. What am I?", 
+    answers: ["rainbow"], 
+    difficulty: 1 
+  },
+  // 11
+  { 
+    riddle: "I float in the sky, I’m white or gray, and sometimes I cry. What am I?", 
+    answers: ["cloud"], 
+    difficulty: 1 
+  },
+  // 12
+  { 
+    riddle: "I shine at night, but I’m not the moon. I’m small, far away, and part of a crowd. What am I?", 
+    answers: ["star"], 
+    difficulty: 1 
+  },
+  // 13
+  { 
+    riddle: "Cars and feet move on me all day, but I never move myself. What am I?", 
+    answers: ["road", "street"], 
+    difficulty: 1 
+  },
+  // 14
+  { 
+    riddle: "I open to let people in, I close to keep people out, and sometimes I squeak. What am I?", 
+    answers: ["door"], 
+    difficulty: 1 
+  },
+  // 15
+  { 
+    riddle: "You look through me, not at me, to see what’s outside. What am I?", 
+    answers: ["window"], 
+    difficulty: 1 
+  },
+  // 16
+  { 
+    riddle: "I get wet helping you dry, and I hang around when I’m done. What am I?", 
+    answers: ["towel"], 
+    difficulty: 1 
+  },
+  // 17
+  { 
+    riddle: "I have fingers but no bones, and I keep your hand warm. What am I?", 
+    answers: ["glove", "mitten"], 
+    difficulty: 1 
+  },
+  // 18
+  { 
+    riddle: "I protect your feet from the ground but complain with squeaks on some floors. What am I?", 
+    answers: ["shoe", "boot", "sneaker"], 
+    difficulty: 1 
+  },
+  // 19
+  { 
+    riddle: "I cover you at night and sometimes in naps. What am I?", 
+    answers: ["blanket"], 
+    difficulty: 1 
+  },
+  // 20
+  { 
+    riddle: "I show days and months, but I’m not on your phone. What am I?", 
+    answers: ["calendar"], 
+    difficulty: 1 
+  },
+  // 21
+  { 
+    riddle: "Students carry me, hikers pack me, and I hold things on my back. What am I?", 
+    answers: ["backpack", "bag"], 
+    difficulty: 1 
+  },
+  // 22
+  { 
+    riddle: "I carry one secret inside, then I travel in the mail. What am I?", 
+    answers: ["envelope"], 
+    difficulty: 1 
+  },
+  // 23
+  { 
+    riddle: "I’m small and round, with a head and a tail, and I buy almost nothing now. What am I?", 
+    answers: ["coin"], 
+    difficulty: 1 
+  },
+  // 24
+  { 
+    riddle: "I hold water, juice, or Squig-fuel coffee, and I fit in your hand. What am I?", 
+    answers: ["cup", "mug", "glass"], 
+    difficulty: 1 
+  },
+  // 25
+  { 
+    riddle: "I open locks but I’m not a password. What am I?", 
+    answers: ["key"], 
+    difficulty: 1 
+  },
+  // 26
+  { 
+    riddle: "I light up a room with a click, but I never leave the table or desk. What am I?", 
+    answers: ["lamp"], 
+    difficulty: 1 
+  },
+  // 27
+  { 
+    riddle: "I start solid, become water, then vanish into air. What am I?", 
+    answers: ["ice"], 
+    difficulty: 1 
+  },
+  // 28
+  { 
+    riddle: "I’m full of air, I float for a while, and Squigs love me at parties. What am I?", 
+    answers: ["balloon"], 
+    difficulty: 1 
+  },
+  // 29
+  { 
+    riddle: "I sit on your head to block the sun or hide bad hair. What am I?", 
+    answers: ["hat", "cap"], 
+    difficulty: 1 
+  },
+  // 30
+  { 
+    riddle: "I sit between your eyes and your mouth and sometimes I run. What am I?", 
+    answers: ["nose"], 
+    difficulty: 1 
+  },
+  // 31
+  { 
+    riddle: "I move without legs, I murmur without a mouth, and I flow to the sea. What am I?", 
+    answers: ["river"], 
+    difficulty: 1 
+  },
+  // 32
+  { 
+    riddle: "I grow tall from the ground, wear leaves in the wind, and have rings inside. What am I?", 
+    answers: ["tree"], 
+    difficulty: 1 
+  },
+  // 33
+  { 
+    riddle: "I’m spread on beaches and poured into buckets. What am I?", 
+    answers: ["sand"], 
+    difficulty: 1 
+  },
+  // 34
+  { 
+    riddle: "I’m tiny and asleep in the soil, then I wake up green. What am I?", 
+    answers: ["seed"], 
+    difficulty: 1 
+  },
+  // 35
+  { 
+    riddle: "I fall from the sky in winter, I’m cold and soft, and I melt in your hand. What am I?", 
+    answers: ["snow"], 
+    difficulty: 1 
+  },
+  // 36
+  { 
+    riddle: "I mix with water to make you clean, and I sometimes bubble. What am I?", 
+    answers: ["soap"], 
+    difficulty: 1 
+  },
+  // 37
+  { 
+    riddle: "I am used to eat soup, but I never drink it myself. What am I?", 
+    answers: ["spoon"], 
+    difficulty: 1 
+  },
+  // 38
+  { 
+    riddle: "I have sharp teeth for food, but I never bite people. What am I?", 
+    answers: ["fork"], 
+    difficulty: 1 
+  },
+  // 39
+  { 
+    riddle: "I have four legs and a back, but I never walk. What am I?", 
+    answers: ["chair"], 
+    difficulty: 1 
+  },
+  // 40
+  { 
+    riddle: "I have four legs and a flat top; I hold your dinner but never eat it. What am I?", 
+    answers: ["table"], 
+    difficulty: 1 
+  },
+  // 41
+  { 
+    riddle: "I hold you at night but I’m not your partner. I have a head, a foot, and four legs. What am I?", 
+    answers: ["bed"], 
+    difficulty: 1 
+  },
+  // 42
+  { 
+    riddle: "I live in your pocket and ring when someone misses you. What am I?", 
+    answers: ["phone"], 
+    difficulty: 1 
+  },
+  // 43
+  { 
+    riddle: "You type on me to talk to Squigs online. What am I?", 
+    answers: ["keyboard"], 
+    difficulty: 1 
+  },
+  // 44
+  { 
+    riddle: "I click and point but have no hands. What am I?", 
+    answers: ["mouse"], 
+    difficulty: 1 
+  },
+  // 45
+  { 
+    riddle: "I show your reflection in still water, but I’m not a mirror. What am I?", 
+    answers: ["lake", "pond"], 
+    difficulty: 1 
+  },
+  // 46
+  { 
+    riddle: "I cover the ground in cities and forests alike, and Squigs love to hide behind me. What am I?", 
+    answers: ["tree"], 
+    difficulty: 1 
+  },
+  // 47
+  { 
+    riddle: "I move in circles, wash your clothes, and hum while I work. What am I?", 
+    answers: ["washer", "washing machine"], 
+    difficulty: 1 
+  },
+  // 48
+  { 
+    riddle: "I roar when I’m angry, crash when I’m tired, and live on the shore. What am I?", 
+    answers: ["wave", "waves", "ocean"], 
+    difficulty: 1 
+  },
+  // 49
+  { 
+    riddle: "I hang on the wall, mark your height, and never shrink. What am I?", 
+    answers: ["ruler", "measuring tape"], 
+    difficulty: 1 
+  },
+  // 50
+  { 
+    riddle: "I mark where you are in a book, then quietly wait. What am I?", 
+    answers: ["bookmark"], 
+    difficulty: 1 
+  },
 
   // MEDIUM (2) — 50
-  { riddle: "I can be long or short, made or told, but I cannot be seen. What am I?", answers: ["story", "joke", "tale"], difficulty: 2 },
-  { riddle: "I have no life, but I can die. What am I?", answers: ["battery"], difficulty: 2 },
-  { riddle: "What comes once in a minute, twice in a moment, but never in a thousand years?", answers: ["m", "letter m", "the letter m"], difficulty: 2 },
-  { riddle: "I get bigger the more you take away. What am I?", answers: ["hole"], difficulty: 2 },
-  { riddle: "I speak without a mouth and hear without ears. What am I?", answers: ["echo"], difficulty: 2 },
-  { riddle: "What has a bed but never sleeps, and runs but never walks?", answers: ["river"], difficulty: 2 },
-  { riddle: "What is black when you get it, red when you use it, and gray when you’re done?", answers: ["charcoal", "coal"], difficulty: 2 },
-  { riddle: "What loses its head in the morning but gets it back at night?", answers: ["pillow"], difficulty: 2 },
-  { riddle: "I can be big or small, round or square, and you can drink me in a cup or a glass. What am I?", answers: ["ice"], difficulty: 2 },
-  { riddle: "What can be measured but has no length, width, or height?", answers: ["time"], difficulty: 2 },
-  { riddle: "What do you break even when you never pick it up or touch it?", answers: ["promise"], difficulty: 2 },
-  { riddle: "What has cities, but no houses; forests, but no trees; and water, but no fish?", answers: ["map"], difficulty: 2 },
-  { riddle: "The more there is, the less you see. What is it?", answers: ["fog", "darkness"], difficulty: 2 },
-  { riddle: "What begins with E, ends with E, but contains only one letter?", answers: ["envelope"], difficulty: 2 },
-  { riddle: "What can be served but never eaten?", answers: ["tennis ball", "justice", "court"], difficulty: 2 },
-  { riddle: "What has many rings but no fingers?", answers: ["tree", "tree trunk"], difficulty: 2 },
-  { riddle: "I fly without wings and cry without eyes. What am I?", answers: ["cloud"], difficulty: 2 },
-  { riddle: "I’m taken from a mine and shut in a wooden case, from which I’m never released, and yet I’m used by almost every person. What am I?", answers: ["pencil lead", "graphite", "lead"], difficulty: 2 },
-  { riddle: "I have branches, but no fruit, trunk, or leaves. What am I?", answers: ["bank"], difficulty: 2 },
-  { riddle: "What is always coming, but never arrives?", answers: ["tomorrow"], difficulty: 2 },
-  { riddle: "I’m not alive, but I grow; I don’t have lungs, but I need air; I don’t have a mouth, but water kills me. What am I?", answers: ["fire"], difficulty: 2 },
-  { riddle: "What has wheels and flies, but is not an aircraft?", answers: ["garbage truck", "trash truck"], difficulty: 2 },
-  { riddle: "What has one eye but is completely blind?", answers: ["needle", "hurricane", "storm"], difficulty: 2 },
-  { riddle: "What can you catch but not throw (besides a cold)?", answers: ["feelings", "love"], difficulty: 2 },
-  { riddle: "I’m there at the start of eternity and the end of time and space. I’m essential to creation and I surround every place. What am I?", answers: ["e", "letter e", "the letter e"], difficulty: 2 },
-  { riddle: "What is so light that even a feather can’t hold it for long?", answers: ["breath"], difficulty: 2 },
-  { riddle: "I can be cracked, I can be made, I can be told, I can be played. What am I?", answers: ["joke"], difficulty: 2 },
-  { riddle: "Forward I am heavy, backward I am not. What am I?", answers: ["ton"], difficulty: 2 },
-  { riddle: "What begins with P, ends with E, and has thousands of letters?", answers: ["post office", "postoffice"], difficulty: 2 },
-  { riddle: "What has many needles but doesn’t sew?", answers: ["pine tree", "pine"], difficulty: 2 },
-  { riddle: "What can be seen once in a year, twice in a moment, and never in a thousand years?", answers: ["m", "letter m", "the letter m"], difficulty: 2 },
-  { riddle: "What flies when it’s born, lies when it’s alive, and runs when it’s dead?", answers: ["snowflake", "snow"], difficulty: 2 },
-  { riddle: "What is easy to lift but hard to throw?", answers: ["feather"], difficulty: 2 },
-  { riddle: "I start with M, end with X, and have a never-ending amount of letters. What am I?", answers: ["mailbox", "mail box"], difficulty: 2 },
-  { riddle: "I’m light as a feather yet even the strongest person can’t hold me more than a few minutes. What am I?", answers: ["breath"], difficulty: 2 },
-  { riddle: "What has a head, a tail, is brown, and has no legs?", answers: ["penny", "coin", "cent"], difficulty: 2 },
-  { riddle: "I am an odd number. Take away a letter and I become even. What number am I?", answers: ["seven", "7"], difficulty: 2 },
-  { riddle: "I have lakes with no water, mountains with no stone, and cities with no buildings. What am I?", answers: ["map"], difficulty: 2 },
-  { riddle: "The person who makes it, sells it. The person who buys it never uses it. What is it?", answers: ["coffin"], difficulty: 2 },
-  { riddle: "What tastes better than it smells?", answers: ["tongue"], difficulty: 2 },
-  { riddle: "I go all around the world but always stay in a corner. What am I?", answers: ["stamp"], difficulty: 2 },
-  { riddle: "What has a heart that doesn’t beat?", answers: ["artichoke", "lettuce"], difficulty: 2 },
-  { riddle: "What is so fragile that just speaking it breaks it?", answers: ["silence"], difficulty: 2 },
-  { riddle: "What five-letter word becomes shorter when you add two letters to it?", answers: ["short"], difficulty: 2 },
-  { riddle: "What starts with a T, ends with a T, and is full of T?", answers: ["teapot", "tea pot"], difficulty: 2 },
-  { riddle: "What can run but never walks, has a mouth but never talks, has a head but never weeps, has a bed but never sleeps?", answers: ["river"], difficulty: 2 },
-  { riddle: "You see me once in June, twice in November, but not at all in May. What am I?", answers: ["e", "letter e", "the letter e"], difficulty: 2 },
-  { riddle: "What do you bury when it is alive and dig up when it is dead?", answers: ["plant", "seed"], difficulty: 2 },
-  { riddle: "What has many words but never speaks?", answers: ["book", "dictionary"], difficulty: 2 },
+  // 1
+  { 
+    riddle: "I move without legs, whisper without a mouth, and can flip your umbrella inside out. What am I?", 
+    answers: ["wind"], 
+    difficulty: 2 
+  },
+  // 2
+  { 
+    riddle: "I’m there before you speak, and gone once you finish. What am I?", 
+    answers: ["thought"], 
+    difficulty: 2 
+  },
+  // 3
+  { 
+    riddle: "I’m counted in years, worn on faces, and feared by mirrors. What am I?", 
+    answers: ["age"], 
+    difficulty: 2 
+  },
+  // 4
+  { 
+    riddle: "I start fights in traffic, growl in engines, and vanish when you park. What am I?", 
+    answers: ["horn"], 
+    difficulty: 2 
+  },
+  // 5
+  { 
+    riddle: "I keep secrets in numbers and letters, and Squigs use me to hide treasure on-chain. What am I?", 
+    answers: ["password"], 
+    difficulty: 2 
+  },
+  // 6
+  { 
+    riddle: "I store value, hold tokens, and panic if you lose my phrase. What am I?", 
+    answers: ["wallet"], 
+    difficulty: 2 
+  },
+  // 7
+  { 
+    riddle: "I am paid for work, counted in numbers, and chased by bills. What am I?", 
+    answers: ["salary", "wage", "paycheck"], 
+    difficulty: 2 
+  },
+  // 8
+  { 
+    riddle: "I stretch across the sky like a road, but no one can walk on me. What am I?", 
+    answers: ["rainbow"], 
+    difficulty: 2 
+  },
+  // 9
+  { 
+    riddle: "I can freeze time in a frame, but I’m gone when you swipe away. What am I?", 
+    answers: ["photo", "picture"], 
+    difficulty: 2 
+  },
+  // 10
+  { 
+    riddle: "I grow when you feed me numbers, and I draw mountains and valleys on a screen. What am I?", 
+    answers: ["graph", "chart"], 
+    difficulty: 2 
+  },
+  // 11
+  { 
+    riddle: "I am shared in whispers, stored in minds, and destroyed by gossip. What am I?", 
+    answers: ["secret"], 
+    difficulty: 2 
+  },
+  // 12
+  { 
+    riddle: "I am born in anger, grow in silence, and die with a single word. What am I?", 
+    answers: ["grudge"], 
+    difficulty: 2 
+  },
+  // 13
+  { 
+    riddle: "I live in your chest, race when you’re scared, and drum without sticks. What am I?", 
+    answers: ["heart"], 
+    difficulty: 2 
+  },
+  // 14
+  { 
+    riddle: "I sit behind your face and decide what you say, but no one has seen me. What am I?", 
+    answers: ["mind", "brain"], 
+    difficulty: 2 
+  },
+  // 15
+  { 
+    riddle: "I grow without water, travel without moving, and disappear in one swipe. What am I?", 
+    answers: ["notification", "message"], 
+    difficulty: 2 
+  },
+  // 16
+  { 
+    riddle: "I am made of pages, but also exist as a glow on your screen. What am I?", 
+    answers: ["book", "ebook"], 
+    difficulty: 2 
+  },
+  // 17
+  { 
+    riddle: "I am the quiet between beats, the pause between words, and the break in noisy rooms. What am I?", 
+    answers: ["silence"], 
+    difficulty: 2 
+  },
+  // 18
+  { 
+    riddle: "I decide who sees what, I feed on attention, and I never sleep on your feed. What am I?", 
+    answers: ["algorithm"], 
+    difficulty: 2 
+  },
+  // 19
+  { 
+    riddle: "I am the road Squigs use to move tokens, invisible but always busy. What am I?", 
+    answers: ["network", "blockchain"], 
+    difficulty: 2 
+  },
+  // 20
+  { 
+    riddle: "I can be broken by noise, kept by trust, and signed with your name. What am I?", 
+    answers: ["promise", "word"], 
+    difficulty: 2 
+  },
+  // 21
+  { 
+    riddle: "I keep you dry without walls or doors, but I can fly away in a storm. What am I?", 
+    answers: ["umbrella"], 
+    difficulty: 2 
+  },
+  // 22
+  { 
+    riddle: "I say everything without a sound, and I live in your eyes. What am I?", 
+    answers: ["look", "glance"], 
+    difficulty: 2 
+  },
+  // 23
+  { 
+    riddle: "I am taken before a journey and thrown away once you arrive. What am I?", 
+    answers: ["photo", "picture"], 
+    difficulty: 2 
+  },
+  // 24
+  { 
+    riddle: "I start tall, end short, and disappear while giving light. What am I?", 
+    answers: ["candle"], 
+    difficulty: 2 
+  },
+  // 25
+  { 
+    riddle: "I can be saved, spent, staked, or burned, but never held in your hand. What am I?", 
+    answers: ["token", "crypto", "coin"], 
+    difficulty: 2 
+  },
+  // 26
+  { 
+    riddle: "I can freeze a moment, shape your memory of it, and lie without ever speaking. What am I?", 
+    answers: ["photo", "picture"], 
+    difficulty: 2 
+  },
+  // 27
+  { 
+    riddle: "I decide the winner, count the points, and end arguments in games. What am I?", 
+    answers: ["score"], 
+    difficulty: 2 
+  },
+  // 28
+  { 
+    riddle: "I stretch in the morning, shrink at night, and live on your schedule. What am I?", 
+    answers: ["day"], 
+    difficulty: 2 
+  },
+  // 29
+  { 
+    riddle: "I am given, taken, and sometimes broken. Without me, trust is thin. What am I?", 
+    answers: ["promise"], 
+    difficulty: 2 
+  },
+  // 30
+  { 
+    riddle: "I am the part of the story you don’t see on screen, but feel anyway. What am I?", 
+    answers: ["music", "soundtrack"], 
+    difficulty: 2 
+  },
+  // 31
+  { 
+    riddle: "I grow on your face when you’re older, disappear with a blade, and return when you rest. What am I?", 
+    answers: ["beard"], 
+    difficulty: 2 
+  },
+  // 32
+  { 
+    riddle: "I appear when you’re happy, fade when you’re tired, and vanish when you’re angry. What am I?", 
+    answers: ["smile"], 
+    difficulty: 2 
+  },
+  // 33
+  { 
+    riddle: "I am the line between courage and danger, crossed by accident or choice. What am I?", 
+    answers: ["edge"], 
+    difficulty: 2 
+  },
+  // 34
+  { 
+    riddle: "I am the quiet worry in your stomach before a big event. What am I?", 
+    answers: ["nerves", "anxiety"], 
+    difficulty: 2 
+  },
+  // 35
+  { 
+    riddle: "I start as a wish, grow into a plan, and sometimes end as regret. What am I?", 
+    answers: ["idea", "dream"], 
+    difficulty: 2 
+  },
+  // 36
+  { 
+    riddle: "I move armies in games, but never in real wars. What am I?", 
+    answers: ["piece", "pawn"], 
+    difficulty: 2 
+  },
+  // 37
+  { 
+    riddle: "I am measured in beats, feared in hospitals, and missed when I stop. What am I?", 
+    answers: ["pulse", "heartbeat"], 
+    difficulty: 2 
+  },
+  // 38
+  { 
+    riddle: "I am the invisible weight you feel when you owe someone. What am I?", 
+    answers: ["debt"], 
+    difficulty: 2 
+  },
+  // 39
+  { 
+    riddle: "I am the map Squigs use to find you online, but I’m just numbers and dots. What am I?", 
+    answers: ["address", "ip"], 
+    difficulty: 2 
+  },
+  // 40
+  { 
+    riddle: "I lure you to scroll, steal your time, and reward you with nothing you needed. What am I?", 
+    answers: ["feed", "timeline"], 
+    difficulty: 2 
+  },
+  // 41
+  { 
+    riddle: "I am the bridge between questions and answers, but I never speak. What am I?", 
+    answers: ["search"], 
+    difficulty: 2 
+  },
+  // 42
+  { 
+    riddle: "I decide when your food arrives, your Squigs mint, and your meeting starts. What am I?", 
+    answers: ["time"], 
+    difficulty: 2 
+  },
+  // 43
+  { 
+    riddle: "I can be burned, wasted, invested, and spent, but never saved in a wallet. What am I?", 
+    answers: ["time"], 
+    difficulty: 2 
+  },
+  // 44
+  { 
+    riddle: "I am the price of haste, the debt of laziness, and the tax of late decisions. What am I?", 
+    answers: ["stress"], 
+    difficulty: 2 
+  },
+  // 45
+  { 
+    riddle: "I guard your house when you’re gone, and your door when you sleep. What am I?", 
+    answers: ["lock"], 
+    difficulty: 2 
+  },
+  // 46
+  { 
+    riddle: "I am loud at concerts, silent in space, and shaped by walls. What am I?", 
+    answers: ["sound"], 
+    difficulty: 2 
+  },
+  // 47
+  { 
+    riddle: "I am the place between awake and asleep where ideas get weird. What am I?", 
+    answers: ["dream"], 
+    difficulty: 2 
+  },
+  // 48
+  { 
+    riddle: "I can be bitten but never chewed, frozen but never cold, and kept but never held. What am I?", 
+    answers: ["lip"], 
+    difficulty: 2 
+  },
+  // 49
+  { 
+    riddle: "I am the invisible wall between two people who won’t talk. What am I?", 
+    answers: ["silence"], 
+    difficulty: 2 
+  },
+  // 50
+  { 
+    riddle: "I am the distance between where you are and where you want to be. What am I?", 
+    answers: ["goal", "gap"], 
+    difficulty: 2 
+  },
 
   // HARD (3) — 50
-  { riddle: "I have cities, but no houses. I have mountains, but no trees. I have water, but no fish. What am I?", answers: ["map"], difficulty: 3 },
-  { riddle: "Throw away the outside and cook the inside, then eat the outside and throw away the inside. What is it?", answers: ["corn on the cob", "corn"], difficulty: 3 },
-  { riddle: "I have no voice, and yet I speak to you. I tell of all things in the world that people do. What am I?", answers: ["book"], difficulty: 3 },
-  { riddle: "I am always hungry, I must always be fed. The finger I touch will soon turn red. What am I?", answers: ["fire"], difficulty: 3 },
-  { riddle: "A box without hinges, key, or lid, yet golden treasure inside is hid. What am I?", answers: ["egg"], difficulty: 3 },
-  { riddle: "The more you take, the more you leave behind. What am I?", answers: ["footsteps", "steps"], difficulty: 3 },
-  { riddle: "I am not alive, but I grow; I don’t have lungs, but I need air; I don’t have a mouth, and I’m killed by water. What am I?", answers: ["fire"], difficulty: 3 },
-  { riddle: "What has an ear but cannot hear, a tongue but cannot taste, and a soul but cannot die?", answers: ["shoe"], difficulty: 3 },
-  { riddle: "I can be cracked, I can be made, I can be told, I can be played; I can be dry, but I’m often wet. What am I?", answers: ["joke"], difficulty: 3 },
-  { riddle: "I am lighter than a feather, yet the strongest person can’t hold me for much more than a minute. What am I?", answers: ["breath"], difficulty: 3 },
-  { riddle: "If you feed me, I live; if you water me, I die. What am I?", answers: ["fire"], difficulty: 3 },
-  { riddle: "I can only live where there is light, but I die if the light shines on me. What am I?", answers: ["shadow"], difficulty: 3 },
-  { riddle: "I am the beginning of the end and the end of time and space. I am essential to creation. What am I?", answers: ["e", "letter e", "the letter e"], difficulty: 3 },
-  { riddle: "You measure my life in hours and I serve you by expiring. I’m quick when I’m thin and slow when I’m fat. What am I?", answers: ["candle"], difficulty: 3 },
-  { riddle: "I have a heart that doesn’t beat, a face that doesn’t smile, and a soul that doesn’t rest. What am I?", answers: ["artichoke", "statue"], difficulty: 3 },
-  { riddle: "I can fly without wings. I can cry without eyes. Wherever I go, darkness follows me. What am I?", answers: ["cloud"], difficulty: 3 },
-  { riddle: "The one who makes me doesn’t want me; the one who buys me doesn’t use me; the one who uses me doesn’t know it. What am I?", answers: ["coffin"], difficulty: 3 },
-  { riddle: "I have keys but open no locks, I have space but no room, you can enter but not go in. What am I?", answers: ["keyboard"], difficulty: 3 },
-  { riddle: "What walks on four legs in the morning, two legs at noon, and three legs in the evening?", answers: ["human", "man", "a man"], difficulty: 3 },
-  { riddle: "I can run but never walk; wherever I go, thought follows close behind. What am I?", answers: ["nose"], difficulty: 3 },
-  { riddle: "Alive without breath, as cold as death; never thirsty, ever drinking; all in mail, never clinking. What am I?", answers: ["fish"], difficulty: 3 },
-  { riddle: "I am taken from a mine and shut up in a wooden case, from which I am never released, and yet I am used by everyone. What am I?", answers: ["pencil lead", "graphite"], difficulty: 3 },
-  { riddle: "I have a head, a tail, am brown, and have no legs. What am I?", answers: ["penny", "cent"], difficulty: 3 },
-  { riddle: "If you look at the numbers on my face you won’t find 13 anyplace. What am I?", answers: ["clock", "watch"], difficulty: 3 },
-  { riddle: "I bind the wind, yet the wind binds me. What am I?", answers: ["sail", "sailboat sail"], difficulty: 3 },
-  { riddle: "I am the hole in a ring, the space in a cage, the target of aim. What am I?", answers: ["nothing", "air", "space"], difficulty: 3 },
-  { riddle: "What has a tongue that can’t taste, eyes that can’t see, and a soul that can’t die?", answers: ["shoe"], difficulty: 3 },
-  { riddle: "I am a king yet wear no crown; I run the realm but have no throne. I rise and fall without a sound. What am I?", answers: ["tide", "ocean tide"], difficulty: 3 },
-  { riddle: "It cannot be seen, cannot be felt, cannot be heard, cannot be smelt. It lies behind stars and under hills, and empty holes it fills. What is it?", answers: ["darkness", "dark"], difficulty: 3 },
-  { riddle: "I turn once, what is out will not get in. I turn again, what is in will not get out. What am I?", answers: ["key"], difficulty: 3 },
-  { riddle: "Feed me and I live, give me a drink and I die. What am I?", answers: ["fire"], difficulty: 3 },
-  { riddle: "I have teeth but cannot bite; I’m often used at night. What am I?", answers: ["zipper", "comb"], difficulty: 3 },
-  { riddle: "I am always running, yet I have no legs. You always need me, yet I never eat. What am I?", answers: ["water", "nose", "time"], difficulty: 3 },
-  { riddle: "Tear one off and scratch my head; what once was red is black instead. What am I?", answers: ["match", "matchstick"], difficulty: 3 },
-  { riddle: "I can be written, I can be spoken, I can be exposed, I can be broken. What am I?", answers: ["news", "silence", "secret"], difficulty: 3 },
-  { riddle: "The more I dry, the wetter I get. What am I?", answers: ["towel"], difficulty: 3 },
-  { riddle: "If you have me, you want to share me. If you share me, you don’t have me. What am I?", answers: ["secret"], difficulty: 3 },
-  { riddle: "I have a tail, and I have a head, but I have no body. I am NOT a snake. What am I?", answers: ["coin"], difficulty: 3 },
-  { riddle: "I go up and down the stairs without moving. What am I?", answers: ["carpet", "staircase", "rail"], difficulty: 3 },
-  { riddle: "I have an end but no beginning, a home but no family, a space without a room. What am I?", answers: ["road"], difficulty: 3 },
-  { riddle: "I am a portal without door or hinge. I open to anything and close to none. What am I?", answers: ["imagination", "mind"], difficulty: 3 },
-  { riddle: "What can bring back the dead, make us cry, make us laugh, make us young; is born in an instant, yet lasts a lifetime?", answers: ["memory", "memories"], difficulty: 3 },
-  { riddle: "I am the mother of all languages, spoken by none. What am I?", answers: ["silence"], difficulty: 3 },
-  { riddle: "I’m the beginning of the end, and the end of every place. I’m the beginning of eternity, the end of time and space. What am I?", answers: ["e", "letter e", "the letter e"], difficulty: 3 },
-  { riddle: "What room do ghosts avoid?", answers: ["living room", "the living room"], difficulty: 3 },
-  { riddle: "What flies forever, rests never?", answers: ["time"], difficulty: 3 },
-  { riddle: "I am sometimes found underground, sometimes on a finger, sometimes floating in the sky. What am I?", answers: ["ring"], difficulty: 3 },
-  { riddle: "What has roots that nobody sees, is taller than trees, up, up it goes and yet never grows?", answers: ["mountain"], difficulty: 3 },
-
-  // SQUIG SPECIAL (4) — 50 (Ugly Labs / Squig lore)
-  { riddle: "The vending machine dispenses a Squig’s favorite snack, shaped like a wobbly cloud. What flavor is it?", answers: ["banana"], difficulty: 4 },
-  { riddle: "The portal watcher only accepts one cookie as a toll. Which one?", answers: ["chocolate chip", "choc chip", "chocolate-chip"], difficulty: 4 },
-  { riddle: "A humming button sings a single word when pressed. What word?", answers: ["soup"], difficulty: 4 },
-  { riddle: "To cheer up the grumpy Squig, you tell a joke. What’s the punchline?", answers: ["burp"], difficulty: 4 },
-  { riddle: "Upside-down coffee requires the proper spoon. Which tool works best?", answers: ["wooden", "wooden spoon", "spatula"], difficulty: 4 },
-  { riddle: "The charm hums when a particular color-pattern is near. Which one?", answers: ["plaid"], difficulty: 4 },
-  { riddle: "Squig socks are inside out. What pattern is on the bottoms?", answers: ["polka dots", "polkadots", "dots", "stripes"], difficulty: 4 },
-  { riddle: "The old teapot steeps only one aroma. What does it smell like?", answers: ["whiskey", "stinky"], difficulty: 4 },
-  { riddle: "In the Lab’s fridge, there’s one jar that never molds. What’s inside?", answers: ["pickles", "pickle"], difficulty: 4 },
-  { riddle: "A Squig librarian stamps books with a single letter. Which letter?", answers: ["s"], difficulty: 4 },
-  { riddle: "The charm chooses a lucky number for the day. Which number makes it purr?", answers: ["7", "seven"], difficulty: 4 },
-  { riddle: "The Monster’s kite is tied with noodles. Which noodle works best?", answers: ["spaghetti"], difficulty: 4 },
-  { riddle: "The arcade cabinet accepts only one coin that screams. Which coin?", answers: ["truth coin", "truth"], difficulty: 4 },
-  { riddle: "A Squig chef salts everything with the same seasoning. What is it?", answers: ["glitter"], difficulty: 4 },
-  { riddle: "An elevator in the vault moves only when you whisper a snack. Which snack?", answers: ["banana"], difficulty: 4 },
-  { riddle: "The Labyrinth guard lets you pass if you offer a smell. Which smell?", answers: ["soup"], difficulty: 4 },
-  { riddle: "A mirror shows your best self only if you grin a word. Which word?", answers: ["burp"], difficulty: 4 },
-  { riddle: "The Squig Museum awards a ribbon for 'most average art'. What color is it?", answers: ["beige"], difficulty: 4 },
-  { riddle: "A radio in the archive plays one station all day. What genre?", answers: ["static"], difficulty: 4 },
-  { riddle: "The charm’s favorite sandwich is exactly one ingredient. Which?", answers: ["pickle", "pickles"], difficulty: 4 },
-  { riddle: "A Squig fortune cookie always predicts one weather. Which?", answers: ["fog"], difficulty: 4 },
-  { riddle: "The slime fountain changes color if you say a fruit. Which fruit?", answers: ["banana"], difficulty: 4 },
-  { riddle: "To open the ‘Wiggly Door’, speak a texture. Which texture?", answers: ["sticky"], difficulty: 4 },
-  { riddle: "The coin that lies prefers what side up?", answers: ["tails"], difficulty: 4 },
-  { riddle: "A Squig calendar skips every day that starts with this letter. Which letter?", answers: ["t"], difficulty: 4 },
-  { riddle: "The nap pod counts sheep but only one animal works. Which animal?", answers: ["goat"], difficulty: 4 },
-  { riddle: "The charm’s lullaby is one syllable long. Which syllable?", answers: ["mmm"], difficulty: 4 },
-  { riddle: "The vending machine jams unless you thank it in which language?", answers: ["burp"], difficulty: 4 },
-  { riddle: "An umbrella in the Lab breaks in any weather but one. Which weather?", answers: ["fog"], difficulty: 4 },
-  { riddle: "The portal’s password is a condiment. Which?", answers: ["mustard"], difficulty: 4 },
-  { riddle: "A Squig eats cereal with a utensil that isn’t a spoon. Which?", answers: ["fork", "spork"], difficulty: 4 },
-  { riddle: "The charm declares one vegetable as 'too handsome'. Which?", answers: ["eggplant", "aubergine"], difficulty: 4 },
-  { riddle: "A hallway of teeth opens if you whisper a dessert. Which?", answers: ["pudding"], difficulty: 4 },
-  { riddle: "The archive cube warms to one syllable. Which syllable?", answers: ["soup"], difficulty: 4 },
-  { riddle: "Squig TV stops glitching if tuned to which show?", answers: ["cooking"], difficulty: 4 },
-  { riddle: "The coin that screams calms down when flipped onto what?", answers: ["carpet", "rug"], difficulty: 4 },
-  { riddle: "The Monster’s wig only sticks with which glue?", answers: ["honey"], difficulty: 4 },
-  { riddle: "A riddle board pays double if you answer with which emotion?", answers: ["confident", "confidence"], difficulty: 4 },
-  { riddle: "The soup of uncertainty pairs best with which bread?", answers: ["stale bread", "stale"], difficulty: 4 },
-  { riddle: "The charm’s favorite season?", answers: ["spooky", "autumn", "fall"], difficulty: 4 },
-  { riddle: "Which door hums back when you hum at it?", answers: ["green door", "green"], difficulty: 4 },
-  { riddle: "The Squig librarian files screams under which letter?", answers: ["s"], difficulty: 4 },
-  { riddle: "What flavor is 'definitely nothing'?", answers: ["vanilla", "nothing"], difficulty: 4 },
-  { riddle: "Which chair in the Seat of Consequence is secretly polite?", answers: ["humming chair", "humming"], difficulty: 4 },
-  { riddle: "The archive lamp turns on if you tell it your favorite…?", answers: ["soup"], difficulty: 4 },
-  { riddle: "The charm gives bonus points if you blink this many times.", answers: ["3", "three"], difficulty: 4 },
-  { riddle: "The portal’s favorite number pattern?", answers: ["palindrome"], difficulty: 4 },
-  { riddle: "A Squig handshake is replaced with which sound?", answers: ["burp"], difficulty: 4 },
-  { riddle: "The safest door is which color today?", answers: ["blue"], difficulty: 4 },
-  { riddle: "The Lab’s cat answers only to which name?", answers: ["soup"], difficulty: 4 },
-  { riddle: "The charm’s snack break is always at which time?", answers: ["noon", "12", "12:00"], difficulty: 4 },
+  // 1
+  { 
+    riddle: "I erase kingdoms in silence, smooth mountains to nothing, and still lose to a single moment. What am I?", 
+    answers: ["time"], 
+    difficulty: 3 
+  },
+  // 2
+  { 
+    riddle: "I am the one thing everyone spends, the one thing no one owns, and the first thing you ask for when you’re late. What am I?", 
+    answers: ["time"], 
+    difficulty: 3 
+  },
+  // 3
+  { 
+    riddle: "I build worlds behind your eyes, rewrite the past, and visit futures that never happen. What am I?", 
+    answers: ["imagination"], 
+    difficulty: 3 
+  },
+  // 4
+  { 
+    riddle: "I live between the truth and the story, stretched by fear and squeezed by pride. What am I?", 
+    answers: ["memory"], 
+    difficulty: 3 
+  },
+  // 5
+  { 
+    riddle: "I am light enough to ignore, heavy enough to drown you, and invisible to everyone but you. What am I?", 
+    answers: ["guilt"], 
+    difficulty: 3 
+  },
+  // 6
+  { 
+    riddle: "I never speak, yet I confess everything when you finally stop talking. What am I?", 
+    answers: ["silence"], 
+    difficulty: 3 
+  },
+  // 7
+  { 
+    riddle: "I sit at the edge of every leap, frozen in your chest, waiting on your choice. What am I?", 
+    answers: ["fear"], 
+    difficulty: 3 
+  },
+  // 8
+  { 
+    riddle: "I arrive without footsteps, live in your ribs, and leave with a sigh. What am I?", 
+    answers: ["sorrow"], 
+    difficulty: 3 
+  },
+  // 9
+  { 
+    riddle: "I am born when something ends, feared when I’m empty, and chased when I’m full. What am I?", 
+    answers: ["future"], 
+    difficulty: 3 
+  },
+  // 10
+  { 
+    riddle: "I grow when you feed me attention, shrink when you face me, and vanish when you accept me. What am I?", 
+    answers: ["anxiety", "fear"], 
+    difficulty: 3 
+  },
+  // 11
+  { 
+    riddle: "Squigs open me to cross worlds, humans open me to cross days. What am I?", 
+    answers: ["portal", "door"], 
+    difficulty: 3 
+  },
+  // 12
+  { 
+    riddle: "I bind strangers into armies, turn ideas into crowds, and vanish when no one cares. What am I?", 
+    answers: ["belief", "faith"], 
+    difficulty: 3 
+  },
+  // 13
+  { 
+    riddle: "I am a mirror with no glass that only reflects what you are not. What am I?", 
+    answers: ["envy"], 
+    difficulty: 3 
+  },
+  // 14
+  { 
+    riddle: "I am loudest when I am broken, and quietest when I am whole. What am I?", 
+    answers: ["heart", "silence"], 
+    difficulty: 3 
+  },
+  // 15
+  { 
+    riddle: "I am the tax you pay to the future for the things you never fixed in the past. What am I?", 
+    answers: ["regret"], 
+    difficulty: 3 
+  },
+  // 16
+  { 
+    riddle: "I sit between your decision and your action, and I vanish with a single step. What am I?", 
+    answers: ["doubt"], 
+    difficulty: 3 
+  },
+  // 17
+  { 
+    riddle: "I can turn kings into beggars, and beggars into kings, without changing a coin. What am I?", 
+    answers: ["story"], 
+    difficulty: 3 
+  },
+  // 18
+  { 
+    riddle: "I am the space between beats of a song, and the reason the song feels alive. What am I?", 
+    answers: ["silence", "pause"], 
+    difficulty: 3 
+  },
+  // 19
+  { 
+    riddle: "I am carved from your choices, worn by your habits, and handed to tomorrow. What am I?", 
+    answers: ["reputation"], 
+    difficulty: 3 
+  },
+  // 20
+  { 
+    riddle: "I am the shadow of every promise, and I arrive the moment it breaks. What am I?", 
+    answers: ["disappointment"], 
+    difficulty: 3 
+  },
+  // 21
+  { 
+    riddle: "I drink your attention, bend your opinions, and pretend I’m just delivering news. What am I?", 
+    answers: ["media"], 
+    difficulty: 3 
+  },
+  // 22
+  { 
+    riddle: "I live in a line of symbols, guard vaults without walls, and vanish if you forget me. What am I?", 
+    answers: ["password", "seed"], 
+    difficulty: 3 
+  },
+  // 23
+  { 
+    riddle: "I am the ghost of a moment, sharpened by distance, softened by comfort. What am I?", 
+    answers: ["memory"], 
+    difficulty: 3 
+  },
+  // 24
+  { 
+    riddle: "I grow in silence, explode in noise, and sometimes end in laughter. What am I?", 
+    answers: ["argument"], 
+    difficulty: 3 
+  },
+  // 25
+  { 
+    riddle: "I am invisible weight, carried by liars and lifted by confession. What am I?", 
+    answers: ["guilt"], 
+    difficulty: 3 
+  },
+  // 26
+  { 
+    riddle: "I am the softest prison, built with comfort and fear of change. What am I?", 
+    answers: ["routine"], 
+    difficulty: 3 
+  },
+  // 27
+  { 
+    riddle: "I am the map Squigs can’t draw: every choice you didn’t make. What am I?", 
+    answers: ["regret"], 
+    difficulty: 3 
+  },
+  // 28
+  { 
+    riddle: "I hold everything you could have been, and nothing you chose to be. What am I?", 
+    answers: ["potential"], 
+    difficulty: 3 
+  },
+  // 29
+  { 
+    riddle: "I am made stronger by being challenged and weaker by being obeyed. What am I?", 
+    answers: ["ego"], 
+    difficulty: 3 
+  },
+  // 30
+  { 
+    riddle: "I keep you from falling, but I’m built from every time you did. What am I?", 
+    answers: ["experience"], 
+    difficulty: 3 
+  },
+  // 31
+  { 
+    riddle: "I am the quiet rewrite of your memories that always makes you the hero. What am I?", 
+    answers: ["ego"], 
+    difficulty: 3 
+  },
+  // 32
+  { 
+    riddle: "I haunt the end of every success and the start of every new risk. What am I?", 
+    answers: ["doubt"], 
+    difficulty: 3 
+  },
+  // 33
+  { 
+    riddle: "I turn strangers into allies with a word, and allies into enemies with another. What am I?", 
+    answers: ["trust"], 
+    difficulty: 3 
+  },
+  // 34
+  { 
+    riddle: "I am the last thing you lose and the first thing others write on your stone. What am I?", 
+    answers: ["name"], 
+    difficulty: 3 
+  },
+  // 35
+  { 
+    riddle: "I am the storm inside a quiet person when they say, “I’m fine.” What am I?", 
+    answers: ["anger"], 
+    difficulty: 3 
+  },
+  // 36
+  { 
+    riddle: "I am the cage built from what others think, and the key is what you know. What am I?", 
+    answers: ["fear"], 
+    difficulty: 3 
+  },
+  // 37
+  { 
+    riddle: "I am the distance between your intention and your action. What am I?", 
+    answers: ["procrastination"], 
+    difficulty: 3 
+  },
+  // 38
+  { 
+    riddle: "I grow when you stare backward, shrink when you face forward, and vanish when you move. What am I?", 
+    answers: ["regret"], 
+    difficulty: 3 
+  },
+  // 39
+  { 
+    riddle: "I am the heartbeat of every community, but I cannot live without listening. What am I?", 
+    answers: ["conversation"], 
+    difficulty: 3 
+  },
+  // 40
+  { 
+    riddle: "I am the gravity that pulls you back to your worst habits. What am I?", 
+    answers: ["comfort"], 
+    difficulty: 3 
+  },
+  // 41
+  { 
+    riddle: "I turn secrets into currency, friendships into numbers, and attention into profit. What am I?", 
+    answers: ["platform", "social"], 
+    difficulty: 3 
+  },
+  // 42
+  { 
+    riddle: "I begin as curiosity, grow into obsession, and sometimes end in wisdom. What am I?", 
+    answers: ["learning"], 
+    difficulty: 3 
+  },
+  // 43
+  { 
+    riddle: "I am the only fire that grows when you share it and dies when you hoard it. What am I?", 
+    answers: ["knowledge"], 
+    difficulty: 3 
+  },
+  // 44
+  { 
+    riddle: "I am the invisible script you follow each day, until you decide to improvise. What am I?", 
+    answers: ["habit"], 
+    difficulty: 3 
+  },
+  // 45
+  { 
+    riddle: "I am the currency Squigs can’t mint: earned in actions, lost in seconds. What am I?", 
+    answers: ["respect"], 
+    difficulty: 3 
+  },
+  // 46
+  { 
+    riddle: "I start as a whisper, grow into a storm, and can topple empires without one vote. What am I?", 
+    answers: ["rumor"], 
+    difficulty: 3 
+  },
+  // 47
+  { 
+    riddle: "I am the only prison whose walls you rebuild every time they crack. What am I?", 
+    answers: ["fear"], 
+    difficulty: 3 
+  },
+  // 48
+  { 
+    riddle: "I am the story the world tells about you when you’re not in the room. What am I?", 
+    answers: ["reputation"], 
+    difficulty: 3 
+  },
+  // 49
+  { 
+    riddle: "I am the ghost of choices not taken, visiting late at night. What am I?", 
+    answers: ["regret"], 
+    difficulty: 3 
+  },
+  // 50
+  { 
+    riddle: "I am the only battle you fight every day where both sides are you. What am I?", 
+    answers: ["conscience"], 
+    difficulty: 3 
+  },
+  // Squig Specials
+  // 1
+  { 
+    riddle: "In the Ugly Labs ecosystem, Squigs are a collection of how many NFTs in total?", 
+    answers: ["4444", "4,444"], 
+    difficulty: 4 
+  },
+  // 2
+  { 
+    riddle: "Which studio created Squigs and the rest of the ecosystem?", 
+    answers: ["ugly labs"], 
+    difficulty: 4 
+  },
+  // 3
+  { 
+    riddle: "What is the name of the very first Ugly Labs collection with 666 supply?", 
+    answers: ["charm of the ugly", "charm"], 
+    difficulty: 4 
+  },
+  // 4
+  { 
+    riddle: "Burning three Charms in the ecosystem will create which companion collection?", 
+    answers: ["ugly monster", "ugly monsters"], 
+    difficulty: 4 
+  },
+  // 5
+  { 
+    riddle: "On which blockchain network do Squigs live?", 
+    answers: ["ethereum"], 
+    difficulty: 4 
+  },
+  // 6
+  { 
+    riddle: "When you mint a Squig, you instantly pull from what prize system?", 
+    answers: ["prize portal", "portal prizes", "prize"], 
+    difficulty: 4 
+  },
+  // 7
+  { 
+    riddle: "Holding and playing inside the Ugly Labs ecosystem earns which token?", 
+    answers: ["charm", "$charm"], 
+    difficulty: 4 
+  },
+  // 8
+  { 
+    riddle: "What’s the name of the marketplace where you can spend your $CHARM on more Ugly Labs assets?", 
+    answers: ["malformed market", "malformed marketplace"], 
+    difficulty: 4 
+  },
+  // 9
+  { 
+    riddle: "Which platform tracks your Ugly Labs collectibles, badges, and Portal Prizes?", 
+    answers: ["uglydex"], 
+    difficulty: 4 
+  },
+  // 10
+  { 
+    riddle: "What is the name of the main leaderboard that shows how deep you are in the ecosystem?", 
+    answers: ["uglyboard"], 
+    difficulty: 4 
+  },
+  // 11
+  { 
+    riddle: "What are the points called that help you climb the UglyBoard?", 
+    answers: ["uglypoints", "up"], 
+    difficulty: 4 
+  },
+  // 12
+  { 
+    riddle: "Squigs are described as beings from a distant what?", 
+    answers: ["planet"], 
+    difficulty: 4 
+  },
+  // 13
+  { 
+    riddle: "What concept are Squigs obsessed with, across looks, behavior, and culture?", 
+    answers: ["ugly"], 
+    difficulty: 4 
+  },
+  // 14
+  { 
+    riddle: "Squigs studied Earth mostly by watching which online culture grow and implode?", 
+    answers: ["web3", "nfts", "nft culture", "crypto"], 
+    difficulty: 4 
+  },
+  // 15
+  { 
+    riddle: "When Squigs cross the portal to Earth, humans mainly see them as which type of asset?", 
+    answers: ["nfts", "nft", "digital asset", "collectible", "digital collectible"], 
+    difficulty: 4 
+  },
+  // 16
+  { 
+    riddle: "In the lore, Squigs don’t think they’re owned. What do humans think they are doing to Squigs?", 
+    answers: ["owning", "own them"], 
+    difficulty: 4 
+  },
+  // 19
+  { 
+    riddle: "Which collection is called the 'next wave of Ugly Labs' after Charm of the Ugly and Ugly Monsters?", 
+    answers: ["squigs"], 
+    difficulty: 4 
+  },
+  // 20
+  { 
+    riddle: "How many Charm of the Ugly must be burned to create a single Ugly Monster?", 
+    answers: ["3", "three"], 
+    difficulty: 4 
+  },
+  // 21
+  { 
+    riddle: "What is the total supply of Charm of the Ugly in the ecosystem?", 
+    answers: ["666"], 
+    difficulty: 4 
+  },
+  // 25
+  { 
+    riddle: "When you reveal your Squigs mint rewards on UglyDex, what are they called?", 
+    answers: ["portal prizes", "prize portal", "portal prize"], 
+    difficulty: 4 
+  },
+  // 26
+  { 
+    riddle: "Which token do you earn more of by holding more Ugly Labs assets?", 
+    answers: ["charm", "$charm"], 
+    difficulty: 4 
+  },
+  // 27
+  { 
+    riddle: "What kind of mint was offered for Charm and Monster holders when Squigs arrived?", 
+    answers: ["free", "free mint"], 
+    difficulty: 4 
+  },
+  // 28
+  { 
+    riddle: "On which NFT platform can you view Squigs on the secondary market by default?", 
+    answers: ["opensea", "magic eden", "magiceden"], 
+    difficulty: 4 
+  },
+  // 31
+  { 
+    riddle: "In lore, Squigs watch Earth through telescopes and what other type of gateway?", 
+    answers: ["portals", "portal"], 
+    difficulty: 4 
+  },
+  // 33
+  { 
+    riddle: "What is the name of the chaotic game-show style event bot that runs lore-rich games in the server?", 
+    answers: ["the gauntlet", "gauntlet"], 
+    difficulty: 4 
+  },
+  // 34
+  { 
+    riddle: "Which collection is described as 'celebrating imperfection in a world obsessed with perfection'?", 
+    answers: ["charm of the ugly", "charm"], 
+    difficulty: 4 
+  },
+  // 35
+  { 
+    riddle: "Which collection is described as ‘pets and companions’ in the Ugly ecosystem?", 
+    answers: ["ugly monsters", "monsters"], 
+    difficulty: 4 
+  },
+  // 37
+  { 
+    riddle: "Every Squig that arrives on Earth appears as what digital object to humans?", 
+    answers: ["nft", "profile picture", "pfp","digital collectible"], 
+    difficulty: 4 
+  },
+  // 39
+  { 
+    riddle: "What do you earn by completing games, quests, and events alongside holding in the ecosystem?", 
+    answers: ["charm", "$charm"], 
+    difficulty: 4 
+  },
+  // 40
+  { 
+    riddle: "What type of loop is Squigs often described as: linear, broken, or full-circle?", 
+    answers: ["full circle", "full-circle"], 
+    difficulty: 4 
+  },
+  // 41
+  { 
+    riddle: "Which Ugly Labs asset type increases your $CHARM earning potential the more of them you hold?", 
+    answers: ["ugly labs nfts", "ugly labs assets"], 
+    difficulty: 4 
+  },
+  // 42
+  { 
+    riddle: "Which collection do you specifically 'mint' to start the Mint → Win → Earn → Buy loop?", 
+    answers: ["squigs"], 
+    difficulty: 4 
+  },
+  // 43
+  { 
+    riddle: "If you burn three Charms and gain one Monster, what are you doing to your Charm collection?", 
+    answers: ["sacrifice", "sacrificing"], 
+    difficulty: 4 
+  },
+  // 44
+  { 
+    riddle: "What do Squigs use to judge humans more than floor prices: your traits or your tokens?", 
+    answers: ["traits"], 
+    difficulty: 4 
+  },
+  // 45
+  { 
+    riddle: "Which digital token is positioned as the 'glue' that connects Squigs, Charms, and Monsters?", 
+    answers: ["charm", "$charm"], 
+    difficulty: 4 
+  },
+  // 46
+  { 
+    riddle: "What do you primarily spend in the Malformed Market: ETH or $CHARM?", 
+    answers: ["charm", "$charm"], 
+    difficulty: 4 
+  },
+  // 47
+  { 
+    riddle: "What do Squigs quietly farm from humans by watching Web3: alpha or behavior?", 
+    answers: ["behavior", "behaviour"], 
+    difficulty: 4 
+  },
+  // 48
+  { 
+    riddle: "In lore, Squigs arrived after watching people abandon which kind of digital communities?", 
+    answers: ["nft communities", "communities"], 
+    difficulty: 4 
+  },
+  // 49
+  { 
+    riddle: "When humans say 'I own this Squig', what do Squigs think they actually own instead?", 
+    answers: ["nothing"], 
+    difficulty: 4 
+  },
+  // 50
+  { 
+    riddle: "In one sentence: Squigs exist to worship which four-letter word?", 
+    answers: ["ugly"], 
+    difficulty: 4 
+  },
 ];
 
 
