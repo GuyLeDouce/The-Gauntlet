@@ -1,5 +1,6 @@
-// index.js — Unified Entry Point for Solo + Group Gauntlet
+// index.js — Entry Point for The Gauntlet (Solo + Group)
 
+// Load .env
 require("dotenv").config();
 
 const {
@@ -9,23 +10,24 @@ const {
   Events,
 } = require("discord.js");
 
-// ------------ ENV + MODULES ----------------
 const { TOKEN } = require("./src/utils");
 const { initStore } = require("./src/db");
 
-// SOLO GAUNTLET
+// Solo (ephemeral) Gauntlet
 const {
   registerCommands: registerSoloCommands,
-  handleInteractionCreate: handleSoloInteraction,
+  handleInteractionCreate: handleSoloInteractionCreate,
 } = require("./src/soloGauntlet");
 
-// GROUP GAUNTLET
+// Group (classic) Gauntlet
 const {
-  registerCommands: registerGroupCommands,
-  handleInteractionCreate: handleGroupInteraction,
+  registerGroupCommands,
+  handleGroupInteractionCreate,
 } = require("./src/groupGauntlet");
 
-// ------------ CREATE CLIENT ----------------
+// --------------------------------------------
+// CREATE CLIENT
+// --------------------------------------------
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -35,47 +37,40 @@ const client = new Client({
   partials: [Partials.Channel, Partials.Message],
 });
 
-// ------------ BOOT SEQUENCE ----------------
+// --------------------------------------------
+// BOOT SEQUENCE
+// --------------------------------------------
 client.once(Events.ClientReady, async () => {
   console.log(`⚡ Logged in as ${client.user.tag}`);
 
-  // Initialize DB
+  // Init Postgres
   await initStore();
 
-  // REGISTER ALL COMMANDS
-  await registerSoloCommands(client);
-  await registerGroupCommands(client);
-
-  console.log("✅ All commands registered (Solo + Group).");
-});
-
-// ------------ INTERACTION ROUTER ------------
-// We allow BOTH systems to listen to the same events.
-// soloGauntlet handles its own IDs.
-// groupGauntlet handles its own IDs.
-// They will not overlap because IDs are unique.
-client.on(Events.InteractionCreate, async (interaction) => {
+  // Register all slash commands (solo + group)
   try {
-    // Group Gauntlet gets first crack (slash commands)
-    const handledGroup = await handleGroupInteraction(interaction);
-    if (handledGroup) return;
-
-    // Solo Gauntlet (slash + buttons)
-    const handledSolo = await handleSoloInteraction(interaction);
-    if (handledSolo) return;
-
+    await registerSoloCommands();
+    await registerGroupCommands();
+    console.log("✅ Slash commands registered (solo + group).");
   } catch (err) {
-    console.error("❌ Interaction handler error:", err);
-    if (interaction.isRepliable()) {
-      try {
-        await interaction.reply({
-          content: "⚠️ Something went wrong.",
-          ephemeral: true,
-        });
-      } catch {}
-    }
+    console.error("❌ Error registering commands:", err);
   }
 });
 
-// ------------ LOGIN ----------------
+// --------------------------------------------
+// INTERACTION HANDLER
+// --------------------------------------------
+client.on(Events.InteractionCreate, async (interaction) => {
+  try {
+    // Let each module decide if it cares about this interaction.
+    await handleSoloInteractionCreate(interaction);
+    await handleGroupInteractionCreate(interaction);
+  } catch (err) {
+    console.error("interaction error (root):", err);
+  }
+});
+
+// --------------------------------------------
+// LOGIN
+// --------------------------------------------
 client.login(TOKEN);
+
