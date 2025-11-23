@@ -679,10 +679,12 @@ async function updateAllLeaderboards(client, month) {
 }
 
 // --------------------------------------------
+// --------------------------------------------
 // COMMAND REGISTRATION
 // --------------------------------------------
 async function registerCommands() {
-  const soloCommands = [
+  // Solo-only commands for this module
+  const commands = [
     new SlashCommandBuilder()
       .setName("gauntlet")
       .setDescription("Post the Gauntlet Start Panel in this channel (admins only)."),
@@ -710,25 +712,23 @@ async function registerCommands() {
     new SlashCommandBuilder()
       .setName("mygauntlet")
       .setDescription("Your current-month stats (best, total, plays)."),
-  ];
-
-  // 👉 include groupGauntletCommand in the same registration batch
-  const allCommands = [...soloCommands, groupGauntletCommand].map((c) => c.toJSON());
+  ].map((c) => c.toJSON());
 
   const rest = new REST({ version: "10" }).setToken(TOKEN);
 
   if (GUILD_IDS.length) {
     for (const gid of GUILD_IDS) {
       await rest.put(Routes.applicationGuildCommands(CLIENT_ID, gid), {
-        body: allCommands,
+        body: commands,
       });
     }
   } else {
     await rest.put(Routes.applicationCommands(CLIENT_ID), {
-      body: allCommands,
+      body: commands,
     });
   }
 }
+
 
 // --------------------------------------------
 // PANEL & ADMIN CHECK
