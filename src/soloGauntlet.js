@@ -36,10 +36,10 @@ const {
   pickRiddle,
 } = require("./gameData");
 
-// 👇 NEW: import group Gauntlet command + handler
+// 👉 NEW: import group mode command + handler
 const {
   groupGauntletCommand,
-  handleGroupGauntletSlash,
+  handleGroupInteractionCreate,
 } = require("./groupGauntlet");
 
 // --------------------------------------------
@@ -679,16 +679,13 @@ async function updateAllLeaderboards(client, month) {
 }
 
 // --------------------------------------------
-// --------------------------------------------
 // COMMAND REGISTRATION
 // --------------------------------------------
 async function registerCommands() {
-  // Build the SlashCommandBuilder objects first
-  const builders = [
+  const soloCommands = [
     new SlashCommandBuilder()
       .setName("gauntlet")
       .setDescription("Post the Gauntlet Start Panel in this channel (admins only)."),
-
     new SlashCommandBuilder()
       .setName("gauntletlb")
       .setDescription("Show the monthly leaderboard (best score per user, totals tie-break).")
@@ -698,7 +695,6 @@ async function registerCommands() {
           .setDescription("YYYY-MM (default: current)")
           .setRequired(false)
       ),
-
     new SlashCommandBuilder()
       .setName("gauntletrecent")
       .setDescription("Show recent runs this month")
@@ -708,36 +704,31 @@ async function registerCommands() {
           .setDescription("How many (default 10)")
           .setRequired(false)
       ),
-
     new SlashCommandBuilder()
       .setName("gauntletinfo")
       .setDescription("How Solo Gauntlet works (rounds & rules)."),
-
     new SlashCommandBuilder()
       .setName("mygauntlet")
       .setDescription("Your current-month stats (best, total, plays)."),
   ];
 
-  // Filter out anything weird/undefined before toJSON
-  const commands = builders
-    .filter((c) => c && typeof c.toJSON === "function")
-    .map((c) => c.toJSON());
+  // 👉 include groupGauntletCommand in the same registration batch
+  const allCommands = [...soloCommands, groupGauntletCommand].map((c) => c.toJSON());
 
   const rest = new REST({ version: "10" }).setToken(TOKEN);
 
   if (GUILD_IDS.length) {
     for (const gid of GUILD_IDS) {
       await rest.put(Routes.applicationGuildCommands(CLIENT_ID, gid), {
-        body: commands,
+        body: allCommands,
       });
     }
   } else {
     await rest.put(Routes.applicationCommands(CLIENT_ID), {
-      body: commands,
+      body: allCommands,
     });
   }
 }
-
 
 // --------------------------------------------
 // PANEL & ADMIN CHECK
@@ -789,6 +780,12 @@ async function handleInteractionCreate(interaction) {
   try {
     // Slash commands
     if (interaction.isChatInputCommand()) {
+      // /groupgauntlet → group mode
+      if (interaction.commandName === "groupgauntlet") {
+        await handleGroupInteractionCreate(interaction);
+        return;
+      }
+
       // /gauntlet
       if (interaction.commandName === "gauntlet") {
         if (!isAdminUser(interaction)) {
@@ -889,14 +886,9 @@ async function handleInteractionCreate(interaction) {
 
         return interaction.reply({ embeds: [embed], ephemeral: true });
       }
-
-      // 👇 NEW: /groupgauntlet
-      if (interaction.commandName === "groupgauntlet") {
-        return handleGroupGauntletSlash(interaction);
-      }
     }
 
-    // Start button (solo)
+    // Start button
     if (interaction.isButton() && interaction.customId === "gauntlet:start") {
       const today = torontoDateStr();
       const played = await Store.hasPlayed(interaction.user.id, today);
@@ -945,4 +937,3 @@ module.exports = {
   registerCommands,
   handleInteractionCreate,
 };
-

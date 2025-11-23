@@ -1,54 +1,44 @@
 // src/groupGauntlet.js
-// Live multi-player Gauntlet (classic style) with /groupgauntlet [minutes]
+// Live multi-player Gauntlet (classic style) used by /groupgauntlet [minutes]
 //
 // NOTE: This mode is self-contained (doesn't write to Postgres).
 // It runs fully in-channel with joins, public rounds, and a final podium.
 
 const {
   SlashCommandBuilder,
-  REST,
-  Routes,
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
   ComponentType,
-  PermissionFlagsBits,
 } = require("discord.js");
 
-const {
-  TOKEN,
-  CLIENT_ID,
-  GUILD_IDS,
-  AUTHORIZED_ADMINS,
-} = require("./utils");
+const { rand, isAdminUser, wait } = require("./utils");
 
 const {
   miniGameLorePool,
   miniGameFateDescriptions,
-  pointFlavors, // not used yet but handy if we want more flavor later
-  riddles,
   pickMiniGame,
   pickRiddle,
 } = require("./gameData");
 
 // --------------------------------------------
-// Helpers
+// Slash command definition (exported)
 // --------------------------------------------
-const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
-const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 
-function isAdminUser(interaction) {
-  if (AUTHORIZED_ADMINS && AUTHORIZED_ADMINS.includes(interaction.user.id)) {
-    return true;
-  }
-  const member = interaction.member;
-  if (!member || !interaction.inGuild()) return false;
-  return (
-    member.permissions?.has(PermissionFlagsBits.ManageGuild) ||
-    member.permissions?.has(PermissionFlagsBits.Administrator)
+const groupGauntletCommand = new SlashCommandBuilder()
+  .setName("groupgauntlet")
+  .setDescription("Start a live multi-player Gauntlet in this channel.")
+  .addIntegerOption((o) =>
+    o
+      .setName("minutes")
+      .setDescription("Join window in minutes (default: 2)")
+      .setRequired(false)
   );
-}
+
+// --------------------------------------------
+// Game state
+// --------------------------------------------
 
 // channelId -> game state
 const activeGames = new Map();
@@ -71,6 +61,7 @@ function createGroupGame(channel, hostId) {
 // --------------------------------------------
 // JOIN PHASE
 // --------------------------------------------
+
 async function handleGroupGauntletCommand(interaction) {
   if (!isAdminUser(interaction)) {
     await interaction.reply({
@@ -97,8 +88,9 @@ async function handleGroupGauntletCommand(interaction) {
     return true;
   }
 
-  const optMinutes = interaction.options.getInteger("minutes");
-  const minutes = optMinutes && optMinutes > 0 ? optMinutes : 2;
+  const minutesOpt = interaction.options.getInteger("minutes");
+  const minutes =
+    minutesOpt && minutesOpt > 0 ? minutesOpt : 2;
 
   const game = createGroupGame(channel, interaction.user.id);
   activeGames.set(channel.id, game);
@@ -109,9 +101,7 @@ async function handleGroupGauntletCommand(interaction) {
       [
         `Hosted by: <@${interaction.user.id}>`,
         "",
-        `Click **Join** to enter this run. You have **${minutes} minute${
-          minutes === 1 ? "" : "s"
-        }**.`,
+        `Click **Join** to enter this run. You have **${minutes} minute${minutes === 1 ? "" : "s"}**.`,
         "",
         "The charm will drag everyone through:",
         "- Mini-games with Squig lore",
@@ -161,7 +151,7 @@ async function handleGroupGauntletCommand(interaction) {
         game.players.set(userId, { id: userId, username, points: 0 });
       }
       await btn.reply({
-        content: "✅ You joined the Gauntlet.",
+        content: `✅ You joined the Gauntlet.`,
         ephemeral: true,
       });
     } else if (btn.customId === "gg:leave") {
@@ -169,7 +159,7 @@ async function handleGroupGauntletCommand(interaction) {
         game.players.delete(userId);
       }
       await btn.reply({
-        content: "👋 You left this Gauntlet run.",
+        content: `👋 You left this Gauntlet run.`,
         ephemeral: true,
       });
     } else if (btn.customId === "gg:startnow") {
@@ -341,7 +331,8 @@ async function runMiniGameRound(channel, game, roundNumber) {
 }
 
 async function runRiddleRound(channel, game, roundLabel) {
-  const r = pickRiddle(riddles, game.usedRiddle);
+  const riddlesPool = require("./riddles");
+  const r = pickRiddle(riddlesPool, game.usedRiddle);
   if (!r) {
     await channel.send("⚠️ No riddles left. Skipping.");
     return;
@@ -384,7 +375,9 @@ async function runRiddleRound(channel, game, roundLabel) {
     if (!game.players.has(userId)) return;
 
     const normalized = m.content.trim().toLowerCase();
-    const isCorrect = r.answers.map((a) => a.toLowerCase()).includes(normalized);
+    const isCorrect = r.answers
+      .map((a) => a.toLowerCase())
+      .includes(normalized);
 
     if (isCorrect && !correctSet.has(userId)) {
       correctSet.add(userId);
@@ -750,17 +743,13 @@ async function runRiskItRound(channel, game) {
       if (choice === "quarter") stake = Math.max(1, Math.floor(pts / 4));
 
       const outcome = rand(outcomes);
-      const delta =
-        outcome.mult === -1 ? -stake : Math.round(stake * outcome.mult);
+      const delta = outcome.mult === -1 ? -stake : Math.round(stake * outcome.mult);
       p.points += delta;
 
-      const prettyDelta =
-        delta === 0 ? "0" : delta > 0 ? `+${delta}` : `${delta}`;
+      const prettyDelta = delta === 0 ? "0" : delta > 0 ? `+${delta}` : `${delta}`;
 
       lines.push(
-        `• <@${uid}> • ${choice.toUpperCase()} (staked ${stake}) → ${
-          outcome.label
-        } • **${prettyDelta}** • new total: **${p.points}**`
+        `• <@${uid}> • ${choice.toUpperCase()} (staked ${stake}) → ${outcome.label} • **${prettyDelta}** • new total: **${p.points}**`
       );
     }
 
@@ -831,120 +820,66 @@ async function sendFinalPodium(channel, game) {
 }
 
 // --------------------------------------------
-// FULL GAME FLOW (classic-ish 10 rounds)
+// FULL GAME FLOW
 // --------------------------------------------
 
 async function runGroupGame(channel, game) {
-  // Simple pacing helper so Discord doesn’t feel spammy
   const gap = 3_000;
 
   // ROUND 1: Mini + Riddle
   await runMiniGameRound(channel, game, 1);
-  await sleep(32_000);
+  await wait(32_000);
   await runRiddleRound(channel, game, "Round 1");
-  await sleep(gap);
+  await wait(gap);
 
   // ROUND 2: Trust or Doubt
   await runTrustDoubtRound(channel, game, 2);
-  await sleep(32_000);
+  await wait(32_000);
 
   // ROUND 3: Mini + Riddle
   await runMiniGameRound(channel, game, 3);
-  await sleep(32_000);
+  await wait(32_000);
   await runRiddleRound(channel, game, "Round 3");
-  await sleep(gap);
+  await wait(gap);
 
   // ROUND 4: Squig Roulette
   await runRouletteRound(channel, game, 4);
-  await sleep(32_000);
+  await wait(32_000);
 
   // ROUND 5: Mini + Riddle
   await runMiniGameRound(channel, game, 5);
-  await sleep(32_000);
+  await wait(32_000);
   await runRiddleRound(channel, game, "Round 5");
-  await sleep(gap);
+  await wait(gap);
 
   // MID: Risk It
   await runRiskItRound(channel, game);
-  await sleep(22_000);
+  await wait(22_000);
 
   // ROUND 6: Final Riddle Push
   await runRiddleRound(channel, game, "Final Stretch");
-  await sleep(gap);
+  await wait(gap);
 
   await sendFinalPodium(channel, game);
-  await channel.send("📯 Maybe enough reactions will encourage another game…");
+  await channel.send(
+    "📯 Maybe enough reactions will encourage another game…"
+  );
 }
 
 // --------------------------------------------
-// COMMAND REGISTRATION
-// --------------------------------------------
-
-async function registerGroupCommands() {
-  const commands = [
-    new SlashCommandBuilder()
-      .setName("groupgauntlet")
-      .setDescription("Start a live multi-player Gauntlet in this channel.")
-      .addIntegerOption((o) =>
-        o
-          .setName("minutes")
-          .setDescription("Join window in minutes (default: 2)")
-          .setRequired(false)
-      ),
-  ].map((c) => c.toJSON());
-
-  const rest = new REST({ version: "10" }).setToken(TOKEN);
-
-  if (GUILD_IDS && GUILD_IDS.length) {
-    for (const gid of GUILD_IDS) {
-      await rest.put(Routes.applicationGuildCommands(CLIENT_ID, gid), {
-        body: commands,
-      });
-    }
-  } else {
-    await rest.put(Routes.applicationCommands(CLIENT_ID), {
-      body: commands,
-    });
-  }
-
-  console.log("✅ Registered /groupgauntlet");
-}
-
-// --------------------------------------------
-// INTERACTION HANDLER
+// EXPORTED HANDLER
 // --------------------------------------------
 
 async function handleGroupInteractionCreate(interaction) {
-  try {
-    if (interaction.isChatInputCommand()) {
-      if (interaction.commandName === "groupgauntlet") {
-        await handleGroupGauntletCommand(interaction);
-        return true;
-      }
-    }
-
-    // Buttons & collectors for this mode are handled by collectors
-    // created inside the command handler, so nothing else to do here.
-    return false;
-  } catch (err) {
-    console.error("GroupGauntlet interaction error:", err);
-    if (interaction.isRepliable()) {
-      try {
-        await interaction.reply({
-          content: "❌ Something went wrong with Group Gauntlet.",
-          ephemeral: true,
-        });
-      } catch {}
-    }
-    return true;
+  // We only expect /groupgauntlet to be routed here by soloGauntlet
+  if (interaction.isChatInputCommand() && interaction.commandName === "groupgauntlet") {
+    return handleGroupGauntletCommand(interaction);
   }
+  return false;
 }
 
-// --------------------------------------------
-// EXPORTS
-// --------------------------------------------
 module.exports = {
-  registerGroupCommands,
+  groupGauntletCommand,
   handleGroupInteractionCreate,
 };
 
