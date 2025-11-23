@@ -8,37 +8,47 @@ const {
   SlashCommandBuilder,
   EmbedBuilder,
   ActionRowBuilder,
+// src/groupGauntlet.js
+// Live multi-player Gauntlet (classic style) with /groupgauntlet [minutes]
+//
+// - Runs fully in-channel (no Postgres writes)
+// - Join window with buttons
+// - Mini-games, riddles, Trust/Doubt, Roulette, Risk It
+// - Final podium at the end
+
+const {
+  SlashCommandBuilder,
+  REST,
+  Routes,
+  EmbedBuilder,
+  ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
   ComponentType,
 } = require("discord.js");
 
-const { rand, isAdminUser, wait } = require("./utils");
+const {
+  TOKEN,
+  CLIENT_ID,
+  GUILD_IDS,
+  wait,
+  isAdminUser,
+} = require("./utils");
 
 const {
   miniGameLorePool,
   miniGameFateDescriptions,
+  pointFlavors,
   pickMiniGame,
   pickRiddle,
+  riddles,
 } = require("./gameData");
 
 // --------------------------------------------
-// Slash command definition (exported)
+// Helpers & State
 // --------------------------------------------
 
-const groupGauntletCommand = new SlashCommandBuilder()
-  .setName("groupgauntlet")
-  .setDescription("Start a live multi-player Gauntlet in this channel.")
-  .addIntegerOption((o) =>
-    o
-      .setName("minutes")
-      .setDescription("Join window in minutes (default: 2)")
-      .setRequired(false)
-  );
-
-// --------------------------------------------
-// Game state
-// --------------------------------------------
+const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
 // channelId -> game state
 const activeGames = new Map();
@@ -88,9 +98,8 @@ async function handleGroupGauntletCommand(interaction) {
     return true;
   }
 
-  const minutesOpt = interaction.options.getInteger("minutes");
-  const minutes =
-    minutesOpt && minutesOpt > 0 ? minutesOpt : 2;
+  const rawMinutes = interaction.options.getInteger("minutes");
+  const minutes = rawMinutes && rawMinutes > 0 ? rawMinutes : 2;
 
   const game = createGroupGame(channel, interaction.user.id);
   activeGames.set(channel.id, game);
@@ -101,7 +110,9 @@ async function handleGroupGauntletCommand(interaction) {
       [
         `Hosted by: <@${interaction.user.id}>`,
         "",
-        `Click **Join** to enter this run. You have **${minutes} minute${minutes === 1 ? "" : "s"}**.`,
+        `Click **Join** to enter this run. You have **${minutes} minute${
+          minutes === 1 ? "" : "s"
+        }**.`,
         "",
         "The charm will drag everyone through:",
         "- Mini-games with Squig lore",
@@ -163,6 +174,7 @@ async function handleGroupGauntletCommand(interaction) {
         ephemeral: true,
       });
     } else if (btn.customId === "gg:startnow") {
+      // Only host or admin can start early
       if (userId !== game.hostId && !isAdminUser(btn)) {
         await btn.reply({
           content: "⛔ Only the host/admin can start early.",
@@ -218,543 +230,557 @@ async function handleGroupGauntletCommand(interaction) {
 }
 
 // --------------------------------------------
-// ROUND HELPERS (group versions)
+// ROUND HELPERS — SEQUENTIAL (no overlap)
 // --------------------------------------------
 
-async function runMiniGameRound(channel, game, roundNumber) {
-  const mini = pickMiniGame(game.usedMini);
-  const fate = rand(miniGameFateDescriptions);
+function runMiniGameRound(channel, game, roundNumber) {
+  return new Promise(async (resolve) => {
+    const mini = pickMiniGame(game.usedMini);
+    const fate = rand(miniGameFateDescriptions);
 
-  const embed = new EmbedBuilder()
-    .setTitle(`🌪️ ROUND ${roundNumber} — ${mini.title}`)
-    .setDescription(
-      [
-        mini.lore,
-        "",
-        `_${fate}_`,
-        "",
-        "Click a button to lock in your choice.",
-        "⏳ You have **30 seconds**.",
-      ].join("\n")
-    )
-    .setColor(0xff33cc);
+    const embed = new EmbedBuilder()
+      .setTitle(`🌪️ ROUND ${roundNumber} — ${mini.title}`)
+      .setDescription(
+        [
+          mini.lore,
+          "",
+          `_${fate}_`,
+          "",
+          "Click a button to lock in your choice.",
+          "⏳ You have **30 seconds**.",
+        ].join("\n")
+      )
+      .setColor(0xff33cc);
 
-  if (mini.image) embed.setImage(mini.image);
+    if (mini.image) embed.setImage(mini.image);
 
-  const row = new ActionRowBuilder().addComponents(
-    mini.buttons.map((label, i) =>
-      new ButtonBuilder()
-        .setCustomId(`gg:mini:${mini.index}:${i}`)
-        .setLabel(label)
-        .setStyle(
-          [ButtonStyle.Primary, ButtonStyle.Danger, ButtonStyle.Secondary, ButtonStyle.Success][
-            i % 4
-          ]
-        )
-    )
-  );
-
-  const msg = await channel.send({ embeds: [embed], components: [row] });
-
-  const picks = new Map(); // userId -> button index
-
-  const collector = msg.createMessageComponentCollector({
-    componentType: ComponentType.Button,
-    time: 30_000,
-  });
-
-  collector.on("collect", async (btn) => {
-    const userId = btn.user.id;
-    if (!game.players.has(userId)) {
-      await btn.reply({
-        content: "You’re not in this Gauntlet run.",
-        ephemeral: true,
-      });
-      return;
-    }
-    if (picks.has(userId)) {
-      await btn.reply({
-        content: "You already picked. Sit tight.",
-        ephemeral: true,
-      });
-      return;
-    }
-    const parts = btn.customId.split(":");
-    const idx = Number(parts[3] || 0);
-    picks.set(userId, idx);
-    await btn.reply({
-      content: `Locked in **${btn.component.label}**.`,
-      ephemeral: true,
-    });
-  });
-
-  collector.on("end", async () => {
-    try {
-      await msg.edit({
-        components: [
-          new ActionRowBuilder().addComponents(
-            row.components.map((b) => ButtonBuilder.from(b).setDisabled(true))
-          ),
-        ],
-      });
-    } catch {}
-
-    const winningIndex = Math.floor(Math.random() * mini.buttons.length);
-    const winningLabel = mini.buttons[winningIndex];
-
-    const winners = [];
-    for (const [userId, choiceIdx] of picks.entries()) {
-      const player = game.players.get(userId);
-      if (!player) continue;
-      if (choiceIdx === winningIndex) {
-        player.points += 2;
-        winners.push(player);
-      }
-    }
-
-    const resultLines = [];
-    if (winners.length) {
-      resultLines.push(
-        `🎉 The charm favors **${winningLabel}**.\nWinners (+2): ${winners
-          .map((w) => `<@${w.id}> (**${w.points}**)`)
-          .join(", ")}`
-      );
-    } else {
-      resultLines.push(
-        `👻 The charm favors **${winningLabel}**, but no one chose it. No points.`
-      );
-    }
-
-    await channel.send(resultLines.join("\n"));
-    await sendScoreboard(channel, game);
-  });
-}
-
-async function runRiddleRound(channel, game, roundLabel) {
-  const riddlesPool = require("./riddles");
-  const r = pickRiddle(riddlesPool, game.usedRiddle);
-  if (!r) {
-    await channel.send("⚠️ No riddles left. Skipping.");
-    return;
-  }
-
-  const difficultyLabel =
-    r.difficulty === 1
-      ? "EASY"
-      : r.difficulty === 2
-      ? "MEDIUM"
-      : r.difficulty === 3
-      ? "HARD"
-      : "SQUIG SPECIAL";
-
-  const embed = new EmbedBuilder()
-    .setTitle(`🧠 MID-ROUND RIDDLE (${roundLabel})`)
-    .setDescription(
-      [
-        r.riddle,
-        "",
-        `🌀 Difficulty: **${difficultyLabel}** — Worth **+${r.difficulty}**.`,
-        "Type your answer in chat (spelling doesn’t have to be perfect).",
-        "⏳ You have **30 seconds**.",
-      ].join("\n")
-    )
-    .setColor(0xff66cc);
-
-  await channel.send({ embeds: [embed] });
-
-  const correctSet = new Set();
-  const filter = (m) => game.players.has(m.author.id);
-
-  const collector = channel.createMessageCollector({
-    filter,
-    time: 30_000,
-  });
-
-  collector.on("collect", (m) => {
-    const userId = m.author.id;
-    if (!game.players.has(userId)) return;
-
-    const normalized = m.content.trim().toLowerCase();
-    const isCorrect = r.answers
-      .map((a) => a.toLowerCase())
-      .includes(normalized);
-
-    if (isCorrect && !correctSet.has(userId)) {
-      correctSet.add(userId);
-      const player = game.players.get(userId);
-      player.points += r.difficulty;
-      channel
-        .send(
-          `🧠 <@${userId}> answered correctly and gained **+${r.difficulty}** (total: **${player.points}**).`
-        )
-        .catch(() => {});
-    }
-  });
-
-  collector.on("end", async () => {
-    const count = correctSet.size;
-    await channel.send(
-      [
-        `✅ Riddle completed. **${count}** player(s) answered correctly and gained **+${r.difficulty}**.`,
-        `🧩 The correct answer was: **${r.answers[0]}**.`,
-      ].join("\n")
+    const row = new ActionRowBuilder().addComponents(
+      mini.buttons.map((label, i) =>
+        new ButtonBuilder()
+          .setCustomId(`gg:mini:${mini.index}:${i}`)
+          .setLabel(label)
+          .setStyle(
+            [ButtonStyle.Primary, ButtonStyle.Danger, ButtonStyle.Secondary, ButtonStyle.Success][
+              i % 4
+            ]
+          )
+      )
     );
-    await sendScoreboard(channel, game);
-  });
-}
 
-async function runTrustDoubtRound(channel, game, roundNumber) {
-  const embed = new EmbedBuilder()
-    .setTitle(`🤝 ROUND ${roundNumber} — Trust or Doubt`)
-    .setDescription(
-      [
-        "Players click **Trust** or **Doubt**.",
-        "",
-        "If majority choose **Trust**, they gain **+1** —",
-        "👉 _unless the Squig lies this round, then Trusters **-1** instead._",
-        "Everyone else: 0.",
-        "",
-        "⏳ You have **30 seconds**.",
-      ].join("\n")
-    )
-    .setColor(0x00bcd4);
+    const msg = await channel.send({ embeds: [embed], components: [row] });
 
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("gg:trust")
-      .setLabel("Trust")
-      .setStyle(ButtonStyle.Success),
-    new ButtonBuilder()
-      .setCustomId("gg:doubt")
-      .setLabel("Doubt")
-      .setStyle(ButtonStyle.Danger)
-  );
+    const picks = new Map(); // userId -> button index
 
-  const msg = await channel.send({ embeds: [embed], components: [row] });
+    const collector = msg.createMessageComponentCollector({
+      componentType: ComponentType.Button,
+      time: 30_000,
+    });
 
-  const picks = new Map(); // userId -> "trust" | "doubt"
-
-  const collector = msg.createMessageComponentCollector({
-    componentType: ComponentType.Button,
-    time: 30_000,
-  });
-
-  collector.on("collect", async (btn) => {
-    const userId = btn.user.id;
-    if (!game.players.has(userId)) {
-      await btn.reply({ content: "You’re not in this run.", ephemeral: true });
-      return;
-    }
-    if (picks.has(userId)) {
+    collector.on("collect", async (btn) => {
+      const userId = btn.user.id;
+      if (!game.players.has(userId)) {
+        await btn.reply({
+          content: "You’re not in this Gauntlet run.",
+          ephemeral: true,
+        });
+        return;
+      }
+      if (picks.has(userId)) {
+        await btn.reply({
+          content: "You already picked. Sit tight.",
+          ephemeral: true,
+        });
+        return;
+      }
+      const parts = btn.customId.split(":");
+      const idx = Number(parts[3] || 0);
+      picks.set(userId, idx);
       await btn.reply({
-        content: "Choice already locked.",
+        content: `Locked in **${btn.component.label}**.`,
         ephemeral: true,
       });
-      return;
-    }
-
-    const choice = btn.customId === "gg:trust" ? "trust" : "doubt";
-    picks.set(userId, choice);
-
-    await btn.reply({
-      content: `You chose **${choice.toUpperCase()}**.`,
-      ephemeral: true,
     });
-  });
 
-  collector.on("end", async () => {
-    try {
-      await msg.edit({
-        components: [
-          new ActionRowBuilder().addComponents(
-            row.components.map((b) => ButtonBuilder.from(b).setDisabled(true))
-          ),
-        ],
-      });
-    } catch {}
+    collector.on("end", async () => {
+      try {
+        await msg.edit({
+          components: [
+            new ActionRowBuilder().addComponents(
+              row.components.map((b) => ButtonBuilder.from(b).setDisabled(true))
+            ),
+          ],
+        });
+      } catch {}
 
-    const trusters = [];
-    const doubters = [];
-    for (const [userId, choice] of picks.entries()) {
-      if (choice === "trust") trusters.push(userId);
-      else doubters.push(userId);
-    }
+      const winningIndex = Math.floor(Math.random() * mini.buttons.length);
+      const winningLabel = mini.buttons[winningIndex];
 
-    const majority =
-      trusters.length > doubters.length
-        ? "trust"
-        : doubters.length > trusters.length
-        ? "doubt"
-        : "none";
-
-    const liar = Math.random() < 0.3; // 30% that Squig lies
-
-    let outcomeText = "";
-    if (majority === "trust") {
-      if (liar) {
-        for (const uid of trusters) {
-          const p = game.players.get(uid);
-          if (!p) continue;
-          p.points -= 1;
+      const winners = [];
+      for (const [userId, choiceIdx] of picks.entries()) {
+        const player = game.players.get(userId);
+        if (!player) continue;
+        if (choiceIdx === winningIndex) {
+          player.points += 2;
+          winners.push(player);
         }
-        outcomeText =
-          "Majority chose **Trust**. Squig lied. Trusters **-1**. Doubters 0.";
+      }
+
+      const resultLines = [];
+      if (winners.length) {
+        resultLines.push(
+          `🎉 The charm favors **${winningLabel}**.\nWinners (+2): ${winners
+            .map((w) => `<@${w.id}> (**${w.points}**)`)
+            .join(", ")}`
+        );
       } else {
-        for (const uid of trusters) {
-          const p = game.players.get(uid);
-          if (!p) continue;
-          p.points += 1;
-        }
-        outcomeText =
-          "Majority chose **Trust**. Squig told the truth. Trusters **+1**. Doubters 0.";
+        resultLines.push(
+          `👻 The charm favors **${winningLabel}**, but no one chose it. No points.`
+        );
       }
-    } else if (majority === "doubt") {
-      if (liar) {
-        for (const uid of doubters) {
-          const p = game.players.get(uid);
-          if (!p) continue;
-          p.points += 1;
-        }
-        outcomeText =
-          "Majority chose **Doubt**. Squig lied about lying. Doubters **+1**.";
-      } else {
-        outcomeText =
-          "Majority chose **Doubt**. Squig shrugs. No one gains anything.";
-      }
-    } else {
-      outcomeText = "No clear majority. The charm refuses to pick sides.";
-    }
 
-    const trustList = trusters.map((id) => `<@${id}>`).join(", ") || "None";
-    const doubtList = doubters.map((id) => `<@${id}>`).join(", ") || "None";
-
-    await channel.send(
-      [
-        "**Trust or Doubt — Results**",
-        `Trusters (${trusters.length}): ${trustList}`,
-        `Doubters (${doubters.length}): ${doubtList}`,
-        "",
-        outcomeText,
-      ].join("\n")
-    );
-
-    await sendScoreboard(channel, game);
-  });
-}
-
-async function runRouletteRound(channel, game, roundNumber) {
-  const embed = new EmbedBuilder()
-    .setTitle(`🎲 ROUND ${roundNumber} — Squig Roulette`)
-    .setDescription(
-      [
-        "Pick a number **1–6**.",
-        "Roll happens at the end.",
-        "Match = **+2 points**, else **0**.",
-        "",
-        "⏳ You have **30 seconds**.",
-      ].join("\n")
-    )
-    .setColor(0x7f00ff);
-
-  const row1 = new ActionRowBuilder().addComponents(
-    [1, 2, 3].map((n) =>
-      new ButtonBuilder()
-        .setCustomId(`gg:rou:${n}`)
-        .setLabel(String(n))
-        .setStyle(ButtonStyle.Secondary)
-    )
-  );
-  const row2 = new ActionRowBuilder().addComponents(
-    [4, 5, 6].map((n) =>
-      new ButtonBuilder()
-        .setCustomId(`gg:rou:${n}`)
-        .setLabel(String(n))
-        .setStyle(ButtonStyle.Secondary)
-    )
-  );
-
-  const msg = await channel.send({
-    embeds: [embed],
-    components: [row1, row2],
-  });
-
-  const picks = new Map(); // userId -> number
-
-  const collector = msg.createMessageComponentCollector({
-    componentType: ComponentType.Button,
-    time: 30_000,
-  });
-
-  collector.on("collect", async (btn) => {
-    const uid = btn.user.id;
-    if (!game.players.has(uid)) {
-      await btn.reply({ content: "Not in this run.", ephemeral: true });
-      return;
-    }
-    if (picks.has(uid)) {
-      await btn.reply({ content: "Pick already locked.", ephemeral: true });
-      return;
-    }
-    const parts = btn.customId.split(":");
-    const val = Number(parts[2]);
-    picks.set(uid, val);
-    await btn.reply({
-      content: `You picked **${val}**.`,
-      ephemeral: true,
+      await channel.send(resultLines.join("\n"));
+      await sendScoreboard(channel, game);
+      resolve();
     });
   });
+}
 
-  collector.on("end", async () => {
-    const disable = (row) =>
-      new ActionRowBuilder().addComponents(
-        row.components.map((b) => ButtonBuilder.from(b).setDisabled(true))
-      );
-    try {
-      await msg.edit({ components: [disable(row1), disable(row2)] });
-    } catch {}
-
-    const rolled = 1 + Math.floor(Math.random() * 6);
-    const winners = [];
-
-    for (const [uid, num] of picks.entries()) {
-      const p = game.players.get(uid);
-      if (!p) continue;
-      if (num === rolled) {
-        p.points += 2;
-        winners.push(uid);
-      }
+function runRiddleRound(channel, game, roundLabel) {
+  return new Promise(async (resolve) => {
+    const r = pickRiddle(riddles, game.usedRiddle);
+    if (!r) {
+      await channel.send("⚠️ No riddles left. Skipping.");
+      return resolve();
     }
 
-    const winList = winners.map((id) => `<@${id}>`).join(", ") || "None";
+    const difficultyLabel =
+      r.difficulty === 1
+        ? "EASY"
+        : r.difficulty === 2
+        ? "MEDIUM"
+        : r.difficulty === 3
+        ? "HARD"
+        : "SQUIG SPECIAL";
 
-    await channel.send(
-      [
-        `🎲 Rolled a **${rolled}**.`,
-        winners.length
-          ? `Winners (+2): ${winList}`
-          : "No one guessed correctly.",
-      ].join("\n")
-    );
+    const embed = new EmbedBuilder()
+      .setTitle(`🧠 MID-ROUND RIDDLE (${roundLabel})`)
+      .setDescription(
+        [
+          r.riddle,
+          "",
+          `🌀 Difficulty: **${difficultyLabel}** — Worth **+${r.difficulty}**.`,
+          "Type your answer in chat (spelling doesn’t have to be perfect).",
+          "⏳ You have **30 seconds**.",
+        ].join("\n")
+      )
+      .setColor(0xff66cc);
 
-    await sendScoreboard(channel, game);
+    await channel.send({ embeds: [embed] });
+
+    const correctSet = new Set();
+    const filter = (m) => game.players.has(m.author.id);
+
+    const collector = channel.createMessageCollector({
+      filter,
+      time: 30_000,
+    });
+
+    collector.on("collect", (m) => {
+      const userId = m.author.id;
+      if (!game.players.has(userId)) return;
+
+      const normalized = m.content.trim().toLowerCase();
+      const isCorrect = r.answers
+        .map((a) => a.toLowerCase())
+        .includes(normalized);
+
+      if (isCorrect && !correctSet.has(userId)) {
+        correctSet.add(userId);
+        const player = game.players.get(userId);
+        player.points += r.difficulty;
+        channel
+          .send(
+            `🧠 <@${userId}> answered correctly and gained **+${r.difficulty}** (total: **${player.points}**).`
+          )
+          .catch(() => {});
+      }
+    });
+
+    collector.on("end", async () => {
+      const count = correctSet.size;
+      await channel.send(
+        [
+          `✅ Riddle completed. **${count}** player(s) answered correctly and gained **+${r.difficulty}**.`,
+          `🧩 The correct answer was: **${r.answers[0]}**.`,
+        ].join("\n")
+      );
+      await sendScoreboard(channel, game);
+      resolve();
+    });
   });
 }
 
-async function runRiskItRound(channel, game) {
-  const embed = new EmbedBuilder()
-    .setTitle("🪙 RISK IT — The Charm Tempts You")
-    .setDescription(
-      [
-        "Between rounds, the static parts... and a Squig grins.",
-        "Risk your points for a shot at more — or lose them to the void.",
-        "",
-        "• **Risk All** — stake everything",
-        "• **Risk Half** — stake half your current points",
-        "• **Risk Quarter** — stake a quarter (min 1)",
-        "• **No Risk** — sit out and watch the chaos",
-        "",
-        "⏳ You have **20 seconds**.",
-      ].join("\n")
-    )
-    .setColor(0xffaa00);
+function runTrustDoubtRound(channel, game, roundNumber) {
+  return new Promise(async (resolve) => {
+    const embed = new EmbedBuilder()
+      .setTitle(`🤝 ROUND ${roundNumber} — Trust or Doubt`)
+      .setDescription(
+        [
+          "Players click **Trust** or **Doubt**.",
+          "",
+          "If majority choose **Trust**, they gain **+1** —",
+          "👉 _unless the Squig lies this round, then Trusters **-1** instead._",
+          "Everyone else: 0.",
+          "",
+          "⏳ You have **30 seconds**.",
+        ].join("\n")
+      )
+      .setColor(0x00bcd4);
 
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("gg:risk:all")
-      .setLabel("Risk All")
-      .setStyle(ButtonStyle.Danger),
-    new ButtonBuilder()
-      .setCustomId("gg:risk:half")
-      .setLabel("Risk Half")
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId("gg:risk:quarter")
-      .setLabel("Risk Quarter")
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId("gg:risk:none")
-      .setLabel("No Risk")
-      .setStyle(ButtonStyle.Success)
-  );
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId("gg:trust")
+        .setLabel("Trust")
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId("gg:doubt")
+        .setLabel("Doubt")
+        .setStyle(ButtonStyle.Danger)
+    );
 
-  const msg = await channel.send({ embeds: [embed], components: [row] });
+    const msg = await channel.send({ embeds: [embed], components: [row] });
 
-  const picks = new Map(); // uid -> choice
+    const picks = new Map(); // userId -> "trust" | "doubt"
 
-  const collector = msg.createMessageComponentCollector({
-    componentType: ComponentType.Button,
-    time: 20_000,
-  });
+    const collector = msg.createMessageComponentCollector({
+      componentType: ComponentType.Button,
+      time: 30_000,
+    });
 
-  collector.on("collect", async (btn) => {
-    const uid = btn.user.id;
-    if (!game.players.has(uid)) {
-      await btn.reply({ content: "Not in this run.", ephemeral: true });
-      return;
-    }
-    if (picks.has(uid)) {
+    collector.on("collect", async (btn) => {
+      const userId = btn.user.id;
+      if (!game.players.has(userId)) {
+        await btn.reply({ content: "You’re not in this run.", ephemeral: true });
+        return;
+      }
+      if (picks.has(userId)) {
+        await btn.reply({
+          content: "Choice already locked.",
+          ephemeral: true,
+        });
+        return;
+      }
+
+      const choice = btn.customId === "gg:trust" ? "trust" : "doubt";
+      picks.set(userId, choice);
+
       await btn.reply({
-        content: "Choice already locked.",
+        content: `You chose **${choice.toUpperCase()}**.`,
         ephemeral: true,
       });
-      return;
-    }
-    const choice = btn.customId.split(":")[2]; // all, half, quarter, none
-    picks.set(uid, choice);
-    await btn.reply({
-      content: `You chose **${choice.toUpperCase()}**.`,
-      ephemeral: true,
     });
-  });
 
-  collector.on("end", async () => {
-    try {
-      await msg.edit({
-        components: [
-          new ActionRowBuilder().addComponents(
-            row.components.map((b) => ButtonBuilder.from(b).setDisabled(true))
-          ),
-        ],
-      });
-    } catch {}
+    collector.on("end", async () => {
+      try {
+        await msg.edit({
+          components: [
+            new ActionRowBuilder().addComponents(
+              row.components.map((b) => ButtonBuilder.from(b).setDisabled(true))
+            ),
+          ],
+        });
+      } catch {}
 
-    const outcomes = [
-      { mult: -1, label: "💀 Lost it all" },
-      { mult: 0, label: "😮 Broke even" },
-      { mult: 0.5, label: "✨ Won 1.5×" },
-      { mult: 1, label: "👑 Doubled" },
-    ];
-
-    const lines = ["**Risk It — Results**"];
-
-    for (const [uid, choice] of picks.entries()) {
-      const p = game.players.get(uid);
-      if (!p) continue;
-
-      const pts = Math.floor(p.points || 0);
-      if (choice === "none" || pts <= 0) {
-        lines.push(`• <@${uid}> • No Risk (total stays **${p.points}**)`);
-        continue;
+      const trusters = [];
+      const doubters = [];
+      for (const [userId, choice] of picks.entries()) {
+        if (choice === "trust") trusters.push(userId);
+        else doubters.push(userId);
       }
 
-      let stake = 0;
-      if (choice === "all") stake = pts;
-      if (choice === "half") stake = Math.max(1, Math.floor(pts / 2));
-      if (choice === "quarter") stake = Math.max(1, Math.floor(pts / 4));
+      const majority =
+        trusters.length > doubters.length
+          ? "trust"
+          : doubters.length > trusters.length
+          ? "doubt"
+          : "none";
 
-      const outcome = rand(outcomes);
-      const delta = outcome.mult === -1 ? -stake : Math.round(stake * outcome.mult);
-      p.points += delta;
+      const liar = Math.random() < 0.3; // 30% chance the Squig lies
 
-      const prettyDelta = delta === 0 ? "0" : delta > 0 ? `+${delta}` : `${delta}`;
+      let outcomeText = "";
+      if (majority === "trust") {
+        if (liar) {
+          for (const uid of trusters) {
+            const p = game.players.get(uid);
+            if (!p) continue;
+            p.points -= 1;
+          }
+          outcomeText =
+            "Majority chose **Trust**. Squig lied. Trusters **-1**. Doubters 0.";
+        } else {
+          for (const uid of trusters) {
+            const p = game.players.get(uid);
+            if (!p) continue;
+            p.points += 1;
+          }
+          outcomeText =
+            "Majority chose **Trust**. Squig told the truth. Trusters **+1**. Doubters 0.";
+        }
+      } else if (majority === "doubt") {
+        if (liar) {
+          for (const uid of doubters) {
+            const p = game.players.get(uid);
+            if (!p) continue;
+            p.points += 1;
+          }
+          outcomeText =
+            "Majority chose **Doubt**. Squig lied about lying. Doubters **+1**.";
+        } else {
+          outcomeText =
+            "Majority chose **Doubt**. Squig shrugs. No one gains anything.";
+        }
+      } else {
+        outcomeText = "No clear majority. The charm refuses to pick sides.";
+      }
 
-      lines.push(
-        `• <@${uid}> • ${choice.toUpperCase()} (staked ${stake}) → ${outcome.label} • **${prettyDelta}** • new total: **${p.points}**`
+      const trustList = trusters.map((id) => `<@${id}>`).join(", ") || "None";
+      const doubtList = doubters.map((id) => `<@${id}>`).join(", ") || "None";
+
+      await channel.send(
+        [
+          "**Trust or Doubt — Results**",
+          `Trusters (${trusters.length}): ${trustList}`,
+          `Doubters (${doubters.length}): ${doubtList}`,
+          "",
+          outcomeText,
+        ].join("\n")
       );
-    }
 
-    await channel.send(lines.join("\n"));
-    await sendScoreboard(channel, game);
+      await sendScoreboard(channel, game);
+      resolve();
+    });
+  });
+}
+
+function runRouletteRound(channel, game, roundNumber) {
+  return new Promise(async (resolve) => {
+    const embed = new EmbedBuilder()
+      .setTitle(`🎲 ROUND ${roundNumber} — Squig Roulette`)
+      .setDescription(
+        [
+          "Pick a number **1–6**.",
+          "Roll happens at the end.",
+          "Match = **+2 points**, else **0**.",
+          "",
+          "⏳ You have **30 seconds**.",
+        ].join("\n")
+      )
+      .setColor(0x7f00ff);
+
+    const row1 = new ActionRowBuilder().addComponents(
+      [1, 2, 3].map((n) =>
+        new ButtonBuilder()
+          .setCustomId(`gg:rou:${n}`)
+          .setLabel(String(n))
+          .setStyle(ButtonStyle.Secondary)
+      )
+    );
+    const row2 = new ActionRowBuilder().addComponents(
+      [4, 5, 6].map((n) =>
+        new ButtonBuilder()
+          .setCustomId(`gg:rou:${n}`)
+          .setLabel(String(n))
+          .setStyle(ButtonStyle.Secondary)
+      )
+    );
+
+    const msg = await channel.send({
+      embeds: [embed],
+      components: [row1, row2],
+    });
+
+    const picks = new Map(); // userId -> number
+
+    const collector = msg.createMessageComponentCollector({
+      componentType: ComponentType.Button,
+      time: 30_000,
+    });
+
+    collector.on("collect", async (btn) => {
+      const uid = btn.user.id;
+      if (!game.players.has(uid)) {
+        await btn.reply({ content: "Not in this run.", ephemeral: true });
+        return;
+      }
+      if (picks.has(uid)) {
+        await btn.reply({ content: "Pick already locked.", ephemeral: true });
+        return;
+      }
+      const parts = btn.customId.split(":");
+      const val = Number(parts[2]);
+      picks.set(uid, val);
+      await btn.reply({
+        content: `You picked **${val}**.`,
+        ephemeral: true,
+      });
+    });
+
+    collector.on("end", async () => {
+      const disable = (row) =>
+        new ActionRowBuilder().addComponents(
+          row.components.map((b) => ButtonBuilder.from(b).setDisabled(true))
+        );
+      try {
+        await msg.edit({ components: [disable(row1), disable(row2)] });
+      } catch {}
+
+      const rolled = 1 + Math.floor(Math.random() * 6);
+      const winners = [];
+
+      for (const [uid, num] of picks.entries()) {
+        const p = game.players.get(uid);
+        if (!p) continue;
+        if (num === rolled) {
+          p.points += 2;
+          winners.push(uid);
+        }
+      }
+
+      const winList = winners.map((id) => `<@${id}>`).join(", ") || "None";
+
+      await channel.send(
+        [
+          `🎲 Rolled a **${rolled}**.`,
+          winners.length
+            ? `Winners (+2): ${winList}`
+            : "No one guessed correctly.",
+        ].join("\n")
+      );
+
+      await sendScoreboard(channel, game);
+      resolve();
+    });
+  });
+}
+
+function runRiskItRound(channel, game) {
+  return new Promise(async (resolve) => {
+    const embed = new EmbedBuilder()
+      .setTitle("🪙 RISK IT — The Charm Tempts You")
+      .setDescription(
+        [
+          "Between rounds, the static parts... and a Squig grins.",
+          "Risk your points for a shot at more — or lose them to the void.",
+          "",
+          "• **Risk All** — stake everything",
+          "• **Risk Half** — stake half your current points",
+          "• **Risk Quarter** — stake a quarter (min 1)",
+          "• **No Risk** — sit out and watch the chaos",
+          "",
+          "⏳ You have **20 seconds**.",
+        ].join("\n")
+      )
+      .setColor(0xffaa00);
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId("gg:risk:all")
+        .setLabel("Risk All")
+        .setStyle(ButtonStyle.Danger),
+      new ButtonBuilder()
+        .setCustomId("gg:risk:half")
+        .setLabel("Risk Half")
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId("gg:risk:quarter")
+        .setLabel("Risk Quarter")
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId("gg:risk:none")
+        .setLabel("No Risk")
+        .setStyle(ButtonStyle.Success)
+    );
+
+    const msg = await channel.send({ embeds: [embed], components: [row] });
+
+    const picks = new Map(); // uid -> choice
+
+    const collector = msg.createMessageComponentCollector({
+      componentType: ComponentType.Button,
+      time: 20_000,
+    });
+
+    collector.on("collect", async (btn) => {
+      const uid = btn.user.id;
+      if (!game.players.has(uid)) {
+        await btn.reply({ content: "Not in this run.", ephemeral: true });
+        return;
+      }
+      if (picks.has(uid)) {
+        await btn.reply({
+          content: "Choice already locked.",
+          ephemeral: true,
+        });
+        return;
+      }
+      const choice = btn.customId.split(":")[2]; // all, half, quarter, none
+      picks.set(uid, choice);
+      await btn.reply({
+        content: `You chose **${choice.toUpperCase()}**.`,
+        ephemeral: true,
+      });
+    });
+
+    collector.on("end", async () => {
+      try {
+        await msg.edit({
+          components: [
+            new ActionRowBuilder().addComponents(
+              row.components.map((b) => ButtonBuilder.from(b).setDisabled(true))
+            ),
+          ],
+        });
+      } catch {}
+
+      const outcomes = [
+        { mult: -1, label: "💀 Lost it all" },
+        { mult: 0, label: "😮 Broke even" },
+        { mult: 0.5, label: "✨ Won 1.5×" },
+        { mult: 1, label: "👑 Doubled" },
+      ];
+
+      const lines = ["**Risk It — Results**"];
+
+      for (const [uid, choice] of picks.entries()) {
+        const p = game.players.get(uid);
+        if (!p) continue;
+
+        const pts = Math.floor(p.points || 0);
+        if (choice === "none" || pts <= 0) {
+          lines.push(`• <@${uid}> • No Risk (total stays **${p.points}**)`);
+          continue;
+        }
+
+        let stake = 0;
+        if (choice === "all") stake = pts;
+        if (choice === "half") stake = Math.max(1, Math.floor(pts / 2));
+        if (choice === "quarter") stake = Math.max(1, Math.floor(pts / 4));
+
+        const outcome = rand(outcomes);
+        const delta = outcome.mult === -1 ? -stake : Math.round(stake * outcome.mult);
+        p.points += delta;
+
+        const prettyDelta = delta === 0 ? "0" : delta > 0 ? `+${delta}` : `${delta}`;
+
+        lines.push(
+          `• <@${uid}> • ${choice.toUpperCase()} (staked ${stake}) → ${outcome.label} • **${prettyDelta}** • new total: **${p.points}**`
+        );
+      }
+
+      await channel.send(lines.join("\n"));
+      await sendScoreboard(channel, game);
+      resolve();
+    });
   });
 }
 
@@ -820,66 +846,117 @@ async function sendFinalPodium(channel, game) {
 }
 
 // --------------------------------------------
-// FULL GAME FLOW
+// FULL GAME FLOW (classic run)
 // --------------------------------------------
 
 async function runGroupGame(channel, game) {
-  const gap = 3_000;
+  const gap = 3_000; // short breathing space between phases
 
   // ROUND 1: Mini + Riddle
   await runMiniGameRound(channel, game, 1);
-  await wait(32_000);
+  await wait(gap);
   await runRiddleRound(channel, game, "Round 1");
   await wait(gap);
 
   // ROUND 2: Trust or Doubt
   await runTrustDoubtRound(channel, game, 2);
-  await wait(32_000);
+  await wait(gap);
 
   // ROUND 3: Mini + Riddle
   await runMiniGameRound(channel, game, 3);
-  await wait(32_000);
+  await wait(gap);
   await runRiddleRound(channel, game, "Round 3");
   await wait(gap);
 
   // ROUND 4: Squig Roulette
   await runRouletteRound(channel, game, 4);
-  await wait(32_000);
+  await wait(gap);
 
   // ROUND 5: Mini + Riddle
   await runMiniGameRound(channel, game, 5);
-  await wait(32_000);
+  await wait(gap);
   await runRiddleRound(channel, game, "Round 5");
   await wait(gap);
 
   // MID: Risk It
   await runRiskItRound(channel, game);
-  await wait(22_000);
+  await wait(gap);
 
   // ROUND 6: Final Riddle Push
   await runRiddleRound(channel, game, "Final Stretch");
   await wait(gap);
 
   await sendFinalPodium(channel, game);
-  await channel.send(
-    "📯 Maybe enough reactions will encourage another game…"
-  );
+  await channel.send("📯 Maybe enough reactions will encourage another game…");
 }
 
 // --------------------------------------------
-// EXPORTED HANDLER
+// COMMAND REGISTRATION
+// --------------------------------------------
+
+async function registerGroupCommands() {
+  const commands = [
+    new SlashCommandBuilder()
+      .setName("groupgauntlet")
+      .setDescription("Start a live multi-player Gauntlet in this channel.")
+      .addIntegerOption((o) =>
+        o
+          .setName("minutes")
+          .setDescription("Join window in minutes (default: 2)")
+          .setRequired(false)
+      ),
+  ].map((c) => c.toJSON());
+
+  const rest = new REST({ version: "10" }).setToken(TOKEN);
+
+  if (GUILD_IDS && GUILD_IDS.length) {
+    for (const gid of GUILD_IDS) {
+      await rest.put(Routes.applicationGuildCommands(CLIENT_ID, gid), {
+        body: commands,
+      });
+    }
+  } else {
+    await rest.put(Routes.applicationCommands(CLIENT_ID), {
+      body: commands,
+    });
+  }
+}
+
+// --------------------------------------------
+// INTERACTION HANDLER
 // --------------------------------------------
 
 async function handleGroupInteractionCreate(interaction) {
-  // We only expect /groupgauntlet to be routed here by soloGauntlet
-  if (interaction.isChatInputCommand() && interaction.commandName === "groupgauntlet") {
-    return handleGroupGauntletCommand(interaction);
+  try {
+    if (interaction.isChatInputCommand()) {
+      if (interaction.commandName === "groupgauntlet") {
+        await handleGroupGauntletCommand(interaction);
+        return true;
+      }
+    }
+
+    // Buttons and collectors are owned by the round functions themselves.
+    return false;
+  } catch (err) {
+    console.error("GroupGauntlet interaction error:", err);
+    if (interaction.isRepliable()) {
+      try {
+        await interaction.reply({
+          content: "❌ Something went wrong with Group Gauntlet.",
+          ephemeral: true,
+        });
+      } catch {}
+    }
+    return true;
   }
-  return false;
 }
 
+// --------------------------------------------
+// EXPORTS
+// --------------------------------------------
+
 module.exports = {
-  groupGauntletCommand,
+  registerGroupCommands,
   handleGroupInteractionCreate,
 };
 
