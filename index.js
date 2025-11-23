@@ -1,6 +1,5 @@
 // index.js — Entry Point for The Gauntlet (Solo + Group)
 
-// Load .env
 require("dotenv").config();
 
 const {
@@ -20,10 +19,21 @@ const {
 } = require("./src/soloGauntlet");
 
 // Group (classic) Gauntlet
-const {
-  registerGroupCommands,
-  handleGroupInteractionCreate,
-} = require("./src/groupGauntlet");
+let registerGroupCommands = async () => {};
+let handleGroupInteractionCreate = async () => {};
+
+try {
+  const groupModule = require("./src/groupGauntlet");
+
+  if (typeof groupModule.registerGroupCommands === "function") {
+    registerGroupCommands = groupModule.registerGroupCommands;
+  }
+  if (typeof groupModule.handleGroupInteractionCreate === "function") {
+    handleGroupInteractionCreate = groupModule.handleGroupInteractionCreate;
+  }
+} catch (err) {
+  console.error("[GAUNTLET] Failed to load groupGauntlet.js:", err);
+}
 
 // --------------------------------------------
 // CREATE CLIENT
@@ -43,10 +53,8 @@ const client = new Client({
 client.once(Events.ClientReady, async () => {
   console.log(`⚡ Logged in as ${client.user.tag}`);
 
-  // Init Postgres
   await initStore();
 
-  // Register all slash commands (solo + group)
   try {
     await registerSoloCommands();
     await registerGroupCommands();
@@ -61,7 +69,6 @@ client.once(Events.ClientReady, async () => {
 // --------------------------------------------
 client.on(Events.InteractionCreate, async (interaction) => {
   try {
-    // Let each module decide if it cares about this interaction.
     await handleSoloInteractionCreate(interaction);
     await handleGroupInteractionCreate(interaction);
   } catch (err) {
