@@ -679,13 +679,16 @@ async function updateAllLeaderboards(client, month) {
 }
 
 // --------------------------------------------
+// --------------------------------------------
 // COMMAND REGISTRATION
 // --------------------------------------------
 async function registerCommands() {
-  const commands = [
+  // Build the SlashCommandBuilder objects first
+  const builders = [
     new SlashCommandBuilder()
       .setName("gauntlet")
       .setDescription("Post the Gauntlet Start Panel in this channel (admins only)."),
+
     new SlashCommandBuilder()
       .setName("gauntletlb")
       .setDescription("Show the monthly leaderboard (best score per user, totals tie-break).")
@@ -695,6 +698,7 @@ async function registerCommands() {
           .setDescription("YYYY-MM (default: current)")
           .setRequired(false)
       ),
+
     new SlashCommandBuilder()
       .setName("gauntletrecent")
       .setDescription("Show recent runs this month")
@@ -704,16 +708,20 @@ async function registerCommands() {
           .setDescription("How many (default 10)")
           .setRequired(false)
       ),
+
     new SlashCommandBuilder()
       .setName("gauntletinfo")
       .setDescription("How Solo Gauntlet works (rounds & rules)."),
+
     new SlashCommandBuilder()
       .setName("mygauntlet")
       .setDescription("Your current-month stats (best, total, plays)."),
+  ];
 
-    // 👇 NEW: group Gauntlet command
-    groupGauntletCommand,
-  ].map((c) => c.toJSON());
+  // Filter out anything weird/undefined before toJSON
+  const commands = builders
+    .filter((c) => c && typeof c.toJSON === "function")
+    .map((c) => c.toJSON());
 
   const rest = new REST({ version: "10" }).setToken(TOKEN);
 
@@ -729,6 +737,7 @@ async function registerCommands() {
     });
   }
 }
+
 
 // --------------------------------------------
 // PANEL & ADMIN CHECK
