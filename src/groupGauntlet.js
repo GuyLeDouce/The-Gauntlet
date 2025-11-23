@@ -1,6 +1,6 @@
 // src/groupGauntlet.js
 // Live multi-player Gauntlet (classic style) with /groupgauntlet [minutes]
-
+//
 // NOTE: This mode is self-contained (doesn't write to Postgres).
 // It runs fully in-channel with joins, public rounds, and a final podium.
 
@@ -21,13 +21,13 @@ const {
   CLIENT_ID,
   GUILD_IDS,
   AUTHORIZED_ADMINS,
-  withScore,
 } = require("./utils");
 
 const {
   miniGameLorePool,
   miniGameFateDescriptions,
-  pointFlavors,
+  pointFlavors, // not used yet but handy if we want more flavor later
+  riddles,
   pickMiniGame,
   pickRiddle,
 } = require("./gameData");
@@ -36,7 +36,6 @@ const {
 // Helpers
 // --------------------------------------------
 const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
-
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 
 function isAdminUser(interaction) {
@@ -98,10 +97,8 @@ async function handleGroupGauntletCommand(interaction) {
     return true;
   }
 
-  const minutes =
-    interaction.options.getInteger("minutes") && interaction.options.getInteger("minutes") > 0
-      ? interaction.options.getInteger("minutes")
-      : 2;
+  const optMinutes = interaction.options.getInteger("minutes");
+  const minutes = optMinutes && optMinutes > 0 ? optMinutes : 2;
 
   const game = createGroupGame(channel, interaction.user.id);
   activeGames.set(channel.id, game);
@@ -164,7 +161,7 @@ async function handleGroupGauntletCommand(interaction) {
         game.players.set(userId, { id: userId, username, points: 0 });
       }
       await btn.reply({
-        content: `✅ You joined the Gauntlet.`,
+        content: "✅ You joined the Gauntlet.",
         ephemeral: true,
       });
     } else if (btn.customId === "gg:leave") {
@@ -172,7 +169,7 @@ async function handleGroupGauntletCommand(interaction) {
         game.players.delete(userId);
       }
       await btn.reply({
-        content: `👋 You left this Gauntlet run.`,
+        content: "👋 You left this Gauntlet run.",
         ephemeral: true,
       });
     } else if (btn.customId === "gg:startnow") {
@@ -234,7 +231,7 @@ async function handleGroupGauntletCommand(interaction) {
 // ROUND HELPERS (group versions)
 // --------------------------------------------
 
-async function runMiniGameRound(channel, game, roundNumber, titleOverride) {
+async function runMiniGameRound(channel, game, roundNumber) {
   const mini = pickMiniGame(game.usedMini);
   const fate = rand(miniGameFateDescriptions);
 
@@ -344,7 +341,7 @@ async function runMiniGameRound(channel, game, roundNumber, titleOverride) {
 }
 
 async function runRiddleRound(channel, game, roundLabel) {
-  const r = pickRiddle(require("./riddles"), game.usedRiddle);
+  const r = pickRiddle(riddles, game.usedRiddle);
   if (!r) {
     await channel.send("⚠️ No riddles left. Skipping.");
     return;
@@ -387,9 +384,7 @@ async function runRiddleRound(channel, game, roundLabel) {
     if (!game.players.has(userId)) return;
 
     const normalized = m.content.trim().toLowerCase();
-    const isCorrect = r.answers
-      .map((a) => a.toLowerCase())
-      .includes(normalized);
+    const isCorrect = r.answers.map((a) => a.toLowerCase()).includes(normalized);
 
     if (isCorrect && !correctSet.has(userId)) {
       correctSet.add(userId);
@@ -521,7 +516,6 @@ async function runTrustDoubtRound(channel, game, roundNumber) {
           "Majority chose **Trust**. Squig told the truth. Trusters **+1**. Doubters 0.";
       }
     } else if (majority === "doubt") {
-      // Doubters get +1 if they were the majority and Squig lies / not?
       if (liar) {
         for (const uid of doubters) {
           const p = game.players.get(uid);
@@ -756,13 +750,17 @@ async function runRiskItRound(channel, game) {
       if (choice === "quarter") stake = Math.max(1, Math.floor(pts / 4));
 
       const outcome = rand(outcomes);
-      const delta = outcome.mult === -1 ? -stake : Math.round(stake * outcome.mult);
+      const delta =
+        outcome.mult === -1 ? -stake : Math.round(stake * outcome.mult);
       p.points += delta;
 
-      const prettyDelta = delta === 0 ? "0" : delta > 0 ? `+${delta}` : `${delta}`;
+      const prettyDelta =
+        delta === 0 ? "0" : delta > 0 ? `+${delta}` : `${delta}`;
 
       lines.push(
-        `• <@${uid}> • ${choice.toUpperCase()} (staked ${stake}) → ${outcome.label} • **${prettyDelta}** • new total: **${p.points}**`
+        `• <@${uid}> • ${choice.toUpperCase()} (staked ${stake}) → ${
+          outcome.label
+        } • **${prettyDelta}** • new total: **${p.points}**`
       );
     }
 
@@ -833,7 +831,7 @@ async function sendFinalPodium(channel, game) {
 }
 
 // --------------------------------------------
-// FULL GAME FLOW (10-ish rounds)
+// FULL GAME FLOW (classic-ish 10 rounds)
 // --------------------------------------------
 
 async function runGroupGame(channel, game) {
@@ -875,16 +873,14 @@ async function runGroupGame(channel, game) {
   await sleep(gap);
 
   await sendFinalPodium(channel, game);
-  await channel.send(
-    "📯 Maybe enough reactions will encourage another game…"
-  );
+  await channel.send("📯 Maybe enough reactions will encourage another game…");
 }
 
 // --------------------------------------------
 // COMMAND REGISTRATION
 // --------------------------------------------
 
-async function registerCommands() {
+async function registerGroupCommands() {
   const commands = [
     new SlashCommandBuilder()
       .setName("groupgauntlet")
@@ -910,13 +906,15 @@ async function registerCommands() {
       body: commands,
     });
   }
+
+  console.log("✅ Registered /groupgauntlet");
 }
 
 // --------------------------------------------
 // INTERACTION HANDLER
 // --------------------------------------------
 
-async function handleInteractionCreate(interaction) {
+async function handleGroupInteractionCreate(interaction) {
   try {
     if (interaction.isChatInputCommand()) {
       if (interaction.commandName === "groupgauntlet") {
@@ -925,7 +923,7 @@ async function handleInteractionCreate(interaction) {
       }
     }
 
-    // Buttons & collectors for this mode are handled by message collectors
+    // Buttons & collectors for this mode are handled by collectors
     // created inside the command handler, so nothing else to do here.
     return false;
   } catch (err) {
@@ -949,4 +947,5 @@ module.exports = {
   registerGroupCommands,
   handleGroupInteractionCreate,
 };
+
 
