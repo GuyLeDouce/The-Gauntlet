@@ -1,780 +1,929 @@
 // src/groupGauntlet.js
-// Classic "big room" Gauntlet — group game with mini-games + riddles
-// Triggered via /groupgauntlet [minutes] (lobby join period)
-//
-// - Lobby phase: players join, host can start early or cancel
-// - 10 rounds: each = mini-game (buttons) + riddle (chat answers)
-// - Countdown messages for both phases
-// - Per-player riddle success messages
-// - Risk It phase after round 8
-// - In-memory only (no DB persistence)
+// Group-mode Gauntlet: classic multi-player chaos.
+// - /groupgauntlet [minutes] posts a lobby in the channel
+// - Players click Join
+// - After the timer (or host starts early), a 6-round game runs in-channel
+// - Scores live only for that session (no DB writes)
 
 const {
   SlashCommandBuilder,
+  REST,
+  Routes,
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  ComponentType,
+  PermissionFlagsBits,
 } = require("discord.js");
+
+const {
+  TOKEN,
+  CLIENT_ID,
+  GUILD_IDS,
+  AUTHORIZED_ADMINS,
+} = require("./utils");
 
 const {
   miniGameLorePool,
   miniGameFateDescriptions,
   pointFlavors,
-  riddles,
   pickMiniGame,
   pickRiddle,
+  riddles,
 } = require("./gameData");
 
-// In-memory game state: key by channelId (one game per channel)
-const groupGames = new Map();
+// --------------------------------------------------
+// Helpers & state
+// --------------------------------------------------
+const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-// Local wait helper
-const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+// channelId -> gameState
+const activeGames = new Map();
 
-// -------------- Slash Command Definition --------------------
+/**
+ * gameState = {
+ *   id: string,
+ *   channelId: string,
+ *   hostId: string,
+ *   status: 'lobby' | 'running' | 'finished' | 'cancelled',
+ *   players: Map<userId, { id, username, points }>,
+ *   createdAt: Date,
+ *   lobbyMessageId?: string,
+ *   startTimeout?: NodeJS.Timeout,
+ *   usedMini: Set<number>,
+ *   usedRiddles: Set<number>,
+ * }
+ */
 
-// Exported SlashCommandBuilder so you can register it alongside others
-const groupGauntletCommand = new SlashCommandBuilder()
-  .setName("groupgauntlet")
-  .setDescription("Run a classic group Gauntlet in this channel.")
-  .addIntegerOption((opt) =>
-    opt
-      .setName("minutes")
-      .setDescription("How long players have to join before the game starts")
-      .setMinValue(1)
-      .setMaxValue(30)
-      .setRequired(true)
+function isAdminUser(interaction) {
+  if (AUTHORIZED_ADMINS.includes(interaction.user.id)) return true;
+  const member = interaction.member;
+  if (!member || !interaction.inGuild()) return false;
+  return (
+    member.permissions?.has(PermissionFlagsBits.ManageGuild) ||
+    member.permissions?.has(PermissionFlagsBits.Administrator)
   );
-
-// -------------- Helpers -------------------------------------
-
-function formatPlayerList(game) {
-  if (!game || game.players.size === 0) return "_No players yet. Use **Join** to enter._";
-  const names = Array.from(game.players.values()).map((p) => p.username);
-  return names.join(", ");
 }
 
-function getBasePointsForDifficulty(difficulty) {
-  switch (difficulty) {
-    case 1:
-      return 1;
-    case 2:
-      return 2;
-    case 3:
-      return 3;
-    case 4:
-      return 3; // Squig specials
-    default:
-      return 1;
+function formatScoreboard(game) {
+  const arr = Array.from(game.players.values()).sort(
+    (a, b) => (b.points || 0) - (a.points || 0)
+  );
+  if (!arr.length) return "No players joined.";
+  return arr
+    .map(
+      (p, i) =>
+        `**#${i + 1}** ${p.username} — **${p.points || 0}** point${
+          (p.points || 0) === 1 ? "" : "s"
+        }`
+    )
+    .join("\n");
+}
+
+// Disable all buttons on a given message
+async function disableButtons(message) {
+  try {
+    const rows = message.components.map((row) =>
+      new ActionRowBuilder().addComponents(
+        row.components.map((b) => ButtonBuilder.from(b).setDisabled(true))
+      )
+    );
+    await message.edit({ components: rows });
+  } catch {
+    // ignore
   }
 }
 
-function getMonthKeyFromDate(d = new Date()) {
-  // "YYYY-MM"
-  const year = d.getUTCFullYear();
-  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
-  return `${year}-${month}`;
-}
-
-function summarizeLeaderboard(playersMap) {
-  const players = Array.from(playersMap.values());
-  players.sort((a, b) => b.points - a.points);
-  return players;
-}
-
-function splitPodium(players) {
-  const [first, second, third, ...rest] = players;
-  return {
-    first,
-    second,
-    third,
-    others: rest,
-  };
-}
-
-// -------------- Main Entry: Slash Command -------------------
-
-async function handleGroupGauntletSlash(interaction) {
+// --------------------------------------------------
+// LOBBY
+// --------------------------------------------------
+async function createLobby(interaction, durationMinutes) {
   const channelId = interaction.channelId;
 
-  if (groupGames.has(channelId)) {
+  if (activeGames.has(channelId)) {
     return interaction.reply({
-      content: "🚫 A Group Gauntlet is already running in this channel.",
+      content: "⛔ There’s already a Gauntlet running (or waiting) in this channel.",
       ephemeral: true,
     });
   }
 
-  const minutes = interaction.options.getInteger("minutes", true);
-  const hostId = interaction.user.id;
-
   const game = {
+    id: `group_${Date.now()}`,
     channelId,
-    guildId: interaction.guildId,
-    hostId,
-    lobbyEndsAt: Date.now() + minutes * 60_000,
+    hostId: interaction.user.id,
+    status: "lobby",
     players: new Map(),
-    round: 0,
-    maxRounds: 10,
-    usedMiniGames: new Set(),
-    usedRiddles: new Set(),
-    isRunning: false,
     createdAt: new Date(),
+    usedMini: new Set(),
+    usedRiddles: new Set(),
   };
 
-  // Host joins automatically
-  game.players.set(hostId, {
-    id: hostId,
-    username: interaction.user.username,
+  // Host auto-joined
+  game.players.set(interaction.user.id, {
+    id: interaction.user.id,
+    username: interaction.user.username || interaction.user.globalName || "Player",
     points: 0,
   });
 
-  groupGames.set(channelId, game);
+  activeGames.set(channelId, game);
 
-  const lobbyEmbed = new EmbedBuilder()
-    .setTitle("👁 The Gauntlet — Group Mode Lobby")
+  const embed = new EmbedBuilder()
+    .setTitle("⚔️ The Gauntlet — Group Mode Lobby")
     .setDescription(
       [
-        `Host: <@${hostId}>`,
+        `Host: <@${interaction.user.id}>`,
         "",
-        `Players can **Join** for the next **${minutes} minute(s)**.`,
+        `Game starts in **${durationMinutes} minute${
+          durationMinutes === 1 ? "" : "s"
+        }**.`,
+        "Click **Join** to enter. Host/Admin can **Start Now** or **Cancel**.",
         "",
-        "**When the lobby closes, the game starts.**",
+        `Current players (1): <@${interaction.user.id}>`,
       ].join("\n")
     )
-    .addFields(
-      {
-        name: "Players",
-        value: formatPlayerList(game),
-      },
-      {
-        name: "How it works",
-        value:
-          "- 10 rounds of chaos\n- Each round: a mini-game + a riddle\n- Points go up, down, and sideways\n- After Round 8, the Charm may offer a **Risk It**",
-      }
-    )
-    .setTimestamp(new Date())
-    .setColor(0xff00aa);
+    .setColor(0xaa00ff);
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId(`gg_lobby_join_${channelId}`)
+      .setCustomId("gg:lobby:join")
       .setLabel("Join")
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
-      .setCustomId(`gg_lobby_leave_${channelId}`)
+      .setCustomId("gg:lobby:leave")
       .setLabel("Leave")
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
-      .setCustomId(`gg_lobby_start_${channelId}`)
-      .setLabel("Start Now (Host)")
+      .setCustomId("gg:lobby:start")
+      .setLabel("Start Now")
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
-      .setCustomId(`gg_lobby_cancel_${channelId}`)
+      .setCustomId("gg:lobby:cancel")
       .setLabel("Cancel")
       .setStyle(ButtonStyle.Danger)
   );
 
-  const message = await interaction.reply({
-    embeds: [lobbyEmbed],
+  const msg = await interaction.reply({
+    embeds: [embed],
     components: [row],
     fetchReply: true,
   });
 
-  runLobbyCollector(interaction.client, message, game);
+  game.lobbyMessageId = msg.id;
+
+  // Auto-start timer
+  const ms = durationMinutes * 60_000;
+  game.startTimeout = setTimeout(async () => {
+    if (!activeGames.has(channelId)) return;
+    const current = activeGames.get(channelId);
+    if (!current || current.status !== "lobby") return;
+    const ch = await interaction.client.channels.fetch(channelId).catch(() => null);
+    if (!ch) return;
+    await startGameInChannel(ch, current, "⏰ Lobby timer ended — starting now!");
+  }, ms);
 }
 
-// -------------- Lobby Collector -----------------------------
-
-function runLobbyCollector(client, message, game) {
-  const channelId = game.channelId;
-  const lobbyDuration = game.lobbyEndsAt - Date.now();
-
-  const collector = message.createMessageComponentCollector({
-    time: lobbyDuration > 0 ? lobbyDuration : 10_000,
-  });
-
-  collector.on("collect", async (i) => {
-    if (!i.customId.startsWith("gg_lobby_")) return;
-
-    const [, , action, cid] = i.customId.split("_");
-    if (cid !== channelId) return i.deferUpdate().catch(() => {});
-
-    const userId = i.user.id;
-
-    if (action === "join") {
-      if (!game.players.has(userId)) {
-        game.players.set(userId, {
-          id: userId,
-          username: i.user.username,
-          points: 0,
-        });
-      }
-      await i.deferUpdate().catch(() => {});
-    } else if (action === "leave") {
-      if (game.players.has(userId) && userId !== game.hostId) {
-        game.players.delete(userId);
-      }
-      await i.deferUpdate().catch(() => {});
-    } else if (action === "start") {
-      // Only host can start early
-      if (userId !== game.hostId) {
-        return i.reply({
-          content: "Only the host can start the game early.",
-          ephemeral: true,
-        });
-      }
-      collector.stop("host_start");
-      await i.deferUpdate().catch(() => {});
-    } else if (action === "cancel") {
-      if (userId !== game.hostId) {
-        return i.reply({
-          content: "Only the host can cancel this game.",
-          ephemeral: true,
-        });
-      }
-      collector.stop("host_cancel");
-      await i.deferUpdate().catch(() => {});
-    }
-
-    // Update lobby embed
-    const updated = EmbedBuilder.from(message.embeds[0]);
-    updated.spliceFields(0, 1, {
-      name: "Players",
-      value: formatPlayerList(game),
-    });
-    await message.edit({ embeds: [updated] }).catch(() => {});
-  });
-
-  collector.on("end", async (_, reason) => {
-    const channel = await client.channels.fetch(channelId).catch(() => null);
-    if (!channel) {
-      groupGames.delete(channelId);
-      return;
-    }
-
-    if (reason === "host_cancel") {
-      await channel.send("🛑 The Group Gauntlet lobby was cancelled.");
-      groupGames.delete(channelId);
-      return;
-    }
-
-    if (game.players.size === 0) {
-      await channel.send("No one joined the Group Gauntlet. The portal closes.");
-      groupGames.delete(channelId);
-      return;
-    }
-
-    await channel.send(
-      `👁 The Gauntlet begins with **${game.players.size}** player(s)!`
-    );
-
-    game.isRunning = true;
-    runGroupGame(channel, game).catch(async (err) => {
-      console.error("Group Gauntlet error:", err);
-      await channel.send("⚠️ The Gauntlet stumbled and fell. Ping an admin.");
-      groupGames.delete(channelId);
-    });
-  });
-}
-
-// -------------- Game Loop -----------------------------------
-
-async function runGroupGame(channel, game) {
-  for (let r = 1; r <= game.maxRounds; r++) {
-    game.round = r;
-
-    // MINI-GAME
-    await runMiniGamePhase(channel, game);
-
-    // RIDDLE
-    await runRiddlePhase(channel, game);
-
-    // Risk It after round 8 (feel like the old logs)
-    if (r === 8) {
-      await runRiskItPhase(channel, game);
-    }
+// --------------------------------------------------
+// ROUND HELPERS
+// --------------------------------------------------
+async function broadcast(channel, contentOrEmbed) {
+  if (contentOrEmbed instanceof EmbedBuilder) {
+    return channel.send({ embeds: [contentOrEmbed] });
   }
-
-  // Final podium
-  await showFinalPodium(channel, game);
-
-  groupGames.delete(game.channelId);
+  return channel.send({ content: contentOrEmbed });
 }
 
-// -------------- Mini-Game Phase -----------------------------
+function ensurePlayer(game, user) {
+  if (!game.players.has(user.id)) return null;
+  return game.players.get(user.id);
+}
 
-async function runMiniGamePhase(channel, game) {
-  // Pick a mini-game, tracking used ones
-  const picked = pickMiniGame(game.usedMiniGames); // { index, title, lore, buttons, image }
-  const mg = picked;
-
-  const fateLine =
-    miniGameFateDescriptions[
-      Math.floor(Math.random() * miniGameFateDescriptions.length)
-    ];
+// ---------------- Mini-game (4 buttons, group) -----------
+async function runGroupMiniGame(channel, game, roundLabel) {
+  const selected = pickMiniGame(game.usedMini);
 
   const embed = new EmbedBuilder()
-    .setTitle(`🌪️ ROUND ${game.round} — ${mg.title}`)
+    .setTitle(`🌪 ${roundLabel} — ${selected.title}`)
     .setDescription(
-      [
-        mg.lore,
-        "",
-        fateLine,
-        "",
-        "⏳ You have **30 seconds** to choose your fate.",
-      ].join("\n")
+      `${selected.lore}\n\n_${rand(miniGameFateDescriptions)}_\n\n⏳ You have **30 seconds** to choose.`
     )
-    .setColor(0xffaa00);
+    .setColor(0xff33cc);
 
-  if (mg.image) {
-    embed.setImage(mg.image);
-  }
+  if (selected.image) embed.setImage(selected.image);
 
   const row = new ActionRowBuilder().addComponents(
-    mg.buttons.map((label, idx) =>
+    selected.buttons.map((label, i) =>
       new ButtonBuilder()
-        .setCustomId(`gg_mg_${game.channelId}_${idx}`)
+        .setCustomId(`gg:mg:${selected.index}:${i}`)
         .setLabel(label)
-        .setStyle(ButtonStyle.Primary)
+        .setStyle(
+          [ButtonStyle.Primary, ButtonStyle.Danger, ButtonStyle.Secondary, ButtonStyle.Success][
+            i % 4
+          ]
+        )
     )
   );
 
-  const message = await channel.send({
-    embeds: [embed],
-    components: [row],
-  });
+  const msg = await broadcast(channel, { embeds: [embed], components: [row] });
 
-  const choices = new Map(); // userId -> buttonIndex
+  const choices = new Map(); // userId -> button index
 
-  const collector = message.createMessageComponentCollector({
+  const collector = msg.createMessageComponentCollector({
+    componentType: ComponentType.Button,
     time: 30_000,
   });
 
-  // Countdown messages
-  channel
-    .send("⏳ 20 seconds left to choose...")
-    .catch(() => {});
-  setTimeout(() => {
-    channel.send("⏳ 10 seconds left...").catch(() => {});
-  }, 20_000);
-  setTimeout(() => {
-    channel.send("⏰ Time’s almost up!").catch(() => {});
-  }, 27_000);
-
   collector.on("collect", async (i) => {
-    if (!i.customId.startsWith("gg_mg_")) return;
-    const [, , cid, idxStr] = i.customId.split("_");
-    if (cid !== game.channelId) return i.deferUpdate().catch(() => {});
-
-    const userId = i.user.id;
-    if (!game.players.has(userId)) {
-      return i.reply({
-        content: "Only players in this Gauntlet can pick an option.",
-        ephemeral: true,
-      });
+    const player = ensurePlayer(game, i.user);
+    if (!player) {
+      return i.reply({ content: "You’re not in this Gauntlet.", ephemeral: true });
     }
-
-    const idx = parseInt(idxStr, 10);
-    choices.set(userId, idx);
-
+    if (choices.has(i.user.id)) {
+      return i.reply({ content: "You already picked this round.", ephemeral: true });
+    }
+    const [, , , idxStr] = i.customId.split(":");
+    const idx = Number(idxStr) || 0;
+    choices.set(i.user.id, idx);
     await i.reply({
-      content: `You chose **${mg.buttons[idx]}**.`,
+      content: `You chose **${i.component.label}**. The charm takes note...`,
       ephemeral: true,
     });
   });
 
-  collector.on("end", async () => {
-    await channel.send("🎲 Time’s up. The charm decides.").catch(() => {});
+  return new Promise((resolve) => {
+    collector.on("end", async () => {
+      await disableButtons(msg);
 
-    if (choices.size === 0) {
-      await channel.send("No one chose anything. The Squigs are offended.").catch(() => {});
-      // No point changes
-      await message.edit({ components: [] }).catch(() => {});
-      return;
-    }
+      // Apply points
+      const lines = [];
+      for (const [userId, player] of game.players.entries()) {
+        if (!choices.has(userId)) {
+          lines.push(`• ${player.username} — did not choose (0).`);
+          continue;
+        }
+        const delta = rand([-2, -1, 1, 2]);
+        player.points = (player.points || 0) + delta;
 
-    // Assign point deltas per button index
-    const deltas = [+2, +1, -1, -2];
-    const baseRoll = Math.floor(Math.random() * deltas.length);
-
-    const perPlayerDelta = new Map(); // userId -> delta
-    for (const [userId, idx] of choices.entries()) {
-      const delta = deltas[(baseRoll + idx) % deltas.length];
-      perPlayerDelta.set(userId, delta);
-
-      const player = game.players.get(userId);
-      if (!player) continue;
-      player.points += delta;
-    }
-
-    // Build summary + flavor
-    const lines = [];
-    const groupByDelta = {};
-
-    for (const [userId, delta] of perPlayerDelta.entries()) {
-      const key = delta > 0 ? `+${delta}` : `${delta}`;
-      if (!groupByDelta[key]) groupByDelta[key] = [];
-      groupByDelta[key].push(`<@${userId}>`);
-    }
-
-    for (const key of Object.keys(groupByDelta).sort()) {
-      const list = groupByDelta[key].join(", ");
-      const num = parseInt(key, 10);
-      let flavor = "";
-      const bucketKey = num > 0 ? `+${num}` : `${num}`;
-      const bucket = pointFlavors[bucketKey];
-      if (bucket && bucket.length) {
-        flavor = bucket[Math.floor(Math.random() * bucket.length)];
-      } else {
-        flavor = num > 0 ? `Gained **${num}** point(s).` : `Lost **${Math.abs(num)}** point(s).`;
+        const flavorList = pointFlavors[delta > 0 ? `+${delta}` : `${delta}`] || [];
+        const flavor = flavorList.length ? rand(flavorList) : "";
+        lines.push(
+          `• ${player.username} — **${delta > 0 ? "+" : ""}${delta}** points. ${flavor}`
+        );
       }
 
-      lines.push(`${list} → ${flavor}`);
-    }
+      const resultEmbed = new EmbedBuilder()
+        .setTitle("🧮 Mini-game complete. Points applied.")
+        .setDescription(lines.join("\n") || "Nobody clicked anything. The charm yawns.")
+        .setColor(0x00ff88);
 
-    const summaryEmbed = new EmbedBuilder()
-      .setTitle("🧮 Mini-game complete — Points applied.")
-      .setDescription(lines.join("\n"))
-      .setColor(0x00ff99);
-
-    await channel.send({ embeds: [summaryEmbed] }).catch(() => {});
-    await message.edit({ components: [] }).catch(() => {});
+      await broadcast(channel, resultEmbed);
+      resolve();
+    });
   });
 }
 
-// -------------- Riddle Phase --------------------------------
-
-async function runRiddlePhase(channel, game) {
-  // Pick riddle, tracking used set
-  const picked = pickRiddle(riddles, game.usedRiddles);
-  if (!picked) {
-    await channel.send("⚠️ No riddles available. The portal hiccups.").catch(() => {});
+// ---------------- Riddle (typed answers in channel) ------
+async function runGroupRiddle(channel, game, label = "MID-ROUND RIDDLE") {
+  const r = pickRiddle(riddles, game.usedRiddles);
+  if (!r) {
+    await broadcast(channel, "⚠️ No riddles left. Skipping.");
     return;
   }
 
-  const difficulty = picked.difficulty;
-  const basePoints = getBasePointsForDifficulty(difficulty);
-
   const difficultyLabel =
-    difficulty === 1
-      ? "EASY"
-      : difficulty === 2
-      ? "MEDIUM"
-      : difficulty === 3
-      ? "HARD"
-      : "SQUIG SPECIAL";
+    r.difficulty === 1
+      ? "EASY — Worth +1 point."
+      : r.difficulty === 2
+      ? "MEDIUM — Worth +2 points."
+      : r.difficulty === 3
+      ? "HARD — Worth +3 points."
+      : "SQUIG SPECIAL — Worth +3 points.";
 
   const embed = new EmbedBuilder()
-    .setTitle("🧠 MID-ROUND RIDDLE")
-    .setDescription(picked.riddle)
-    .addFields({
-      name: "Difficulty",
-      value: `${difficultyLabel} — Worth **+${basePoints}** point(s).`,
-    })
-    .setColor(0x7b3fff);
+    .setTitle(`🧠 ${label}`)
+    .setDescription(
+      [
+        r.riddle,
+        "",
+        `🌀 Difficulty: **${difficultyLabel}**`,
+        "Type your answer in chat (one attempt per player).",
+        "⏳ You have **30 seconds**...",
+      ].join("\n")
+    )
+    .setColor(0xff66cc);
 
-  await channel.send({ embeds: [embed] });
+  await broadcast(channel, embed);
 
-  await channel
-    .send("⏳ You have **30 seconds** to decide your fate...")
-    .catch(() => {});
-  setTimeout(() => {
-    channel.send("⏳ 10 seconds left...").catch(() => {});
-  }, 20_000);
-  setTimeout(() => {
-    channel.send("⏰ Time’s almost up!").catch(() => {});
-  }, 27_000);
-
-  const correctSet = new Set();
-  const normalizedAnswers = picked.answers.map((a) =>
-    a.trim().toLowerCase()
-  );
-
-  const filter = (m) =>
-    !m.author.bot && game.players.has(m.author.id) && m.channelId === game.channelId;
+  const answered = new Set();
+  const correctPlayers = [];
 
   const collector = channel.createMessageCollector({
-    filter,
     time: 30_000,
+    filter: (m) => {
+      if (!game.players.has(m.author.id)) return false;
+      if (m.author.bot) return false;
+      if (answered.has(m.author.id)) return false;
+      return true;
+    },
   });
 
   collector.on("collect", async (m) => {
-    const userId = m.author.id;
-    if (correctSet.has(userId)) return;
+    const player = game.players.get(m.author.id);
+    if (!player) return;
 
-    const guess = m.content.trim().toLowerCase();
-    const isCorrect = normalizedAnswers.some((a) => {
-      // allow small variations like "letter m" vs "m"
-      return guess === a || guess === `the ${a}`;
-    });
+    answered.add(m.author.id);
 
-    if (!isCorrect) return;
+    const ans = m.content.trim().toLowerCase();
+    const isCorrect = r.answers.some((a) => a.toLowerCase() === ans);
 
-    correctSet.add(userId);
-
-    const player = game.players.get(userId);
-    if (player) {
-      player.points += basePoints;
+    if (isCorrect) {
+      const delta = r.difficulty === 1 ? 1 : r.difficulty === 2 ? 2 : 3;
+      player.points = (player.points || 0) + delta;
+      correctPlayers.push(player.username);
+      await m.react("✅").catch(() => null);
+    } else {
+      await m.react("❌").catch(() => null);
     }
-
-    await channel
-      .send(
-        `🧠 <@${userId}> answered correctly and gained **+${basePoints}** point(s)!`
-      )
-      .catch(() => {});
   });
 
-  collector.on("end", async () => {
-    await channel
-      .send(
-        `✅ Riddle completed. **${correctSet.size}** player(s) answered correctly and gained **+${basePoints}** point(s).`
-      )
-      .catch(() => {});
+  return new Promise((resolve) => {
+    collector.on("end", async () => {
+      const correctCount = correctPlayers.length;
+      const summaryEmbed = new EmbedBuilder()
+        .setTitle("✅ Riddle completed.")
+        .setDescription(
+          [
+            `${correctCount} player(s) answered correctly and gained **+${r.difficulty}**.`,
+            "",
+            `🧩 The correct answer was: **${r.answers[0]}**.`,
+          ].join("\n")
+        )
+        .setColor(0x00ff88);
 
-    const correctAnswerText = picked.answers[0];
-    await channel
-      .send(`🧩 The correct answer was: **${correctAnswerText}**.`)
-      .catch(() => {});
+      await broadcast(channel, summaryEmbed);
+      resolve();
+    });
   });
 }
 
-// -------------- Risk It Phase -------------------------------
-
-async function runRiskItPhase(channel, game) {
+// ---------------- Trust or Doubt -------------------------
+async function runTrustOrDoubt(channel, game, roundNumber) {
   const embed = new EmbedBuilder()
-    .setTitle("🎲 RISK IT — The Charm Tempts You")
+    .setTitle(`🤝 ROUND ${roundNumber} — Trust or Doubt`)
+    .setDescription(
+      [
+        "Players click **Trust** or **Doubt**.",
+        "If the **majority Trusts**, they gain **+1** — unless the Squig lies, then they get **-1** instead.",
+        "Same for Doubt if they’re the majority.",
+        "Everyone else: 0.",
+        "",
+        "⏳ You have **30 seconds**.",
+      ].join("\n")
+    )
+    .setColor(0x00ccff);
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("gg:trust")
+      .setLabel("Trust")
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId("gg:doubt")
+      .setLabel("Doubt")
+      .setStyle(ButtonStyle.Danger)
+  );
+
+  const msg = await broadcast(channel, { embeds: [embed], components: [row] });
+
+  const trusters = new Set();
+  const doubters = new Set();
+
+  const collector = msg.createMessageComponentCollector({
+    componentType: ComponentType.Button,
+    time: 30_000,
+  });
+
+  collector.on("collect", async (i) => {
+    const player = ensurePlayer(game, i.user);
+    if (!player) {
+      return i.reply({ content: "You’re not in this Gauntlet.", ephemeral: true });
+    }
+    // Only last choice counts
+    if (i.customId === "gg:trust") {
+      trusters.add(i.user.id);
+      doubters.delete(i.user.id);
+    } else {
+      doubters.add(i.user.id);
+      trusters.delete(i.user.id);
+    }
+    await i.reply({
+      content: `You chose **${i.customId === "gg:trust" ? "Trust" : "Doubt"}**.`,
+      ephemeral: true,
+    });
+  });
+
+  return new Promise((resolve) => {
+    collector.on("end", async () => {
+      await disableButtons(msg);
+
+      const tCount = trusters.size;
+      const dCount = doubters.size;
+
+      // Decide majority
+      let majority = null;
+      if (tCount > dCount) majority = "trust";
+      else if (dCount > tCount) majority = "doubt";
+
+      const squigLies = Math.random() < 0.5;
+
+      const lines = [];
+      lines.push(
+        `Trusters (${tCount}): ${
+          tCount ? Array.from(trusters).map((id) => game.players.get(id).username).join(", ") : "none"
+        }`
+      );
+      lines.push(
+        `Doubters (${dCount}): ${
+          dCount ? Array.from(doubters).map((id) => game.players.get(id).username).join(", ") : "none"
+        }`
+      );
+      lines.push("");
+
+      if (!majority) {
+        lines.push("Outcome: No clear majority. The Squig shrugs. Nobody gains or loses.");
+      } else {
+        const affectedSet = majority === "trust" ? trusters : doubters;
+        if (!affectedSet.size) {
+          lines.push("Outcome: Majority side had no players. The charm is confused.");
+        } else {
+          const sign = squigLies ? -1 : 1;
+          for (const userId of affectedSet) {
+            const p = game.players.get(userId);
+            p.points = (p.points || 0) + sign;
+          }
+          if (majority === "trust") {
+            lines.push(
+              `Outcome: Majority chose **Trust**. Squig ${
+                squigLies ? "lied. Trusters -1." : "told the truth. Trusters +1."
+              }`
+            );
+          } else {
+            lines.push(
+              `Outcome: Majority chose **Doubt**. Squig ${
+                squigLies ? "lied. Doubters -1." : "told the truth. Doubters +1."
+              }`
+            );
+          }
+        }
+      }
+
+      const resultEmbed = new EmbedBuilder()
+        .setTitle("🤝 Trust or Doubt — Results")
+        .setDescription(lines.join("\n"))
+        .setColor(0x00ff88);
+
+      await broadcast(channel, resultEmbed);
+      resolve();
+    });
+  });
+}
+
+// ---------------- Risk It (group) ------------------------
+async function runRiskItGroup(channel, game) {
+  const embed = new EmbedBuilder()
+    .setTitle("🪙 RISK IT — The Charm Tempts You")
     .setDescription(
       [
         "Between rounds, the static parts... and a Squig grins.",
         "Risk your points for a shot at more — or lose them to the void.",
         "",
         "• **Risk All** — stake everything",
-        "• **Risk Half** — stake half your current points",
+        "• **Risk Half** — stake half",
         "• **Risk Quarter** — stake a quarter (min 1)",
         "• **No Risk** — sit out and watch the chaos",
         "",
         "⏳ You have **20 seconds** to decide.",
       ].join("\n")
     )
-    .setColor(0xffcc00);
+    .setColor(0xffaa00);
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId(`gg_risk_all_${game.channelId}`)
+      .setCustomId("gg:risk:all")
       .setLabel("Risk All")
       .setStyle(ButtonStyle.Danger),
     new ButtonBuilder()
-      .setCustomId(`gg_risk_half_${game.channelId}`)
+      .setCustomId("gg:risk:half")
       .setLabel("Risk Half")
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
-      .setCustomId(`gg_risk_quarter_${game.channelId}`)
+      .setCustomId("gg:risk:quarter")
       .setLabel("Risk Quarter")
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
-      .setCustomId(`gg_risk_none_${game.channelId}`)
+      .setCustomId("gg:risk:none")
       .setLabel("No Risk")
       .setStyle(ButtonStyle.Success)
   );
 
-  const message = await channel.send({
-    embeds: [embed],
-    components: [row],
-  });
+  const msg = await broadcast(channel, { embeds: [embed], components: [row] });
 
-  const choices = new Map(); // userId -> "all" | "half" | "quarter" | "none"
+  const picks = new Map(); // userId -> choice
 
-  const collector = message.createMessageComponentCollector({
+  const collector = msg.createMessageComponentCollector({
+    componentType: ComponentType.Button,
     time: 20_000,
   });
 
-  setTimeout(() => {
-    channel.send("⏳ 10 seconds left to Risk It...").catch(() => {});
-  }, 10_000);
-
   collector.on("collect", async (i) => {
-    const [_, __, type, cid] = i.customId.split("_");
-    if (cid !== game.channelId) return i.deferUpdate().catch(() => {});
-
-    const userId = i.user.id;
-    if (!game.players.has(userId)) {
-      return i.reply({
-        content: "Only players in this Gauntlet can Risk It.",
-        ephemeral: true,
-      });
+    const player = ensurePlayer(game, i.user);
+    if (!player) {
+      return i.reply({ content: "You’re not in this Gauntlet.", ephemeral: true });
     }
-
-    let riskType = "none";
-    if (type === "all") riskType = "all";
-    else if (type === "half") riskType = "half";
-    else if (type === "quarter") riskType = "quarter";
-    else riskType = "none";
-
-    choices.set(userId, riskType);
+    picks.set(i.user.id, i.customId.split(":")[2]); // all/half/quarter/none
     await i.reply({
-      content:
-        riskType === "none"
-          ? "You chose to sit this one out."
-          : `You chose to **Risk ${riskType.toUpperCase()}**.`,
+      content: `You chose **${i.component.label}**.`,
       ephemeral: true,
     });
   });
 
-  collector.on("end", async () => {
-    await channel.send("🧮 Risk It — Results").catch(() => {});
-    const lines = [];
+  return new Promise((resolve) => {
+    collector.on("end", async () => {
+      await disableButtons(msg);
 
-    for (const [userId, riskType] of choices.entries()) {
-      const player = game.players.get(userId);
-      if (!player) continue;
+      const lines = [];
+      for (const [userId, player] of game.players) {
+        const choice = picks.get(userId) || "none";
+        const pts = Math.floor(player.points || 0);
+        if (choice === "none" || pts <= 0) {
+          lines.push(
+            `• ${player.username} • ${
+              pts <= 0 ? "No points to risk." : "Did not risk."
+            } • total: ${player.points || 0}`
+          );
+          continue;
+        }
 
-      const before = player.points;
-      if (before <= 0 || riskType === "none") {
+        let stake = 0;
+        let label = "";
+        if (choice === "all") {
+          stake = pts;
+          label = "Risk All";
+        } else if (choice === "half") {
+          stake = Math.max(1, Math.floor(pts / 2));
+          label = "Risk Half";
+        } else if (choice === "quarter") {
+          stake = Math.max(1, Math.floor(pts / 4));
+          label = "Risk Quarter";
+        }
+
+        const outcomes = [
+          { mult: -1, label: "💀 Lost it all" },
+          { mult: 0, label: "😮 Broke even" },
+          { mult: 0.5, label: "✨ Won 1.5×" },
+          { mult: 1, label: "👑 Doubled" },
+        ];
+
+        const out = rand(outcomes);
+        const delta = out.mult === -1 ? -stake : Math.round(stake * out.mult);
+        player.points = (player.points || 0) + delta;
+
         lines.push(
-          `<@${userId}> • No Risk (or nothing to risk) → stayed at **${before}**`
+          `@${player.username} • ${label} (staked ${stake}) → ${out.label} • ${
+            delta > 0 ? "+" : ""
+          }${delta} • new total: ${player.points}`
         );
-        continue;
       }
 
-      let stake = 0;
-      if (riskType === "all") stake = before;
-      else if (riskType === "half") stake = Math.max(1, Math.floor(before / 2));
-      else if (riskType === "quarter")
-        stake = Math.max(1, Math.floor(before / 4));
+      const resultEmbed = new EmbedBuilder()
+        .setTitle("🎲 Risk It — Results")
+        .setDescription(lines.join("\n") || "Nobody risked anything. Cowards, the lot.")
+        .setColor(0x00ff88);
 
-      // Decide outcome: double, lose, break even
-      const roll = Math.random(); // 0–1
-      let outcome; // "double" | "lose" | "even"
-      if (roll < 0.4) outcome = "double";
-      else if (roll < 0.8) outcome = "lose";
-      else outcome = "even";
-
-      let delta = 0;
-      let emoji = "";
-      let flavor = "";
-
-      if (outcome === "double") {
-        delta = stake;
-        player.points += delta;
-        emoji = "👑";
-        flavor = "Doubled";
-      } else if (outcome === "lose") {
-        delta = -stake;
-        player.points += delta;
-        emoji = "💀";
-        flavor = "Lost";
-      } else {
-        delta = 0;
-        emoji = "😶";
-        flavor = "Broke even";
-      }
-
-      const after = player.points;
-      const sign =
-        delta > 0 ? `+${delta}` : delta < 0 ? `${delta}` : "0";
-
-      lines.push(
-        `<@${userId}> • Risk ${
-          riskType === "all"
-            ? "All"
-            : riskType === "half"
-            ? "Half"
-            : riskType === "quarter"
-            ? "Quarter"
-            : "None"
-        } (staked ${stake}) → ${emoji} **${flavor}** • ${sign} • new total: **${after}**`
-      );
-    }
-
-    if (lines.length === 0) {
-      await channel
-        .send("No one dared to Risk It. The charm yawns.")
-        .catch(() => {});
-    } else {
-      await channel.send(lines.join("\n")).catch(() => {});
-    }
-
-    await message.edit({ components: [] }).catch(() => {});
+      await broadcast(channel, resultEmbed);
+      resolve();
+    });
   });
 }
 
-// -------------- Final Podium -------------------------------
-
+// ---------------- Final Podium ---------------------------
 async function showFinalPodium(channel, game) {
-  const players = summarizeLeaderboard(game.players);
+  const players = Array.from(game.players.values()).sort(
+    (a, b) => (b.points || 0) - (a.points || 0)
+  );
 
-  if (!players.length) {
-    await channel.send("No one survived long enough to reach a podium.").catch(() => {});
+  const count = players.length;
+  if (!count) {
+    await broadcast(channel, "Nobody played. The void wins by default.");
     return;
   }
 
-  const { first, second, third } = splitPodium(players);
+  const [first, second, third] = players;
 
   const lines = [];
-  lines.push(
-    `👥 **${players.length}** players participated in this Gauntlet.`
-  );
-  lines.push("");
+  lines.push("👁‍🗨️ **THE FINAL PODIUM** 👁‍🗨️");
+  lines.push("The charm acknowledges those who rose above...\n");
+  lines.push(`👥 **${count} players** participated in this Gauntlet.\n`);
 
   if (first) {
-    lines.push(
-      "👑 **Champion of the Charm**",
-      `<@${first.id}> — Total Points: **${first.points}**`,
-      ""
-    );
+    lines.push("👑 **Champion of the Charm**");
+    lines.push(`• ${first.username} — **${first.points || 0}** points\n`);
   }
   if (second) {
-    lines.push(
-      "🌑 **Scarred But Standing**",
-      `<@${second.id}> — Total Points: **${second.points}**`,
-      ""
-    );
+    lines.push("🌑 **Scarred But Standing**");
+    lines.push(`• ${second.username} — **${second.points || 0}** points\n`);
   }
   if (third) {
-    lines.push(
-      "🕳 **Last One Dragged from the Void**",
-      `<@${third.id}> — Total Points: **${third.points}**`,
-      ""
-    );
+    lines.push("🕳 **Last One Dragged from the Void**");
+    lines.push(`• ${third.username} — **${third.points || 0}** points\n`);
   }
 
   const embed = new EmbedBuilder()
-    .setTitle("👁‍🗨️ THE FINAL PODIUM 👁‍🗨️")
+    .setTitle("🏁 The Gauntlet Concludes")
     .setDescription(lines.join("\n"))
-    .setColor(0xffffff);
+    .setColor(0x00ff88);
 
-  await channel.send({ embeds: [embed] }).catch(() => {});
-
-  await channel
-    .send("📯 Maybe enough reactions will encourage another game...")
-    .catch(() => {});
+  await broadcast(channel, embed);
 }
 
-// -------------- Routing Helpers for index/solo -------------
-//
-// Use these from your main interaction handler:
-//
-//   if (interaction.isChatInputCommand() && interaction.commandName === 'groupgauntlet') {
-//       return handleGroupGauntletSlash(interaction);
-//   }
-//
-// No buttons here need extra routing; they’re scoped by customId and channel.
+// --------------------------------------------------
+// GAME ORCHESTRATION
+// --------------------------------------------------
+async function startGameInChannel(channel, game, introLine) {
+  if (game.status !== "lobby") return;
+  if (game.startTimeout) clearTimeout(game.startTimeout);
+  game.status = "running";
 
-function isGroupGauntletCommand(interaction) {
-  return (
-    interaction.isChatInputCommand() &&
-    interaction.commandName === "groupgauntlet"
+  if (!game.players.size) {
+    await broadcast(channel, "No one joined the Gauntlet. The charm goes back to sleep.");
+    activeGames.delete(channel.id);
+    return;
+  }
+
+  // Try to edit lobby message to disable buttons
+  if (game.lobbyMessageId) {
+    try {
+      const lobbyMsg = await channel.messages.fetch(game.lobbyMessageId);
+      await disableButtons(lobbyMsg);
+    } catch {
+      // ignore
+    }
+  }
+
+  await broadcast(
+    channel,
+    introLine ||
+      "🎬 **The Gauntlet begins!** Buckle up — points will fly, friendships will wobble."
   );
+
+  // Quick list of players
+  await broadcast(
+    channel,
+    `Players (${game.players.size}): ${Array.from(game.players.values())
+      .map((p) => p.username)
+      .join(", ")}`
+  );
+
+  // Round sequence — 6 rounds, echoing the classic vibe:
+  // 1) MiniGame + Riddle
+  await runGroupMiniGame(channel, game, "ROUND 1");
+  await runGroupRiddle(channel, game);
+
+  // 2) Trust or Doubt
+  await runTrustOrDoubt(channel, game, 2);
+
+  // 3) MiniGame + Riddle
+  await runGroupMiniGame(channel, game, "ROUND 3");
+  await runGroupRiddle(channel, game);
+
+  // 4) Risk It
+  await runRiskItGroup(channel, game);
+
+  // 5) MiniGame + Riddle
+  await runGroupMiniGame(channel, game, "ROUND 5");
+  await runGroupRiddle(channel, game);
+
+  // Final podium
+  await showFinalPodium(channel, game);
+
+  game.status = "finished";
+  activeGames.delete(channel.id);
 }
 
-// -------------- Exports ------------------------------------
+// --------------------------------------------------
+// COMMAND REGISTRATION / HANDLER
+// --------------------------------------------------
+async function registerCommands() {
+  const commands = [
+    new SlashCommandBuilder()
+      .setName("groupgauntlet")
+      .setDescription("Start a classic group Gauntlet lobby in this channel (admins only).")
+      .addIntegerOption((o) =>
+        o
+          .setName("duration")
+          .setDescription("Lobby duration in minutes (default 2, max 30)")
+          .setRequired(false)
+      ),
+  ].map((c) => c.toJSON());
 
+  const rest = new REST({ version: "10" }).setToken(TOKEN);
+
+  if (GUILD_IDS.length) {
+    for (const gid of GUILD_IDS) {
+      await rest.put(Routes.applicationGuildCommands(CLIENT_ID, gid), {
+        body: commands,
+      });
+    }
+  } else {
+    await rest.put(Routes.applicationCommands(CLIENT_ID), {
+      body: commands,
+    });
+  }
+}
+
+async function handleInteractionCreate(interaction) {
+  try {
+    // Slash command
+    if (interaction.isChatInputCommand()) {
+      if (interaction.commandName === "groupgauntlet") {
+        if (!isAdminUser(interaction)) {
+          return interaction.reply({
+            content: "⛔ Only admins can start a Group Gauntlet.",
+            ephemeral: true,
+          });
+        }
+        const duration =
+          interaction.options.getInteger("duration") ?? 2;
+        const safe = Math.max(1, Math.min(30, duration));
+        await createLobby(interaction, safe);
+        return;
+      }
+      // Not ours
+      return;
+    }
+
+    // Lobby buttons & in-game buttons
+    if (interaction.isButton()) {
+      const [prefix, section, action] = interaction.customId.split(":");
+      if (prefix !== "gg") return; // not our button
+
+      const channelId = interaction.channelId;
+      const game = activeGames.get(channelId);
+      if (!game) {
+        return interaction.reply({
+          content: "This Gauntlet is no longer active.",
+          ephemeral: true,
+        });
+      }
+
+      // LOBBY BUTTONS
+      if (section === "lobby") {
+        if (game.status !== "lobby") {
+          return interaction.reply({
+            content: "The lobby is closed.",
+            ephemeral: true,
+          });
+        }
+
+        if (action === "join") {
+          if (game.players.has(interaction.user.id)) {
+            return interaction.reply({
+              content: "You’re already in.",
+              ephemeral: true,
+            });
+          }
+          game.players.set(interaction.user.id, {
+            id: interaction.user.id,
+            username:
+              interaction.user.username ||
+              interaction.user.globalName ||
+              "Player",
+            points: 0,
+          });
+
+          // Update lobby embed with player count
+          try {
+            const ch = await interaction.client.channels.fetch(channelId);
+            const msg = await ch.messages.fetch(game.lobbyMessageId);
+            const embed = EmbedBuilder.from(msg.embeds[0]);
+            embed.setDescription(
+              embed.data.description.replace(
+                /Current players .*$/s,
+                `Current players (${game.players.size}): ${Array.from(
+                  game.players.values()
+                )
+                  .map((p) => `<@${p.id}>`)
+                  .join(", ")}`
+              )
+            );
+            await msg.edit({ embeds: [embed] });
+          } catch {
+            // ignore
+          }
+
+          return interaction.reply({
+            content: "You joined the Gauntlet.",
+            ephemeral: true,
+          });
+        }
+
+        if (action === "leave") {
+          if (!game.players.has(interaction.user.id)) {
+            return interaction.reply({
+              content: "You’re not in this Gauntlet.",
+              ephemeral: true,
+            });
+          }
+          // Don't allow host to leave (they can cancel instead)
+          if (interaction.user.id === game.hostId) {
+            return interaction.reply({
+              content: "The host can’t leave, but can cancel the lobby.",
+              ephemeral: true,
+            });
+          }
+          game.players.delete(interaction.user.id);
+          return interaction.reply({
+            content: "You left the Gauntlet.",
+            ephemeral: true,
+          });
+        }
+
+        if (action === "start") {
+          if (
+            interaction.user.id !== game.hostId &&
+            !isAdminUser(interaction)
+          ) {
+            return interaction.reply({
+              content: "Only the host or an admin can start early.",
+              ephemeral: true,
+            });
+          }
+          const ch = await interaction.client.channels.fetch(channelId);
+          await interaction.reply({
+            content: "Starting the Gauntlet now!",
+            ephemeral: true,
+          });
+          await startGameInChannel(ch, game);
+          return;
+        }
+
+        if (action === "cancel") {
+          if (
+            interaction.user.id !== game.hostId &&
+            !isAdminUser(interaction)
+          ) {
+            return interaction.reply({
+              content: "Only the host or an admin can cancel.",
+              ephemeral: true,
+            });
+          }
+          if (game.startTimeout) clearTimeout(game.startTimeout);
+          game.status = "cancelled";
+          activeGames.delete(channelId);
+
+          try {
+            const ch = await interaction.client.channels.fetch(channelId);
+            const msg = await ch.messages.fetch(game.lobbyMessageId);
+            await disableButtons(msg);
+            const embed = EmbedBuilder.from(msg.embeds[0]);
+            embed.setDescription(
+              (embed.data.description || "") +
+                "\n\n❌ Lobby cancelled by host."
+            );
+            await msg.edit({ embeds: [embed] });
+          } catch {
+            // ignore
+          }
+
+          return interaction.reply({
+            content: "Lobby cancelled.",
+            ephemeral: true,
+          });
+        }
+      }
+
+      // Any other gg:* buttons are handled inside collectors in this file,
+      // so just ignore here.
+    }
+  } catch (err) {
+    console.error("GroupGauntlet interaction error:", err);
+    if (interaction.isRepliable()) {
+      try {
+        await interaction.reply({
+          content: "❌ Something went wrong in Group Gauntlet.",
+          ephemeral: true,
+        });
+      } catch {
+        // ignore
+      }
+    }
+  }
+}
+
+// --------------------------------------------------
+// EXPORTS
+// --------------------------------------------------
 module.exports = {
-  groupGauntletCommand,
-  handleGroupGauntletSlash,
-  isGroupGauntletCommand,
-
-  // For debugging or future extensions:
-  _groupGames: groupGames,
+  registerCommands,
+  handleInteractionCreate,
 };

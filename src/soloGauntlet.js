@@ -36,6 +36,12 @@ const {
   pickRiddle,
 } = require("./gameData");
 
+// 👇 NEW: import group Gauntlet command + handler
+const {
+  groupGauntletCommand,
+  handleGroupGauntletSlash,
+} = require("./groupGauntlet");
+
 // --------------------------------------------
 // Small helpers
 // --------------------------------------------
@@ -704,6 +710,9 @@ async function registerCommands() {
     new SlashCommandBuilder()
       .setName("mygauntlet")
       .setDescription("Your current-month stats (best, total, plays)."),
+
+    // 👇 NEW: group Gauntlet command
+    groupGauntletCommand,
   ].map((c) => c.toJSON());
 
   const rest = new REST({ version: "10" }).setToken(TOKEN);
@@ -871,9 +880,14 @@ async function handleInteractionCreate(interaction) {
 
         return interaction.reply({ embeds: [embed], ephemeral: true });
       }
+
+      // 👇 NEW: /groupgauntlet
+      if (interaction.commandName === "groupgauntlet") {
+        return handleGroupGauntletSlash(interaction);
+      }
     }
 
-    // Start button
+    // Start button (solo)
     if (interaction.isButton() && interaction.customId === "gauntlet:start") {
       const today = torontoDateStr();
       const played = await Store.hasPlayed(interaction.user.id, today);
