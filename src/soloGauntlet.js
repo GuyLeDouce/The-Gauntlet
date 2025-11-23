@@ -679,11 +679,9 @@ async function updateAllLeaderboards(client, month) {
 }
 
 // --------------------------------------------
-// --------------------------------------------
 // COMMAND REGISTRATION
 // --------------------------------------------
 async function registerCommands() {
-  // Solo-only commands for this module
   const commands = [
     new SlashCommandBuilder()
       .setName("gauntlet")
@@ -716,16 +714,34 @@ async function registerCommands() {
 
   const rest = new REST({ version: "10" }).setToken(TOKEN);
 
+  // If GUILD_IDS is set, try per-guild; if not, register globally
   if (GUILD_IDS.length) {
     for (const gid of GUILD_IDS) {
-      await rest.put(Routes.applicationGuildCommands(CLIENT_ID, gid), {
-        body: commands,
-      });
+      try {
+        await rest.put(
+          Routes.applicationGuildCommands(CLIENT_ID, gid),
+          { body: commands }
+        );
+        console.log(`[GAUNTLET:CMD] Registered solo commands for guild ${gid}`);
+      } catch (err) {
+        console.error(
+          `[GAUNTLET:CMD] Failed to register solo commands for guild ${gid}:`,
+          err.rawError || err
+        );
+        // Don't crash the bot if one guild is bad
+        continue;
+      }
     }
   } else {
-    await rest.put(Routes.applicationCommands(CLIENT_ID), {
-      body: commands,
-    });
+    try {
+      await rest.put(
+        Routes.applicationCommands(CLIENT_ID),
+        { body: commands }
+      );
+      console.log("[GAUNTLET:CMD] Registered solo commands globally");
+    } catch (err) {
+      console.error("[GAUNTLET:CMD] Failed to register solo commands globally:", err.rawError || err);
+    }
   }
 }
 
