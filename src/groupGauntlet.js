@@ -946,6 +946,6 @@ async function handleInteractionCreate(interaction) {
 // EXPORTS
 // --------------------------------------------
 module.exports = {
-  registerCommands,
+  registerGroupCommands,
   handleInteractionCreate,
 };
