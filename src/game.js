@@ -2,22 +2,17 @@
 // Core Gauntlet game logic (no Discord-specific code in here)
 //
 // - Tracks players, rounds, points
-// - Ensures no repeated riddles or mini-games in a single game
-// - Handles 10-round structure
+// - Ensures no repeated riddles or mini-games in a single game (until exhausted)
+// - Handles 10-round structure (configurable)
 // - Provides a hook for the Ugly Selector event between rounds 6 and 7
 
-const {
-  riddles,
-  miniGameLorePool,
-  pickMiniGame,
-  pickRiddle,
-} = require("./gameData");
+const { riddles, miniGameLorePool } = require("./gameData");
 
 // --- Types / shape notes ---
 // GameState = {
 //   id: string,
 //   createdAt: Date,
-//   players: Map<playerId, { id, name, points }>
+//   players: Map<playerId, { id, name, points }>,
 //   round: number,
 //   maxRounds: number,
 //   usedRiddleIndices: Set<number>,
@@ -29,12 +24,16 @@ const {
 //   round: number,
 //   miniGameIndex: number,
 //   riddleIndex: number,
-//   miniGameResults: { [playerId]: number }, // delta points
-//   riddleResults: { [playerId]: number },   // delta points
-// }
+//   miniGameResults: { [playerId: string]: number }, // delta points
+//   riddleResults: { [playerId: string]: number },   // delta points
+// };
 
+/**
+ * Create a new game state for a list of players.
+ * @param {Array<{id: string, name?: string, username?: string}>} playerList
+ * @param {{ maxRounds?: number }} options
+ */
 function createGameState(playerList, options = {}) {
-  // playerList: Array<{ id: string, name: string }>
   const maxRounds = options.maxRounds ?? 10;
 
   const players = new Map();
@@ -70,7 +69,7 @@ function pickUniqueRiddleIndex(state, targetDifficulty) {
     );
 
   if (available.length === 0) {
-    // Fallback: allow repeats if we’ve exhausted unique ones
+    // Fallback: allow repeats if we’ve exhausted unique ones for this difficulty
     const allOfDifficulty = riddles
       .map((r, idx) => ({ r, idx }))
       .filter(({ r }) => r.difficulty === targetDifficulty);
@@ -81,7 +80,8 @@ function pickUniqueRiddleIndex(state, targetDifficulty) {
       );
     }
 
-    const random = allOfDifficulty[Math.floor(Math.random() * allOfDifficulty.length)];
+    const random =
+      allOfDifficulty[Math.floor(Math.random() * allOfDifficulty.length)];
     return random.idx;
   }
 
@@ -97,7 +97,7 @@ function pickUniqueMiniGameIndex(state) {
   const available = allIndices.filter((i) => !state.usedMiniGameIndices.has(i));
 
   if (available.length === 0) {
-    // If we somehow use all of them in less than 10 rounds, allow repeats.
+    // If we somehow use all of them in less rounds than total mini-games, allow repeats.
     return Math.floor(Math.random() * total);
   }
 
@@ -125,7 +125,8 @@ function getTargetDifficultyForRound(round) {
  *   round,
  *   miniGame: { index, data },
  *   riddle: { index, data },
- *   triggerUglySelector: boolean
+ *   triggerUglySelector: boolean,
+ *   historyEntry
  * }
  */
 function startNextRound(state) {
@@ -154,8 +155,8 @@ function startNextRound(state) {
 
   const historyEntry = state.history[state.history.length - 1];
 
-  // You can hard-wire Ugly Selector to fire after round 6:
-  const triggerUglySelector = thisRound === 7; // “between 6 and 7” → fire right before round 7 content
+  // Fire Ugly Selector “between 6 and 7” → right as we enter round 7
+  const triggerUglySelector = thisRound === 7;
 
   return {
     round: thisRound,
@@ -202,7 +203,7 @@ function applyMiniGameResults(state, deltaMap) {
  *   1 → +1
  *   2 → +2
  *   3 → +3
- *   4 (Squig special) → +3 by default, but you can tweak below.
+ *   4 (Squig special) → +3 by default (tweak if you want).
  */
 function applyRiddleResults(state, correctPlayers, difficulty) {
   const historyEntry = state.history.find((h) => h.round === state.round);
@@ -222,7 +223,7 @@ function applyRiddleResults(state, correctPlayers, difficulty) {
       basePoints = 3;
       break;
     case 4:
-      basePoints = 3; // Squig special; can bump to 4 if you want it spicier.
+      basePoints = 3; // Squig special; bump to 4 if you want it spicier
       break;
     default:
       basePoints = 1;
@@ -260,7 +261,9 @@ function getLeaderboard(state) {
 function getTopNWithTies(state, n = 3) {
   const board = getLeaderboard(state);
   if (board.length === 0) return { top: [], cutoffPoints: 0 };
-  if (board.length <= n) return { top: board, cutoffPoints: board[board.length - 1].points };
+  if (board.length <= n) {
+    return { top: board, cutoffPoints: board[board.length - 1].points };
+  }
 
   const cutoffPoints = board[n - 1].points;
   const top = board.filter((p) => p.points >= cutoffPoints);
