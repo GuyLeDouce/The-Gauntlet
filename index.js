@@ -12,28 +12,11 @@ const {
 const { TOKEN } = require("./src/utils");
 const { initStore } = require("./src/db");
 
-// Solo (ephemeral) Gauntlet
+// Unified Gauntlet (solo + group commands & routing)
 const {
-  registerCommands: registerSoloCommands,
-  handleInteractionCreate: handleSoloInteractionCreate,
+  registerCommands,
+  handleInteractionCreate,
 } = require("./src/soloGauntlet");
-
-// Group (classic) Gauntlet
-let registerGroupCommands = async () => {};
-let handleGroupInteractionCreate = async () => {};
-
-try {
-  const groupModule = require("./src/groupGauntlet");
-
-  if (typeof groupModule.registerGroupCommands === "function") {
-    registerGroupCommands = groupModule.registerGroupCommands;
-  }
-  if (typeof groupModule.handleGroupInteractionCreate === "function") {
-    handleGroupInteractionCreate = groupModule.handleGroupInteractionCreate;
-  }
-} catch (err) {
-  console.error("[GAUNTLET] Failed to load groupGauntlet.js:", err);
-}
 
 // --------------------------------------------
 // CREATE CLIENT
@@ -56,8 +39,8 @@ client.once(Events.ClientReady, async () => {
   await initStore();
 
   try {
-    await registerSoloCommands();
-    await registerGroupCommands();
+    // This now registers BOTH solo + group commands in one shot
+    await registerCommands();
     console.log("✅ Slash commands registered (solo + group).");
   } catch (err) {
     console.error("❌ Error registering commands:", err);
@@ -69,8 +52,10 @@ client.once(Events.ClientReady, async () => {
 // --------------------------------------------
 client.on(Events.InteractionCreate, async (interaction) => {
   try {
-    await handleSoloInteractionCreate(interaction);
-    await handleGroupInteractionCreate(interaction);
+    // soloGauntlet's handler internally routes:
+    // - /gauntlet, /gauntletlb, /gauntletrecent, /gauntletinfo, /mygauntlet
+    // - /groupgauntlet → handleGroupInteractionCreate (from groupGauntlet)
+    await handleInteractionCreate(interaction);
   } catch (err) {
     console.error("interaction error (root):", err);
   }
@@ -80,4 +65,3 @@ client.on(Events.InteractionCreate, async (interaction) => {
 // LOGIN
 // --------------------------------------------
 client.login(TOKEN);
-

@@ -14,6 +14,7 @@ const {
   TextInputBuilder,
   TextInputStyle,
   PermissionFlagsBits,
+  Events,
 } = require("discord.js");
 
 const {
@@ -679,10 +680,10 @@ async function updateAllLeaderboards(client, month) {
 }
 
 // --------------------------------------------
-// COMMAND REGISTRATION
+// COMMAND REGISTRATION (solo + group combined)
 // --------------------------------------------
 async function registerCommands() {
-  const commands = [
+  const baseCommands = [
     new SlashCommandBuilder()
       .setName("gauntlet")
       .setDescription("Post the Gauntlet Start Panel in this channel (admins only)."),
@@ -710,25 +711,30 @@ async function registerCommands() {
     new SlashCommandBuilder()
       .setName("mygauntlet")
       .setDescription("Your current-month stats (best, total, plays)."),
-  ].map((c) => c.toJSON());
+  ];
+
+  // Include the group command definition from groupGauntlet.js
+  if (groupGauntletCommand) {
+    baseCommands.push(groupGauntletCommand);
+  }
+
+  const commands = baseCommands.map((c) => c.toJSON());
 
   const rest = new REST({ version: "10" }).setToken(TOKEN);
 
-  // If GUILD_IDS is set, try per-guild; if not, register globally
-  if (GUILD_IDS.length) {
+  if (GUILD_IDS && GUILD_IDS.length) {
     for (const gid of GUILD_IDS) {
       try {
         await rest.put(
           Routes.applicationGuildCommands(CLIENT_ID, gid),
           { body: commands }
         );
-        console.log(`[GAUNTLET:CMD] Registered solo commands for guild ${gid}`);
+        console.log(`[GAUNTLET:CMD] Registered all commands (solo + group) for guild ${gid}`);
       } catch (err) {
         console.error(
-          `[GAUNTLET:CMD] Failed to register solo commands for guild ${gid}:`,
+          `[GAUNTLET:CMD] Failed to register commands for guild ${gid}:`,
           err.rawError || err
         );
-        // Don't crash the bot if one guild is bad
         continue;
       }
     }
@@ -738,13 +744,15 @@ async function registerCommands() {
         Routes.applicationCommands(CLIENT_ID),
         { body: commands }
       );
-      console.log("[GAUNTLET:CMD] Registered solo commands globally");
+      console.log("[GAUNTLET:CMD] Registered all commands globally");
     } catch (err) {
-      console.error("[GAUNTLET:CMD] Failed to register solo commands globally:", err.rawError || err);
+      console.error(
+        "[GAUNTLET:CMD] Failed to register commands globally:",
+        err.rawError || err
+      );
     }
   }
 }
-
 
 // --------------------------------------------
 // PANEL & ADMIN CHECK
@@ -779,7 +787,7 @@ function startPanelRow() {
   );
 }
 
-function isAdminUser(interaction) {
+function isAdminUserLocal(interaction) {
   if (AUTHORIZED_ADMINS.includes(interaction.user.id)) return true;
   const member = interaction.member;
   if (!member || !interaction.inGuild()) return false;
@@ -804,7 +812,7 @@ async function handleInteractionCreate(interaction) {
 
       // /gauntlet
       if (interaction.commandName === "gauntlet") {
-        if (!isAdminUser(interaction)) {
+        if (!isAdminUserLocal(interaction)) {
           return interaction.reply({
             content: "⛔ Only admins can post the Gauntlet panel.",
             ephemeral: true,

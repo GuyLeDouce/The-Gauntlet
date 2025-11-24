@@ -8,8 +8,6 @@
 
 const {
   SlashCommandBuilder,
-  REST,
-  Routes,
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
@@ -18,9 +16,6 @@ const {
 } = require("discord.js");
 
 const {
-  TOKEN,
-  CLIENT_ID,
-  GUILD_IDS,
   wait,
   isAdminUser,
 } = require("./utils");
@@ -32,6 +27,17 @@ const {
   pickRiddle,
   riddles,
 } = require("./gameData");
+
+// 👉 Exported Slash command definition for unified registration
+const groupGauntletCommand = new SlashCommandBuilder()
+  .setName("groupgauntlet")
+  .setDescription("Start a live multi-player Gauntlet in this channel.")
+  .addIntegerOption((o) =>
+    o
+      .setName("minutes")
+      .setDescription("Join window in minutes (default: 2)")
+      .setRequired(false)
+  );
 
 // --------------------------------------------
 // Helpers & State
@@ -880,38 +886,6 @@ async function runGroupGame(channel, game) {
 }
 
 // --------------------------------------------
-// COMMAND REGISTRATION
-// --------------------------------------------
-
-async function registerGroupCommands() {
-  const commands = [
-    new SlashCommandBuilder()
-      .setName("groupgauntlet")
-      .setDescription("Start a live multi-player Gauntlet in this channel.")
-      .addIntegerOption((o) =>
-        o
-          .setName("minutes")
-          .setDescription("Join window in minutes (default: 2)")
-          .setRequired(false)
-      ),
-  ].map((c) => c.toJSON());
-
-  const rest = new REST({ version: "10" }).setToken(TOKEN);
-
-  if (GUILD_IDS && GUILD_IDS.length) {
-    for (const gid of GUILD_IDS) {
-      await rest.put(Routes.applicationGuildCommands(CLIENT_ID, gid), {
-        body: commands,
-      });
-    }
-  } else {
-    await rest.put(Routes.applicationCommands(CLIENT_ID), {
-      body: commands,
-    });
-  }
-}
-
-// --------------------------------------------
 // INTERACTION HANDLER
 // --------------------------------------------
 
@@ -945,6 +919,6 @@ async function handleGroupInteractionCreate(interaction) {
 // --------------------------------------------
 
 module.exports = {
-  registerGroupCommands,
+  groupGauntletCommand,
   handleGroupInteractionCreate,
 };
