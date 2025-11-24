@@ -14,7 +14,6 @@ const {
   TextInputBuilder,
   TextInputStyle,
   PermissionFlagsBits,
-  Events,
 } = require("discord.js");
 
 const {
@@ -37,7 +36,7 @@ const {
   pickRiddle,
 } = require("./gameData");
 
-// 👉 NEW: import group mode command + handler
+// 👉 Group mode command + handler
 const {
   groupGauntletCommand,
   handleGroupInteractionCreate,
@@ -212,14 +211,24 @@ async function runRiddleEphemeral(interaction, player, usedRiddle) {
   }
 
   const remaining = Math.max(1_000, endAt - Date.now());
-  const modal = new ModalBuilder().setCustomId("riddle:modal").setTitle("Your Answer");
+
+  // 👉 Modal with riddle shown as placeholder
+  const modal = new ModalBuilder()
+    .setCustomId("riddle:modal")
+    .setTitle("Riddle Answer");
+
+  // Discord placeholder max ~100 chars – truncate if needed
+  const displayRiddle =
+    r.riddle.length > 100 ? r.riddle.slice(0, 97) + "..." : r.riddle;
+
   modal.addComponents(
     new ActionRowBuilder().addComponents(
       new TextInputBuilder()
         .setCustomId("riddle:input")
-        .setLabel("Type your answer")
+        .setLabel("Your answer")
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
+        .setPlaceholder(displayRiddle) // 👈 riddle reminder
     )
   );
 
@@ -961,3 +970,4 @@ module.exports = {
   registerCommands,
   handleInteractionCreate,
 };
+
