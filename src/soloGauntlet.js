@@ -53,7 +53,7 @@ async function sendEphemeral(interaction, payload) {
   const { noExpire, ...rest } = payload;
   let msg;
 
-  const base = { ...rest, flags: 64, fetchReply: true };
+  const base = { ...rest, flags: 64 };
 
   if (interaction.deferred || interaction.replied) {
     msg = await interaction.followUp(base);
@@ -215,13 +215,10 @@ async function runRiddleEphemeral(interaction, player, usedRiddle) {
   const remaining = Math.max(1_000, endAt - Date.now());
 
   // 👉 Modal with riddle shown as placeholder
-  const modal = new ModalBuilder()
-    .setCustomId("riddle:modal")
-    .setTitle("Riddle Answer");
+  const modal = new ModalBuilder().setCustomId("riddle:modal").setTitle("Riddle Answer");
 
   // Discord placeholder max ~100 chars – truncate if needed
-  const displayRiddle =
-    r.riddle.length > 100 ? r.riddle.slice(0, 97) + "..." : r.riddle;
+  const displayRiddle = r.riddle.length > 100 ? r.riddle.slice(0, 97) + "..." : r.riddle;
 
   modal.addComponents(
     new ActionRowBuilder().addComponents(
@@ -451,18 +448,18 @@ async function runRouletteEphemeral(interaction, player) {
     return;
   }
 
-  const pick = Number(click.component.label);
+  const pickNum = Number(click.component.label);
   const rolled = 1 + Math.floor(Math.random() * 6);
 
-  if (pick === rolled) {
+  if (pickNum === rolled) {
     player.points += 2;
     await click.reply({
-      content: `🎉 You picked **${pick}**. Rolled **${rolled}**. **+2**.`,
+      content: `🎉 You picked **${pickNum}**. Rolled **${rolled}**. **+2**.`,
       ephemeral: true,
     });
   } else {
     await click.reply({
-      content: `You picked **${pick}**. Rolled **${rolled}**. No match.`,
+      content: `You picked **${pickNum}**. Rolled **${rolled}**. No match.`,
       ephemeral: true,
     });
   }
@@ -723,9 +720,9 @@ async function registerCommands() {
       .setName("mygauntlet")
       .setDescription("Your current-month stats (best, total, plays)."),
 
-    // NEW COMMAND 👇
+    // Squig Survival command
     new SlashCommandBuilder()
-      .setName("surviveera")
+      .setName("survive")
       .setDescription("Start a Squig Survival RNG story game (admins only).")
       .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
       .addIntegerOption((o) =>
@@ -859,7 +856,7 @@ async function handleInteractionCreate(interaction) {
       if (interaction.commandName === "gauntletlb") {
         const month = interaction.options.getString("month") || currentMonthStr();
         const embed = await renderLeaderboardEmbed(month);
-        const sent = await interaction.reply({ embeds: [embed], fetchReply: true });
+        const sent = await interaction.reply({ embeds: [embed] });
         try {
           await Store.upsertLbMessage(
             interaction.guildId,
@@ -941,7 +938,7 @@ async function handleInteractionCreate(interaction) {
 
         return interaction.reply({ embeds: [embed], ephemeral: true });
       }
-    }
+
       // /surviveera  (Squig Survival mini-game)
       if (interaction.commandName === "surviveera") {
         if (!isAdminUserLocal(interaction)) {
@@ -951,8 +948,7 @@ async function handleInteractionCreate(interaction) {
           });
         }
 
-        const duration =
-          interaction.options.getInteger("duration") || 120;
+        const duration = interaction.options.getInteger("duration") || 120;
         const era = interaction.options.getString("era") || null;
 
         const joinEmbed = new EmbedBuilder()
@@ -973,7 +969,6 @@ async function handleInteractionCreate(interaction) {
 
         const joinMessage = await interaction.reply({
           embeds: [joinEmbed],
-          fetchReply: true,
         });
 
         try {
@@ -1064,6 +1059,7 @@ async function handleInteractionCreate(interaction) {
 
         return;
       }
+    }
 
     // Start button
     if (interaction.isButton() && interaction.customId === "gauntlet:start") {
@@ -1099,9 +1095,9 @@ async function handleInteractionCreate(interaction) {
     if (interaction.isRepliable()) {
       try {
         await interaction.reply({
-          content: "❌ Something went wrong.",
-          ephemeral: true,
-        });
+        content: "❌ Something went wrong.",
+        ephemeral: true,
+      });
       } catch {}
     }
   }
@@ -1114,4 +1110,3 @@ module.exports = {
   registerCommands,
   handleInteractionCreate,
 };
-
