@@ -939,8 +939,8 @@ async function handleInteractionCreate(interaction) {
         return interaction.reply({ embeds: [embed], ephemeral: true });
       }
 
-      // /surviveera  (Squig Survival mini-game)
-      if (interaction.commandName === "surviveera") {
+      // /survive  (Squig Survival mini-game)
+      if (interaction.commandName === "survive") {
         if (!isAdminUserLocal(interaction)) {
           return interaction.reply({
             content: "⛔ Only admins can start Squig Survival.",
