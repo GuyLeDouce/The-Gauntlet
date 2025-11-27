@@ -42,6 +42,8 @@ const {
   handleGroupInteractionCreate,
 } = require("./groupGauntlet");
 
+const { runSurvival } = require("./survival");
+
 // --------------------------------------------
 // Small helpers
 // --------------------------------------------
@@ -720,6 +722,26 @@ async function registerCommands() {
     new SlashCommandBuilder()
       .setName("mygauntlet")
       .setDescription("Your current-month stats (best, total, plays)."),
+
+    // NEW COMMAND 👇
+    new SlashCommandBuilder()
+      .setName("surviveera")
+      .setDescription("Start a Squig Survival RNG story game (admins only).")
+      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+      .addIntegerOption((o) =>
+        o
+          .setName("duration")
+          .setDescription("Join time in seconds (1–86400, default 120)")
+          .setRequired(false)
+          .setMinValue(1)
+          .setMaxValue(86400)
+      )
+      .addStringOption((o) =>
+        o
+          .setName("era")
+          .setDescription("Optional label for this Survival era (e.g. 'Holiday Trials').")
+          .setRequired(false)
+      ),
   ];
 
   // Include the group command definition from groupGauntlet.js
@@ -920,6 +942,128 @@ async function handleInteractionCreate(interaction) {
         return interaction.reply({ embeds: [embed], ephemeral: true });
       }
     }
+      // /surviveera  (Squig Survival mini-game)
+      if (interaction.commandName === "surviveera") {
+        if (!isAdminUserLocal(interaction)) {
+          return interaction.reply({
+            content: "⛔ Only admins can start Squig Survival.",
+            ephemeral: true,
+          });
+        }
+
+        const duration =
+          interaction.options.getInteger("duration") || 120;
+        const era = interaction.options.getString("era") || null;
+
+        const joinEmbed = new EmbedBuilder()
+          .setTitle("Squig Survival")
+          .setDescription(
+            [
+              "Hit ✅ to join **Squig Survival**.",
+              "Try out life as a Squig stumbling through Earth.",
+              "",
+              "Once you react, the story runs automatically.",
+              "The portal will decide who survives the longest...",
+            ].join("\n")
+          )
+          .setColor(0x9b59b6)
+          .setFooter({
+            text: `You have ${duration} seconds to join.`,
+          });
+
+        const joinMessage = await interaction.reply({
+          embeds: [joinEmbed],
+          fetchReply: true,
+        });
+
+        try {
+          await joinMessage.react("✅");
+        } catch (err) {
+          console.error("Failed to add ✅ reaction:", err);
+        }
+
+        const joined = new Set();
+        const filter = (reaction, user) =>
+          reaction.emoji.name === "✅" && !user.bot;
+
+        const collector = joinMessage.createReactionCollector({
+          filter,
+          time: duration * 1000,
+        });
+
+        collector.on("collect", (_, user) => {
+          joined.add(user.id);
+        });
+
+        const channel = interaction.channel;
+        let joinOpen = true;
+
+        // Reminders at ~1/3 and ~2/3 of the join window
+        const reminderTimes = [
+          Math.round((duration * 1000) / 3),
+          Math.round((duration * 2000) / 3),
+        ];
+
+        for (const t of reminderTimes) {
+          setTimeout(async () => {
+            if (!joinOpen) return;
+            const msLeft = duration * 1000 - t;
+            const secondsLeft = Math.max(1, Math.round(msLeft / 1000));
+
+            const reminderEmbed = new EmbedBuilder()
+              .setTitle("Squig Survival – Last Call")
+              .setDescription(
+                [
+                  `Hit ✅ on [the original Survival message](${joinMessage.url}) to join.`,
+                  "",
+                  `Time remaining: **${secondsLeft} seconds**`,
+                ].join("\n")
+              )
+              .setColor(0xf4a261);
+
+            try {
+              await channel.send({ embeds: [reminderEmbed] });
+            } catch (err) {
+              console.error("Failed to send Survival reminder:", err);
+            }
+          }, t);
+        }
+
+        collector.on("end", async () => {
+          joinOpen = false;
+
+          if (joined.size === 0) {
+            const cancelEmbed = new EmbedBuilder()
+              .setTitle("Squig Survival – Cancelled")
+              .setDescription(
+                "No Squigs stepped through the portal. The universe shrugs and goes back to scrolling X."
+              )
+              .setColor(0xe74c3c);
+
+            await channel.send({ embeds: [cancelEmbed] });
+            return;
+          }
+
+          const players = Array.from(joined);
+
+          const startEmbed = new EmbedBuilder()
+            .setTitle("Squig Survival – Game Starting!")
+            .setDescription(
+              [
+                `The portal snaps shut. **${players.length} Squigs** are now loose on Earth.`,
+                "Sit back and watch who survives the chaos...",
+              ].join("\n")
+            )
+            .setImage("http://gifs.squigs.io/gifs/v-bullish-fly.gif")
+            .setColor(0x2ecc71);
+
+          await channel.send({ embeds: [startEmbed] });
+
+          await runSurvival(channel, players, era);
+        });
+
+        return;
+      }
 
     // Start button
     if (interaction.isButton() && interaction.customId === "gauntlet:start") {
