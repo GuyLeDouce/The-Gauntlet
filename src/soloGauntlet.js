@@ -49,16 +49,45 @@ const { runSurvival } = require("./survival");
 // --------------------------------------------
 const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
+// Parse duration strings like "30s", "5m", "1h", "2d" into seconds.
+// Allowed range: 1 second to 7 days (604800 seconds).
+function parseDurationToSeconds(input, defaultSeconds = 120) {
+  if (!input) return defaultSeconds;
+
+  const trimmed = String(input).trim().toLowerCase();
+  const match = trimmed.match(/^(\d+)\s*([smhd])?$/);
+
+  if (!match) return null;
+
+  const value = parseInt(match[1], 10);
+  const unit = match[2] || "s";
+
+  let multiplier = 1;
+  if (unit === "m") multiplier = 60;
+  if (unit === "h") multiplier = 60 * 60;
+  if (unit === "d") multiplier = 60 * 60 * 24;
+
+  const seconds = value * multiplier;
+
+  // Clamp to 1s – 7d
+  if (seconds < 1 || seconds > 60 * 60 * 24 * 7) return null;
+
+  return seconds;
+}
+
 async function sendEphemeral(interaction, payload) {
   const { noExpire, ...rest } = payload;
   let msg;
 
-  const base = { ...rest, flags: 64 };
+  const base = { ...rest, flags: 64 }; // 64 = EPHEMERAL
 
   if (interaction.deferred || interaction.replied) {
+    // followUp *does* return a Message
     msg = await interaction.followUp(base);
   } else {
-    msg = await interaction.reply(base);
+    // reply returns void → fetchReply to get the Message
+    await interaction.reply(base);
+    msg = await interaction.fetchReply();
   }
 
   if (!noExpire) {
@@ -73,8 +102,7 @@ async function sendEphemeral(interaction, payload) {
 
 async function ephemeralPrompt(interaction, embed, components, timeMs) {
   const msg = await sendEphemeral(interaction, { embeds: [embed], components });
-  const replyMsg = msg instanceof Promise ? await msg : msg;
-  const picked = await replyMsg
+  const picked = await msg
     .awaitMessageComponent({ componentType: ComponentType.Button, time: timeMs })
     .catch(() => null);
 
@@ -84,7 +112,7 @@ async function ephemeralPrompt(interaction, embed, components, timeMs) {
         row.components.map((b) => ButtonBuilder.from(b).setDisabled(true))
       )
     );
-    await replyMsg.edit({ components: rows });
+    await msg.edit({ components: rows });
   } catch {}
 
   return picked;
@@ -334,12 +362,11 @@ async function runLabyrinthEphemeral(interaction, player) {
       )
     );
 
-    const prompt = await sendEphemeral(interaction, {
+    const msg = await sendEphemeral(interaction, {
       content: `Labyrinth step **${step + 1}** — choose:`,
       components: [row],
     });
 
-    const msg = prompt instanceof Promise ? await prompt : prompt;
     const timeLeft = Math.max(0, deadline - Date.now());
 
     const click = await msg
@@ -425,8 +452,7 @@ async function runRouletteEphemeral(interaction, player) {
     components: [row1, row2],
   });
 
-  const m = msg instanceof Promise ? await msg : msg;
-  const click = await m
+  const click = await msg
     .awaitMessageComponent({
       componentType: ComponentType.Button,
       time: 30_000,
@@ -438,7 +464,7 @@ async function runRouletteEphemeral(interaction, player) {
       new ActionRowBuilder().addComponents(
         row.components.map((b) => ButtonBuilder.from(b).setDisabled(true))
       );
-    await m.edit({ components: [disable(row1), disable(row2)] });
+    await msg.edit({ components: [disable(row1), disable(row2)] });
   } catch {}
 
   if (!click) {
@@ -499,8 +525,7 @@ async function runRiskItEphemeral(interaction, player) {
     components: [row],
   });
 
-  const m = msg instanceof Promise ? await msg : msg;
-  const click = await m
+  const click = await msg
     .awaitMessageComponent({
       componentType: ComponentType.Button,
       time: 20_000,
@@ -508,7 +533,7 @@ async function runRiskItEphemeral(interaction, player) {
     .catch(() => null);
 
   try {
-    await m.edit({
+    await msg.edit({
       components: [
         new ActionRowBuilder().addComponents(
           row.components.map((b) => ButtonBuilder.from(b).setDisabled(true))
@@ -725,13 +750,11 @@ async function registerCommands() {
       .setName("survive")
       .setDescription("Start a Squig Survival RNG story game (admins only).")
       .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-      .addIntegerOption((o) =>
+      .addStringOption((o) =>
         o
           .setName("duration")
-          .setDescription("Join time in seconds (1–86400, default 120)")
+          .setDescription("Join time: 30s, 5m, 1h, 2d (default 2m, max 7d)")
           .setRequired(false)
-          .setMinValue(1)
-          .setMaxValue(86400)
       )
       .addStringOption((o) =>
         o
@@ -856,15 +879,21 @@ async function handleInteractionCreate(interaction) {
       if (interaction.commandName === "gauntletlb") {
         const month = interaction.options.getString("month") || currentMonthStr();
         const embed = await renderLeaderboardEmbed(month);
-        const sent = await interaction.reply({ embeds: [embed] });
+        await interaction.reply({ embeds: [embed] });
+        let sent;
         try {
-          await Store.upsertLbMessage(
-            interaction.guildId,
-            interaction.channelId,
-            month,
-            sent.id
-          );
+          sent = await interaction.fetchReply();
         } catch {}
+        if (sent) {
+          try {
+            await Store.upsertLbMessage(
+              interaction.guildId,
+              interaction.channelId,
+              month,
+              sent.id
+            );
+          } catch {}
+        }
         return;
       }
 
@@ -948,7 +977,17 @@ async function handleInteractionCreate(interaction) {
           });
         }
 
-        const duration = interaction.options.getInteger("duration") || 120;
+        const durationInput = interaction.options.getString("duration"); // e.g., "30s", "5m", "1h", "2d"
+        const durationSeconds = parseDurationToSeconds(durationInput, 120);
+
+        if (!durationSeconds) {
+          return interaction.reply({
+            content:
+              "❌ Invalid duration. Use formats like `30s`, `5m`, `1h`, `2d` (minimum 1 second, maximum 7 days).",
+            ephemeral: true,
+          });
+        }
+
         const era = interaction.options.getString("era") || null;
 
         const joinEmbed = new EmbedBuilder()
@@ -964,12 +1003,14 @@ async function handleInteractionCreate(interaction) {
           )
           .setColor(0x9b59b6)
           .setFooter({
-            text: `You have ${duration} seconds to join.`,
+            text: `You have ${durationSeconds} seconds to join.`,
           });
 
-        const joinMessage = await interaction.reply({
+        await interaction.reply({
           embeds: [joinEmbed],
         });
+
+        const joinMessage = await interaction.fetchReply();
 
         try {
           await joinMessage.react("✅");
@@ -981,9 +1022,11 @@ async function handleInteractionCreate(interaction) {
         const filter = (reaction, user) =>
           reaction.emoji.name === "✅" && !user.bot;
 
+        const totalMs = durationSeconds * 1000;
+
         const collector = joinMessage.createReactionCollector({
           filter,
-          time: duration * 1000,
+          time: totalMs,
         });
 
         collector.on("collect", (_, user) => {
@@ -995,14 +1038,14 @@ async function handleInteractionCreate(interaction) {
 
         // Reminders at ~1/3 and ~2/3 of the join window
         const reminderTimes = [
-          Math.round((duration * 1000) / 3),
-          Math.round((duration * 2000) / 3),
+          Math.round(totalMs / 3),
+          Math.round((2 * totalMs) / 3),
         ];
 
         for (const t of reminderTimes) {
           setTimeout(async () => {
             if (!joinOpen) return;
-            const msLeft = duration * 1000 - t;
+            const msLeft = totalMs - t;
             const secondsLeft = Math.max(1, Math.round(msLeft / 1000));
 
             const reminderEmbed = new EmbedBuilder()
@@ -1095,9 +1138,9 @@ async function handleInteractionCreate(interaction) {
     if (interaction.isRepliable()) {
       try {
         await interaction.reply({
-        content: "❌ Something went wrong.",
-        ephemeral: true,
-      });
+          content: "❌ Something went wrong.",
+          ephemeral: true,
+        });
       } catch {}
     }
   }
