@@ -26,8 +26,13 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMessageReactions, // 👈 needed for ✅ joins
   ],
-  partials: [Partials.Channel, Partials.Message],
+  partials: [
+    Partials.Channel,
+    Partials.Message,
+    Partials.Reaction, // 👈 helps with reactions on cached messages
+  ],
 });
 
 // --------------------------------------------
