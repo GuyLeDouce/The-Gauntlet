@@ -992,6 +992,7 @@ async function handleInteractionCreate(interaction) {
 
         const joinEmbed = new EmbedBuilder()
           .setTitle("Squig Survival")
+          .setImage("https://i.imgur.com/iJxXeJ4.jpeg")
           .setDescription(
             [
               "Hit ✅ to join **Squig Survival**.",

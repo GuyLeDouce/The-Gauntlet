@@ -8,10 +8,61 @@ const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
+/**
+ * Life stages for each milestone.
+ * We clamp to the last stage if the game runs longer than this list.
+ */
+const MILESTONE_STAGES = [
+  {
+    title: "Landing Day 1 – First Impact",
+    flavor:
+      "Fresh from the portal, the Squigs splatter into Earth's atmosphere like confused cosmic confetti.",
+  },
+  {
+    title: "Month 1 on Earth – First Confusion",
+    flavor:
+      "The Squigs are still learning gravity, weather, and why humans keep putting pineapple on pizza.",
+  },
+  {
+    title: "Month 2 on Earth – Bad Influences",
+    flavor:
+      "They discover social media, NFTs, and the horrifying power of quote-tweets.",
+  },
+  {
+    title: "Month 3 on Earth – Questionable Hobbies",
+    flavor:
+      "Some Squigs start side hustles. Others become professional lurkers. All of them are still extremely weird.",
+  },
+  {
+    title: "Month 4 on Earth – Full Degeneracy",
+    flavor:
+      "Sleep schedules are gone. Caffeine is up. Decisions are… not always good ones.",
+  },
+  {
+    title: "Month 5 on Earth – The Great Overthink",
+    flavor:
+      "The Squigs begin to wonder if humans actually know what they’re doing. Signs point to ‘no’.",
+  },
+  {
+    title: "Month 6 on Earth – Vanishing Acts",
+    flavor:
+      "One by one, Squigs disappear into strange side quests, mysterious DMs, and badly-timed adventures.",
+  },
+  {
+    title: "Last Known Squig Presence on Earth",
+    flavor:
+      "The portals flicker. Transmission logs corrupt. Only a handful of Squigs remain to tell the tale.",
+  },
+];
+
 function format(template, victimId, killerId) {
+  // Victim is always eliminated → crossed out.
+  const victimMention = `~~<@${victimId}>~~`;
+  const killerMention = killerId ? `<@${killerId}>` : "another Squig";
+
   return template
-    .replace(/{victim}/g, `<@${victimId}>`)
-    .replace(/{killer}/g, killerId ? `<@${killerId}>` : "another Squig");
+    .replace(/{victim}/g, victimMention)
+    .replace(/{killer}/g, killerMention);
 }
 
 /**
@@ -47,6 +98,7 @@ async function runSurvival(channel, playerIds, eraLabel) {
     const lines = [];
     const killsThisRound = Math.max(1, Math.floor(alive.length / 3));
 
+    // --- ELIMINATIONS ---
     for (let i = 0; i < killsThisRound && alive.length > 1; i++) {
       const victimIndex = Math.floor(Math.random() * alive.length);
       const victimId = alive.splice(victimIndex, 1)[0];
@@ -71,16 +123,68 @@ async function runSurvival(channel, playerIds, eraLabel) {
         }
       }
 
-      lines.push(`• ${text}`);
+      // 💀 Death line
+      lines.push(`💀 ${text}`);
     }
 
+    // --- RESURRECTION CHANCE ---
+    if (
+      eliminated.length > 0 &&
+      stories.resurrections &&
+      stories.resurrections.length > 0 &&
+      Math.random() < 0.1 // 10% chance per milestone
+    ) {
+      const revivedIndex = Math.floor(Math.random() * eliminated.length);
+      const revivedId = eliminated.splice(revivedIndex, 1)[0];
+      alive.push(revivedId);
+
+      const resurrectionTemplate = pick(stories.resurrections);
+      // Revived Squig should appear normally (no strikethrough)
+      const resurrectionText = resurrectionTemplate.replace(
+        /{victim}/g,
+        `<@${revivedId}>`
+      );
+
+      // ✨ Revival line
+      lines.push(`✨ ${resurrectionText}`);
+    }
+
+    // Pick the stage for this milestone
+    const stageIndex = Math.min(
+      milestone - 1,
+      MILESTONE_STAGES.length - 1
+    );
+    const stage = MILESTONE_STAGES[stageIndex];
+
     const embed = new EmbedBuilder()
-      .setTitle(`Milestone ${milestone}: Life on Earth`)
-      .setDescription(lines.join("\n"))
+      .setTitle(`Squig Life – ${stage.title}`)
       .setColor(0x9b59b6);
 
+    const descriptionParts = [];
+
+    if (stage.flavor) {
+      descriptionParts.push(`_${stage.flavor}_\n`);
+    }
+
+    if (lines.length > 0) {
+      descriptionParts.push(lines.join("\n"));
+    }
+
+    embed.setDescription(descriptionParts.join("\n"));
+
+    // --- FOOTER: HOW MANY SQUIGS REMAIN ---
+    const remainingText = `${alive.length} Squig${
+      alive.length === 1 ? "" : "s"
+    } Remain`;
+
     if (eraLabel) {
-      embed.setFooter({ text: eraLabel });
+      embed.setFooter({
+        text: `${eraLabel} • ${remainingText}`,
+      });
+    } else {
+      embed.setFooter({
+        text: remainingText,
+      });
     }
 
     await channel.send({ embeds: [embed] });
