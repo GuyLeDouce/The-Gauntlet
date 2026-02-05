@@ -2,6 +2,7 @@
 // Core RNG story engine for Squig Survival.
 
 const { EmbedBuilder } = require("discord.js");
+const { rewardCharmAmount, logCharmReward } = require("./drip");
 const stories = require("./survivalStories");
 
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
@@ -74,11 +75,14 @@ function format(template, victimId, killerId) {
 async function runSurvival(channel, playerIds, eraLabel) {
   if (!playerIds || playerIds.length === 0) return;
 
-  let alive = [...playerIds];
+  const uniquePlayers = Array.from(new Set(playerIds));
+  let alive = [...uniquePlayers];
   const eliminated = [];
 
   // One player = instant win embed
   if (alive.length === 1) {
+    const payouts = calculateSurvivalPayouts(uniquePlayers, [alive[0]]);
+    await sendSurvivalPayouts(channel, payouts);
     await channel.send({
       embeds: [
         new EmbedBuilder()
@@ -217,7 +221,72 @@ async function runSurvival(channel, playerIds, eraLabel) {
         .setFooter({ text: "Only one Squig ever really makes it…" }),
     ],
   });
+
+  const payouts = calculateSurvivalPayouts(uniquePlayers, placements);
+  await sendSurvivalPayouts(channel, payouts);
 }
 
-module.exports = { runSurvival };
+function calculateSurvivalPayouts(playerIds, placements) {
+  const uniquePlayers = Array.from(new Set(playerIds || []));
+  const prizePool = 25 * uniquePlayers.length;
+
+  const uniquePlacements = [];
+  for (const id of placements || []) {
+    if (!uniquePlacements.includes(id)) uniquePlacements.push(id);
+    if (uniquePlacements.length >= 3) break;
+  }
+
+  const shares = [0.5, 0.3, 0.2];
+  const payouts = {};
+  let allocated = 0;
+
+  uniquePlacements.forEach((id, index) => {
+    const raw = prizePool * shares[index];
+    const amt = Math.floor(raw);
+    payouts[id] = amt;
+    allocated += amt;
+  });
+
+  if (uniquePlacements[0]) {
+    const remainder = Math.max(0, prizePool - allocated);
+    payouts[uniquePlacements[0]] =
+      (payouts[uniquePlacements[0]] || 0) + remainder;
+  }
+
+  return payouts;
+}
+
+async function sendSurvivalPayouts(channel, payouts) {
+  try {
+    const entries = Object.entries(payouts || {});
+    if (!entries.length) return;
+
+    await Promise.all(
+      entries.map(async ([userId, amount]) => {
+        if (!amount || amount <= 0) return;
+        const reward = await rewardCharmAmount({
+          userId,
+          username: `Player-${userId}`,
+          amount,
+          source: "survival",
+          guildId: channel.guildId,
+          channelId: channel.id,
+          metadata: { mode: "survival" },
+        });
+        if (reward?.ok) {
+          await logCharmReward(channel.client, {
+            userId,
+            amount,
+            score: 0,
+            source: "survival",
+          });
+        }
+      })
+    );
+  } catch (err) {
+    console.error("[GAUNTLET:DRIP] Survival payouts failed:", err?.message || err);
+  }
+}
+
+module.exports = { runSurvival, calculateSurvivalPayouts };
 

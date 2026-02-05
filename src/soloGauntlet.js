@@ -1,4 +1,4 @@
-// src/soloGauntlet.js
+﻿// src/soloGauntlet.js
 // Solo-mode Gauntlet controller: commands, buttons, and ephemeral game flow.
 
 const {
@@ -36,44 +36,34 @@ const {
   pickRiddle,
 } = require("./gameData");
 
-// 👉 Group mode command + handler
+// ðŸ‘‰ Group mode command + handler
 const {
   groupGauntletCommand,
   handleGroupInteractionCreate,
 } = require("./groupGauntlet");
 
 const { runSurvival } = require("./survival");
+const { rewardCharm, logCharmReward } = require("./drip");
 
 // --------------------------------------------
 // Small helpers
 // --------------------------------------------
 const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-// Parse duration strings like "30s", "5m", "1h", "2d" into seconds.
-// Allowed range: 1 second to 7 days (604800 seconds).
-function parseDurationToSeconds(input, defaultSeconds = 120) {
-  if (!input) return defaultSeconds;
+// --------------------------------------------
+// Survival lobby state (single instance)
+// --------------------------------------------
+let survivalLobby = null;
 
-  const trimmed = String(input).trim().toLowerCase();
-  const match = trimmed.match(/^(\d+)\s*([smhd])?$/);
-
-  if (!match) return null;
-
-  const value = parseInt(match[1], 10);
-  const unit = match[2] || "s";
-
-  let multiplier = 1;
-  if (unit === "m") multiplier = 60;
-  if (unit === "h") multiplier = 60 * 60;
-  if (unit === "d") multiplier = 60 * 60 * 24;
-
-  const seconds = value * multiplier;
-
-  // Clamp to 1s – 7d
-  if (seconds < 1 || seconds > 60 * 60 * 24 * 7) return null;
-
-  return seconds;
+function clearSurvivalLobby() {
+  if (survivalLobby?.collector) {
+    try {
+      survivalLobby.collector.stop("cleared");
+    } catch {}
+  }
+  survivalLobby = null;
 }
+
 
 async function sendEphemeral(interaction, payload) {
   const { noExpire, ...rest } = payload;
@@ -85,7 +75,7 @@ async function sendEphemeral(interaction, payload) {
     // followUp *does* return a Message
     msg = await interaction.followUp(base);
   } else {
-    // reply returns void → fetchReply to get the Message
+    // reply returns void â†’ fetchReply to get the Message
     await interaction.reply(base);
     msg = await interaction.fetchReply();
   }
@@ -130,7 +120,7 @@ async function runMiniGameEphemeral(interaction, player, usedMini) {
       .setDescription(
         `${selected.lore}\n\n_${rand(
           miniGameFateDescriptions
-        )}_\n\n⏳ You have **30 seconds** to choose.`
+        )}_\n\nâ³ You have **30 seconds** to choose.`
       )
       .setColor(0xff33cc),
     player
@@ -152,7 +142,7 @@ async function runMiniGameEphemeral(interaction, player, usedMini) {
 
   const click = await ephemeralPrompt(interaction, embed, [row], 30_000);
   if (!click) {
-    await sendEphemeral(interaction, { content: "⏰ Time’s up — no choice, no change." });
+    await sendEphemeral(interaction, { content: "â° Timeâ€™s up â€” no choice, no change." });
     return;
   }
 
@@ -163,7 +153,7 @@ async function runMiniGameEphemeral(interaction, player, usedMini) {
   const flavor = flavorList.length ? rand(flavorList) : "";
 
   await click.reply({
-    content: `You chose **${click.component.label}** → **${
+    content: `You chose **${click.component.label}** â†’ **${
       delta > 0 ? "+" : ""
     }${delta}**. ${flavor}\n**New total:** ${player.points}`,
     ephemeral: true,
@@ -173,7 +163,7 @@ async function runMiniGameEphemeral(interaction, player, usedMini) {
 async function runRiddleEphemeral(interaction, player, usedRiddle) {
   const r = pickRiddle(usedRiddle);
   if (!r) {
-    await sendEphemeral(interaction, { content: "⚠️ No riddles left. Skipping." });
+    await sendEphemeral(interaction, { content: "âš ï¸ No riddles left. Skipping." });
     return;
   }
 
@@ -188,9 +178,9 @@ async function runRiddleEphemeral(interaction, player, usedRiddle) {
 
   const embed = withScore(
     new EmbedBuilder()
-      .setTitle("🧠 RIDDLE TIME")
+      .setTitle("ðŸ§  RIDDLE TIME")
       .setDescription(
-        `_${r.riddle}_\n\n🌀 Difficulty: **${difficultyLabel}** — Worth **+${r.difficulty}**.\n⏳ You have **30 seconds**.`
+        `_${r.riddle}_\n\nðŸŒ€ Difficulty: **${difficultyLabel}** â€” Worth **+${r.difficulty}**.\nâ³ You have **30 seconds**.`
       )
       .setColor(0xff66cc),
     player
@@ -230,7 +220,7 @@ async function runRiddleEphemeral(interaction, player, usedRiddle) {
 
   if (!buttonClick) {
     await sendEphemeral(interaction, {
-      content: `⏰ Time’s up! Correct answer: **${r.answers[0]}**.`,
+      content: `â° Timeâ€™s up! Correct answer: **${r.answers[0]}**.`,
     });
     setTimeout(async () => {
       try {
@@ -242,10 +232,10 @@ async function runRiddleEphemeral(interaction, player, usedRiddle) {
 
   const remaining = Math.max(1_000, endAt - Date.now());
 
-  // 👉 Modal with riddle shown as placeholder
+  // ðŸ‘‰ Modal with riddle shown as placeholder
   const modal = new ModalBuilder().setCustomId("riddle:modal").setTitle("Riddle Answer");
 
-  // Discord placeholder max ~100 chars – truncate if needed
+  // Discord placeholder max ~100 chars â€“ truncate if needed
   const displayRiddle = r.riddle.length > 100 ? r.riddle.slice(0, 97) + "..." : r.riddle;
 
   modal.addComponents(
@@ -255,7 +245,7 @@ async function runRiddleEphemeral(interaction, player, usedRiddle) {
         .setLabel("Your answer")
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
-        .setPlaceholder(displayRiddle) // 👈 riddle reminder
+        .setPlaceholder(displayRiddle) // ðŸ‘ˆ riddle reminder
     )
   );
 
@@ -278,7 +268,7 @@ async function runRiddleEphemeral(interaction, player, usedRiddle) {
 
   if (!submit) {
     await sendEphemeral(interaction, {
-      content: `⏰ No answer submitted. Correct: **${r.answers[0]}**.`,
+      content: `â° No answer submitted. Correct: **${r.answers[0]}**.`,
     });
     setTimeout(async () => {
       try {
@@ -295,20 +285,20 @@ async function runRiddleEphemeral(interaction, player, usedRiddle) {
     if (correct) {
       player.points += r.difficulty;
       await submit.reply({
-        content: `✅ Correct! **+${r.difficulty}**. **Current total:** ${player.points}`,
+        content: `âœ… Correct! **+${r.difficulty}**. **Current total:** ${player.points}`,
         flags: 64,
       });
     } else {
       await submit.reply({
-        content: `❌ Not quite. Correct: **${r.answers[0]}**.\n**Current total:** ${player.points}`,
+        content: `âŒ Not quite. Correct: **${r.answers[0]}**.\n**Current total:** ${player.points}`,
         flags: 64,
       });
     }
   } catch {
     await sendEphemeral(interaction, {
       content: correct
-        ? `✅ Correct! **+${r.difficulty}**. **Current total:** ${player.points}`
-        : `❌ Not quite. Correct: **${r.answers[0]}**.\n**Current total:** ${player.points}`,
+        ? `âœ… Correct! **+${r.difficulty}**. **Current total:** ${player.points}`
+        : `âŒ Not quite. Correct: **${r.answers[0]}**.\n**Current total:** ${player.points}`,
     });
   }
 
@@ -320,7 +310,7 @@ async function runRiddleEphemeral(interaction, player, usedRiddle) {
 }
 
 async function runLabyrinthEphemeral(interaction, player) {
-  const title = "🌀 The Labyrinth of Wrong Turns";
+  const title = "ðŸŒ€ The Labyrinth of Wrong Turns";
   const dirPairs = [
     ["Left", "Right"],
     ["Up", "Down"],
@@ -337,7 +327,7 @@ async function runLabyrinthEphemeral(interaction, player) {
         new EmbedBuilder()
           .setTitle(title)
           .setDescription(
-            "Find the exact **4-step** path.\n✅ Each step **+1**, 🏆 escape **+2**.\n⏳ **60s** total."
+            "Find the exact **4-step** path.\nâœ… Each step **+1**, ðŸ† escape **+2**.\nâ³ **60s** total."
           )
           .setColor(0x7f00ff)
           .setImage("https://i.imgur.com/MA1CdEC.jpeg"),
@@ -363,7 +353,7 @@ async function runLabyrinthEphemeral(interaction, player) {
     );
 
     const msg = await sendEphemeral(interaction, {
-      content: `Labyrinth step **${step + 1}** — choose:`,
+      content: `Labyrinth step **${step + 1}** â€” choose:`,
       components: [row],
     });
 
@@ -395,23 +385,23 @@ async function runLabyrinthEphemeral(interaction, player) {
     if (label === correctPath[step]) {
       earned += 1;
       step += 1;
-      await click.reply({ content: "✅ Correct step!", ephemeral: true });
+      await click.reply({ content: "âœ… Correct step!", ephemeral: true });
     } else {
       alive = false;
-      await click.reply({ content: "💀 Dead end!", ephemeral: true });
+      await click.reply({ content: "ðŸ’€ Dead end!", ephemeral: true });
     }
   }
 
   if (step === 4) {
     earned += 2;
-    await sendEphemeral(interaction, { content: `🏁 You escaped! **+${earned}**` });
+    await sendEphemeral(interaction, { content: `ðŸ You escaped! **+${earned}**` });
   } else if (earned > 0) {
     await sendEphemeral(interaction, {
-      content: `🪤 You managed **${earned}** step${earned === 1 ? "" : "s"}.`,
+      content: `ðŸª¤ You managed **${earned}** step${earned === 1 ? "" : "s"}.`,
     });
   } else {
     await sendEphemeral(interaction, {
-      content: "😵 Lost at the first turn. **0**.",
+      content: "ðŸ˜µ Lost at the first turn. **0**.",
     });
   }
 
@@ -421,9 +411,9 @@ async function runLabyrinthEphemeral(interaction, player) {
 async function runRouletteEphemeral(interaction, player) {
   const embed = withScore(
     new EmbedBuilder()
-      .setTitle("🎲 Squig Roulette")
+      .setTitle("ðŸŽ² Squig Roulette")
       .setDescription(
-        "Pick **1–6**. Roll at end. Match = **+2**, else **0**. **30s**."
+        "Pick **1â€“6**. Roll at end. Match = **+2**, else **0**. **30s**."
       )
       .setColor(0x7f00ff)
       .setImage("https://i.imgur.com/BolGW1m.png"),
@@ -469,7 +459,7 @@ async function runRouletteEphemeral(interaction, player) {
 
   if (!click) {
     await sendEphemeral(interaction, {
-      content: "😴 No pick. The die rolls away.",
+      content: "ðŸ˜´ No pick. The die rolls away.",
     });
     return;
   }
@@ -480,7 +470,7 @@ async function runRouletteEphemeral(interaction, player) {
   if (pickNum === rolled) {
     player.points += 2;
     await click.reply({
-      content: `🎉 You picked **${pickNum}**. Rolled **${rolled}**. **+2**.`,
+      content: `ðŸŽ‰ You picked **${pickNum}**. Rolled **${rolled}**. **+2**.`,
       ephemeral: true,
     });
   } else {
@@ -494,7 +484,7 @@ async function runRouletteEphemeral(interaction, player) {
 async function runRiskItEphemeral(interaction, player) {
   const embed = withScore(
     new EmbedBuilder()
-      .setTitle("🪙 Risk It")
+      .setTitle("ðŸª™ Risk It")
       .setDescription("Risk **All**, **Half**, **Quarter**, or **None**. **20s**.")
       .setColor(0xffaa00)
       .setImage("https://i.imgur.com/GHztzMk.png"),
@@ -544,7 +534,7 @@ async function runRiskItEphemeral(interaction, player) {
 
   if (!click) {
     await sendEphemeral(interaction, {
-      content: "⏳ No decision — charm moves on.",
+      content: "â³ No decision â€” charm moves on.",
     });
     return;
   }
@@ -575,10 +565,10 @@ async function runRiskItEphemeral(interaction, player) {
   }
 
   const outcomes = [
-    { mult: -1, label: "💀 Lost it all" },
-    { mult: 0, label: "😮 Broke even" },
-    { mult: 0.5, label: "✨ Won 1.5×" },
-    { mult: 1, label: "👑 Doubled" },
+    { mult: -1, label: "ðŸ’€ Lost it all" },
+    { mult: 0, label: "ðŸ˜® Broke even" },
+    { mult: 0.5, label: "âœ¨ Won 1.5Ã—" },
+    { mult: 1, label: "ðŸ‘‘ Doubled" },
   ];
 
   const out = rand(outcomes);
@@ -586,7 +576,7 @@ async function runRiskItEphemeral(interaction, player) {
   player.points += delta;
 
   await click.reply({
-    content: `${label} → ${out.label}. **${
+    content: `${label} â†’ ${out.label}. **${
       delta > 0 ? "+" : ""
     }${delta}**. New total: **${player.points}**`,
     ephemeral: true,
@@ -613,7 +603,7 @@ async function runSoloGauntletEphemeral(interaction) {
     embeds: [
       withScore(
         new EmbedBuilder()
-          .setTitle("⚔️ The Gauntlet — Solo Mode")
+          .setTitle("âš”ï¸ The Gauntlet â€” Solo Mode")
           .setDescription("6 rounds. Brain, luck, chaos. Good luck!")
           .setColor(0x00ccff),
         player
@@ -645,17 +635,17 @@ async function runSoloGauntletEphemeral(interaction) {
   const final = player.points;
   const flavor =
     final >= 12
-      ? "👑 The charm purrs. You wear the static like a crown."
+      ? "ðŸ‘‘ The charm purrs. You wear the static like a crown."
       : final >= 6
-      ? "💫 The Squigs nod in approval. You’ll be remembered by at least three of them."
+      ? "ðŸ’« The Squigs nod in approval. Youâ€™ll be remembered by at least three of them."
       : final >= 0
-      ? "🪵 You survived the weird. The weird survived you."
-      : "💀 The void learned your name. It may return it later.";
+      ? "ðŸªµ You survived the weird. The weird survived you."
+      : "ðŸ’€ The void learned your name. It may return it later.";
 
   await sendEphemeral(interaction, {
     embeds: [
       new EmbedBuilder()
-        .setTitle("🏁 Your Final Score")
+        .setTitle("ðŸ Your Final Score")
         .setDescription(`**${final}** point${final === 1 ? "" : "s"}`)
         .setFooter({ text: flavor })
         .setColor(0x00ff88),
@@ -666,6 +656,25 @@ async function runSoloGauntletEphemeral(interaction) {
   const month = currentMonthStr();
   await Store.insertRun(interaction.user.id, player.username, month, final);
   await Store.recordPlay(interaction.user.id, torontoDateStr());
+
+  try {
+    const reward = await rewardCharm({
+      userId: interaction.user.id,
+      username: player.username,
+      score: final,
+      source: "solo",
+      guildId: interaction.guildId,
+      channelId: interaction.channelId,
+    });
+    if (reward?.ok) {
+      await logCharmReward(interaction.client, {
+        userId: interaction.user.id,
+        amount: reward.amount,
+        score: final,
+        source: "solo",
+      });
+    }
+  } catch {}
 
   try {
     await updateAllLeaderboards(interaction.client, month);
@@ -683,13 +692,13 @@ async function renderLeaderboardEmbed(month) {
     ? rows
         .map(
           (r, i) =>
-            `**#${i + 1}** ${r.username || `<@${r.user_id}>`} — **${r.best}**`
+            `**#${i + 1}** ${r.username || `<@${r.user_id}>`} â€” **${r.best}**`
         )
         .join("\n")
     : "No runs yet.";
 
   return new EmbedBuilder()
-    .setTitle(`🏆 Leaderboard — ${month}`)
+    .setTitle(`ðŸ† Leaderboard â€” ${month}`)
     .setDescription(lines)
     .setFooter({
       text: "Ranked by highest single-game score; ties broken by total monthly points.",
@@ -748,20 +757,16 @@ async function registerCommands() {
     // Squig Survival command
     new SlashCommandBuilder()
       .setName("survive")
-      .setDescription("Start a Squig Survival RNG story game (admins only).")
-      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-      .addStringOption((o) =>
-        o
-          .setName("duration")
-          .setDescription("Join time: 30s, 5m, 1h, 2d (default 2m, max 7d)")
-          .setRequired(false)
-      )
+      .setDescription("Open a Squig Survival lobby.")
       .addStringOption((o) =>
         o
           .setName("era")
           .setDescription("Optional label for this Survival era (e.g. 'Holiday Trials').")
           .setRequired(false)
       ),
+    new SlashCommandBuilder()
+      .setName("survivestart")
+      .setDescription("Start the active Squig Survival lobby."),
   ];
 
   // Include the group command definition from groupGauntlet.js
@@ -810,7 +815,7 @@ async function registerCommands() {
 // --------------------------------------------
 function startPanelEmbed() {
   return new EmbedBuilder()
-    .setTitle("🎮 The Gauntlet — Solo Mode")
+    .setTitle("ðŸŽ® The Gauntlet â€” Solo Mode")
     .setDescription(
       [
         "Click **Start** to play privately via **ephemeral** messages in this channel.",
@@ -855,7 +860,7 @@ async function handleInteractionCreate(interaction) {
   try {
     // Slash commands
     if (interaction.isChatInputCommand()) {
-      // /groupgauntlet → group mode
+      // /groupgauntlet â†’ group mode
       if (interaction.commandName === "groupgauntlet") {
         await handleGroupInteractionCreate(interaction);
         return;
@@ -865,7 +870,7 @@ async function handleInteractionCreate(interaction) {
       if (interaction.commandName === "gauntlet") {
         if (!isAdminUserLocal(interaction)) {
           return interaction.reply({
-            content: "⛔ Only admins can post the Gauntlet panel.",
+            content: "â›” Only admins can post the Gauntlet panel.",
             ephemeral: true,
           });
         }
@@ -907,7 +912,7 @@ async function handleInteractionCreate(interaction) {
           ? rows
               .map(
                 (r) =>
-                  `• <@${r.user_id}> — **${r.score}**  _(at ${new Intl.DateTimeFormat(
+                  `â€¢ <@${r.user_id}> â€” **${r.score}**  _(at ${new Intl.DateTimeFormat(
                     "en-CA",
                     {
                       timeZone: "America/Toronto",
@@ -922,7 +927,7 @@ async function handleInteractionCreate(interaction) {
           : "No recent runs.";
 
         const embed = new EmbedBuilder()
-          .setTitle(`🧾 Recent Runs — ${month}`)
+          .setTitle(`ðŸ§¾ Recent Runs â€” ${month}`)
           .setDescription(lines)
           .setColor(0x00ccff);
 
@@ -932,17 +937,17 @@ async function handleInteractionCreate(interaction) {
       // /gauntletinfo
       if (interaction.commandName === "gauntletinfo") {
         const embed = new EmbedBuilder()
-          .setTitle("📖 Welcome to The Gauntlet — Solo Edition")
+          .setTitle("ðŸ“– Welcome to The Gauntlet â€” Solo Edition")
           .setDescription(
             [
               "Play **any time** via ephemeral messages. One run per day (Toronto time).",
               "",
               "**Flow:**",
-              "1) MiniGame → Riddle",
+              "1) MiniGame â†’ Riddle",
               "2) Labyrinth",
-              "3) MiniGame → Riddle",
+              "3) MiniGame â†’ Riddle",
               "4) Squig Roulette",
-              "5) MiniGame → Riddle",
+              "5) MiniGame â†’ Riddle",
               "6) Risk It",
               "",
               "Leaderboard ranks **highest single-game score**, with **total monthly points** as tiebreaker.",
@@ -959,7 +964,7 @@ async function handleInteractionCreate(interaction) {
         const mine = await Store.getMyMonth(interaction.user.id, month);
 
         const embed = new EmbedBuilder()
-          .setTitle(`📊 Your Gauntlet — ${month}`)
+          .setTitle(`ðŸ“Š Your Gauntlet â€” ${month}`)
           .setDescription(
             `**Best:** ${mine.best}\n**Total:** ${mine.total}\n**Plays:** ${mine.plays}`
           )
@@ -970,20 +975,18 @@ async function handleInteractionCreate(interaction) {
 
       // /survive  (Squig Survival mini-game)
       if (interaction.commandName === "survive") {
-        if (!isAdminUserLocal(interaction)) {
+        if (survivalLobby) {
           return interaction.reply({
-            content: "⛔ Only admins can start Squig Survival.",
+            content:
+              "A /survive lobby is already active. Use /survivestart to begin or end/cancel it.",
             ephemeral: true,
           });
         }
 
-        const durationInput = interaction.options.getString("duration"); // e.g., "30s", "5m", "1h", "2d"
-        const durationSeconds = parseDurationToSeconds(durationInput, 120);
-
-        if (!durationSeconds) {
+        const channel = interaction.channel;
+        if (!channel) {
           return interaction.reply({
-            content:
-              "❌ Invalid duration. Use formats like `30s`, `5m`, `1h`, `2d` (minimum 1 second, maximum 7 days).",
+            content: "âŒ Can't find channel for this command.",
             ephemeral: true,
           });
         }
@@ -991,21 +994,17 @@ async function handleInteractionCreate(interaction) {
         const era = interaction.options.getString("era") || null;
 
         const joinEmbed = new EmbedBuilder()
-          .setTitle("Squig Survival")
+          .setTitle("Squig Survival â€” Lobby Open")
           .setImage("https://i.imgur.com/DGLFFyh.jpeg")
           .setDescription(
             [
-              "Hit ✅ to join **Squig Survival**.",
+              "Hit âœ… to join **Squig Survival**.",
               "Try out life as a Squig stumbling through Earth.",
               "",
-              "Once you react, the story runs automatically.",
-              "The portal will decide who survives the longest...",
+              "When staff run **/survivestart**, the portal snaps shut.",
             ].join("\n")
           )
-          .setColor(0x9b59b6)
-          .setFooter({
-            text: `You have ${durationSeconds} seconds to join.`,
-          });
+          .setColor(0x9b59b6);
 
         await interaction.reply({
           embeds: [joinEmbed],
@@ -1014,96 +1013,111 @@ async function handleInteractionCreate(interaction) {
         const joinMessage = await interaction.fetchReply();
 
         try {
-          await joinMessage.react("✅");
+          await joinMessage.react("âœ…");
         } catch (err) {
-          console.error("Failed to add ✅ reaction:", err);
+          console.error("Failed to add âœ… reaction:", err);
         }
 
         const joined = new Set();
         const filter = (reaction, user) =>
-          reaction.emoji.name === "✅" && !user.bot;
+          reaction.emoji.name === "âœ…" && !user.bot;
 
-        const totalMs = durationSeconds * 1000;
-
-        const collector = joinMessage.createReactionCollector({
-          filter,
-          time: totalMs,
-        });
+        const collector = joinMessage.createReactionCollector({ filter });
 
         collector.on("collect", (_, user) => {
           joined.add(user.id);
         });
 
-        const channel = interaction.channel;
-        let joinOpen = true;
-
-        // Reminders at ~1/3 and ~2/3 of the join window
-        const reminderTimes = [
-          Math.round(totalMs / 3),
-          Math.round((2 * totalMs) / 3),
-        ];
-
-        for (const t of reminderTimes) {
-          setTimeout(async () => {
-            if (!joinOpen) return;
-            const msLeft = totalMs - t;
-            const secondsLeft = Math.max(1, Math.round(msLeft / 1000));
-
-            const reminderEmbed = new EmbedBuilder()
-              .setTitle("Squig Survival – Last Call")
-              .setDescription(
-                [
-                  `Hit ✅ on [the original Survival message](${joinMessage.url}) to join.`,
-                  "",
-                  `Time remaining: **${secondsLeft} seconds**`,
-                ].join("\n")
-              )
-              .setColor(0xf4a261);
-
-            try {
-              await channel.send({ embeds: [reminderEmbed] });
-            } catch (err) {
-              console.error("Failed to send Survival reminder:", err);
-            }
-          }, t);
-        }
-
-        collector.on("end", async () => {
-          joinOpen = false;
-
-          if (joined.size === 0) {
-            const cancelEmbed = new EmbedBuilder()
-              .setTitle("Squig Survival – Cancelled")
-              .setDescription(
-                "No Squigs stepped through the portal. The universe shrugs and goes back to scrolling X."
-              )
-              .setColor(0xe74c3c);
-
-            await channel.send({ embeds: [cancelEmbed] });
-            return;
-          }
-
-          const players = Array.from(joined);
-
-          const startEmbed = new EmbedBuilder()
-            .setTitle("Squig Survival – Game Starting!")
-            .setDescription(
-              [
-                `The portal snaps shut. **${players.length} Squigs** are now loose on Earth.`,
-                "Sit back and watch who survives the chaos...",
-              ].join("\n")
-            )
-            .setImage("http://gifs.squigs.io/gifs/v-bullish-fly.gif")
-            .setColor(0x2ecc71);
-
-          await channel.send({ embeds: [startEmbed] });
-
-          await runSurvival(channel, players, era);
-        });
+        survivalLobby = {
+          created_by: interaction.user.id,
+          created_at: new Date().toISOString(),
+          joined,
+          game_status: "lobby",
+          channel_id: channel.id,
+          guild_id: channel.guildId,
+          join_message_id: joinMessage.id,
+          era,
+          collector,
+        };
 
         return;
       }
-    }
+
+      // /survivestart
+      if (interaction.commandName === "survivestart") {
+        if (!survivalLobby || survivalLobby.game_status !== "lobby") {
+          return interaction.reply({
+            content: "No active /survive lobby. Run /survive first.",
+            ephemeral: true,
+          });
+        }
+
+        survivalLobby.game_status = "running";
+        if (survivalLobby.collector) {
+          try {
+            survivalLobby.collector.stop("start");
+          } catch {}
+        }
+
+        const players = Array.from(survivalLobby.joined || []);
+        const era = survivalLobby.era || null;
+        const channel =
+          interaction.client.channels.cache.get(survivalLobby.channel_id) ||
+          interaction.channel;
+
+        if (!channel) {
+          clearSurvivalLobby();
+          return interaction.reply({
+            content: "âŒ Can't find the Survival lobby channel.",
+            ephemeral: true,
+          });
+        }
+
+        if (players.length === 0) {
+          clearSurvivalLobby();
+          await channel.send({
+            embeds: [
+              new EmbedBuilder()
+                .setTitle("Squig Survival â€“ Cancelled")
+                .setDescription(
+                  "No Squigs stepped through the portal. The universe shrugs and goes back to scrolling X."
+                )
+                .setColor(0xe74c3c),
+            ],
+          });
+          return interaction.reply({
+            content: "No players joined. Lobby cancelled.",
+            ephemeral: true,
+          });
+        }
+
+        await interaction.reply({
+          content: "âœ… Squig Survival starting.",
+          ephemeral: true,
+        });
+        await channel.send("Game starting now â€” time will be announced by staff.");
+
+        const startEmbed = new EmbedBuilder()
+          .setTitle("Squig Survival â€“ Game Starting!")
+          .setDescription(
+            [
+              `The portal snaps shut. **${players.length} Squigs** are now loose on Earth.`,
+              "Sit back and watch who survives the chaos...",
+            ].join("\n")
+          )
+          .setImage("http://gifs.squigs.io/gifs/v-bullish-fly.gif")
+          .setColor(0x2ecc71);
+
+        await channel.send({ embeds: [startEmbed] });
+
+        try {
+          await runSurvival(channel, players, era);
+        } finally {
+          clearSurvivalLobby();
+        }
+
+        return;
+      }
 
     // Start button
     if (interaction.isButton() && interaction.customId === "gauntlet:start") {
@@ -1113,13 +1127,13 @@ async function handleInteractionCreate(interaction) {
       if (played) {
         const when = nextTorontoMidnight();
         return interaction.reply({
-          content: `⛔ You've already played today. Come back after **${when} (Toronto)**.`,
+          content: `â›” You've already played today. Come back after **${when} (Toronto)**.`,
           ephemeral: true,
         });
       }
 
       await interaction.reply({
-        content: "🎬 Your Gauntlet run begins now (ephemeral). Good luck!",
+        content: "ðŸŽ¬ Your Gauntlet run begins now (ephemeral). Good luck!",
         ephemeral: true,
       });
 
@@ -1127,7 +1141,7 @@ async function handleInteractionCreate(interaction) {
 
       try {
         await interaction.followUp({
-          content: `✅ <@${interaction.user.id}> finished a run with **${final}** points.`,
+          content: `âœ… <@${interaction.user.id}> finished a run with **${final}** points.`,
           ephemeral: false,
         });
       } catch {}
@@ -1139,7 +1153,7 @@ async function handleInteractionCreate(interaction) {
     if (interaction.isRepliable()) {
       try {
         await interaction.reply({
-          content: "❌ Something went wrong.",
+          content: "âŒ Something went wrong.",
           ephemeral: true,
         });
       } catch {}
@@ -1154,3 +1168,5 @@ module.exports = {
   registerCommands,
   handleInteractionCreate,
 };
+
+

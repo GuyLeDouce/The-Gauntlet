@@ -27,6 +27,7 @@ const {
   pickRiddle,
   riddles,
 } = require("./gameData");
+const { rewardCharm, logCharmReward } = require("./drip");
 
 // 👉 Exported Slash command definition for unified registration
 const groupGauntletCommand = new SlashCommandBuilder()
@@ -882,6 +883,29 @@ async function runGroupGame(channel, game) {
   await wait(gap);
 
   await sendFinalPodium(channel, game);
+  try {
+    const players = Array.from(game.players.values());
+    await Promise.all(
+      players.map(async (p) => {
+        const reward = await rewardCharm({
+          userId: p.id,
+          username: p.username,
+          score: p.points,
+          source: "group",
+          guildId: channel.guildId,
+          channelId: channel.id,
+        });
+        if (reward?.ok) {
+          await logCharmReward(channel.client, {
+            userId: p.id,
+            amount: reward.amount,
+            score: p.points,
+            source: "group",
+          });
+        }
+      })
+    );
+  } catch {}
   await channel.send("📯 Maybe enough reactions will encourage another game…");
 }
 
