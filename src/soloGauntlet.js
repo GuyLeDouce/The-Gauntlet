@@ -55,6 +55,27 @@ const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
 // --------------------------------------------
 let survivalLobby = null;
 
+function buildSurvivalLobbyEmbed(era, count) {
+  const lines = [
+    "Click **Join** to enter **Squig Survival**.",
+    "Try out life as a Squig stumbling through Earth.",
+    "",
+    `Players joined: **${count}**`,
+    "",
+    "When staff run **/survivestart**, the portal snaps shut.",
+  ];
+
+  if (era) {
+    lines.push("", `Era: **${era}**`);
+  }
+
+  return new EmbedBuilder()
+    .setTitle("Squig Survival - Lobby Open")
+    .setImage("https://i.imgur.com/DGLFFyh.jpeg")
+    .setDescription(lines.join("\n"))
+    .setColor(0x9b59b6);
+}
+
 function clearSurvivalLobby() {
   if (survivalLobby?.collector) {
     try {
@@ -993,18 +1014,7 @@ async function handleInteractionCreate(interaction) {
 
         const era = interaction.options.getString("era") || null;
 
-        const joinEmbed = new EmbedBuilder()
-          .setTitle("Squig Survival - Lobby Open")
-          .setImage("https://i.imgur.com/DGLFFyh.jpeg")
-          .setDescription(
-            [
-              "Click **Join** to enter **Squig Survival**.",
-              "Try out life as a Squig stumbling through Earth.",
-              "",
-              "When staff run **/survivestart**, the portal snaps shut.",
-            ].join("\n")
-          )
-          .setColor(0x9b59b6);
+        const joinEmbed = buildSurvivalLobbyEmbed(era, 0);
 
         const joinRow = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
@@ -1014,7 +1024,11 @@ async function handleInteractionCreate(interaction) {
           new ButtonBuilder()
             .setCustomId("survive:leave")
             .setLabel("Leave")
-            .setStyle(ButtonStyle.Secondary)
+            .setStyle(ButtonStyle.Secondary),
+          new ButtonBuilder()
+            .setCustomId("survive:list")
+            .setLabel("Players Joined")
+            .setStyle(ButtonStyle.Primary)
         );
 
         await interaction.reply({
@@ -1033,6 +1047,7 @@ async function handleInteractionCreate(interaction) {
           channel_id: channel.id,
           guild_id: channel.guildId,
           join_message_id: joinMessage.id,
+          join_message: joinMessage,
           era,
           collector: null,
         };
@@ -1129,6 +1144,13 @@ async function handleInteractionCreate(interaction) {
       const userId = interaction.user.id;
       if (interaction.customId === "survive:join") {
         survivalLobby.joined.add(userId);
+        try {
+          const updated = buildSurvivalLobbyEmbed(
+            survivalLobby.era,
+            survivalLobby.joined.size
+          );
+          await survivalLobby.join_message.edit({ embeds: [updated] });
+        } catch {}
         return interaction.reply({
           content: "You joined the Squig Survival lobby.",
           ephemeral: true,
@@ -1137,8 +1159,24 @@ async function handleInteractionCreate(interaction) {
 
       if (interaction.customId === "survive:leave") {
         survivalLobby.joined.delete(userId);
+        try {
+          const updated = buildSurvivalLobbyEmbed(
+            survivalLobby.era,
+            survivalLobby.joined.size
+          );
+          await survivalLobby.join_message.edit({ embeds: [updated] });
+        } catch {}
         return interaction.reply({
           content: "You left the Squig Survival lobby.",
+          ephemeral: true,
+        });
+      }
+
+      if (interaction.customId === "survive:list") {
+        const ids = Array.from(survivalLobby.joined || []);
+        const list = ids.length ? ids.map((id) => `<@${id}>`).join("\n") : "None";
+        return interaction.reply({
+          content: `Players joined (${ids.length}):\n${list}`,
           ephemeral: true,
         });
       }
