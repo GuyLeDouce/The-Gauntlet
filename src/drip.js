@@ -4,8 +4,7 @@
 const axios = require("axios");
 
 const DRIP_API_KEY = process.env.DRIP_API_KEY;
-const DRIP_BASE_URL = process.env.DRIP_BASE_URL;
-const DRIP_CURRENCY_ID = process.env.DRIP_CURRENCY_ID;
+const DRIP_REALM_ID = process.env.DRIP_REALM_ID;
 const DRIP_LOG_CHANNEL_ID = "1403005536982794371";
 
 function getCharmRewardAmount(score) {
@@ -29,34 +28,43 @@ async function rewardCharmAmount({
   channelId,
   metadata,
 }) {
-  if (!DRIP_API_KEY || !DRIP_BASE_URL || !DRIP_CURRENCY_ID) {
+  if (!DRIP_API_KEY || !DRIP_REALM_ID) {
     console.warn(
-      "[GAUNTLET:DRIP] Missing DRIP_API_KEY, DRIP_BASE_URL, or DRIP_CURRENCY_ID. Skipping reward."
+      "[GAUNTLET:DRIP] Missing DRIP_API_KEY or DRIP_REALM_ID. Skipping reward."
     );
     return { ok: false, skipped: true };
   }
 
-  const payload = {
-    currencyId: DRIP_CURRENCY_ID,
-    amount,
-    recipient: {
-      id: userId,
-      username,
-    },
-    reason: "Gauntlet completion",
-    metadata: {
+  const auth = buildAuthHeader(DRIP_API_KEY);
+  const base = `https://api.drip.re/api/v1/realm/${DRIP_REALM_ID}`;
+
+  try {
+    const search = await axios.get(
+      `${base}/members/search?type=discord-id&values=${encodeURIComponent(
+        userId
+      )}`,
+      {
+        headers: { Authorization: auth },
+        timeout: 10_000,
+      }
+    );
+
+    const member = search?.data?.data?.[0];
+    if (!member?.id) {
+      console.warn(
+        `[GAUNTLET:DRIP] No DRIP member found for Discord ID ${userId}.`
+      );
+      return { ok: false, skipped: true, reason: "member_not_found" };
+    }
+
+    await axios.patch(`${base}/members/${member.id}/point-balance`, {
+      tokens: amount,
       source,
       guildId,
       channelId,
       awardedAt: new Date().toISOString(),
       ...(metadata || {}),
-    },
-  };
-
-  const auth = buildAuthHeader(DRIP_API_KEY);
-
-  try {
-    await axios.post(DRIP_BASE_URL, payload, {
+    }, {
       headers: {
         Authorization: auth,
         "Content-Type": "application/json",
@@ -98,7 +106,7 @@ async function logCharmReward(client, { userId, amount, score, source }) {
     const ch = await client.channels.fetch(DRIP_LOG_CHANNEL_ID);
     if (!ch || !ch.send) return false;
     await ch.send(
-      `✅ <@${userId}> received **${amount} $CHARM** for Gauntlet (${source}, score: ${score}).`
+      `<@${userId}> received **${amount} $CHARM** for Gauntlet (${source}, score: ${score}).`
     );
     return true;
   } catch (err) {
