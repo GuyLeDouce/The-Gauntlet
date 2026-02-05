@@ -994,11 +994,11 @@ async function handleInteractionCreate(interaction) {
         const era = interaction.options.getString("era") || null;
 
         const joinEmbed = new EmbedBuilder()
-          .setTitle("Squig Survival â€” Lobby Open")
+          .setTitle("Squig Survival - Lobby Open")
           .setImage("https://i.imgur.com/DGLFFyh.jpeg")
           .setDescription(
             [
-              "Hit âœ… to join **Squig Survival**.",
+              "Click **Join** to enter **Squig Survival**.",
               "Try out life as a Squig stumbling through Earth.",
               "",
               "When staff run **/survivestart**, the portal snaps shut.",
@@ -1006,27 +1006,24 @@ async function handleInteractionCreate(interaction) {
           )
           .setColor(0x9b59b6);
 
+        const joinRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId("survive:join")
+            .setLabel("Join")
+            .setStyle(ButtonStyle.Success),
+          new ButtonBuilder()
+            .setCustomId("survive:leave")
+            .setLabel("Leave")
+            .setStyle(ButtonStyle.Secondary)
+        );
+
         await interaction.reply({
           embeds: [joinEmbed],
+          components: [joinRow],
         });
 
         const joinMessage = await interaction.fetchReply();
-
-        try {
-          await joinMessage.react("âœ…");
-        } catch (err) {
-          console.error("Failed to add âœ… reaction:", err);
-        }
-
         const joined = new Set();
-        const filter = (reaction, user) =>
-          reaction.emoji.name === "âœ…" && !user.bot;
-
-        const collector = joinMessage.createReactionCollector({ filter });
-
-        collector.on("collect", (_, user) => {
-          joined.add(user.id);
-        });
 
         survivalLobby = {
           created_by: interaction.user.id,
@@ -1037,7 +1034,7 @@ async function handleInteractionCreate(interaction) {
           guild_id: channel.guildId,
           join_message_id: joinMessage.id,
           era,
-          collector,
+          collector: null,
         };
 
         return;
@@ -1078,7 +1075,7 @@ async function handleInteractionCreate(interaction) {
           await channel.send({
             embeds: [
               new EmbedBuilder()
-                .setTitle("Squig Survival â€“ Cancelled")
+                .setTitle("Squig Survival - Cancelled")
                 .setDescription(
                   "No Squigs stepped through the portal. The universe shrugs and goes back to scrolling X."
                 )
@@ -1092,13 +1089,13 @@ async function handleInteractionCreate(interaction) {
         }
 
         await interaction.reply({
-          content: "âœ… Squig Survival starting.",
+          content: "Squig Survival starting.",
           ephemeral: true,
         });
-        await channel.send("Game starting now â€” time will be announced by staff.");
+        await channel.send("Game starting now - time will be announced by staff.");
 
         const startEmbed = new EmbedBuilder()
-          .setTitle("Squig Survival â€“ Game Starting!")
+          .setTitle("Squig Survival - Game Starting!")
           .setDescription(
             [
               `The portal snaps shut. **${players.length} Squigs** are now loose on Earth.`,
@@ -1117,6 +1114,33 @@ async function handleInteractionCreate(interaction) {
         }
 
         return;
+      }
+    }
+
+    // Survival lobby buttons
+    if (interaction.isButton() && interaction.customId.startsWith("survive:")) {
+      if (!survivalLobby || survivalLobby.game_status !== "lobby") {
+        return interaction.reply({
+          content: "No active /survive lobby. Run /survive first.",
+          ephemeral: true,
+        });
+      }
+
+      const userId = interaction.user.id;
+      if (interaction.customId === "survive:join") {
+        survivalLobby.joined.add(userId);
+        return interaction.reply({
+          content: "You joined the Squig Survival lobby.",
+          ephemeral: true,
+        });
+      }
+
+      if (interaction.customId === "survive:leave") {
+        survivalLobby.joined.delete(userId);
+        return interaction.reply({
+          content: "You left the Squig Survival lobby.",
+          ephemeral: true,
+        });
       }
     }
 
