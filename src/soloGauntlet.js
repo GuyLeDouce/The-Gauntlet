@@ -1118,6 +1118,7 @@ async function handleInteractionCreate(interaction) {
 
         return;
       }
+    }
 
     // Start button
     if (interaction.isButton() && interaction.customId === "gauntlet:start") {
