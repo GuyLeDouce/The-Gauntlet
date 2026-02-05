@@ -1,4 +1,4 @@
-// index.js — Entry Point for The Gauntlet (Solo + Group)
+﻿// index.js � Entry Point for The Gauntlet (Solo + Group)
 
 require("dotenv").config();
 
@@ -26,12 +26,12 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMessageReactions, // 👈 needed for ✅ joins
+    GatewayIntentBits.GuildMessageReactions, // ?? needed for ? joins
   ],
   partials: [
     Partials.Channel,
     Partials.Message,
-    Partials.Reaction, // 👈 helps with reactions on cached messages
+    Partials.Reaction, // ?? helps with reactions on cached messages
   ],
 });
 
@@ -39,16 +39,16 @@ const client = new Client({
 // BOOT SEQUENCE
 // --------------------------------------------
 client.once(Events.ClientReady, async () => {
-  console.log(`⚡ Logged in as ${client.user.tag}`);
+  console.log(`? Logged in as ${client.user.tag}`);
 
   await initStore();
 
   try {
     // This now registers BOTH solo + group commands in one shot
     await registerCommands();
-    console.log("✅ Slash commands registered (solo + group).");
+    console.log("? Slash commands registered (solo + group).");
   } catch (err) {
-    console.error("❌ Error registering commands:", err);
+    console.error("? Error registering commands:", err);
   }
 });
 
@@ -59,7 +59,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
   try {
     // soloGauntlet's handler internally routes:
     // - /gauntlet, /gauntletlb, /gauntletrecent, /gauntletinfo, /mygauntlet
-    // - /groupgauntlet → handleGroupInteractionCreate (from groupGauntlet)
+    // - /groupgauntlet ? handleGroupInteractionCreate (from groupGauntlet)
     await handleInteractionCreate(interaction);
   } catch (err) {
     console.error("interaction error (root):", err);

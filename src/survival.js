@@ -1,4 +1,4 @@
-// survival.js
+﻿// survival.js
 // Core RNG story engine for Squig Survival.
 
 const { EmbedBuilder } = require("discord.js");
@@ -15,37 +15,37 @@ const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
  */
 const MILESTONE_STAGES = [
   {
-    title: "Landing Day 1 – First Impact",
+    title: "Landing Day 1 � First Impact",
     flavor:
       "Fresh from the portal, the Squigs splatter into Earth's atmosphere like confused cosmic confetti.",
   },
   {
-    title: "Month 1 on Earth – First Confusion",
+    title: "Month 1 on Earth � First Confusion",
     flavor:
       "The Squigs are still learning gravity, weather, and why humans keep putting pineapple on pizza.",
   },
   {
-    title: "Month 2 on Earth – Bad Influences",
+    title: "Month 2 on Earth � Bad Influences",
     flavor:
       "They discover social media, NFTs, and the horrifying power of quote-tweets.",
   },
   {
-    title: "Month 3 on Earth – Questionable Hobbies",
+    title: "Month 3 on Earth � Questionable Hobbies",
     flavor:
       "Some Squigs start side hustles. Others become professional lurkers. All of them are still extremely weird.",
   },
   {
-    title: "Month 4 on Earth – Full Degeneracy",
+    title: "Month 4 on Earth � Full Degeneracy",
     flavor:
-      "Sleep schedules are gone. Caffeine is up. Decisions are… not always good ones.",
+      "Sleep schedules are gone. Caffeine is up. Decisions are� not always good ones.",
   },
   {
-    title: "Month 5 on Earth – The Great Overthink",
+    title: "Month 5 on Earth � The Great Overthink",
     flavor:
-      "The Squigs begin to wonder if humans actually know what they’re doing. Signs point to ‘no’.",
+      "The Squigs begin to wonder if humans actually know what they�re doing. Signs point to �no�.",
   },
   {
-    title: "Month 6 on Earth – Vanishing Acts",
+    title: "Month 6 on Earth � Vanishing Acts",
     flavor:
       "One by one, Squigs disappear into strange side quests, mysterious DMs, and badly-timed adventures.",
   },
@@ -57,7 +57,7 @@ const MILESTONE_STAGES = [
 ];
 
 function format(template, victimId, killerId) {
-  // Victim is always eliminated → crossed out.
+  // Victim is always eliminated ? crossed out.
   const victimMention = `~~<@${victimId}>~~`;
   const killerMention = killerId ? `<@${killerId}>` : "another Squig";
 
@@ -86,9 +86,9 @@ async function runSurvival(channel, playerIds, eraLabel) {
     await channel.send({
       embeds: [
         new EmbedBuilder()
-          .setTitle("Squig Survival – Default Victory")
+          .setTitle("Squig Survival � Default Victory")
           .setDescription(
-            `<@${alive[0]}> is the only Squig who dared the portal.\nThey survive by technicality… the portal is unimpressed.`
+            `<@${alive[0]}> is the only Squig who dared the portal.\nThey survive by technicality� the portal is unimpressed.`
           )
           .setColor(0x2ecc71),
       ],
@@ -118,7 +118,7 @@ async function runSurvival(channel, playerIds, eraLabel) {
         // Clumsiness
         text = format(pick(stories.clumsiness), victimId);
       } else {
-        // Sabotage – needs a killer if possible
+        // Sabotage � needs a killer if possible
         if (alive.length === 0) {
           text = format(pick(stories.clumsiness), victimId);
         } else {
@@ -127,8 +127,8 @@ async function runSurvival(channel, playerIds, eraLabel) {
         }
       }
 
-      // 💀 Death line
-      lines.push(`💀 ${text}`);
+      // ?? Death line
+      lines.push(`?? ${text}`);
     }
 
     // --- RESURRECTION CHANCE ---
@@ -149,8 +149,8 @@ async function runSurvival(channel, playerIds, eraLabel) {
         `<@${revivedId}>`
       );
 
-      // ✨ Revival line
-      lines.push(`✨ ${resurrectionText}`);
+      // ? Revival line
+      lines.push(`? ${resurrectionText}`);
     }
 
     // Pick the stage for this milestone
@@ -161,7 +161,7 @@ async function runSurvival(channel, playerIds, eraLabel) {
     const stage = MILESTONE_STAGES[stageIndex];
 
     const embed = new EmbedBuilder()
-      .setTitle(`Squig Life – ${stage.title}`)
+      .setTitle(`Squig Life � ${stage.title}`)
       .setColor(0x9b59b6);
 
     const descriptionParts = [];
@@ -183,7 +183,7 @@ async function runSurvival(channel, playerIds, eraLabel) {
 
     if (eraLabel) {
       embed.setFooter({
-        text: `${eraLabel} • ${remainingText}`,
+        text: `${eraLabel} � ${remainingText}`,
       });
     } else {
       embed.setFooter({
@@ -195,7 +195,7 @@ async function runSurvival(channel, playerIds, eraLabel) {
     milestone += 1;
 
     // Short breather between milestones
-    await sleep(6000);
+    await sleep(8000);
   }
 
   // Winner + standings
@@ -205,20 +205,20 @@ async function runSurvival(channel, playerIds, eraLabel) {
   const lbLines = placements.map((id, index) => {
     const rank = index + 1;
     let prefix;
-    if (rank === 1) prefix = "👑 1st";
-    else if (rank === 2) prefix = "🥈 2nd";
-    else if (rank === 3) prefix = "🥉 3rd";
+    if (rank === 1) prefix = "?? 1st";
+    else if (rank === 2) prefix = "?? 2nd";
+    else if (rank === 3) prefix = "?? 3rd";
     else prefix = `${rank}.`;
-    return `${prefix} — <@${id}>`;
+    return `${prefix} � <@${id}>`;
   });
 
   await channel.send({
     embeds: [
       new EmbedBuilder()
-        .setTitle("Squig Survival – Final Standings")
+        .setTitle("Squig Survival � Final Standings")
         .setDescription(lbLines.join("\n"))
         .setColor(0xf1c40f)
-        .setFooter({ text: "Only one Squig ever really makes it…" }),
+        .setFooter({ text: "Only one Squig ever really makes it�" }),
     ],
   });
 
@@ -279,6 +279,7 @@ async function sendSurvivalPayouts(channel, payouts) {
             amount,
             score: 0,
             source: "survival",
+            channelId: channel.id,
           });
         }
       })

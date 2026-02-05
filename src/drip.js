@@ -5,7 +5,7 @@ const axios = require("axios");
 
 const DRIP_API_KEY = process.env.DRIP_API_KEY;
 const DRIP_REALM_ID = process.env.DRIP_REALM_ID;
-const DRIP_LOG_CHANNEL_ID = "1403005536982794371";
+const DRIP_LOG_CHANNEL_ID = process.env.DRIP_LOG_CHANNEL_ID || "1403005536982794371";
 
 function getCharmRewardAmount(score) {
   if (score > 20) return 500;
@@ -100,10 +100,11 @@ async function rewardCharm({ userId, username, score, source, guildId, channelId
   });
 }
 
-async function logCharmReward(client, { userId, amount, score, source }) {
-  if (!client || !DRIP_LOG_CHANNEL_ID) return false;
+async function logCharmReward(client, { userId, amount, score, source, channelId }) {
+  const targetChannelId = channelId || DRIP_LOG_CHANNEL_ID;
+  if (!client || !targetChannelId) return false;
   try {
-    const ch = await client.channels.fetch(DRIP_LOG_CHANNEL_ID);
+    const ch = await client.channels.fetch(targetChannelId);
     if (!ch || !ch.send) return false;
     await ch.send(
       `<@${userId}> received **${amount} $CHARM** for Gauntlet (${source}, score: ${score}).`
