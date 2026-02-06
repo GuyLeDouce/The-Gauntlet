@@ -6,7 +6,22 @@ const axios = require("axios");
 const DRIP_API_KEY =
   process.env.DRIP_API_KEY || process.env.DRIP_API_TOKEN;
 const DRIP_REALM_ID = process.env.DRIP_REALM_ID;
-const DRIP_LOG_CHANNEL_ID = process.env.DRIP_LOG_CHANNEL_ID || "1403005536982794371";
+const DRIP_LOG_CHANNEL_ID =
+  process.env.DRIP_LOG_CHANNEL_ID || "1403005536982794371";
+const DRIP_BASE_URL = process.env.DRIP_BASE_URL || "https://api.drip.re/api/v1";
+
+let envLogged = false;
+function logEnvOnce() {
+  if (envLogged) return;
+  envLogged = true;
+  const hasKey = Boolean(process.env.DRIP_API_KEY);
+  const hasToken = Boolean(process.env.DRIP_API_TOKEN);
+  const hasRealm = Boolean(process.env.DRIP_REALM_ID);
+  const hasBase = Boolean(process.env.DRIP_BASE_URL);
+  console.log(
+    `[GAUNTLET:DRIP] Env check: key=${hasKey} token=${hasToken} realm=${hasRealm} baseUrl=${hasBase}`
+  );
+}
 
 function getCharmRewardAmount(score) {
   if (score > 20) return 500;
@@ -29,6 +44,7 @@ async function rewardCharmAmount({
   channelId,
   metadata,
 }) {
+  logEnvOnce();
   if (!DRIP_API_KEY || !DRIP_REALM_ID) {
     console.warn(
       "[GAUNTLET:DRIP] Missing DRIP_API_KEY or DRIP_REALM_ID. Skipping reward."
@@ -37,7 +53,7 @@ async function rewardCharmAmount({
   }
 
   const auth = buildAuthHeader(DRIP_API_KEY);
-  const base = `https://api.drip.re/api/v1/realm/${DRIP_REALM_ID}`;
+  const base = `${DRIP_BASE_URL}/realm/${DRIP_REALM_ID}`;
 
   try {
     const search = await axios.get(

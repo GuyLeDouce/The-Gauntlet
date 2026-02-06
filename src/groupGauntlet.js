@@ -901,6 +901,7 @@ async function runGroupGame(channel, game) {
             amount: reward.amount,
             score: p.points,
             source: "group",
+            channelId: channel.id,
           });
         }
       })
