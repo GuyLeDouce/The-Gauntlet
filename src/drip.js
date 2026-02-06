@@ -8,7 +8,7 @@ const DRIP_API_KEY =
 const DRIP_REALM_ID = process.env.DRIP_REALM_ID;
 const DRIP_LOG_CHANNEL_ID =
   process.env.DRIP_LOG_CHANNEL_ID || "1403005536982794371";
-const DRIP_BASE_URL = process.env.DRIP_BASE_URL || "https://api.drip.re/api/v1";
+const DRIP_BASE_URL = process.env.DRIP_BASE_URL || "https://api.drip.re";
 
 let envLogged = false;
 function logEnvOnce() {
@@ -21,6 +21,15 @@ function logEnvOnce() {
   console.log(
     `[GAUNTLET:DRIP] Env check: key=${hasKey} token=${hasToken} realm=${hasRealm} baseUrl=${hasBase}`
   );
+}
+
+function buildRealmBaseUrl() {
+  const raw = DRIP_BASE_URL || "";
+  const base = raw.endsWith("/") ? raw.slice(0, -1) : raw;
+  const lower = base.toLowerCase();
+  if (lower.includes("/realm")) return base;
+  if (lower.includes("/api/v1")) return `${base}/realm`;
+  return `${base}/api/v1/realm`;
 }
 
 function getCharmRewardAmount(score) {
@@ -53,7 +62,7 @@ async function rewardCharmAmount({
   }
 
   const auth = buildAuthHeader(DRIP_API_KEY);
-  const base = `${DRIP_BASE_URL}/realm/${DRIP_REALM_ID}`;
+  const base = `${buildRealmBaseUrl()}/${DRIP_REALM_ID}`;
 
   try {
     const search = await axios.get(
