@@ -9,6 +9,7 @@ const DRIP_REALM_ID = process.env.DRIP_REALM_ID;
 const DRIP_LOG_CHANNEL_ID =
   process.env.DRIP_LOG_CHANNEL_ID || "1403005536982794371";
 const DRIP_BASE_URL = process.env.DRIP_BASE_URL || "https://api.drip.re";
+const DRIP_REALM_PATH = process.env.DRIP_REALM_PATH || "realm";
 
 let envLogged = false;
 function logEnvOnce() {
@@ -18,8 +19,9 @@ function logEnvOnce() {
   const hasToken = Boolean(process.env.DRIP_API_TOKEN);
   const hasRealm = Boolean(process.env.DRIP_REALM_ID);
   const hasBase = Boolean(process.env.DRIP_BASE_URL);
+  const realmPath = DRIP_REALM_PATH;
   console.log(
-    `[GAUNTLET:DRIP] Env check: key=${hasKey} token=${hasToken} realm=${hasRealm} baseUrl=${hasBase}`
+    `[GAUNTLET:DRIP] Env check: key=${hasKey} token=${hasToken} realm=${hasRealm} baseUrl=${hasBase} realmPath=${realmPath}`
   );
 }
 
@@ -27,9 +29,9 @@ function buildRealmBaseUrl() {
   const raw = DRIP_BASE_URL || "";
   const base = raw.endsWith("/") ? raw.slice(0, -1) : raw;
   const lower = base.toLowerCase();
-  if (lower.includes("/realm")) return base;
-  if (lower.includes("/api/v1")) return `${base}/realm`;
-  return `${base}/api/v1/realm`;
+  if (lower.includes("/realm") || lower.includes("/realms")) return base;
+  if (lower.includes("/api/v1")) return `${base}/${DRIP_REALM_PATH}`;
+  return `${base}/api/v1/${DRIP_REALM_PATH}`;
 }
 
 function getCharmRewardAmount(score) {
@@ -63,12 +65,13 @@ async function rewardCharmAmount({
 
   const auth = buildAuthHeader(DRIP_API_KEY);
   const base = `${buildRealmBaseUrl()}/${DRIP_REALM_ID}`;
+  const searchUrl = `${base}/members/search?type=discord-id&values=${encodeURIComponent(
+    userId
+  )}`;
 
   try {
     const search = await axios.get(
-      `${base}/members/search?type=discord-id&values=${encodeURIComponent(
-        userId
-      )}`,
+      searchUrl,
       {
         headers: { Authorization: auth },
         timeout: 10_000,
@@ -107,7 +110,8 @@ async function rewardCharmAmount({
     console.error(
       "[GAUNTLET:DRIP] Reward failed:",
       status || err.message,
-      data || ""
+      data || "",
+      `url=${searchUrl}`
     );
     return { ok: false, error: err };
   }
