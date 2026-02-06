@@ -1,4 +1,4 @@
-﻿// index.js � Entry Point for The Gauntlet (Solo + Group)
+// index.js - Entry Point for The Gauntlet (Solo + Group)
 
 require("dotenv").config();
 
@@ -26,12 +26,12 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMessageReactions, // ?? needed for ? joins
+    GatewayIntentBits.GuildMessageReactions, // needed for joins
   ],
   partials: [
     Partials.Channel,
     Partials.Message,
-    Partials.Reaction, // ?? helps with reactions on cached messages
+    Partials.Reaction, // helps with reactions on cached messages
   ],
 });
 
@@ -46,7 +46,7 @@ client.once(Events.ClientReady, async () => {
   try {
     // This now registers BOTH solo + group commands in one shot
     await registerCommands();
-    console.log("? Slash commands registered (solo + group).");
+    console.log("? Slash commands registered (solo + group)." );
   } catch (err) {
     console.error("? Error registering commands:", err);
   }
@@ -70,3 +70,4 @@ client.on(Events.InteractionCreate, async (interaction) => {
 // LOGIN
 // --------------------------------------------
 client.login(TOKEN);
+

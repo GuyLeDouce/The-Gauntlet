@@ -3,7 +3,8 @@
 
 const axios = require("axios");
 
-const DRIP_API_KEY = process.env.DRIP_API_KEY;
+const DRIP_API_KEY =
+  process.env.DRIP_API_KEY || process.env.DRIP_API_TOKEN;
 const DRIP_REALM_ID = process.env.DRIP_REALM_ID;
 const DRIP_LOG_CHANNEL_ID = process.env.DRIP_LOG_CHANNEL_ID || "1403005536982794371";
 
