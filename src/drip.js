@@ -46,6 +46,29 @@ function buildAuthHeader(apiKey) {
   return `Bearer ${apiKey}`;
 }
 
+const DRIP_TIMEOUT_MS = Number(process.env.DRIP_TIMEOUT_MS) || 30_000;
+const DRIP_RETRY_COUNT = Number(process.env.DRIP_RETRY_COUNT) || 2;
+
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function getWithRetry(url, opts) {
+  let lastErr;
+  for (let attempt = 0; attempt <= DRIP_RETRY_COUNT; attempt += 1) {
+    try {
+      return await axios.get(url, opts);
+    } catch (err) {
+      lastErr = err;
+      const status = err?.response?.status;
+      const isRetryable =
+        !status || status >= 500 || err?.code === "ECONNABORTED";
+      if (!isRetryable || attempt === DRIP_RETRY_COUNT) break;
+      const backoff = 500 * Math.pow(2, attempt);
+      await wait(backoff);
+    }
+  }
+  throw lastErr;
+}
+
 async function rewardCharmAmount({
   userId,
   username,
@@ -70,13 +93,10 @@ async function rewardCharmAmount({
   )}`;
 
   try {
-    const search = await axios.get(
-      searchUrl,
-      {
-        headers: { Authorization: auth },
-        timeout: 10_000,
-      }
-    );
+    const search = await getWithRetry(searchUrl, {
+      headers: { Authorization: auth },
+      timeout: DRIP_TIMEOUT_MS,
+    });
 
     const member = search?.data?.data?.[0];
     if (!member?.id) {
@@ -86,20 +106,24 @@ async function rewardCharmAmount({
       return { ok: false, skipped: true, reason: "member_not_found" };
     }
 
-    await axios.patch(`${base}/members/${member.id}/point-balance`, {
-      tokens: amount,
-      source,
-      guildId,
-      channelId,
-      awardedAt: new Date().toISOString(),
-      ...(metadata || {}),
-    }, {
-      headers: {
-        Authorization: auth,
-        "Content-Type": "application/json",
+    await axios.patch(
+      `${base}/members/${member.id}/point-balance`,
+      {
+        tokens: amount,
+        source,
+        guildId,
+        channelId,
+        awardedAt: new Date().toISOString(),
+        ...(metadata || {}),
       },
-      timeout: 10_000,
-    });
+      {
+        headers: {
+          Authorization: auth,
+          "Content-Type": "application/json",
+        },
+        timeout: DRIP_TIMEOUT_MS,
+      }
+    );
     console.log(
       `[GAUNTLET:DRIP] Rewarded ${amount} $CHARM to ${userId} (${source}).`
     );
