@@ -175,19 +175,27 @@ async function rewardCharmAmount({
       return { ok: false, skipped: true, reason: "member_not_found" };
     }
 
-    await axios.patch(
-      `${baseUsed}/members/${member.id}/point-balance`,
-      {
-        tokens: amount,
+    const patchPayload = { tokens: amount };
+    const patchOpts = {
+      headers: {
+        Authorization: auth,
+        "Content-Type": "application/json",
       },
-      {
-        headers: {
-          Authorization: auth,
-          "Content-Type": "application/json",
-        },
-        timeout: DRIP_TIMEOUT_MS,
-      }
-    );
+      timeout: DRIP_TIMEOUT_MS,
+    };
+
+    const patchUrlPrimary = `${baseUsed}/members/${member.id}/point-balance`;
+    const patchUrlFallback =
+      baseUsed === baseRealm
+        ? `${baseRealms}/members/${member.id}/point-balance`
+        : `${baseRealm}/members/${member.id}/point-balance`;
+
+    try {
+      await axios.patch(patchUrlPrimary, patchPayload, patchOpts);
+    } catch (err) {
+      if (err?.response?.status !== 404) throw err;
+      await axios.patch(patchUrlFallback, patchPayload, patchOpts);
+    }
     console.log(
       `[GAUNTLET:DRIP] Rewarded ${amount} $CHARM to ${userId} (${source}).`
     );
