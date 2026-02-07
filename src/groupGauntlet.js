@@ -29,7 +29,7 @@ const {
 } = require("./gameData");
 const { rewardCharm, logCharmReward } = require("./drip");
 
-// ðŸ‘‰ Exported Slash command definition for unified registration
+// 👉 Exported Slash command definition for unified registration
 const groupGauntletCommand = new SlashCommandBuilder()
   .setName("groupgauntlet")
   .setDescription("Start a live multi-player Gauntlet in this channel.")
@@ -71,7 +71,7 @@ function createGroupGame(channel, hostId) {
 async function handleGroupGauntletCommand(interaction) {
   if (!isAdminUser(interaction)) {
     await interaction.reply({
-      content: "â›” Only admins can start a Group Gauntlet.",
+      content: "⛔ Only admins can start a Group Gauntlet.",
       flags: 64,
     });
     return true;
@@ -80,7 +80,7 @@ async function handleGroupGauntletCommand(interaction) {
   const channel = interaction.channel;
   if (!channel) {
     await interaction.reply({
-      content: "âŒ Can't find channel for this command.",
+      content: "❌ Can't find channel for this command.",
       flags: 64,
     });
     return true;
@@ -88,7 +88,7 @@ async function handleGroupGauntletCommand(interaction) {
 
   if (activeGames.has(channel.id)) {
     await interaction.reply({
-      content: "âš ï¸ A Group Gauntlet is already running in this channel.",
+      content: "⚠️ A Group Gauntlet is already running in this channel.",
       flags: 64,
     });
     return true;
@@ -101,7 +101,7 @@ async function handleGroupGauntletCommand(interaction) {
   activeGames.set(channel.id, game);
 
   const embed = new EmbedBuilder()
-    .setTitle("âš”ï¸ The Gauntlet â€” Group Edition")
+    .setTitle("⚔️ The Gauntlet — Group Edition")
     .setDescription(
       [
         `Hosted by: <@${interaction.user.id}>`,
@@ -158,7 +158,7 @@ async function handleGroupGauntletCommand(interaction) {
         game.players.set(userId, { id: userId, username, points: 0 });
       }
       await btn.reply({
-        content: `âœ… You joined the Gauntlet.`,
+        content: "✅ You joined the Gauntlet.",
         flags: 64,
       });
     } else if (btn.customId === "gg:leave") {
@@ -166,20 +166,20 @@ async function handleGroupGauntletCommand(interaction) {
         game.players.delete(userId);
       }
       await btn.reply({
-        content: `ðŸ‘‹ You left this Gauntlet run.`,
+        content: "👋 You left this Gauntlet run.",
         flags: 64,
       });
     } else if (btn.customId === "gg:startnow") {
       // Only host or admin can start early
       if (userId !== game.hostId && !isAdminUser(btn)) {
         await btn.reply({
-          content: "â›” Only the host/admin can start early.",
+          content: "⛔ Only the host/admin can start early.",
           flags: 64,
         });
         return;
       }
       await btn.reply({
-        content: "ðŸŽ¬ Starting the Gauntlet now...",
+        content: "🎬 Starting the Gauntlet now...",
         flags: 64,
       });
       collector.stop("startnow");
@@ -193,7 +193,7 @@ async function handleGroupGauntletCommand(interaction) {
 
     if (!game.players.size) {
       activeGames.delete(channel.id);
-      await channel.send("ðŸ˜´ No players joined. The charm loses interest.");
+      await channel.send("😴 No players joined. The charm loses interest.");
       return;
     }
 
@@ -205,7 +205,7 @@ async function handleGroupGauntletCommand(interaction) {
 
     await channel.send(
       [
-        "ðŸ§± **The Gauntlet begins.**",
+        "🧱 **The Gauntlet begins.**",
         `Players: ${list}`,
         "",
         "Keep your eyes on this channel. Rounds will move quickly.",
@@ -216,7 +216,7 @@ async function handleGroupGauntletCommand(interaction) {
       await runGroupGame(channel, game);
     } catch (err) {
       console.error("Group game error:", err);
-      await channel.send("âŒ Something broke inside the portal. Game aborted.");
+      await channel.send("❌ Something broke inside the portal. Game aborted.");
     } finally {
       activeGames.delete(channel.id);
     }
@@ -226,7 +226,7 @@ async function handleGroupGauntletCommand(interaction) {
 }
 
 // --------------------------------------------
-// ROUND HELPERS â€” SEQUENTIAL (no overlap)
+// ROUND HELPERS — SEQUENTIAL (no overlap)
 // --------------------------------------------
 
 function runMiniGameRound(channel, game, roundNumber) {
@@ -235,7 +235,7 @@ function runMiniGameRound(channel, game, roundNumber) {
     const fate = rand(miniGameFateDescriptions);
 
     const embed = new EmbedBuilder()
-      .setTitle(`ðŸŒªï¸ ROUND ${roundNumber} â€” ${mini.title}`)
+      .setTitle(`🌪️ ROUND ${roundNumber} — ${mini.title}`)
       .setDescription(
         [
           mini.lore,
@@ -243,7 +243,7 @@ function runMiniGameRound(channel, game, roundNumber) {
           `_${fate}_`,
           "",
           "Click a button to lock in your choice.",
-          "â³ You have **30 seconds**.",
+          "⏳ You have **30 seconds**.",
         ].join("\n")
       )
       .setColor(0xff33cc);
@@ -276,7 +276,7 @@ function runMiniGameRound(channel, game, roundNumber) {
       const userId = btn.user.id;
       if (!game.players.has(userId)) {
         await btn.reply({
-          content: "Youâ€™re not in this Gauntlet run.",
+          content: "You’re not in this Gauntlet run.",
           flags: 64,
         });
         return;
@@ -324,13 +324,13 @@ function runMiniGameRound(channel, game, roundNumber) {
       const resultLines = [];
       if (winners.length) {
         resultLines.push(
-          `ðŸŽ‰ The charm favors **${winningLabel}**.\nWinners (+2): ${winners
+          `🎉 The charm favors **${winningLabel}**.\nWinners (+2): ${winners
             .map((w) => `<@${w.id}> (**${w.points}**)`)
             .join(", ")}`
         );
       } else {
         resultLines.push(
-          `ðŸ‘» The charm favors **${winningLabel}**, but no one chose it. No points.`
+          `👻 The charm favors **${winningLabel}**, but no one chose it. No points.`
         );
       }
 
@@ -345,7 +345,7 @@ function runRiddleRound(channel, game, roundLabel) {
   return new Promise(async (resolve) => {
     const r = pickRiddle(riddles, game.usedRiddle);
     if (!r) {
-      await channel.send("âš ï¸ No riddles left. Skipping.");
+      await channel.send("⚠️ No riddles left. Skipping.");
       return resolve();
     }
 
@@ -359,14 +359,14 @@ function runRiddleRound(channel, game, roundLabel) {
         : "SQUIG SPECIAL";
 
     const embed = new EmbedBuilder()
-      .setTitle(`ðŸ§  MID-ROUND RIDDLE (${roundLabel})`)
+      .setTitle(`🧩 MID-ROUND RIDDLE (${roundLabel})`)
       .setDescription(
         [
           r.riddle,
           "",
-          `ðŸŒ€ Difficulty: **${difficultyLabel}** â€” Worth **+${r.difficulty}**.`,
-          "Type your answer in chat (spelling doesnâ€™t have to be perfect).",
-          "â³ You have **30 seconds**.",
+          `🧠 Difficulty: **${difficultyLabel}** — Worth **+${r.difficulty}**.`,
+          "Type your answer in chat (spelling doesn’t have to be perfect).",
+          "⏳ You have **30 seconds**.",
         ].join("\n")
       )
       .setColor(0xff66cc);
@@ -396,7 +396,7 @@ function runRiddleRound(channel, game, roundLabel) {
         player.points += r.difficulty;
         channel
           .send(
-            `ðŸ§  <@${userId}> answered correctly and gained **+${r.difficulty}** (total: **${player.points}**).`
+            `🧩 <@${userId}> answered correctly and gained **+${r.difficulty}** (total: **${player.points}**).`
           )
           .catch(() => {});
       }
@@ -406,8 +406,8 @@ function runRiddleRound(channel, game, roundLabel) {
       const count = correctSet.size;
       await channel.send(
         [
-          `âœ… Riddle completed. **${count}** player(s) answered correctly and gained **+${r.difficulty}**.`,
-          `ðŸ§© The correct answer was: **${r.answers[0]}**.`,
+          `✅ Riddle completed. **${count}** player(s) answered correctly and gained **+${r.difficulty}**.`,
+          `🧩 The correct answer was: **${r.answers[0]}**.`,
         ].join("\n")
       );
       await sendScoreboard(channel, game);
@@ -419,16 +419,16 @@ function runRiddleRound(channel, game, roundLabel) {
 function runTrustDoubtRound(channel, game, roundNumber) {
   return new Promise(async (resolve) => {
     const embed = new EmbedBuilder()
-      .setTitle(`ðŸ¤ ROUND ${roundNumber} â€” Trust or Doubt`)
+      .setTitle(`🤝 ROUND ${roundNumber} — Trust or Doubt`)
       .setDescription(
         [
           "Players click **Trust** or **Doubt**.",
           "",
-          "If majority choose **Trust**, they gain **+1** â€”",
-          "ðŸ‘‰ _unless the Squig lies this round, then Trusters **-1** instead._",
+          "If majority choose **Trust**, they gain **+1** —",
+          "👉 _unless the Squig lies this round, then Trusters **-1** instead._",
           "Everyone else: 0.",
           "",
-          "â³ You have **30 seconds**.",
+          "⏳ You have **30 seconds**.",
         ].join("\n")
       )
       .setColor(0x00bcd4);
@@ -456,7 +456,7 @@ function runTrustDoubtRound(channel, game, roundNumber) {
     collector.on("collect", async (btn) => {
       const userId = btn.user.id;
       if (!game.players.has(userId)) {
-        await btn.reply({ content: "Youâ€™re not in this run.", flags: 64 });
+        await btn.reply({ content: "You’re not in this run.", flags: 64 });
         return;
       }
       if (picks.has(userId)) {
@@ -544,7 +544,7 @@ function runTrustDoubtRound(channel, game, roundNumber) {
 
       await channel.send(
         [
-          "**Trust or Doubt â€” Results**",
+          "**Trust or Doubt — Results**",
           `Trusters (${trusters.length}): ${trustList}`,
           `Doubters (${doubters.length}): ${doubtList}`,
           "",
@@ -561,14 +561,14 @@ function runTrustDoubtRound(channel, game, roundNumber) {
 function runRouletteRound(channel, game, roundNumber) {
   return new Promise(async (resolve) => {
     const embed = new EmbedBuilder()
-      .setTitle(`ðŸŽ² ROUND ${roundNumber} â€” Squig Roulette`)
+      .setTitle(`🎲 ROUND ${roundNumber} — Squig Roulette`)
       .setDescription(
         [
-          "Pick a number **1â€“6**.",
+          "Pick a number **1–6**.",
           "Roll happens at the end.",
           "Match = **+2 points**, else **0**.",
           "",
-          "â³ You have **30 seconds**.",
+          "⏳ You have **30 seconds**.",
         ].join("\n")
       )
       .setColor(0x7f00ff);
@@ -646,7 +646,7 @@ function runRouletteRound(channel, game, roundNumber) {
 
       await channel.send(
         [
-          `ðŸŽ² Rolled a **${rolled}**.`,
+          `🎲 Rolled a **${rolled}**.`,
           winners.length
             ? `Winners (+2): ${winList}`
             : "No one guessed correctly.",
@@ -662,18 +662,18 @@ function runRouletteRound(channel, game, roundNumber) {
 function runRiskItRound(channel, game) {
   return new Promise(async (resolve) => {
     const embed = new EmbedBuilder()
-      .setTitle("ðŸª™ RISK IT â€” The Charm Tempts You")
+      .setTitle("🪙 RISK IT — The Charm Tempts You")
       .setDescription(
         [
           "Between rounds, the static parts... and a Squig grins.",
-          "Risk your points for a shot at more â€” or lose them to the void.",
+          "Risk your points for a shot at more — or lose them to the void.",
           "",
-          "â€¢ **Risk All** â€” stake everything",
-          "â€¢ **Risk Half** â€” stake half your current points",
-          "â€¢ **Risk Quarter** â€” stake a quarter (min 1)",
-          "â€¢ **No Risk** â€” sit out and watch the chaos",
+          "• **Risk All** — stake everything",
+          "• **Risk Half** — stake half your current points",
+          "• **Risk Quarter** — stake a quarter (min 1)",
+          "• **No Risk** — sit out and watch the chaos",
           "",
-          "â³ You have **20 seconds**.",
+          "⏳ You have **20 seconds**.",
         ].join("\n")
       )
       .setColor(0xffaa00);
@@ -739,13 +739,13 @@ function runRiskItRound(channel, game) {
       } catch {}
 
       const outcomes = [
-        { mult: -1, label: "ðŸ’€ Lost it all" },
-        { mult: 0, label: "ðŸ˜® Broke even" },
-        { mult: 0.5, label: "âœ¨ Won 1.5Ã—" },
-        { mult: 1, label: "ðŸ‘‘ Doubled" },
+        { mult: -1, label: "💀 Lost it all" },
+        { mult: 0, label: "😐 Broke even" },
+        { mult: 0.5, label: "✨ Won 1.5×" },
+        { mult: 1, label: "💰 Doubled" },
       ];
 
-      const lines = ["**Risk It â€” Results**"];
+      const lines = ["**Risk It — Results**"];
 
       for (const [uid, choice] of picks.entries()) {
         const p = game.players.get(uid);
@@ -753,7 +753,7 @@ function runRiskItRound(channel, game) {
 
         const pts = Math.floor(p.points || 0);
         if (choice === "none" || pts <= 0) {
-          lines.push(`â€¢ <@${uid}> â€¢ No Risk (total stays **${p.points}**)`);
+          lines.push(`• <@${uid}> • No Risk (total stays **${p.points}**)`);
           continue;
         }
 
@@ -769,7 +769,7 @@ function runRiskItRound(channel, game) {
         const prettyDelta = delta === 0 ? "0" : delta > 0 ? `+${delta}` : `${delta}`;
 
         lines.push(
-          `â€¢ <@${uid}> â€¢ ${choice.toUpperCase()} (staked ${stake}) â†’ ${outcome.label} â€¢ **${prettyDelta}** â€¢ new total: **${p.points}**`
+          `• <@${uid}> • ${choice.toUpperCase()} (staked ${stake}) → ${outcome.label} • **${prettyDelta}** • new total: **${p.points}**`
         );
       }
 
@@ -793,11 +793,11 @@ function sortPlayers(game) {
 async function sendScoreboard(channel, game) {
   const sorted = sortPlayers(game);
   const desc = sorted
-    .map((p, i) => `**#${i + 1}** ${p.username} â€” **${p.points}**`)
+    .map((p, i) => `**#${i + 1}** ${p.username} — **${p.points}**`)
     .join("\n");
 
   const embed = new EmbedBuilder()
-    .setTitle("ðŸ“Š Current Gauntlet Leaderboard")
+    .setTitle("📊 Current Gauntlet Leaderboard")
     .setDescription(desc || "No scores yet.")
     .setColor(0x00ccff);
 
@@ -816,25 +816,25 @@ async function sendFinalPodium(channel, game) {
   const third = sorted[2];
 
   const lines = [];
-  lines.push("ðŸ‘â€ðŸ—¨ï¸ **THE FINAL PODIUM** ðŸ‘â€ðŸ—¨ï¸");
+  lines.push("👁️‍🗨️ **THE FINAL PODIUM** 👁️‍🗨️");
   lines.push("The charm acknowledges those who rose above...");
   lines.push("");
-  lines.push(`ðŸ‘¥ ${sorted.length} players participated in this Gauntlet.`);
+  lines.push(`👥 ${sorted.length} players participated in this Gauntlet.`);
   lines.push("");
 
   if (first) {
-    lines.push("ðŸ‘‘ **Champion of the Charm**");
-    lines.push(`ðŸ¥‡ <@${first.id}> â€” **${first.points}** points`);
+    lines.push("💰 **Champion of the Charm**");
+    lines.push(`🥇 <@${first.id}> — **${first.points}** points`);
     lines.push("");
   }
   if (second) {
-    lines.push("ðŸŒ‘ **Scarred But Standing**");
-    lines.push(`ðŸ¥ˆ <@${second.id}> â€” **${second.points}** points`);
+    lines.push("🌑 **Scarred But Standing**");
+    lines.push(`🥈 <@${second.id}> — **${second.points}** points`);
     lines.push("");
   }
   if (third) {
-    lines.push("ðŸ•³ï¸ **Last One Dragged from the Void**");
-    lines.push(`ðŸ¥‰ <@${third.id}> â€” **${third.points}** points`);
+    lines.push("🕳️ **Last One Dragged from the Void**");
+    lines.push(`🥉 <@${third.id}> — **${third.points}** points`);
     lines.push("");
   }
 
@@ -910,7 +910,7 @@ async function runGroupGame(channel, game) {
       })
     );
   } catch {}
-  await channel.send("ðŸ“¯ Maybe enough reactions will encourage another gameâ€¦");
+  await channel.send("📯 Maybe enough reactions will encourage another game…");
 }
 
 // --------------------------------------------
@@ -934,12 +934,12 @@ async function handleGroupInteractionCreate(interaction) {
       try {
         if (interaction.deferred || interaction.replied) {
           await interaction.followUp({
-            content: "âŒ Something went wrong with Group Gauntlet.",
+            content: "❌ Something went wrong with Group Gauntlet.",
             flags: 64,
           });
         } else {
           await interaction.reply({
-            content: "âŒ Something went wrong with Group Gauntlet.",
+            content: "❌ Something went wrong with Group Gauntlet.",
             flags: 64,
           });
         }
