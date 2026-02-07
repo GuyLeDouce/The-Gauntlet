@@ -908,9 +908,10 @@ async function handleInteractionCreate(interaction) {
 
       // /gauntletlb
       if (interaction.commandName === "gauntletlb") {
+        await interaction.deferReply();
         const month = interaction.options.getString("month") || currentMonthStr();
         const embed = await renderLeaderboardEmbed(month);
-        await interaction.reply({ embeds: [embed] });
+        await interaction.editReply({ embeds: [embed] });
         let sent;
         try {
           sent = await interaction.fetchReply();
@@ -930,6 +931,7 @@ async function handleInteractionCreate(interaction) {
 
       // /gauntletrecent
       if (interaction.commandName === "gauntletrecent") {
+        await interaction.deferReply();
         const month = currentMonthStr();
         const limit = interaction.options.getInteger("limit") || 10;
         const rows = await Store.getRecentRuns(month, limit);
@@ -957,11 +959,12 @@ async function handleInteractionCreate(interaction) {
           .setDescription(lines)
           .setColor(0x00ccff);
 
-        return interaction.reply({ embeds: [embed] });
+        return interaction.editReply({ embeds: [embed] });
       }
 
       // /gauntletinfo
       if (interaction.commandName === "gauntletinfo") {
+        await interaction.deferReply({ ephemeral: true });
         const embed = new EmbedBuilder()
           .setTitle("?? Welcome to The Gauntlet — Solo Edition")
           .setDescription(
@@ -981,11 +984,12 @@ async function handleInteractionCreate(interaction) {
           )
           .setColor(0x00ccff);
 
-        return interaction.reply({ embeds: [embed], flags: 64 });
+        return interaction.editReply({ embeds: [embed] });
       }
 
       // /mygauntlet
       if (interaction.commandName === "mygauntlet") {
+        await interaction.deferReply({ ephemeral: true });
         const month = currentMonthStr();
         const mine = await Store.getMyMonth(interaction.user.id, month);
 
@@ -996,7 +1000,7 @@ async function handleInteractionCreate(interaction) {
           )
           .setColor(0x00ccff);
 
-        return interaction.reply({ embeds: [embed], flags: 64 });
+        return interaction.editReply({ embeds: [embed] });
       }
 
       // /survive  (Squig Survival mini-game)
@@ -1189,20 +1193,19 @@ async function handleInteractionCreate(interaction) {
 
     // Start button
     if (interaction.isButton() && interaction.customId === "gauntlet:start") {
+      await interaction.deferReply({ ephemeral: true });
       const today = torontoDateStr();
       const played = await Store.hasPlayed(interaction.user.id, today);
 
       if (played) {
         const when = nextTorontoMidnight();
-        return interaction.reply({
+        return interaction.editReply({
           content: `? You've already played today. Come back after **${when} (Toronto)**.`,
-          flags: 64,
         });
       }
 
-      await interaction.reply({
+      await interaction.editReply({
         content: "?? Your Gauntlet run begins now (ephemeral). Good luck!",
-        flags: 64,
       });
 
       const final = await runSoloGauntletEphemeral(interaction);
@@ -1220,10 +1223,17 @@ async function handleInteractionCreate(interaction) {
     console.error("interaction error:", err);
     if (interaction.isRepliable()) {
       try {
-        await interaction.reply({
-          content: "? Something went wrong.",
-          flags: 64,
-        });
+        if (interaction.deferred || interaction.replied) {
+          await interaction.followUp({
+            content: "? Something went wrong.",
+            flags: 64,
+          });
+        } else {
+          await interaction.reply({
+            content: "? Something went wrong.",
+            flags: 64,
+          });
+        }
       } catch {}
     }
   }

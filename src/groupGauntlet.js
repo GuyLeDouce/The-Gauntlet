@@ -932,10 +932,17 @@ async function handleGroupInteractionCreate(interaction) {
     console.error("GroupGauntlet interaction error:", err);
     if (interaction.isRepliable()) {
       try {
-        await interaction.reply({
-          content: "âŒ Something went wrong with Group Gauntlet.",
-          flags: 64,
-        });
+        if (interaction.deferred || interaction.replied) {
+          await interaction.followUp({
+            content: "âŒ Something went wrong with Group Gauntlet.",
+            flags: 64,
+          });
+        } else {
+          await interaction.reply({
+            content: "âŒ Something went wrong with Group Gauntlet.",
+            flags: 64,
+          });
+        }
       } catch {}
     }
     return true;
