@@ -12,7 +12,6 @@ const DRIP_REALM_ID = process.env.DRIP_REALM_ID;
 const DRIP_LOG_CHANNEL_ID =
   process.env.DRIP_LOG_CHANNEL_ID || "1403005536982794371";
 const DRIP_BASE_URL = process.env.DRIP_BASE_URL || "https://api.drip.re";
-const DRIP_REALM_PATH = process.env.DRIP_REALM_PATH || "realm";
 
 let envLogged = false;
 function logEnvOnce() {
@@ -24,9 +23,8 @@ function logEnvOnce() {
   const hasClientId = Boolean(process.env.DRIP_CLIENT_ID);
   const hasRealm = Boolean(process.env.DRIP_REALM_ID);
   const hasBase = Boolean(process.env.DRIP_BASE_URL);
-  const realmPath = DRIP_REALM_PATH;
   console.log(
-    `[GAUNTLET:DRIP] Env check: key=${hasKey} token=${hasToken} clientSecret=${hasClientSecret} clientId=${hasClientId} realm=${hasRealm} baseUrl=${hasBase} realmPath=${realmPath}`
+    `[GAUNTLET:DRIP] Env check: key=${hasKey} token=${hasToken} clientSecret=${hasClientSecret} clientId=${hasClientId} realm=${hasRealm} baseUrl=${hasBase}`
   );
 }
 
@@ -34,13 +32,13 @@ function buildRealmBaseUrl() {
   const raw = DRIP_BASE_URL || "";
   const base = raw.endsWith("/") ? raw.slice(0, -1) : raw;
   const lower = base.toLowerCase();
-  const path =
-    DRIP_REALM_PATH && DRIP_REALM_PATH.toLowerCase() === "realms"
-      ? "realm"
-      : DRIP_REALM_PATH || "realm";
-  if (lower.includes("/realm") || lower.includes("/realms")) return base;
-  if (lower.includes("/api/v1")) return `${base}/${path}`;
-  return `${base}/api/v1/${path}`;
+  if (lower.includes("/api/v1/realm")) return base;
+  if (lower.includes("/api/v1/realms")) {
+    return base.replace(/\/api\/v1\/realms/i, "/api/v1/realm");
+  }
+  if (lower.endsWith("/realms")) return `${base.slice(0, -"/realms".length)}/realm`;
+  if (lower.endsWith("/realm")) return base;
+  return `${base}/api/v1/realm`;
 }
 
 function getCharmRewardAmount(score) {

@@ -72,7 +72,7 @@ async function handleGroupGauntletCommand(interaction) {
   if (!isAdminUser(interaction)) {
     await interaction.reply({
       content: "⛔ Only admins can start a Group Gauntlet.",
-      ephemeral: true,
+      flags: 64,
     });
     return true;
   }
@@ -81,7 +81,7 @@ async function handleGroupGauntletCommand(interaction) {
   if (!channel) {
     await interaction.reply({
       content: "❌ Can't find channel for this command.",
-      ephemeral: true,
+      flags: 64,
     });
     return true;
   }
@@ -89,7 +89,7 @@ async function handleGroupGauntletCommand(interaction) {
   if (activeGames.has(channel.id)) {
     await interaction.reply({
       content: "⚠️ A Group Gauntlet is already running in this channel.",
-      ephemeral: true,
+      flags: 64,
     });
     return true;
   }
@@ -159,7 +159,7 @@ async function handleGroupGauntletCommand(interaction) {
       }
       await btn.reply({
         content: `✅ You joined the Gauntlet.`,
-        ephemeral: true,
+        flags: 64,
       });
     } else if (btn.customId === "gg:leave") {
       if (game.players.has(userId)) {
@@ -167,20 +167,20 @@ async function handleGroupGauntletCommand(interaction) {
       }
       await btn.reply({
         content: `👋 You left this Gauntlet run.`,
-        ephemeral: true,
+        flags: 64,
       });
     } else if (btn.customId === "gg:startnow") {
       // Only host or admin can start early
       if (userId !== game.hostId && !isAdminUser(btn)) {
         await btn.reply({
           content: "⛔ Only the host/admin can start early.",
-          ephemeral: true,
+          flags: 64,
         });
         return;
       }
       await btn.reply({
         content: "🎬 Starting the Gauntlet now...",
-        ephemeral: true,
+        flags: 64,
       });
       collector.stop("startnow");
     }
@@ -277,14 +277,14 @@ function runMiniGameRound(channel, game, roundNumber) {
       if (!game.players.has(userId)) {
         await btn.reply({
           content: "You’re not in this Gauntlet run.",
-          ephemeral: true,
+          flags: 64,
         });
         return;
       }
       if (picks.has(userId)) {
         await btn.reply({
           content: "You already picked. Sit tight.",
-          ephemeral: true,
+          flags: 64,
         });
         return;
       }
@@ -293,7 +293,7 @@ function runMiniGameRound(channel, game, roundNumber) {
       picks.set(userId, idx);
       await btn.reply({
         content: `Locked in **${btn.component.label}**.`,
-        ephemeral: true,
+        flags: 64,
       });
     });
 
@@ -456,13 +456,13 @@ function runTrustDoubtRound(channel, game, roundNumber) {
     collector.on("collect", async (btn) => {
       const userId = btn.user.id;
       if (!game.players.has(userId)) {
-        await btn.reply({ content: "You’re not in this run.", ephemeral: true });
+        await btn.reply({ content: "You’re not in this run.", flags: 64 });
         return;
       }
       if (picks.has(userId)) {
         await btn.reply({
           content: "Choice already locked.",
-          ephemeral: true,
+          flags: 64,
         });
         return;
       }
@@ -472,7 +472,7 @@ function runTrustDoubtRound(channel, game, roundNumber) {
 
       await btn.reply({
         content: `You chose **${choice.toUpperCase()}**.`,
-        ephemeral: true,
+        flags: 64,
       });
     });
 
@@ -605,11 +605,11 @@ function runRouletteRound(channel, game, roundNumber) {
     collector.on("collect", async (btn) => {
       const uid = btn.user.id;
       if (!game.players.has(uid)) {
-        await btn.reply({ content: "Not in this run.", ephemeral: true });
+        await btn.reply({ content: "Not in this run.", flags: 64 });
         return;
       }
       if (picks.has(uid)) {
-        await btn.reply({ content: "Pick already locked.", ephemeral: true });
+        await btn.reply({ content: "Pick already locked.", flags: 64 });
         return;
       }
       const parts = btn.customId.split(":");
@@ -617,7 +617,7 @@ function runRouletteRound(channel, game, roundNumber) {
       picks.set(uid, val);
       await btn.reply({
         content: `You picked **${val}**.`,
-        ephemeral: true,
+        flags: 64,
       });
     });
 
@@ -709,13 +709,13 @@ function runRiskItRound(channel, game) {
     collector.on("collect", async (btn) => {
       const uid = btn.user.id;
       if (!game.players.has(uid)) {
-        await btn.reply({ content: "Not in this run.", ephemeral: true });
+        await btn.reply({ content: "Not in this run.", flags: 64 });
         return;
       }
       if (picks.has(uid)) {
         await btn.reply({
           content: "Choice already locked.",
-          ephemeral: true,
+          flags: 64,
         });
         return;
       }
@@ -723,7 +723,7 @@ function runRiskItRound(channel, game) {
       picks.set(uid, choice);
       await btn.reply({
         content: `You chose **${choice.toUpperCase()}**.`,
-        ephemeral: true,
+        flags: 64,
       });
     });
 
@@ -934,7 +934,7 @@ async function handleGroupInteractionCreate(interaction) {
       try {
         await interaction.reply({
           content: "❌ Something went wrong with Group Gauntlet.",
-          ephemeral: true,
+          flags: 64,
         });
       } catch {}
     }

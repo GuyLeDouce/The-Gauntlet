@@ -1,4 +1,4 @@
-﻿// survival.js
+// survival.js
 // Core RNG story engine for Squig Survival.
 
 const { EmbedBuilder } = require("discord.js");
@@ -127,8 +127,8 @@ async function runSurvival(channel, playerIds, eraLabel) {
         }
       }
 
-      // 💀 Death line
-      lines.push(`💀 ${text}`);
+      // ?? Death line
+      lines.push(`?? ${text}`);
     }
 
     // --- RESURRECTION CHANCE ---
@@ -149,8 +149,8 @@ async function runSurvival(channel, playerIds, eraLabel) {
         `<@${revivedId}>`
       );
 
-      // ✨ Revival line
-      lines.push(`✨ ${resurrectionText}`);
+      // ? Revival line
+      lines.push(`? ${resurrectionText}`);
     }
 
     // Pick the stage for this milestone
@@ -205,9 +205,9 @@ async function runSurvival(channel, playerIds, eraLabel) {
   const lbLines = placements.map((id, index) => {
     const rank = index + 1;
     let prefix;
-    if (rank === 1) prefix = "🥇 1st";
-    else if (rank === 2) prefix = "🥈 2nd";
-    else if (rank === 3) prefix = "🥉 3rd";
+    if (rank === 1) prefix = "?? 1st";
+    else if (rank === 2) prefix = "?? 2nd";
+    else if (rank === 3) prefix = "?? 3rd";
     else prefix = `${rank}.`;
     return `${prefix} - <@${id}>`;
   });
