@@ -107,17 +107,27 @@ async function rewardCharmAmount({
 
   const auth = buildAuthHeader(DRIP_API_KEY);
   const base = `${buildRealmBaseUrl()}/${DRIP_REALM_ID}`;
-  const searchUrl = `${base}/members/search?type=discord-id&values=${encodeURIComponent(
+  const searchDiscordUrl = `${base}/members/search?type=discord-id&values=${encodeURIComponent(
     userId
   )}`;
+  const searchUsernameUrl = username
+    ? `${base}/members/search?type=username&values=${encodeURIComponent(username)}`
+    : null;
 
   try {
-    const search = await getWithRetry(searchUrl, {
+    let search = await getWithRetry(searchDiscordUrl, {
       headers: { Authorization: auth },
       timeout: DRIP_TIMEOUT_MS,
     });
 
-    const member = search?.data?.data?.[0];
+    let member = search?.data?.data?.[0];
+    if (!member?.id && searchUsernameUrl) {
+      search = await getWithRetry(searchUsernameUrl, {
+        headers: { Authorization: auth },
+        timeout: DRIP_TIMEOUT_MS,
+      });
+      member = search?.data?.data?.[0];
+    }
     if (!member?.id) {
       console.warn(
         `[GAUNTLET:DRIP] No DRIP member found for Discord ID ${userId}.`
@@ -139,11 +149,6 @@ async function rewardCharmAmount({
       `${base}/members/${member.id}/point-balance`,
       {
         tokens: amount,
-        source,
-        guildId,
-        channelId,
-        awardedAt: new Date().toISOString(),
-        ...(metadata || {}),
       },
       {
         headers: {
@@ -164,7 +169,7 @@ async function rewardCharmAmount({
       "[GAUNTLET:DRIP] Reward failed:",
       status || err.message,
       data || "",
-      `url=${searchUrl}`
+      `url=${searchDiscordUrl}`
     );
     if (logClient) {
       await logCharmReward(logClient, {
