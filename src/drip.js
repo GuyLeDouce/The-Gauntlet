@@ -41,6 +41,19 @@ function buildRealmBaseUrl() {
   return `${base}/api/v1/realm`;
 }
 
+function buildRealmsBaseUrl() {
+  const raw = DRIP_BASE_URL || "";
+  const base = raw.endsWith("/") ? raw.slice(0, -1) : raw;
+  const lower = base.toLowerCase();
+  if (lower.includes("/api/v1/realms")) return base;
+  if (lower.includes("/api/v1/realm")) {
+    return base.replace(/\/api\/v1\/realm/i, "/api/v1/realms");
+  }
+  if (lower.endsWith("/realm")) return `${base.slice(0, -"/realm".length)}/realms`;
+  if (lower.endsWith("/realms")) return base;
+  return `${base}/api/v1/realms`;
+}
+
 function getCharmRewardAmount(score) {
   if (score > 20) return 500;
   if (score > 10) return 100;
@@ -106,27 +119,44 @@ async function rewardCharmAmount({
   }
 
   const auth = buildAuthHeader(DRIP_API_KEY);
-  const base = `${buildRealmBaseUrl()}/${DRIP_REALM_ID}`;
-  const searchDiscordUrl = `${base}/members/search?type=discord-id&values=${encodeURIComponent(
-    userId
-  )}`;
-  const searchUsernameUrl = username
-    ? `${base}/members/search?type=username&values=${encodeURIComponent(username)}`
-    : null;
+  const baseRealm = `${buildRealmBaseUrl()}/${DRIP_REALM_ID}`;
+  const baseRealms = `${buildRealmsBaseUrl()}/${DRIP_REALM_ID}`;
 
   try {
-    let search = await getWithRetry(searchDiscordUrl, {
-      headers: { Authorization: auth },
-      timeout: DRIP_TIMEOUT_MS,
-    });
+    let member = null;
+    let baseUsed = baseRealm;
 
-    let member = search?.data?.data?.[0];
-    if (!member?.id && searchUsernameUrl) {
-      search = await getWithRetry(searchUsernameUrl, {
+    const trySearch = async (baseUrl) => {
+      const searchDiscordUrl = `${baseUrl}/members/search?type=discord-id&values=${encodeURIComponent(
+        userId
+      )}`;
+      const searchUsernameUrl = username
+        ? `${baseUrl}/members/search?type=username&values=${encodeURIComponent(username)}`
+        : null;
+
+      let search = await getWithRetry(searchDiscordUrl, {
         headers: { Authorization: auth },
         timeout: DRIP_TIMEOUT_MS,
       });
-      member = search?.data?.data?.[0];
+
+      let found = search?.data?.data?.[0];
+      if (!found?.id && searchUsernameUrl) {
+        search = await getWithRetry(searchUsernameUrl, {
+          headers: { Authorization: auth },
+          timeout: DRIP_TIMEOUT_MS,
+        });
+        found = search?.data?.data?.[0];
+      }
+      return found || null;
+    };
+
+    try {
+      member = await trySearch(baseRealm);
+      baseUsed = baseRealm;
+    } catch (err) {
+      if (err?.response?.status !== 404) throw err;
+      member = await trySearch(baseRealms);
+      baseUsed = baseRealms;
     }
     if (!member?.id) {
       console.warn(
@@ -146,7 +176,7 @@ async function rewardCharmAmount({
     }
 
     await axios.patch(
-      `${base}/members/${member.id}/point-balance`,
+      `${baseUsed}/members/${member.id}/point-balance`,
       {
         tokens: amount,
       },
@@ -169,7 +199,7 @@ async function rewardCharmAmount({
       "[GAUNTLET:DRIP] Reward failed:",
       status || err.message,
       data || "",
-      `url=${searchDiscordUrl}`
+      `url=${baseRealm}`
     );
     if (logClient) {
       await logCharmReward(logClient, {
