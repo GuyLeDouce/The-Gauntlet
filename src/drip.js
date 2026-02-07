@@ -34,9 +34,13 @@ function buildRealmBaseUrl() {
   const raw = DRIP_BASE_URL || "";
   const base = raw.endsWith("/") ? raw.slice(0, -1) : raw;
   const lower = base.toLowerCase();
+  const path =
+    DRIP_REALM_PATH && DRIP_REALM_PATH.toLowerCase() === "realms"
+      ? "realm"
+      : DRIP_REALM_PATH || "realm";
   if (lower.includes("/realm") || lower.includes("/realms")) return base;
-  if (lower.includes("/api/v1")) return `${base}/${DRIP_REALM_PATH}`;
-  return `${base}/api/v1/${DRIP_REALM_PATH}`;
+  if (lower.includes("/api/v1")) return `${base}/${path}`;
+  return `${base}/api/v1/${path}`;
 }
 
 function getCharmRewardAmount(score) {
