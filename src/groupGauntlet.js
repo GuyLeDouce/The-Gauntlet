@@ -894,6 +894,8 @@ async function runGroupGame(channel, game) {
           source: "group",
           guildId: channel.guildId,
           channelId: channel.id,
+          logClient: channel.client,
+          logReason: "Group Gauntlet",
         });
         if (reward?.ok) {
           await logCharmReward(channel.client, {
@@ -902,6 +904,7 @@ async function runGroupGame(channel, game) {
             score: p.points,
             source: "group",
             channelId: channel.id,
+            reason: `Group Gauntlet (score ${p.points})`,
           });
         }
       })

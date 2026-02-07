@@ -43,7 +43,7 @@ const {
 } = require("./groupGauntlet");
 
 const { runSurvival } = require("./survival");
-const { rewardCharm, logCharmReward } = require("./drip");
+const { rewardCharmAmount, logCharmReward } = require("./drip");
 
 // --------------------------------------------
 // Small helpers
@@ -679,21 +679,25 @@ async function runSoloGauntletEphemeral(interaction) {
   await Store.recordPlay(interaction.user.id, torontoDateStr());
 
   try {
-    const reward = await rewardCharm({
+    const reward = await rewardCharmAmount({
       userId: interaction.user.id,
       username: player.username,
-      score: final,
-      source: "solo",
+      amount: 50,
+      source: "gauntlet-solo",
       guildId: interaction.guildId,
       channelId: interaction.channelId,
+      metadata: { score: final },
+      logClient: interaction.client,
+      logReason: "Solo Gauntlet completion",
     });
     if (reward?.ok) {
       await logCharmReward(interaction.client, {
         userId: interaction.user.id,
         amount: reward.amount,
         score: final,
-        source: "solo",
+        source: "gauntlet-solo",
         channelId: interaction.channelId,
+        reason: "Solo Gauntlet completion",
       });
     }
   } catch {}

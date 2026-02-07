@@ -4,7 +4,10 @@
 const axios = require("axios");
 
 const DRIP_API_KEY =
-  process.env.DRIP_API_KEY || process.env.DRIP_API_TOKEN;
+  process.env.DRIP_API_KEY ||
+  process.env.DRIP_API_TOKEN ||
+  process.env.DRIP_CLIENT_SECRET;
+const DRIP_CLIENT_ID = process.env.DRIP_CLIENT_ID;
 const DRIP_REALM_ID = process.env.DRIP_REALM_ID;
 const DRIP_LOG_CHANNEL_ID =
   process.env.DRIP_LOG_CHANNEL_ID || "1403005536982794371";
@@ -17,11 +20,13 @@ function logEnvOnce() {
   envLogged = true;
   const hasKey = Boolean(process.env.DRIP_API_KEY);
   const hasToken = Boolean(process.env.DRIP_API_TOKEN);
+  const hasClientSecret = Boolean(process.env.DRIP_CLIENT_SECRET);
+  const hasClientId = Boolean(process.env.DRIP_CLIENT_ID);
   const hasRealm = Boolean(process.env.DRIP_REALM_ID);
   const hasBase = Boolean(process.env.DRIP_BASE_URL);
   const realmPath = DRIP_REALM_PATH;
   console.log(
-    `[GAUNTLET:DRIP] Env check: key=${hasKey} token=${hasToken} realm=${hasRealm} baseUrl=${hasBase} realmPath=${realmPath}`
+    `[GAUNTLET:DRIP] Env check: key=${hasKey} token=${hasToken} clientSecret=${hasClientSecret} clientId=${hasClientId} realm=${hasRealm} baseUrl=${hasBase} realmPath=${realmPath}`
   );
 }
 
@@ -77,12 +82,24 @@ async function rewardCharmAmount({
   guildId,
   channelId,
   metadata,
+  logClient,
+  logReason,
 }) {
   logEnvOnce();
   if (!DRIP_API_KEY || !DRIP_REALM_ID) {
     console.warn(
       "[GAUNTLET:DRIP] Missing DRIP_API_KEY or DRIP_REALM_ID. Skipping reward."
     );
+    if (logClient) {
+      await logCharmReward(logClient, {
+        userId,
+        amount,
+        score: 0,
+        source,
+        channelId,
+        reason: `${logReason || source} payout failed (missing DRIP env)`,
+      });
+    }
     return { ok: false, skipped: true };
   }
 
@@ -103,6 +120,16 @@ async function rewardCharmAmount({
       console.warn(
         `[GAUNTLET:DRIP] No DRIP member found for Discord ID ${userId}.`
       );
+      if (logClient) {
+        await logCharmReward(logClient, {
+          userId,
+          amount,
+          score: 0,
+          source,
+          channelId,
+          reason: `${logReason || source} payout failed (member not found)`,
+        });
+      }
       return { ok: false, skipped: true, reason: "member_not_found" };
     }
 
@@ -137,11 +164,30 @@ async function rewardCharmAmount({
       data || "",
       `url=${searchUrl}`
     );
+    if (logClient) {
+      await logCharmReward(logClient, {
+        userId,
+        amount,
+        score: 0,
+        source,
+        channelId,
+        reason: `${logReason || source} payout failed (${status || err.message})`,
+      });
+    }
     return { ok: false, error: err };
   }
 }
 
-async function rewardCharm({ userId, username, score, source, guildId, channelId }) {
+async function rewardCharm({
+  userId,
+  username,
+  score,
+  source,
+  guildId,
+  channelId,
+  logClient,
+  logReason,
+}) {
   const amount = getCharmRewardAmount(score);
   return rewardCharmAmount({
     userId,
@@ -151,18 +197,26 @@ async function rewardCharm({ userId, username, score, source, guildId, channelId
     guildId,
     channelId,
     metadata: { score },
+    logClient,
+    logReason,
   });
 }
 
-async function logCharmReward(client, { userId, amount, score, source, channelId }) {
-  const targetChannelId = channelId || DRIP_LOG_CHANNEL_ID;
+async function logCharmReward(
+  client,
+  { userId, amount, score, source, channelId, reason }
+) {
+  const targetChannelId = DRIP_LOG_CHANNEL_ID || channelId;
   if (!client || !targetChannelId) return false;
   try {
     const ch = await client.channels.fetch(targetChannelId);
     if (!ch || !ch.send) return false;
-    await ch.send(
-      `<@${userId}> received **${amount} $CHARM** for Gauntlet (${source}, score: ${score}).`
-    );
+    const reasonText = reason || source || "Gauntlet";
+    const isFailure = /failed/i.test(reasonText);
+    const message = isFailure
+      ? `PAYOUT FAILED: <@${userId}> | ${amount} $CHARM | ${reasonText}`
+      : `<@${userId}> received **${amount} $CHARM** for ${reasonText}.`;
+    await ch.send(message);
     return true;
   } catch (err) {
     console.error("[GAUNTLET:DRIP] Reward log failed:", err?.message || err);
