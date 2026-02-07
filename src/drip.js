@@ -12,6 +12,7 @@ const DRIP_REALM_ID = process.env.DRIP_REALM_ID;
 const DRIP_LOG_CHANNEL_ID =
   process.env.DRIP_LOG_CHANNEL_ID || "1403005536982794371";
 const DRIP_BASE_URL = process.env.DRIP_BASE_URL || "https://api.drip.re";
+const DRIP_DEBUG = (process.env.DRIP_DEBUG || "false").toLowerCase() === "true";
 
 let envLogged = false;
 function logEnvOnce() {
@@ -141,11 +142,15 @@ async function rewardCharmAmount({
   let baseUsed = memberBaseUrls[0];
   try {
     // Preferred path: update by credential identifier (discord-id) via credentials transaction.
+    const credentialValue = String(userId || "");
+    if (!credentialValue) {
+      throw new Error("missing_discord_id");
+    }
     const credentialPatchPayload = {
       updates: [
         {
           type: "discord-id",
-          value: String(userId),
+          value: credentialValue,
           amount,
           source,
         },
@@ -162,6 +167,11 @@ async function rewardCharmAmount({
     for (const baseUrl of credentialBaseUrls) {
       const patchUrl = `${baseUrl}/credentials/transaction`;
       try {
+        if (DRIP_DEBUG) {
+          console.log(
+            `[GAUNTLET:DRIP] credentials/transaction valueType=${typeof credentialValue} valueLen=${credentialValue.length}`
+          );
+        }
         const res = await axios.patch(
           patchUrl,
           credentialPatchPayload,
@@ -345,6 +355,7 @@ module.exports = {
   DRIP_LOG_CHANNEL_ID,
   logCharmReward,
 };
+
 
 
 
