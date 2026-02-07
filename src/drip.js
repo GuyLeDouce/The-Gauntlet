@@ -60,6 +60,12 @@ function getMemberBaseUrls() {
   return realm === realms ? [realm] : [realms, realm];
 }
 
+function getCredentialsBaseUrls() {
+  const realms = buildRealmsBaseUrl();
+  const realm = buildRealmBaseUrl();
+  return realms === realm ? [realms] : [realms, realm];
+}
+
 function getCharmRewardAmount(score) {
   if (score > 20) return 500;
   if (score > 10) return 100;
@@ -125,12 +131,54 @@ async function rewardCharmAmount({
   }
 
   const auth = buildAuthHeader(DRIP_API_KEY);
-  const baseUrls = getMemberBaseUrls().map(
+  const memberBaseUrls = getMemberBaseUrls().map(
+    (base) => `${base}/${DRIP_REALM_ID}`
+  );
+  const credentialBaseUrls = getCredentialsBaseUrls().map(
     (base) => `${base}/${DRIP_REALM_ID}`
   );
 
-  let baseUsed = baseUrls[0];
+  let baseUsed = memberBaseUrls[0];
   try {
+    // Preferred path: update by credential identifier (discord-id) via credentials transaction.
+    const credentialPatchPayload = {
+      updates: [
+        {
+          type: "discord-id",
+          value: String(userId),
+          amount,
+          source,
+        },
+      ],
+    };
+    const credentialPatchOpts = {
+      headers: {
+        Authorization: auth,
+        "Content-Type": "application/json",
+      },
+      timeout: DRIP_TIMEOUT_MS,
+    };
+
+    for (const baseUrl of credentialBaseUrls) {
+      const patchUrl = `${baseUrl}/credentials/transaction`;
+      try {
+        const res = await axios.patch(
+          patchUrl,
+          credentialPatchPayload,
+          credentialPatchOpts
+        );
+        if (res?.data?.success === false) {
+          throw new Error("credentials_transaction_failed");
+        }
+        console.log(
+          `[GAUNTLET:DRIP] Rewarded ${amount} $CHARM to ${userId} (${source}) via credentials/transaction.`
+        );
+        return { ok: true, amount };
+      } catch (err) {
+        if (err?.response?.status !== 404) throw err;
+      }
+    }
+
     let member = null;
 
     const trySearch = async (baseUrl) => {
@@ -158,7 +206,7 @@ async function rewardCharmAmount({
     };
 
     let lastSearchErr = null;
-    for (const baseUrl of baseUrls) {
+    for (const baseUrl of memberBaseUrls) {
       try {
         member = await trySearch(baseUrl);
         baseUsed = baseUrl;
@@ -199,7 +247,7 @@ async function rewardCharmAmount({
 
     const triedPatchUrls = [];
     let patchErr = null;
-    for (const baseUrl of baseUrls) {
+    for (const baseUrl of memberBaseUrls) {
       const patchUrl = `${baseUrl}/members/${member.id}/point-balance`;
       triedPatchUrls.push(patchUrl);
       try {
@@ -297,5 +345,6 @@ module.exports = {
   DRIP_LOG_CHANNEL_ID,
   logCharmReward,
 };
+
 
 
