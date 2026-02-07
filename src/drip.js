@@ -54,6 +54,12 @@ function buildRealmsBaseUrl() {
   return `${base}/api/v1/realms`;
 }
 
+function getMemberBaseUrls() {
+  const realm = buildRealmBaseUrl();
+  const realms = buildRealmsBaseUrl();
+  return realm === realms ? [realm] : [realms, realm];
+}
+
 function getCharmRewardAmount(score) {
   if (score > 20) return 500;
   if (score > 10) return 100;
@@ -119,12 +125,13 @@ async function rewardCharmAmount({
   }
 
   const auth = buildAuthHeader(DRIP_API_KEY);
-  const baseRealm = `${buildRealmBaseUrl()}/${DRIP_REALM_ID}`;
-  const baseRealms = `${buildRealmsBaseUrl()}/${DRIP_REALM_ID}`;
+  const baseUrls = getMemberBaseUrls().map(
+    (base) => `${base}/${DRIP_REALM_ID}`
+  );
 
   try {
     let member = null;
-    let baseUsed = baseRealm;
+    let baseUsed = baseUrls[0];
 
     const trySearch = async (baseUrl) => {
       const searchDiscordUrl = `${baseUrl}/members/search?type=discord-id&values=${encodeURIComponent(
@@ -150,13 +157,19 @@ async function rewardCharmAmount({
       return found || null;
     };
 
-    try {
-      member = await trySearch(baseRealm);
-      baseUsed = baseRealm;
-    } catch (err) {
-      if (err?.response?.status !== 404) throw err;
-      member = await trySearch(baseRealms);
-      baseUsed = baseRealms;
+    let lastSearchErr = null;
+    for (const baseUrl of baseUrls) {
+      try {
+        member = await trySearch(baseUrl);
+        baseUsed = baseUrl;
+        break;
+      } catch (err) {
+        lastSearchErr = err;
+        if (err?.response?.status !== 404) throw err;
+      }
+    }
+    if (!member && lastSearchErr) {
+      throw lastSearchErr;
     }
     if (!member?.id) {
       console.warn(
@@ -184,17 +197,23 @@ async function rewardCharmAmount({
       timeout: DRIP_TIMEOUT_MS,
     };
 
-    const patchUrlPrimary = `${baseUsed}/members/${member.id}/point-balance`;
-    const patchUrlFallback =
-      baseUsed === baseRealm
-        ? `${baseRealms}/members/${member.id}/point-balance`
-        : `${baseRealm}/members/${member.id}/point-balance`;
-
-    try {
-      await axios.patch(patchUrlPrimary, patchPayload, patchOpts);
-    } catch (err) {
-      if (err?.response?.status !== 404) throw err;
-      await axios.patch(patchUrlFallback, patchPayload, patchOpts);
+    const triedPatchUrls = [];
+    let patchErr = null;
+    for (const baseUrl of baseUrls) {
+      const patchUrl = `${baseUrl}/members/${member.id}/point-balance`;
+      triedPatchUrls.push(patchUrl);
+      try {
+        await axios.patch(patchUrl, patchPayload, patchOpts);
+        patchErr = null;
+        break;
+      } catch (err) {
+        patchErr = err;
+        if (err?.response?.status !== 404) throw err;
+      }
+    }
+    if (patchErr) {
+      patchErr.triedPatchUrls = triedPatchUrls;
+      throw patchErr;
     }
     console.log(
       `[GAUNTLET:DRIP] Rewarded ${amount} $CHARM to ${userId} (${source}).`
@@ -203,11 +222,13 @@ async function rewardCharmAmount({
   } catch (err) {
     const status = err?.response?.status;
     const data = err?.response?.data;
+    const triedPatchUrls = err?.triedPatchUrls;
     console.error(
       "[GAUNTLET:DRIP] Reward failed:",
       status || err.message,
       data || "",
-      `url=${baseRealm}`
+      `url=${baseUsed}`,
+      triedPatchUrls ? `patchUrls=${triedPatchUrls.join(",")}` : ""
     );
     if (logClient) {
       await logCharmReward(logClient, {
