@@ -1,4 +1,4 @@
-// src/soloGauntlet.js
+ï»¿// src/soloGauntlet.js
 // Solo-mode Gauntlet controller: commands, buttons, and ephemeral game flow.
 
 const {
@@ -163,7 +163,7 @@ async function runMiniGameEphemeral(interaction, player, usedMini) {
 
   const click = await ephemeralPrompt(interaction, embed, [row], 30_000);
   if (!click) {
-    await sendEphemeral(interaction, { content: "? Time’s up — no choice, no change." });
+    await sendEphemeral(interaction, { content: "? Timeâ€™s up â€” no choice, no change." });
     return;
   }
 
@@ -201,7 +201,7 @@ async function runRiddleEphemeral(interaction, player, usedRiddle) {
     new EmbedBuilder()
       .setTitle("?? RIDDLE TIME")
       .setDescription(
-        `_${r.riddle}_\n\n?? Difficulty: **${difficultyLabel}** — Worth **+${r.difficulty}**.\n? You have **30 seconds**.`
+        `_${r.riddle}_\n\n?? Difficulty: **${difficultyLabel}** â€” Worth **+${r.difficulty}**.\n? You have **30 seconds**.`
       )
       .setColor(0xff66cc),
     player
@@ -241,7 +241,7 @@ async function runRiddleEphemeral(interaction, player, usedRiddle) {
 
   if (!buttonClick) {
     await sendEphemeral(interaction, {
-      content: `? Time’s up! Correct answer: **${r.answers[0]}**.`,
+      content: `? Timeâ€™s up! Correct answer: **${r.answers[0]}**.`,
     });
     setTimeout(async () => {
       try {
@@ -256,7 +256,7 @@ async function runRiddleEphemeral(interaction, player, usedRiddle) {
   // ?? Modal with riddle shown as placeholder
   const modal = new ModalBuilder().setCustomId("riddle:modal").setTitle("Riddle Answer");
 
-  // Discord placeholder max ~100 chars – truncate if needed
+  // Discord placeholder max ~100 chars â€“ truncate if needed
   const displayRiddle = r.riddle.length > 100 ? r.riddle.slice(0, 97) + "..." : r.riddle;
 
   modal.addComponents(
@@ -374,7 +374,7 @@ async function runLabyrinthEphemeral(interaction, player) {
     );
 
     const msg = await sendEphemeral(interaction, {
-      content: `Labyrinth step **${step + 1}** — choose:`,
+      content: `Labyrinth step **${step + 1}** â€” choose:`,
       components: [row],
     });
 
@@ -434,7 +434,7 @@ async function runRouletteEphemeral(interaction, player) {
     new EmbedBuilder()
       .setTitle("?? Squig Roulette")
       .setDescription(
-        "Pick **1–6**. Roll at end. Match = **+2**, else **0**. **30s**."
+        "Pick **1â€“6**. Roll at end. Match = **+2**, else **0**. **30s**."
       )
       .setColor(0x7f00ff)
       .setImage("https://i.imgur.com/BolGW1m.png"),
@@ -555,7 +555,7 @@ async function runRiskItEphemeral(interaction, player) {
 
   if (!click) {
     await sendEphemeral(interaction, {
-      content: "? No decision — charm moves on.",
+      content: "? No decision â€” charm moves on.",
     });
     return;
   }
@@ -588,7 +588,7 @@ async function runRiskItEphemeral(interaction, player) {
   const outcomes = [
     { mult: -1, label: "?? Lost it all" },
     { mult: 0, label: "?? Broke even" },
-    { mult: 0.5, label: "? Won 1.5×" },
+    { mult: 0.5, label: "? Won 1.5Ã—" },
     { mult: 1, label: "?? Doubled" },
   ];
 
@@ -624,7 +624,7 @@ async function runSoloGauntletEphemeral(interaction) {
     embeds: [
       withScore(
         new EmbedBuilder()
-          .setTitle("?? The Gauntlet — Solo Mode")
+          .setTitle("?? The Gauntlet â€” Solo Mode")
           .setDescription("6 rounds. Brain, luck, chaos. Good luck!")
           .setColor(0x00ccff),
         player
@@ -658,7 +658,7 @@ async function runSoloGauntletEphemeral(interaction) {
     final >= 12
       ? "?? The charm purrs. You wear the static like a crown."
       : final >= 6
-      ? "?? The Squigs nod in approval. You’ll be remembered by at least three of them."
+      ? "?? The Squigs nod in approval. Youâ€™ll be remembered by at least three of them."
       : final >= 0
       ? "?? You survived the weird. The weird survived you."
       : "?? The void learned your name. It may return it later.";
@@ -718,13 +718,13 @@ async function renderLeaderboardEmbed(month) {
     ? rows
         .map(
           (r, i) =>
-            `**#${i + 1}** ${r.username || `<@${r.user_id}>`} — **${r.best}**`
+            `**#${i + 1}** ${r.username || `<@${r.user_id}>`} â€” **${r.best}**`
         )
         .join("\n")
     : "No runs yet.";
 
   return new EmbedBuilder()
-    .setTitle(`?? Leaderboard — ${month}`)
+    .setTitle(`?? Leaderboard â€” ${month}`)
     .setDescription(lines)
     .setFooter({
       text: "Ranked by highest single-game score; ties broken by total monthly points.",
@@ -841,7 +841,7 @@ async function registerCommands() {
 // --------------------------------------------
 function startPanelEmbed() {
   return new EmbedBuilder()
-    .setTitle("?? The Gauntlet — Solo Mode")
+    .setTitle("?? The Gauntlet â€” Solo Mode")
     .setDescription(
       [
         "Click **Start** to play privately via **ephemeral** messages in this channel.",
@@ -938,7 +938,7 @@ async function handleInteractionCreate(interaction) {
           ? rows
               .map(
                 (r) =>
-                  `• <@${r.user_id}> — **${r.score}**  _(at ${new Intl.DateTimeFormat(
+                  `â€¢ <@${r.user_id}> â€” **${r.score}**  _(at ${new Intl.DateTimeFormat(
                     "en-CA",
                     {
                       timeZone: "America/Toronto",
@@ -953,7 +953,7 @@ async function handleInteractionCreate(interaction) {
           : "No recent runs.";
 
         const embed = new EmbedBuilder()
-          .setTitle(`?? Recent Runs — ${month}`)
+          .setTitle(`?? Recent Runs â€” ${month}`)
           .setDescription(lines)
           .setColor(0x00ccff);
 
@@ -963,7 +963,7 @@ async function handleInteractionCreate(interaction) {
       // /gauntletinfo
       if (interaction.commandName === "gauntletinfo") {
         const embed = new EmbedBuilder()
-          .setTitle("?? Welcome to The Gauntlet — Solo Edition")
+          .setTitle("?? Welcome to The Gauntlet â€” Solo Edition")
           .setDescription(
             [
               "Play **any time** via ephemeral messages. One run per day (Toronto time).",
@@ -990,7 +990,7 @@ async function handleInteractionCreate(interaction) {
         const mine = await Store.getMyMonth(interaction.user.id, month);
 
         const embed = new EmbedBuilder()
-          .setTitle(`?? Your Gauntlet — ${month}`)
+          .setTitle(`?? Your Gauntlet â€” ${month}`)
           .setDescription(
             `**Best:** ${mine.best}\n**Total:** ${mine.total}\n**Plays:** ${mine.plays}`
           )
@@ -1236,5 +1236,6 @@ module.exports = {
   registerCommands,
   handleInteractionCreate,
 };
+
 
 

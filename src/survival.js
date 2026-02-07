@@ -1,4 +1,4 @@
-// survival.js
+﻿// survival.js
 // Core RNG story engine for Squig Survival.
 
 const { EmbedBuilder } = require("discord.js");
@@ -306,4 +306,5 @@ async function sendSurvivalPayouts(channel, payouts, placements, totalPlayers) {
 }
 
 module.exports = { runSurvival, calculateSurvivalPayouts };
+
 

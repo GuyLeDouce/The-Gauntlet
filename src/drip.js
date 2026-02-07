@@ -1,4 +1,4 @@
-// src/drip.js
+﻿// src/drip.js
 // DRIP reward helper for $CHARM payouts
 
 const axios = require("axios");
@@ -233,3 +233,4 @@ module.exports = {
   DRIP_LOG_CHANNEL_ID,
   logCharmReward,
 };
+
