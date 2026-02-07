@@ -129,9 +129,9 @@ async function rewardCharmAmount({
     (base) => `${base}/${DRIP_REALM_ID}`
   );
 
+  let baseUsed = baseUrls[0];
   try {
     let member = null;
-    let baseUsed = baseUrls[0];
 
     const trySearch = async (baseUrl) => {
       const searchDiscordUrl = `${baseUrl}/members/search?type=discord-id&values=${encodeURIComponent(
@@ -297,4 +297,5 @@ module.exports = {
   DRIP_LOG_CHANNEL_ID,
   logCharmReward,
 };
+
 
