@@ -142,7 +142,7 @@ async function rewardCharmAmount({
   let baseUsed = memberBaseUrls[0];
   try {
     // Preferred path: update by credential identifier (discord-id) via credentials transaction.
-    const credentialValue = String(userId || "");
+    const credentialValue = typeof userId === "string" ? userId : String(userId || "");
     if (!credentialValue) {
       throw new Error("missing_discord_id");
     }
@@ -169,7 +169,10 @@ async function rewardCharmAmount({
       try {
         if (DRIP_DEBUG) {
           console.log(
-            `[GAUNTLET:DRIP] credentials/transaction valueType=${typeof credentialValue} valueLen=${credentialValue.length}`
+            `[GAUNTLET:DRIP] credentials/transaction valueType=${typeof credentialValue} valueLen=${credentialValue.length} value=${credentialValue}`
+          );
+          console.log(
+            `[GAUNTLET:DRIP] credentials/transaction payload=${JSON.stringify(credentialPatchPayload)}`
           );
         }
         const res = await axios.patch(
@@ -355,6 +358,7 @@ module.exports = {
   DRIP_LOG_CHANNEL_ID,
   logCharmReward,
 };
+
 
 
 
