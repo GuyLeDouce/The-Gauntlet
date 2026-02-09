@@ -208,7 +208,7 @@ function format(template, victimId, killerId) {
  * @param {string[]} playerIds - Array of user IDs
  * @param {string|null} eraLabel
  */
-async function runSurvival(channel, playerIds, eraLabel) {
+async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
   if (!playerIds || playerIds.length === 0) return;
 
   const uniquePlayers = Array.from(new Set(playerIds));
@@ -217,8 +217,18 @@ async function runSurvival(channel, playerIds, eraLabel) {
 
   // One player = instant win embed
   if (alive.length === 1) {
-    const payouts = calculateSurvivalPayouts(uniquePlayers, [alive[0]]);
-    await sendSurvivalPayouts(channel, payouts, [alive[0]], uniquePlayers.length);
+    const payouts = calculateSurvivalPayouts(
+      uniquePlayers,
+      [alive[0]],
+      poolIncrement
+    );
+    await sendSurvivalPayouts(
+      channel,
+      payouts,
+      [alive[0]],
+      uniquePlayers.length,
+      poolIncrement
+    );
     await channel.send({
       embeds: [
         new EmbedBuilder()
@@ -379,13 +389,23 @@ async function runSurvival(channel, playerIds, eraLabel) {
     });
   }
 
-  const payouts = calculateSurvivalPayouts(uniquePlayers, placements);
-  await sendSurvivalPayouts(channel, payouts, placements, uniquePlayers.length);
+  const payouts = calculateSurvivalPayouts(
+    uniquePlayers,
+    placements,
+    poolIncrement
+  );
+  await sendSurvivalPayouts(
+    channel,
+    payouts,
+    placements,
+    uniquePlayers.length,
+    poolIncrement
+  );
 }
 
-function calculateSurvivalPayouts(playerIds, placements) {
+function calculateSurvivalPayouts(playerIds, placements, poolIncrement = 50) {
   const uniquePlayers = Array.from(new Set(playerIds || []));
-  const prizePool = 50 * uniquePlayers.length;
+  const prizePool = poolIncrement * uniquePlayers.length;
 
   const uniquePlacements = [];
   for (const id of placements || []) {
@@ -419,7 +439,13 @@ function calculateSurvivalPayouts(playerIds, placements) {
   return payouts;
 }
 
-async function sendSurvivalPayouts(channel, payouts, placements, totalPlayers) {
+async function sendSurvivalPayouts(
+  channel,
+  payouts,
+  placements,
+  totalPlayers,
+  poolIncrement = 50
+) {
   try {
     const entries = Object.entries(payouts || {});
     if (!entries.length) return;
@@ -452,7 +478,7 @@ async function sendSurvivalPayouts(channel, payouts, placements, totalPlayers) {
             score: 0,
             source: "survival",
             channelId: channel.id,
-            reason: `Squig Survival ${rankLabel} (pool ${50 * totalPlayers})`,
+            reason: `Squig Survival ${rankLabel} (pool ${poolIncrement * totalPlayers})`,
           });
         }
       })
@@ -462,6 +488,6 @@ async function sendSurvivalPayouts(channel, payouts, placements, totalPlayers) {
   }
 }
 
-module.exports = { runSurvival, calculateSurvivalPayouts };
+module.exports = { runSurvival, calculateSurvivalPayouts, buildPodiumImage };
 
 

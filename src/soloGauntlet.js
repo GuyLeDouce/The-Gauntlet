@@ -42,7 +42,7 @@ const {
   handleGroupInteractionCreate,
 } = require("./groupGauntlet");
 
-const { runSurvival } = require("./survival");
+const { runSurvival, buildPodiumImage } = require("./survival");
 const { rewardCharmAmount, logCharmReward } = require("./drip");
 
 // --------------------------------------------
@@ -55,10 +55,12 @@ const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
 // --------------------------------------------
 let survivalLobby = null;
 
-function buildSurvivalLobbyEmbed(era, count) {
+function buildSurvivalLobbyEmbed(era, count, poolIncrement) {
   const lines = [
     "Click **Join** to enter **Squig Survival**.",
     "Try out life as a Squig stumbling through Earth.",
+    "",
+    `Prize pool: **+${poolIncrement} $CHARM** per Squig`,
     "",
     `Players joined: **${count}**`,
     "",
@@ -789,10 +791,20 @@ async function registerCommands() {
           .setName("era")
           .setDescription("Optional label for this Survival era (e.g. 'Holiday Trials').")
           .setRequired(false)
+      )
+      .addIntegerOption((o) =>
+        o
+          .setName("pool")
+          .setDescription("Charm added per Squig to the prize pool (default 50).")
+          .setMinValue(1)
+          .setRequired(false)
       ),
     new SlashCommandBuilder()
       .setName("survivestart")
       .setDescription("Start the active Squig Survival lobby."),
+    new SlashCommandBuilder()
+      .setName("podiumtest")
+      .setDescription("Test the Squig Survival podium art (uses your avatar)."),
   ];
 
   // Include the group command definition from groupGauntlet.js
@@ -1005,6 +1017,13 @@ async function handleInteractionCreate(interaction) {
 
       // /survive  (Squig Survival mini-game)
       if (interaction.commandName === "survive") {
+        if (!isAdminUserLocal(interaction)) {
+          return interaction.reply({
+            content: "⛔ Only admins can start a Squig Survival lobby.",
+            flags: 64,
+          });
+        }
+
         if (survivalLobby) {
           return interaction.reply({
             content:
@@ -1022,8 +1041,9 @@ async function handleInteractionCreate(interaction) {
         }
 
         const era = interaction.options.getString("era") || null;
+        const poolIncrement = interaction.options.getInteger("pool") || 50;
 
-        const joinEmbed = buildSurvivalLobbyEmbed(era, 0);
+        const joinEmbed = buildSurvivalLobbyEmbed(era, 0, poolIncrement);
 
         const joinRow = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
@@ -1058,6 +1078,7 @@ async function handleInteractionCreate(interaction) {
           join_message_id: joinMessage.id,
           join_message: joinMessage,
           era,
+          pool_increment: poolIncrement,
           collector: null,
         };
 
@@ -1082,6 +1103,7 @@ async function handleInteractionCreate(interaction) {
 
         const players = Array.from(survivalLobby.joined || []);
         const era = survivalLobby.era || null;
+        const poolIncrement = survivalLobby.pool_increment || 50;
         const channel =
           interaction.client.channels.cache.get(survivalLobby.channel_id) ||
           interaction.channel;
@@ -1132,12 +1154,45 @@ async function handleInteractionCreate(interaction) {
         await channel.send({ embeds: [startEmbed] });
 
         try {
-          await runSurvival(channel, players, era);
+          await runSurvival(channel, players, era, poolIncrement);
         } finally {
           clearSurvivalLobby();
         }
 
         return;
+      }
+
+      // /podiumtest
+      if (interaction.commandName === "podiumtest") {
+        if (!isAdminUserLocal(interaction)) {
+          return interaction.reply({
+            content: "⛔ Only admins can use /podiumtest.",
+            flags: 64,
+          });
+        }
+
+        await interaction.deferReply();
+
+        const id = interaction.user.id;
+        const placements = [id, id, id];
+        const podiumBuffer = await buildPodiumImage(interaction.client, placements);
+
+        if (!podiumBuffer) {
+          return interaction.editReply({
+            content: "❌ Podium render failed.",
+          });
+        }
+
+        const attachment = new AttachmentBuilder(podiumBuffer, { name: "podium.png" });
+        const embed = new EmbedBuilder()
+          .setTitle("Squig Survival - Podium Test")
+          .setImage("attachment://podium.png")
+          .setColor(0xf1c40f);
+
+        return interaction.editReply({
+          embeds: [embed],
+          files: [attachment],
+        });
       }
     }
 
@@ -1156,7 +1211,8 @@ async function handleInteractionCreate(interaction) {
         try {
           const updated = buildSurvivalLobbyEmbed(
             survivalLobby.era,
-            survivalLobby.joined.size
+            survivalLobby.joined.size,
+            survivalLobby.pool_increment || 50
           );
           await survivalLobby.join_message.edit({ embeds: [updated] });
         } catch {}
@@ -1171,7 +1227,8 @@ async function handleInteractionCreate(interaction) {
         try {
           const updated = buildSurvivalLobbyEmbed(
             survivalLobby.era,
-            survivalLobby.joined.size
+            survivalLobby.joined.size,
+            survivalLobby.pool_increment || 50
           );
           await survivalLobby.join_message.edit({ embeds: [updated] });
         } catch {}
