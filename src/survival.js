@@ -89,27 +89,21 @@ async function buildPodiumImage(client, placements) {
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext("2d");
 
-    // Background gradient
-    const bg = ctx.createLinearGradient(0, 0, 0, height);
-    bg.addColorStop(0, "#1b1f2a");
-    bg.addColorStop(1, "#0f1117");
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, width, height);
-
-    // Subtle stars
-    ctx.fillStyle = "rgba(255,255,255,0.08)";
-    for (let i = 0; i < 80; i++) {
-      const x = Math.random() * width;
-      const y = Math.random() * height * 0.6;
-      const r = Math.random() * 1.5 + 0.5;
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fill();
+    // Background image
+    try {
+      const bgImg = await loadImage("https://i.imgur.com/xjpLTnF.jpeg");
+      ctx.drawImage(bgImg, 0, 0, width, height);
+    } catch {
+      const bg = ctx.createLinearGradient(0, 0, 0, height);
+      bg.addColorStop(0, "#1b1f2a");
+      bg.addColorStop(1, "#0f1117");
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, width, height);
     }
 
-    // Ground
-    ctx.fillStyle = "#141821";
-    ctx.fillRect(0, height - 120, width, 120);
+    // Subtle darken for contrast
+    ctx.fillStyle = "rgba(0,0,0,0.25)";
+    ctx.fillRect(0, 0, width, height);
 
     // Podium blocks
     const podiumY = height - 120;
