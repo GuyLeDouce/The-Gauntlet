@@ -105,29 +105,12 @@ async function buildPodiumImage(client, placements) {
     ctx.fillStyle = "rgba(0,0,0,0.25)";
     ctx.fillRect(0, 0, width, height);
 
-    // Podium blocks
+    // Draw avatars
+    const avatarSize = 144;
     const podiumY = height - 120;
     const blockW = 200;
     const blockGap = 30;
     const centerX = width / 2;
-
-    const blocks = [
-      { x: centerX - blockW / 2, y: podiumY - 180, h: 180 }, // 1st
-      { x: centerX - blockW - blockGap - blockW / 2, y: podiumY - 130, h: 130 }, // 2nd
-      { x: centerX + blockGap + blockW / 2, y: podiumY - 110, h: 110 }, // 3rd
-    ];
-
-    const blockColors = ["#2a313f", "#222835", "#1f2430"];
-    blocks.forEach((b, i) => {
-      ctx.fillStyle = blockColors[i];
-      ctx.fillRect(b.x, b.y, blockW, b.h);
-      ctx.strokeStyle = "rgba(255,255,255,0.08)";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(b.x, b.y, blockW, b.h);
-    });
-
-    // Draw avatars
-    const avatarSize = 120;
     const avatarCenters = [
       { x: centerX, y: podiumY - 180 - 20 },
       { x: centerX - blockW - blockGap, y: podiumY - 130 - 10 },
