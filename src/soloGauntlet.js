@@ -1176,7 +1176,11 @@ async function handleInteractionCreate(interaction) {
 
         const id = interaction.user.id;
         const placements = [id, id, id];
-        const podiumBuffer = await buildPodiumImage(interaction.client, placements);
+        const podiumBuffer = await buildPodiumImage(
+          interaction.client,
+          placements,
+          interaction.guildId
+        );
 
         if (!podiumBuffer) {
           return interaction.editReply({

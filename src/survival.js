@@ -75,7 +75,7 @@ const PODIUM_RINGS = [
   { color: "#cd7f32", label: "3rd" }, // bronze
 ];
 
-async function buildPodiumImage(client, placements) {
+async function buildPodiumImage(client, placements, guildId) {
   try {
     const topThree = [];
     for (const id of placements || []) {
@@ -118,15 +118,34 @@ async function buildPodiumImage(client, placements) {
       { x: centerX + blockW + blockGap, y: podiumY - 110 - 10 - raiseBy },
     ];
 
+    let guild = null;
+    if (guildId) {
+      try {
+        guild = await client.guilds.fetch(guildId);
+      } catch {
+        guild = null;
+      }
+    }
+
     for (let i = 0; i < 3; i++) {
       const userId = topThree[i];
       if (!userId) continue;
       let avatarUrl;
       try {
-        const user = await client.users.fetch(userId);
-        avatarUrl = user.displayAvatarURL({ extension: "png", size: 256 });
+        if (guild) {
+          const member = await guild.members.fetch(userId);
+          avatarUrl = member.displayAvatarURL({ extension: "png", size: 256 });
+        } else {
+          const user = await client.users.fetch(userId);
+          avatarUrl = user.displayAvatarURL({ extension: "png", size: 256 });
+        }
       } catch {
-        avatarUrl = null;
+        try {
+          const user = await client.users.fetch(userId);
+          avatarUrl = user.displayAvatarURL({ extension: "png", size: 256 });
+        } catch {
+          avatarUrl = null;
+        }
       }
 
       const center = avatarCenters[i];
@@ -351,7 +370,11 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
     .setColor(0xf1c40f)
     .setFooter({ text: "Only one Squig ever really makes it..." });
 
-  const podiumBuffer = await buildPodiumImage(channel.client, placements);
+  const podiumBuffer = await buildPodiumImage(
+    channel.client,
+    placements,
+    channel.guildId
+  );
   if (podiumBuffer) {
     const podiumAttachment = new AttachmentBuilder(podiumBuffer, {
       name: "podium.png",
