@@ -1,7 +1,8 @@
 ﻿// survival.js
 // Core RNG story engine for Squig Survival.
 
-const { EmbedBuilder } = require("discord.js");
+const { EmbedBuilder, AttachmentBuilder } = require("discord.js");
+const { createCanvas, loadImage } = require("@napi-rs/canvas");
 const { rewardCharmAmount, logCharmReward } = require("./drip");
 const stories = require("./survivalStories");
 
@@ -18,26 +19,31 @@ const MILESTONE_STAGES = [
     title: "Landing Day 1 - First Impact",
     flavor:
       "Fresh from the portal, the Squigs splatter into Earth's atmosphere like confused cosmic confetti.",
+    image: "https://i.imgur.com/jfVffAW.jpeg",
   },
   {
     title: "Month 1 on Earth - First Confusion",
     flavor:
       "The Squigs are still learning gravity, weather, and why humans keep putting pineapple on pizza.",
+    image: "https://i.imgur.com/jYNKD3d.jpeg",
   },
   {
     title: "Month 2 on Earth - Bad Influences",
     flavor:
       "They discover social media, NFTs, and the horrifying power of quote-tweets.",
+    image: "https://i.imgur.com/8hJ6XEE.jpeg",
   },
   {
     title: "Month 3 on Earth - Questionable Hobbies",
     flavor:
       "Some Squigs start side hustles. Others become professional lurkers. All of them are still extremely weird.",
+    image: "https://i.imgur.com/yBmAjMh.jpeg",
   },
   {
     title: "Month 4 on Earth - Full Degeneracy",
     flavor:
       "Sleep schedules are gone. Caffeine is up. Decisions are... not always good ones.",
+    image: "https://i.imgur.com/fiNkaTa.jpeg",
   },
   {
     title: "Month 5 on Earth - The Great Overthink",
@@ -55,6 +61,136 @@ const MILESTONE_STAGES = [
       "The portals flicker. Transmission logs corrupt. Only a handful of Squigs remain to tell the tale.",
   },
 ];
+
+const FALLBACK_STAGE_IMAGES = [
+  "https://i.imgur.com/jYNKD3d.jpeg",
+  "https://i.imgur.com/8hJ6XEE.jpeg",
+  "https://i.imgur.com/yBmAjMh.jpeg",
+  "https://i.imgur.com/fiNkaTa.jpeg",
+];
+
+const PODIUM_RINGS = [
+  { color: "#d4af37", label: "1st" }, // gold
+  { color: "#c0c0c0", label: "2nd" }, // silver
+  { color: "#cd7f32", label: "3rd" }, // bronze
+];
+
+async function buildPodiumImage(client, placements) {
+  try {
+    const topThree = [];
+    for (const id of placements || []) {
+      if (!topThree.includes(id)) topThree.push(id);
+      if (topThree.length >= 3) break;
+    }
+    if (!topThree.length) return null;
+
+    const width = 900;
+    const height = 520;
+    const canvas = createCanvas(width, height);
+    const ctx = canvas.getContext("2d");
+
+    // Background gradient
+    const bg = ctx.createLinearGradient(0, 0, 0, height);
+    bg.addColorStop(0, "#1b1f2a");
+    bg.addColorStop(1, "#0f1117");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, width, height);
+
+    // Subtle stars
+    ctx.fillStyle = "rgba(255,255,255,0.08)";
+    for (let i = 0; i < 80; i++) {
+      const x = Math.random() * width;
+      const y = Math.random() * height * 0.6;
+      const r = Math.random() * 1.5 + 0.5;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Ground
+    ctx.fillStyle = "#141821";
+    ctx.fillRect(0, height - 120, width, 120);
+
+    // Podium blocks
+    const podiumY = height - 120;
+    const blockW = 200;
+    const blockGap = 30;
+    const centerX = width / 2;
+
+    const blocks = [
+      { x: centerX - blockW / 2, y: podiumY - 180, h: 180 }, // 1st
+      { x: centerX - blockW - blockGap - blockW / 2, y: podiumY - 130, h: 130 }, // 2nd
+      { x: centerX + blockGap + blockW / 2, y: podiumY - 110, h: 110 }, // 3rd
+    ];
+
+    const blockColors = ["#2a313f", "#222835", "#1f2430"];
+    blocks.forEach((b, i) => {
+      ctx.fillStyle = blockColors[i];
+      ctx.fillRect(b.x, b.y, blockW, b.h);
+      ctx.strokeStyle = "rgba(255,255,255,0.08)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(b.x, b.y, blockW, b.h);
+    });
+
+    // Draw avatars
+    const avatarSize = 120;
+    const avatarCenters = [
+      { x: centerX, y: podiumY - 180 - 20 },
+      { x: centerX - blockW - blockGap, y: podiumY - 130 - 10 },
+      { x: centerX + blockW + blockGap, y: podiumY - 110 - 10 },
+    ];
+
+    for (let i = 0; i < 3; i++) {
+      const userId = topThree[i];
+      if (!userId) continue;
+      let avatarUrl;
+      try {
+        const user = await client.users.fetch(userId);
+        avatarUrl = user.displayAvatarURL({ extension: "png", size: 256 });
+      } catch {
+        avatarUrl = null;
+      }
+
+      const center = avatarCenters[i];
+      const radius = avatarSize / 2;
+      const ring = PODIUM_RINGS[i];
+
+      if (avatarUrl) {
+        const img = await loadImage(avatarUrl);
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(img, center.x - radius, center.y - radius, avatarSize, avatarSize);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = "#2b3242";
+        ctx.beginPath();
+        ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Ring
+      ctx.strokeStyle = ring.color;
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.arc(center.x, center.y, radius + 6, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Rank label
+      ctx.fillStyle = ring.color;
+      ctx.font = "bold 20px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(ring.label, center.x, center.y + radius + 28);
+    }
+
+    return canvas.toBuffer("image/png");
+  } catch (err) {
+    console.error("[GAUNTLET] Podium image failed:", err?.message || err);
+    return null;
+  }
+}
 
 function format(template, victimId, killerId) {
   // Victim is always eliminated ? crossed out.
@@ -127,8 +263,8 @@ async function runSurvival(channel, playerIds, eraLabel) {
         }
       }
 
-      // ?? Death line
-      lines.push(`?? ${text}`);
+      // 💀 Death line
+      lines.push(`💀 ${text}`);
     }
 
     // --- RESURRECTION CHANCE ---
@@ -149,8 +285,8 @@ async function runSurvival(channel, playerIds, eraLabel) {
         `<@${revivedId}>`
       );
 
-      // ? Revival line
-      lines.push(`? ${resurrectionText}`);
+      // ✨ Revival line
+      lines.push(`✨ ${resurrectionText}`);
     }
 
     // Pick the stage for this milestone
@@ -163,6 +299,15 @@ async function runSurvival(channel, playerIds, eraLabel) {
     const embed = new EmbedBuilder()
       .setTitle(`Squig Life - ${stage.title}`)
       .setColor(0x9b59b6);
+
+    const imageUrl =
+      stage.image ||
+      (milestone >= 5
+        ? FALLBACK_STAGE_IMAGES[
+            (milestone - 5) % FALLBACK_STAGE_IMAGES.length
+          ]
+        : null);
+    if (imageUrl) embed.setImage(imageUrl);
 
     const descriptionParts = [];
 
@@ -205,22 +350,34 @@ async function runSurvival(channel, playerIds, eraLabel) {
   const lbLines = placements.map((id, index) => {
     const rank = index + 1;
     let prefix;
-    if (rank === 1) prefix = "?? 1st";
-    else if (rank === 2) prefix = "?? 2nd";
-    else if (rank === 3) prefix = "?? 3rd";
+    if (rank === 1) prefix = "🥇 1st";
+    else if (rank === 2) prefix = "🥈 2nd";
+    else if (rank === 3) prefix = "🥉 3rd";
     else prefix = `${rank}.`;
     return `${prefix} - <@${id}>`;
   });
 
-  await channel.send({
-    embeds: [
-      new EmbedBuilder()
-        .setTitle("Squig Survival - Final Standings")
-        .setDescription(lbLines.join("\n"))
-        .setColor(0xf1c40f)
-        .setFooter({ text: "Only one Squig ever really makes it..." }),
-    ],
-  });
+  const standingsEmbed = new EmbedBuilder()
+    .setTitle("Squig Survival - Final Standings")
+    .setDescription(lbLines.join("\n"))
+    .setColor(0xf1c40f)
+    .setFooter({ text: "Only one Squig ever really makes it..." });
+
+  const podiumBuffer = await buildPodiumImage(channel.client, placements);
+  if (podiumBuffer) {
+    const podiumAttachment = new AttachmentBuilder(podiumBuffer, {
+      name: "podium.png",
+    });
+    standingsEmbed.setImage("attachment://podium.png");
+    await channel.send({
+      embeds: [standingsEmbed],
+      files: [podiumAttachment],
+    });
+  } else {
+    await channel.send({
+      embeds: [standingsEmbed],
+    });
+  }
 
   const payouts = calculateSurvivalPayouts(uniquePlayers, placements);
   await sendSurvivalPayouts(channel, payouts, placements, uniquePlayers.length);

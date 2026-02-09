@@ -111,4 +111,3 @@ module.exports = {
     "The backup emergency portal activates and spits out {victim}, who seems disappointed to be back.",
   ],
 };
-
