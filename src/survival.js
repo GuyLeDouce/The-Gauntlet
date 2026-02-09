@@ -111,10 +111,11 @@ async function buildPodiumImage(client, placements) {
     const blockW = 200;
     const blockGap = 30;
     const centerX = width / 2;
+    const raiseBy = avatarSize / 2;
     const avatarCenters = [
-      { x: centerX, y: podiumY - 180 - 20 },
-      { x: centerX - blockW - blockGap, y: podiumY - 130 - 10 },
-      { x: centerX + blockW + blockGap, y: podiumY - 110 - 10 },
+      { x: centerX, y: podiumY - 180 - 20 - raiseBy },
+      { x: centerX - blockW - blockGap, y: podiumY - 130 - 10 - raiseBy },
+      { x: centerX + blockW + blockGap, y: podiumY - 110 - 10 - raiseBy },
     ];
 
     for (let i = 0; i < 3; i++) {
