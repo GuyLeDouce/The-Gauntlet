@@ -6,6 +6,7 @@ const {
   REST,
   Routes,
   EmbedBuilder,
+  AttachmentBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
