@@ -14,36 +14,69 @@ const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
  * Life stages for each milestone.
  * We clamp to the last stage if the game runs longer than this list.
  */
+const LOCKED_FIRST_IMAGE = "https://i.imgur.com/jfVffAW.jpeg";
+const FALLBACK_STAGE_IMAGES = [
+  "https://i.imgur.com/jYNKD3d.jpeg",
+  "https://i.imgur.com/8hJ6XEE.jpeg",
+  "https://i.imgur.com/yBmAjMh.jpeg",
+  "https://i.imgur.com/fiNkaTa.jpeg",
+  "https://i.imgur.com/r5Nysp5.jpeg",
+  "https://i.imgur.com/oDDwiXk.jpeg",
+  "https://i.imgur.com/1NTPdp2.jpeg",
+  "https://i.imgur.com/R4wlJ1q.jpeg",
+  "https://i.imgur.com/RJwmxm4.jpeg",
+  "https://i.imgur.com/atw2YPn.jpeg",
+  "https://i.imgur.com/9RY06vL.jpeg",
+  "https://i.imgur.com/dnTGhgl.jpeg",
+  "https://i.imgur.com/whAJaka.jpeg",
+  "https://i.imgur.com/njckQiQ.jpeg",
+  "https://i.imgur.com/szOnMxN.jpeg",
+  "https://i.imgur.com/K4x6Dgk.jpeg",
+  "https://i.imgur.com/Nmc9UPb.jpeg",
+  "https://i.imgur.com/bZwvi5J.jpeg",
+  "https://i.imgur.com/Tlf4elV.jpeg",
+  "https://i.imgur.com/K1BMD1e.jpeg",
+];
+const RANDOM_STAGE_IMAGES = [...new Set(FALLBACK_STAGE_IMAGES)];
+const SURVIVAL_ART_REWARDS = {
+  "https://i.imgur.com/Tlf4elV.jpeg": {
+    userId: "836389642885398530",
+    amount: 10,
+    reason: "Squig Survival art bonus (image used) — thanks for your creativity!",
+  },
+  "https://i.imgur.com/K1BMD1e.jpeg": {
+    userId: "836389642885398530",
+    amount: 10,
+    reason: "Squig Survival art bonus (image used) — thanks for your creativity!",
+  },
+};
+
 const MILESTONE_STAGES = [
   {
     title: "Landing Day 1 - First Impact",
     flavor:
       "Fresh from the portal, the Squigs splatter into Earth's atmosphere like confused cosmic confetti.",
-    image: "https://i.imgur.com/jfVffAW.jpeg",
+    image: LOCKED_FIRST_IMAGE,
   },
   {
     title: "Month 1 on Earth - First Confusion",
     flavor:
       "The Squigs are still learning gravity, weather, and why humans keep putting pineapple on pizza.",
-    image: "https://i.imgur.com/jYNKD3d.jpeg",
   },
   {
     title: "Month 2 on Earth - Bad Influences",
     flavor:
       "They discover social media, NFTs, and the horrifying power of quote-tweets.",
-    image: "https://i.imgur.com/8hJ6XEE.jpeg",
   },
   {
     title: "Month 3 on Earth - Questionable Hobbies",
     flavor:
       "Some Squigs start side hustles. Others become professional lurkers. All of them are still extremely weird.",
-    image: "https://i.imgur.com/yBmAjMh.jpeg",
   },
   {
     title: "Month 4 on Earth - Full Degeneracy",
     flavor:
       "Sleep schedules are gone. Caffeine is up. Decisions are... not always good ones.",
-    image: "https://i.imgur.com/fiNkaTa.jpeg",
   },
   {
     title: "Month 5 on Earth - The Great Overthink",
@@ -60,13 +93,6 @@ const MILESTONE_STAGES = [
     flavor:
       "The portals flicker. Transmission logs corrupt. Only a handful of Squigs remain to tell the tale.",
   },
-];
-
-const FALLBACK_STAGE_IMAGES = [
-  "https://i.imgur.com/jYNKD3d.jpeg",
-  "https://i.imgur.com/8hJ6XEE.jpeg",
-  "https://i.imgur.com/yBmAjMh.jpeg",
-  "https://i.imgur.com/fiNkaTa.jpeg",
 ];
 
 const PODIUM_RINGS = [
@@ -308,13 +334,43 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
       .setColor(0x9b59b6);
 
     const imageUrl =
-      stage.image ||
-      (milestone >= 5
-        ? FALLBACK_STAGE_IMAGES[
-            (milestone - 5) % FALLBACK_STAGE_IMAGES.length
-          ]
-        : null);
+      milestone === 1
+        ? LOCKED_FIRST_IMAGE
+        : RANDOM_STAGE_IMAGES.length
+          ? pick(RANDOM_STAGE_IMAGES)
+          : null;
     if (imageUrl) embed.setImage(imageUrl);
+    const artReward = imageUrl ? SURVIVAL_ART_REWARDS[imageUrl] : null;
+    if (artReward) {
+      try {
+        const reward = await rewardCharmAmount({
+          userId: artReward.userId,
+          username: `Artist-${artReward.userId}`,
+          amount: artReward.amount,
+          source: "survival-art",
+          guildId: channel.guildId,
+          channelId: channel.id,
+          metadata: { imageUrl },
+          logClient: channel.client,
+          logReason: artReward.reason,
+        });
+        if (reward?.ok) {
+          await logCharmReward(channel.client, {
+            userId: artReward.userId,
+            amount: artReward.amount,
+            score: 0,
+            source: "survival-art",
+            channelId: channel.id,
+            reason: artReward.reason,
+          });
+        }
+      } catch (err) {
+        console.error(
+          "[GAUNTLET:DRIP] Survival art reward failed:",
+          err?.message || err
+        );
+      }
+    }
 
     const descriptionParts = [];
 

@@ -1266,6 +1266,9 @@ async function handleInteractionCreate(interaction) {
         });
       }
 
+      // Lock the daily play immediately to prevent multiple starts in one day.
+      await Store.recordPlay(interaction.user.id, today);
+
       await interaction.editReply({
         content: "⚔️ Your Gauntlet run begins now (ephemeral). Good luck!",
       });
