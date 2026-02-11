@@ -34,7 +34,13 @@ class PgStore {
       ssl: getSSL(),
     });
 
+    // Prevent unhandled pool errors from crashing the process.
+    this.pool.on("error", (err) => {
+      log("Postgres pool error (will continue):", err?.message || err);
+    });
+
     this._initialized = false;
+    this._keepAliveTimer = null;
   }
 
   async init() {
@@ -49,6 +55,15 @@ class PgStore {
     }
 
     log("Connecting to Postgres...");
+
+    // Health check: verify we can reach the DB at startup.
+    try {
+      await this.pool.query("SELECT 1");
+      log("DB health check OK.");
+    } catch (err) {
+      log("DB health check FAILED:", err?.message || err);
+      // Keep going so the bot can retry on next query.
+    }
 
     // Optional destructive reset – ONLY when explicitly enabled
     if (shouldReset) {
@@ -99,6 +114,22 @@ class PgStore {
 
     this._initialized = true;
     log("Database ready.");
+
+    // Keep-alive: reduce idle disconnects (Railway can drop idle connections).
+    if (!this._keepAliveTimer) {
+      const minutes = Number(process.env.PG_KEEPALIVE_MINUTES || "5");
+      const intervalMs = Math.max(1, minutes) * 60_000;
+      this._keepAliveTimer = setInterval(async () => {
+        try {
+          await this.pool.query("SELECT 1");
+        } catch (err) {
+          log("DB keep-alive failed:", err?.message || err);
+        }
+      }, intervalMs);
+      // Don't keep the process alive just for the timer.
+      if (this._keepAliveTimer.unref) this._keepAliveTimer.unref();
+      log(`DB keep-alive every ${minutes} minute(s).`);
+    }
   }
 
   // ----------------------------------------------------------
@@ -270,6 +301,10 @@ class PgStore {
   // ----------------------------------------------------------
 
   async close() {
+    if (this._keepAliveTimer) {
+      clearInterval(this._keepAliveTimer);
+      this._keepAliveTimer = null;
+    }
     await this.pool.end();
     log("Pool closed.");
   }

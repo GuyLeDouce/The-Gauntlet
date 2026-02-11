@@ -19,8 +19,9 @@ const GUILD_IDS = (process.env.GUILD_IDS || "")
   .map((s) => s.trim())
   .filter(Boolean);
 
+// Default to false to avoid destructive resets unless explicitly enabled.
 const GAUNTLET_RESET =
-  (process.env.GAUNTLET_RESET || "true").toLowerCase() === "true";
+  (process.env.GAUNTLET_RESET || "false").toLowerCase() === "true";
 
 const AUTHORIZED_ADMINS = (
   process.env.GAUNTLET_ADMINS ||
