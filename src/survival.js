@@ -10,6 +10,15 @@ const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 /**
  * Life stages for each milestone.
  * We clamp to the last stage if the game runs longer than this list.
@@ -237,6 +246,7 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
   const uniquePlayers = Array.from(new Set(playerIds));
   let alive = [...uniquePlayers];
   const eliminated = [];
+  let imageBag = shuffle(RANDOM_STAGE_IMAGES);
 
   // One player = instant win embed
   if (alive.length === 1) {
@@ -333,12 +343,13 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
       .setTitle(`Squig Life - ${stage.title}`)
       .setColor(0x9b59b6);
 
-    const imageUrl =
-      milestone === 1
-        ? LOCKED_FIRST_IMAGE
-        : RANDOM_STAGE_IMAGES.length
-          ? pick(RANDOM_STAGE_IMAGES)
-          : null;
+    let imageUrl = null;
+    if (milestone === 1) {
+      imageUrl = LOCKED_FIRST_IMAGE;
+    } else if (RANDOM_STAGE_IMAGES.length) {
+      if (!imageBag.length) imageBag = shuffle(RANDOM_STAGE_IMAGES);
+      imageUrl = imageBag.shift() || null;
+    }
     if (imageUrl) embed.setImage(imageUrl);
     const artReward = imageUrl ? SURVIVAL_ART_REWARDS[imageUrl] : null;
     if (artReward) {
