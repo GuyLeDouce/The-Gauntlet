@@ -34,6 +34,14 @@ class ImageStore {
       return;
     }
 
+    if (process.env.IMAGE_DB_SAFE !== "true") {
+      log(
+        "IMAGE_DB_SAFE is not set to \"true\". Image DB disabled to prevent accidental destructive changes."
+      );
+      this._initialized = true;
+      return;
+    }
+
     this._buildPool();
 
     try {
