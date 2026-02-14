@@ -484,6 +484,11 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
           logReason: artReward.reason,
         });
         if (reward?.ok) {
+          try {
+            await channel.send(
+              `-# 🎨 Art drop! Thanks to <@${artReward.userId}> — your Squig Survival art just got used and earned you **+${artReward.amount} $CHARM**.\n-# Want in? Post your image in <#1334884237727240267> and staff can add it so you earn $CHARM whenever it appears.`
+            );
+          } catch {}
           await logCharmReward(channel.client, {
             userId: artReward.userId,
             amount: artReward.amount,
