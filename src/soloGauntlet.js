@@ -46,6 +46,7 @@ const {
 const { runSurvival, buildPodiumImage } = require("./survival");
 const { rewardCharmAmount, logCharmReward } = require("./drip");
 const { imageStore } = require("./imageStore");
+const { survivalStore } = require("./survivalStore");
 
 // --------------------------------------------
 // Small helpers
@@ -822,6 +823,28 @@ async function registerCommands() {
           .setDescription("Optional artist to reward when this image is used.")
           .setRequired(false)
       ),
+    new SlashCommandBuilder()
+      .setName("survivorboard")
+      .setDescription("Top Squig Survival winners for the current month."),
+    new SlashCommandBuilder()
+      .setName("lives")
+      .setDescription("Your Squig Survival stats (week or month).")
+      .addUserOption((o) =>
+        o
+          .setName("user")
+          .setDescription("Check another Squig's stats")
+          .setRequired(false)
+      )
+      .addStringOption((o) =>
+        o
+          .setName("range")
+          .setDescription("Time range for stats")
+          .setRequired(false)
+          .addChoices(
+            { name: "Week", value: "week" },
+            { name: "Month", value: "month" }
+          )
+      ),
   ];
 
   // Include the group command definition from groupGauntlet.js
@@ -1262,6 +1285,64 @@ async function handleInteractionCreate(interaction) {
             flags: 64,
           });
         }
+      }
+
+      // /survivorboard
+      if (interaction.commandName === "survivorboard") {
+        await interaction.deferReply();
+        const rows = await survivalStore.getMonthlyWinnersTop10();
+        const lines = rows.length
+          ? rows
+              .map((r, i) => {
+                const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`;
+                return `${medal} <@${r.user_id}> — **${r.firsts}** wins (2nd: ${r.seconds}, 3rd: ${r.thirds}, games: ${r.games})`;
+              })
+              .join("\n")
+          : "No Squig Survival wins yet this month.";
+
+        const embed = new EmbedBuilder()
+          .setTitle("🏆 Squig Survival — Monthly Winners")
+          .setDescription(lines)
+          .setColor(0xf1c40f);
+
+        return interaction.editReply({ embeds: [embed] });
+      }
+
+      // /lives
+      if (interaction.commandName === "lives") {
+        await interaction.deferReply({ ephemeral: true });
+        const range = interaction.options.getString("range") || "month";
+        const targetUser = interaction.options.getUser("user") || interaction.user;
+        const stats = await survivalStore.getUserStats(targetUser.id, range);
+        const title = range === "week" ? "This Week" : "This Month";
+        const lines = [
+          `🥇 **1st:** ${stats.firsts}`,
+          `🥈 **2nd:** ${stats.seconds}`,
+          `🥉 **3rd:** ${stats.thirds}`,
+          `🎮 **Games Played:** ${stats.games}`,
+          `🔪 **Eliminations:** ${stats.eliminations}`,
+          `💀 **Deaths:** ${stats.deaths}`,
+          `🖼️ **Images Used:** ${stats.images_used}`,
+        ];
+
+        const quips = [
+          "The portal knows your name. It just pretends not to.",
+          "Your life count is a work of art. Or at least a sketch.",
+          "Survival stats powered by snacks and questionable decisions.",
+          "Keep going. The Squigs are taking notes.",
+          "Numbers don't lie. Squigs do.",
+          "You are technically alive on paper.",
+        ];
+
+        const header =
+          targetUser.id === interaction.user.id ? "" : `<@${targetUser.id}>\n`;
+        const embed = new EmbedBuilder()
+          .setTitle(`🧬 Squig Lives — ${title}`)
+          .setDescription(`${header}${lines.join("\n")}`)
+          .setFooter({ text: rand(quips) })
+          .setColor(0x9b59b6);
+
+        return interaction.editReply({ embeds: [embed] });
       }
     }
 

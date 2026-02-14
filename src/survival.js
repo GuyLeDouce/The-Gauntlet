@@ -5,6 +5,7 @@ const { EmbedBuilder, AttachmentBuilder } = require("discord.js");
 const { createCanvas, loadImage } = require("@napi-rs/canvas");
 const { rewardCharmAmount, logCharmReward } = require("./drip");
 const { imageStore } = require("./imageStore");
+const { survivalStore } = require("./survivalStore");
 const stories = require("./survivalStories");
 
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
@@ -334,6 +335,12 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
   );
 
   const uniquePlayers = Array.from(new Set(playerIds));
+  const gameId = await survivalStore.createGame(new Date());
+  if (gameId) {
+    await Promise.all(
+      uniquePlayers.map((id) => survivalStore.recordJoin(gameId, id, new Date()))
+    );
+  }
   let alive = [...uniquePlayers];
   const eliminated = [];
   let imageBag = shuffle(mergedStageImages);
@@ -376,6 +383,9 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
       const victimIndex = Math.floor(Math.random() * alive.length);
       const victimId = alive.splice(victimIndex, 1)[0];
       eliminated.push(victimId);
+      if (gameId) {
+        await survivalStore.addDeath(gameId, victimId, 1);
+      }
 
       const category = Math.floor(Math.random() * 3);
       let text;
@@ -393,6 +403,9 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
         } else {
           const killerId = alive[Math.floor(Math.random() * alive.length)];
           text = format(pick(stories.sabotage), victimId, killerId);
+          if (gameId) {
+            await survivalStore.addElimination(gameId, killerId, 1);
+          }
         }
       }
 
@@ -455,6 +468,9 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
       ? dbRewardMap.get(imageUrl) || SURVIVAL_ART_REWARDS[imageUrl]
       : null;
     if (artReward) {
+      if (gameId && artReward.userId) {
+        await survivalStore.addImageUse(gameId, artReward.userId, imageUrl);
+      }
       try {
         const reward = await rewardCharmAmount({
           userId: artReward.userId,
@@ -532,6 +548,18 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
   // Winner + standings
   const winnerId = alive[0];
   const placements = [winnerId, ...eliminated.reverse()];
+  if (gameId) {
+    const uniquePlacements = [];
+    for (const id of placements) {
+      if (!uniquePlacements.includes(id)) uniquePlacements.push(id);
+      if (uniquePlacements.length >= 3) break;
+    }
+    await Promise.all(
+      uniquePlacements.map((id, idx) =>
+        survivalStore.setPlacement(gameId, id, idx + 1)
+      )
+    );
+  }
 
   const lbLines = placements.map((id, index) => {
     const rank = index + 1;
