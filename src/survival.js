@@ -439,7 +439,7 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
     // --- LORE-ONLY LINES ---
     const loreCount = randInt(2, 3);
     for (let i = 0; i < loreCount; i++) {
-      const who = pick(uniquePlayers);
+      const who = pick(alive.length ? alive : uniquePlayers);
       const lore = pick(LORE_LINES).replace(/{player}/g, `<@${who}>`);
       const insertAt = randInt(0, lines.length);
       lines.splice(insertAt, 0, lore);
