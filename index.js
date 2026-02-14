@@ -11,6 +11,7 @@ const {
 
 const { TOKEN } = require("./src/utils");
 const { initStore } = require("./src/db");
+const { initImageStore } = require("./src/imageStore");
 
 // Unified Gauntlet (solo + group commands & routing)
 const {
@@ -42,6 +43,7 @@ client.once(Events.ClientReady, async () => {
   console.log(`? Logged in as ${client.user.tag}`);
 
   await initStore();
+  await initImageStore();
 
   try {
     // This now registers BOTH solo + group commands in one shot

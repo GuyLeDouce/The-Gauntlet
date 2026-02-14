@@ -4,6 +4,7 @@
 const { EmbedBuilder, AttachmentBuilder } = require("discord.js");
 const { createCanvas, loadImage } = require("@napi-rs/canvas");
 const { rewardCharmAmount, logCharmReward } = require("./drip");
+const { imageStore } = require("./imageStore");
 const stories = require("./survivalStories");
 
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
@@ -45,17 +46,24 @@ const FALLBACK_STAGE_IMAGES = [
   "https://i.imgur.com/bZwvi5J.jpeg",
   "https://i.imgur.com/Tlf4elV.jpeg",
   "https://i.imgur.com/K1BMD1e.jpeg",
+  "https://i.imgur.com/eDAkAOV.png",
 ];
 const RANDOM_STAGE_IMAGES = [...new Set(FALLBACK_STAGE_IMAGES)];
+const SURVIVAL_ART_PAYOUT = 100;
 const SURVIVAL_ART_REWARDS = {
   "https://i.imgur.com/Tlf4elV.jpeg": {
     userId: "836389642885398530",
-    amount: 10,
+    amount: SURVIVAL_ART_PAYOUT,
     reason: "Squig Survival art bonus (image used) — thanks for your creativity!",
   },
   "https://i.imgur.com/K1BMD1e.jpeg": {
     userId: "836389642885398530",
-    amount: 10,
+    amount: SURVIVAL_ART_PAYOUT,
+    reason: "Squig Survival art bonus (image used) — thanks for your creativity!",
+  },
+  "https://i.imgur.com/eDAkAOV.png": {
+    userId: "833502268137144330",
+    amount: SURVIVAL_ART_PAYOUT,
     reason: "Squig Survival art bonus (image used) — thanks for your creativity!",
   },
 };
@@ -243,10 +251,35 @@ function format(template, victimId, killerId) {
 async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
   if (!playerIds || playerIds.length === 0) return;
 
+  let dbImageRows = [];
+  try {
+    dbImageRows = await imageStore.getSurvivalImages();
+  } catch (err) {
+    console.error(
+      "[GAUNTLET:IMGDB] Failed to load survival images:",
+      err?.message || err
+    );
+  }
+
+  const dbImageUrls = dbImageRows.map((r) => r.image_url).filter(Boolean);
+  const mergedStageImages = [...new Set([...RANDOM_STAGE_IMAGES, ...dbImageUrls])];
+  const dbRewardMap = new Map(
+    dbImageRows
+      .filter((r) => r.image_url && r.user_id)
+      .map((r) => [
+        r.image_url,
+        {
+          userId: r.user_id,
+          amount: SURVIVAL_ART_PAYOUT,
+          reason: "Squig Survival art bonus (image used) — thanks for your creativity!",
+        },
+      ])
+  );
+
   const uniquePlayers = Array.from(new Set(playerIds));
   let alive = [...uniquePlayers];
   const eliminated = [];
-  let imageBag = shuffle(RANDOM_STAGE_IMAGES);
+  let imageBag = shuffle(mergedStageImages);
 
   // One player = instant win embed
   if (alive.length === 1) {
@@ -346,12 +379,14 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
     let imageUrl = null;
     if (milestone === 1) {
       imageUrl = LOCKED_FIRST_IMAGE;
-    } else if (RANDOM_STAGE_IMAGES.length) {
-      if (!imageBag.length) imageBag = shuffle(RANDOM_STAGE_IMAGES);
+    } else if (mergedStageImages.length) {
+      if (!imageBag.length) imageBag = shuffle(mergedStageImages);
       imageUrl = imageBag.shift() || null;
     }
     if (imageUrl) embed.setImage(imageUrl);
-    const artReward = imageUrl ? SURVIVAL_ART_REWARDS[imageUrl] : null;
+    const artReward = imageUrl
+      ? dbRewardMap.get(imageUrl) || SURVIVAL_ART_REWARDS[imageUrl]
+      : null;
     if (artReward) {
       try {
         const reward = await rewardCharmAmount({

@@ -45,6 +45,7 @@ const {
 
 const { runSurvival, buildPodiumImage } = require("./survival");
 const { rewardCharmAmount, logCharmReward } = require("./drip");
+const { imageStore } = require("./imageStore");
 
 // --------------------------------------------
 // Small helpers
@@ -806,6 +807,21 @@ async function registerCommands() {
     new SlashCommandBuilder()
       .setName("podiumtest")
       .setDescription("Test the Squig Survival podium art (uses your avatar)."),
+    new SlashCommandBuilder()
+      .setName("addimage")
+      .setDescription("Add a Squig Survival stage image (admins only).")
+      .addStringOption((o) =>
+        o
+          .setName("url")
+          .setDescription("Image URL (https)")
+          .setRequired(true)
+      )
+      .addUserOption((o) =>
+        o
+          .setName("user")
+          .setDescription("Optional artist to reward when this image is used.")
+          .setRequired(false)
+      ),
   ];
 
   // Include the group command definition from groupGauntlet.js
@@ -1198,6 +1214,54 @@ async function handleInteractionCreate(interaction) {
           embeds: [embed],
           files: [attachment],
         });
+      }
+
+      // /addimage
+      if (interaction.commandName === "addimage") {
+        if (!isAdminUserLocal(interaction)) {
+          return interaction.reply({
+            content: "⛔ Only admins can use /addimage.",
+            flags: 64,
+          });
+        }
+
+        const imageUrl = interaction.options.getString("url");
+        const artist = interaction.options.getUser("user");
+        const userId = artist?.id || null;
+
+        if (!/^https?:\/\//i.test(imageUrl || "")) {
+          return interaction.reply({
+            content: "❌ Image URL must start with http:// or https://",
+            flags: 64,
+          });
+        }
+
+        try {
+          const result = await imageStore.addSurvivalImage({
+            imageUrl,
+            userId,
+            addedBy: interaction.user.id,
+          });
+
+          if (!result.ok) {
+            return interaction.reply({
+              content: `❌ Image DB unavailable: ${result.reason || "unknown error"}`,
+              flags: 64,
+            });
+          }
+
+          return interaction.reply({
+            content: `✅ Added survival image.\nURL: ${imageUrl}${
+              userId ? `\nArtist: <@${userId}>` : ""
+            }`,
+            flags: 64,
+          });
+        } catch (err) {
+          return interaction.reply({
+            content: `❌ Failed to add image: ${err?.message || err}`,
+            flags: 64,
+          });
+        }
       }
     }
 
