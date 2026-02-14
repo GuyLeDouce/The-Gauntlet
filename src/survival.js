@@ -8,8 +8,12 @@ const { imageStore } = require("./imageStore");
 const stories = require("./survivalStories");
 
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+const REVEAL_DELAY_MS = 2000;
+const MILESTONE_PAUSE_MS = 20000;
 
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+const randInt = (min, max) =>
+  Math.floor(Math.random() * (max - min + 1)) + min;
 
 function shuffle(arr) {
   const a = [...arr];
@@ -67,6 +71,59 @@ const SURVIVAL_ART_REWARDS = {
     reason: "Squig Survival art bonus (image used) — thanks for your creativity!",
   },
 };
+
+const LORE_LINES = [
+  "🌀 {player} tries coffee for the first time and decides it is \"spicy water.\"",
+  "🛒 {player} discovers grocery carts and insists they are \"metal steeds.\"",
+  "📱 {player} scrolls for three hours and calls it \"research.\"",
+  "🍕 {player} argues pineapple improves portals.",
+  "🧦 {player} collects socks and declares them \"Earth skins.\"",
+  "🎧 {player} hears lo-fi beats and refuses to stop vibing.",
+  "🚌 {player} boards the wrong bus and calls it \"quest mode.\"",
+  "🧴 {player} learns sunscreen exists and applies it to a hat.",
+  "🧊 {player} meets ice for the first time and distrusts it.",
+  "🪙 {player} trades a shiny pebble for a real coin and feels powerful.",
+  "🧠 {player} reads a self-help book and still chooses chaos.",
+  "🐸 {player} tries to befriend a frog and gets judged.",
+  "🕶️ {player} buys sunglasses and claims \"the sun is rude.\"",
+  "🍔 {player} believes burgers are a cultural handshake.",
+  "🧼 {player} learns \"soap\" and becomes briefly unstoppable.",
+  "🚦 {player} stares at traffic lights like they're speaking in riddles.",
+  "📦 {player} discovers cardboard boxes are \"cozy portals.\"",
+  "💤 {player} naps in public and calls it \"social camouflage.\"",
+  "🎢 {player} rides a rollercoaster and rethinks gravity.",
+  "📺 {player} watches a sitcom and decides humans are \"strange but funny.\"",
+  "The day is calmer when {player} decides to simply people-watch.",
+  "A vending machine teaches {player} the meaning of patience.",
+  "Someone hands {player} a receipt and they keep it as a trophy.",
+  "A pigeon stares back at {player}. They negotiate a truce.",
+  "Today, {player} discovers escalators and calls them \"lazy stairs.\"",
+  "An elevator stops. {player} bows out of respect.",
+  "A hoodie becomes a ceremonial robe for {player}.",
+  "The word \"brunch\" confuses {player} for 12 minutes.",
+  "At the crosswalk, {player} misreads the tiny person as a warning sprite.",
+  "On a walk, {player} decides sidewalks are \"ground rivers.\"",
+  "A delivery driver nods at {player}. Diplomatic relations established.",
+  "A subway map makes {player} feel briefly omniscient.",
+  "A paper clip becomes a relic in {player}'s pocket.",
+  "{player} declares socks optional and is immediately corrected by a breeze.",
+  "A park bench adopts {player} for a quiet moment.",
+  "The moon gets a casual wave from {player}. It does not wave back.",
+  "Today, {player} learns the power of a good playlist.",
+  "A rainy day turns {player}'s footsteps into percussion.",
+  "A QR code confuses {player} and delights them anyway.",
+  "A smoothie tastes like \"fruit lightning\" to {player}.",
+  "A cat ignores {player}. This is taken as wisdom.",
+  "A doorway welcomes {player} with a dramatic swoosh.",
+  "A scarf becomes a cape, and {player} takes it seriously.",
+  "A bakery aroma convinces {player} that Earth is worth it.",
+  "A street musician inspires {player} to hum in Squig.",
+  "Today, {player} decides that notebooks are sacred.",
+  "A mailbox becomes {player}'s sworn enemy for five minutes.",
+  "A carousel makes {player} consider spinning as a lifestyle.",
+  "A mirror startles {player} with unexpected handsomeness.",
+  "A water fountain teaches {player} to trust buttons.",
+];
 
 const MILESTONE_STAGES = [
   {
@@ -348,7 +405,7 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
       eliminated.length > 0 &&
       stories.resurrections &&
       stories.resurrections.length > 0 &&
-      Math.random() < 0.1 // 10% chance per milestone
+      Math.random() < 0.18 // ~18% chance per milestone
     ) {
       const revivedIndex = Math.floor(Math.random() * eliminated.length);
       const revivedId = eliminated.splice(revivedIndex, 1)[0];
@@ -361,8 +418,18 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
         `<@${revivedId}>`
       );
 
-      // ✨ Revival line
-      lines.push(`✨ ${resurrectionText}`);
+      // ✨ Revival line (emphasized)
+      lines.push("🌟 **RESURRECTION!**");
+      lines.push(`✨ **${resurrectionText}**`);
+    }
+
+    // --- LORE-ONLY LINES ---
+    const loreCount = randInt(2, 3);
+    for (let i = 0; i < loreCount; i++) {
+      const who = pick(uniquePlayers);
+      const lore = pick(LORE_LINES).replace(/{player}/g, `<@${who}>`);
+      const insertAt = randInt(0, lines.length);
+      lines.splice(insertAt, 0, lore);
     }
 
     // Pick the stage for this milestone
@@ -418,17 +485,14 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
       }
     }
 
-    const descriptionParts = [];
+    const baseDesc = stage.flavor ? `_${stage.flavor}_\n` : "";
+    const buildDesc = (count) => {
+      if (!lines.length) return baseDesc.trim();
+      const slice = lines.slice(0, count).join("\n");
+      return `${baseDesc}${slice}`.trim();
+    };
 
-    if (stage.flavor) {
-      descriptionParts.push(`_${stage.flavor}_\n`);
-    }
-
-    if (lines.length > 0) {
-      descriptionParts.push(lines.join("\n"));
-    }
-
-    embed.setDescription(descriptionParts.join("\n"));
+    embed.setDescription(buildDesc(0));
 
     // --- FOOTER: HOW MANY SQUIGS REMAIN ---
     const remainingText = `${alive.length} Squig${
@@ -445,11 +509,24 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
       });
     }
 
-    await channel.send({ embeds: [embed] });
+    const msg = await channel.send({ embeds: [embed] });
+
+    if (lines.length > 0) {
+      for (let i = 1; i <= lines.length; i++) {
+        await sleep(REVEAL_DELAY_MS);
+        try {
+          embed.setDescription(buildDesc(i));
+          await msg.edit({ embeds: [embed] });
+        } catch {
+          // If edit fails (deleted or perms), just stop revealing.
+          break;
+        }
+      }
+    }
     milestone += 1;
 
     // Short breather between milestones
-    await sleep(8000);
+    await sleep(MILESTONE_PAUSE_MS);
   }
 
   // Winner + standings
