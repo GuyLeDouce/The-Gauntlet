@@ -58,12 +58,23 @@ const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
 // --------------------------------------------
 let survivalLobby = null;
 
-function buildSurvivalLobbyEmbed(era, count, poolIncrement) {
+function formatCountdown(ms) {
+  const totalSec = Math.max(0, Math.floor(ms / 1000));
+  const mins = Math.floor(totalSec / 60);
+  const secs = totalSec % 60;
+  if (mins <= 0) return `${secs}s`;
+  return `${mins}m ${secs}s`;
+}
+
+function buildSurvivalLobbyEmbed(era, count, poolIncrement, countdownMs) {
   const lines = [
     "Click **Join** to enter **Squig Survival**.",
     "Try out life as a Squig stumbling through Earth.",
     "",
     `Prize pool: **+${poolIncrement} $CHARM** per Squig`,
+    ...(typeof countdownMs === "number"
+      ? [`Auto-start in: **${formatCountdown(countdownMs)}**`]
+      : []),
     "",
     `Players joined: **${count}**`,
     "",
@@ -87,7 +98,109 @@ function clearSurvivalLobby() {
       survivalLobby.collector.stop("cleared");
     } catch {}
   }
+  if (survivalLobby?.countdownInterval) {
+    clearInterval(survivalLobby.countdownInterval);
+  }
+  if (survivalLobby?.countdownTimers?.length) {
+    survivalLobby.countdownTimers.forEach((t) => clearTimeout(t));
+  }
   survivalLobby = null;
+}
+
+function buildLobbyJumpButton(guildId, channelId, messageId) {
+  if (!guildId || !channelId || !messageId) return null;
+  const url = `https://discord.com/channels/${guildId}/${channelId}/${messageId}`;
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setStyle(ButtonStyle.Link)
+      .setLabel("Back to Lobby")
+      .setURL(url)
+  );
+}
+
+async function startSurvivalFromLobby(interaction, lobby) {
+  if (!lobby || lobby.game_status !== "lobby") return;
+  lobby.game_status = "running";
+  if (lobby.collector) {
+    try {
+      lobby.collector.stop("start");
+    } catch {}
+  }
+  if (lobby.countdownInterval) {
+    clearInterval(lobby.countdownInterval);
+    lobby.countdownInterval = null;
+  }
+  if (lobby.countdownTimers?.length) {
+    lobby.countdownTimers.forEach((t) => clearTimeout(t));
+    lobby.countdownTimers = [];
+  }
+
+  const players = Array.from(lobby.joined || []);
+  const era = lobby.era || null;
+  const poolIncrement = lobby.pool_increment || 50;
+  const channel =
+    interaction?.client?.channels?.cache?.get(lobby.channel_id) ||
+    lobby?.join_message?.channel ||
+    interaction?.channel;
+
+  if (!channel) {
+    clearSurvivalLobby();
+    if (interaction) {
+      return interaction.reply({
+        content: "❌ Can't find the Survival lobby channel.",
+        flags: 64,
+      });
+    }
+    return;
+  }
+
+  if (players.length === 0) {
+    clearSurvivalLobby();
+    await channel.send({
+      embeds: [
+        new EmbedBuilder()
+          .setTitle("Squig Survival - Cancelled")
+          .setDescription(
+            "No Squigs stepped through the portal. The universe shrugs and goes back to scrolling X."
+          )
+          .setColor(0xe74c3c),
+      ],
+    });
+    if (interaction) {
+      return interaction.reply({
+        content: "No players joined. Lobby cancelled.",
+        flags: 64,
+      });
+    }
+    return;
+  }
+
+  if (interaction) {
+    await interaction.reply({
+      content: "Squig Survival starting.",
+      flags: 64,
+    });
+  }
+  await channel.send("Game starting now - time will be announced by staff.");
+
+  const startEmbed = new EmbedBuilder()
+    .setTitle("Squig Survival - Game Starting!")
+    .setDescription(
+      [
+        `The portal snaps shut. **${players.length} Squigs** are now loose on Earth.`,
+        "Sit back and watch who survives the chaos...",
+      ].join("\n")
+    )
+    .setImage("http://gifs.squigs.io/gifs/v-bullish-fly.gif")
+    .setColor(0x2ecc71);
+
+  await channel.send({ embeds: [startEmbed] });
+
+  try {
+    await runSurvival(channel, players, era, poolIncrement);
+  } finally {
+    clearSurvivalLobby();
+  }
 }
 
 
@@ -801,6 +914,13 @@ async function registerCommands() {
           .setDescription("Charm added per Squig to the prize pool (default 50).")
           .setMinValue(1)
           .setRequired(false)
+      )
+      .addIntegerOption((o) =>
+        o
+          .setName("minutes")
+          .setDescription("Optional auto-start timer in minutes.")
+          .setMinValue(1)
+          .setRequired(false)
       ),
     new SlashCommandBuilder()
       .setName("survivestart")
@@ -828,22 +948,12 @@ async function registerCommands() {
       .setDescription("Top Squig Survival winners for the current month."),
     new SlashCommandBuilder()
       .setName("lives")
-      .setDescription("Your Squig Survival stats (week or month).")
+      .setDescription("Your Squig Survival stats (all-time).")
       .addUserOption((o) =>
         o
           .setName("user")
           .setDescription("Check another Squig's stats")
           .setRequired(false)
-      )
-      .addStringOption((o) =>
-        o
-          .setName("range")
-          .setDescription("Time range for stats")
-          .setRequired(false)
-          .addChoices(
-            { name: "Week", value: "week" },
-            { name: "Month", value: "month" }
-          )
       ),
   ];
 
@@ -1082,8 +1192,15 @@ async function handleInteractionCreate(interaction) {
 
         const era = interaction.options.getString("era") || null;
         const poolIncrement = interaction.options.getInteger("pool") || 50;
+        const minutes = interaction.options.getInteger("minutes") || null;
 
-        const joinEmbed = buildSurvivalLobbyEmbed(era, 0, poolIncrement);
+        const countdownEnd = minutes ? Date.now() + minutes * 60_000 : null;
+        const joinEmbed = buildSurvivalLobbyEmbed(
+          era,
+          0,
+          poolIncrement,
+          countdownEnd ? countdownEnd - Date.now() : undefined
+        );
 
         const joinRow = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
@@ -1097,7 +1214,15 @@ async function handleInteractionCreate(interaction) {
           new ButtonBuilder()
             .setCustomId("survive:list")
             .setLabel("Players Joined")
-            .setStyle(ButtonStyle.Primary)
+            .setStyle(ButtonStyle.Primary),
+          new ButtonBuilder()
+            .setCustomId("survive:stats")
+            .setLabel("My Stats")
+            .setStyle(ButtonStyle.Secondary),
+          new ButtonBuilder()
+            .setCustomId("survive:info")
+            .setLabel("Info")
+            .setStyle(ButtonStyle.Secondary)
         );
 
         await interaction.reply({
@@ -1119,8 +1244,70 @@ async function handleInteractionCreate(interaction) {
           join_message: joinMessage,
           era,
           pool_increment: poolIncrement,
+          countdown_end: countdownEnd,
+          countdownInterval: null,
+          countdownTimers: [],
           collector: null,
         };
+
+        if (countdownEnd) {
+          const totalMs = countdownEnd - Date.now();
+          const totalSec = Math.max(1, Math.floor(totalMs / 1000));
+          const finalPingSec = totalSec / 3 < 30 ? 10 : 30;
+          const pingTimes = [
+            Math.floor((totalSec * 2) / 3),
+            Math.floor(totalSec / 3),
+            finalPingSec,
+          ];
+          const uniquePingTimes = Array.from(new Set(pingTimes))
+            .filter((s) => s > 0 && s < totalSec)
+            .sort((a, b) => b - a);
+
+          const jumpRow = buildLobbyJumpButton(
+            survivalLobby.guild_id,
+            survivalLobby.channel_id,
+            survivalLobby.join_message_id
+          );
+
+          uniquePingTimes.forEach((remainingSec) => {
+            const delayMs = Math.max(0, (totalSec - remainingSec) * 1000);
+            const t = setTimeout(async () => {
+              if (!survivalLobby || survivalLobby.game_status !== "lobby") return;
+              const msg = `⏳ Squig Survival starts in **${formatCountdown(
+                remainingSec * 1000
+              )}**.`;
+              try {
+                await channel.send(
+                  jumpRow
+                    ? { content: msg, components: [jumpRow] }
+                    : { content: msg }
+                );
+              } catch {}
+            }, delayMs);
+            survivalLobby.countdownTimers.push(t);
+          });
+
+          const autoStartTimer = setTimeout(async () => {
+            if (!survivalLobby || survivalLobby.game_status !== "lobby") return;
+            await startSurvivalFromLobby(null, survivalLobby);
+          }, totalMs);
+          survivalLobby.countdownTimers.push(autoStartTimer);
+
+          survivalLobby.countdownInterval = setInterval(async () => {
+            if (!survivalLobby || survivalLobby.game_status !== "lobby") return;
+            const remaining = survivalLobby.countdown_end - Date.now();
+            if (remaining <= 0) return;
+            try {
+              const updated = buildSurvivalLobbyEmbed(
+                survivalLobby.era,
+                survivalLobby.joined.size,
+                survivalLobby.pool_increment || 50,
+                remaining
+              );
+              await survivalLobby.join_message.edit({ embeds: [updated] });
+            } catch {}
+          }, 15_000);
+        }
 
         return;
       }
@@ -1133,72 +1320,7 @@ async function handleInteractionCreate(interaction) {
             flags: 64,
           });
         }
-
-        survivalLobby.game_status = "running";
-        if (survivalLobby.collector) {
-          try {
-            survivalLobby.collector.stop("start");
-          } catch {}
-        }
-
-        const players = Array.from(survivalLobby.joined || []);
-        const era = survivalLobby.era || null;
-        const poolIncrement = survivalLobby.pool_increment || 50;
-        const channel =
-          interaction.client.channels.cache.get(survivalLobby.channel_id) ||
-          interaction.channel;
-
-        if (!channel) {
-          clearSurvivalLobby();
-          return interaction.reply({
-            content: "❌ Can't find the Survival lobby channel.",
-            flags: 64,
-          });
-        }
-
-        if (players.length === 0) {
-          clearSurvivalLobby();
-          await channel.send({
-            embeds: [
-              new EmbedBuilder()
-                .setTitle("Squig Survival - Cancelled")
-                .setDescription(
-                  "No Squigs stepped through the portal. The universe shrugs and goes back to scrolling X."
-                )
-                .setColor(0xe74c3c),
-            ],
-          });
-          return interaction.reply({
-            content: "No players joined. Lobby cancelled.",
-            flags: 64,
-          });
-        }
-
-        await interaction.reply({
-          content: "Squig Survival starting.",
-          flags: 64,
-        });
-        await channel.send("Game starting now - time will be announced by staff.");
-
-        const startEmbed = new EmbedBuilder()
-          .setTitle("Squig Survival - Game Starting!")
-          .setDescription(
-            [
-              `The portal snaps shut. **${players.length} Squigs** are now loose on Earth.`,
-              "Sit back and watch who survives the chaos...",
-            ].join("\n")
-          )
-          .setImage("http://gifs.squigs.io/gifs/v-bullish-fly.gif")
-          .setColor(0x2ecc71);
-
-        await channel.send({ embeds: [startEmbed] });
-
-        try {
-          await runSurvival(channel, players, era, poolIncrement);
-        } finally {
-          clearSurvivalLobby();
-        }
-
+        await startSurvivalFromLobby(interaction, survivalLobby);
         return;
       }
 
@@ -1277,7 +1399,6 @@ async function handleInteractionCreate(interaction) {
             content: `✅ Added survival image.\nURL: ${imageUrl}${
               userId ? `\nArtist: <@${userId}>` : ""
             }`,
-            flags: 64,
           });
         } catch (err) {
           return interaction.reply({
@@ -1310,12 +1431,13 @@ async function handleInteractionCreate(interaction) {
 
       // /lives
       if (interaction.commandName === "lives") {
-        await interaction.deferReply({ ephemeral: true });
-        const range = interaction.options.getString("range") || "month";
+        await interaction.deferReply({ ephemeral: false });
         const targetUser = interaction.options.getUser("user") || interaction.user;
-        const stats = await survivalStore.getUserStats(targetUser.id, range);
-        const title = range === "week" ? "This Week" : "This Month";
+        const stats = await survivalStore.getUserStats(targetUser.id, "all");
+        const rank = await survivalStore.getOverallRank(targetUser.id);
+        const title = "All Time";
         const lines = [
+          `🏅 **Overall Rank:** ${rank ? `#${rank}` : "Unranked"}`,
           `🥇 **1st:** ${stats.firsts}`,
           `🥈 **2nd:** ${stats.seconds}`,
           `🥉 **3rd:** ${stats.thirds}`,
@@ -1359,10 +1481,14 @@ async function handleInteractionCreate(interaction) {
       if (interaction.customId === "survive:join") {
         survivalLobby.joined.add(userId);
         try {
+          const remaining = survivalLobby.countdown_end
+            ? survivalLobby.countdown_end - Date.now()
+            : undefined;
           const updated = buildSurvivalLobbyEmbed(
             survivalLobby.era,
             survivalLobby.joined.size,
-            survivalLobby.pool_increment || 50
+            survivalLobby.pool_increment || 50,
+            remaining
           );
           await survivalLobby.join_message.edit({ embeds: [updated] });
         } catch {}
@@ -1375,10 +1501,14 @@ async function handleInteractionCreate(interaction) {
       if (interaction.customId === "survive:leave") {
         survivalLobby.joined.delete(userId);
         try {
+          const remaining = survivalLobby.countdown_end
+            ? survivalLobby.countdown_end - Date.now()
+            : undefined;
           const updated = buildSurvivalLobbyEmbed(
             survivalLobby.era,
             survivalLobby.joined.size,
-            survivalLobby.pool_increment || 50
+            survivalLobby.pool_increment || 50,
+            remaining
           );
           await survivalLobby.join_message.edit({ embeds: [updated] });
         } catch {}
@@ -1395,6 +1525,66 @@ async function handleInteractionCreate(interaction) {
           content: `Players joined (${ids.length}):\n${list}`,
           flags: 64,
         });
+      }
+
+      if (interaction.customId === "survive:stats") {
+        const stats = await survivalStore.getUserStats(interaction.user.id, "all");
+        const rank = await survivalStore.getOverallRank(interaction.user.id);
+        const lines = [
+          `🏅 **Overall Rank:** ${rank ? `#${rank}` : "Unranked"}`,
+          `🥇 **1st:** ${stats.firsts}`,
+          `🥈 **2nd:** ${stats.seconds}`,
+          `🥉 **3rd:** ${stats.thirds}`,
+          `🎮 **Games Played:** ${stats.games}`,
+          `🔪 **Eliminations:** ${stats.eliminations}`,
+          `💀 **Deaths:** ${stats.deaths}`,
+          `🖼️ **Images Used:** ${stats.images_used}`,
+        ];
+
+        const quips = [
+          "The portal knows your name. It just pretends not to.",
+          "Your life count is a work of art. Or at least a sketch.",
+          "Survival stats powered by snacks and questionable decisions.",
+          "Keep going. The Squigs are taking notes.",
+          "Numbers don't lie. Squigs do.",
+          "You are technically alive on paper.",
+        ];
+
+        const embed = new EmbedBuilder()
+          .setTitle("🧬 Squig Lives — All Time")
+          .setDescription(lines.join("\n"))
+          .setFooter({ text: rand(quips) })
+          .setColor(0x9b59b6);
+
+        return interaction.reply({ embeds: [embed], flags: 64 });
+      }
+
+      if (interaction.customId === "survive:info") {
+        const lines = [
+          "**What is this?**",
+          "A chaotic, story-driven Squig Survival run where players get eliminated round by round until one wins — and a rotating gallery of community art is featured. If your image is used in the game, you earn **$CHARM** each time.",
+          "",
+          "**How to join:**",
+          "Hit **Join** in the lobby. Staff starts the game with **/survivestart**.",
+          "",
+          "**Stats & bragging:**",
+          "Press **My Stats** in the lobby for your all-time stats (private).",
+          "Use **/lives** to show stats publicly.",
+          "",
+          "**How to add images:**",
+          "Post your art in <#1334884237727240267>. Staff will get it added. If it's taking too long, ping them.",
+          "",
+          "**Pro tips:**",
+          "- More players = bigger prize pool.",
+          "- Revivals happen. Rare, but loud.",
+        ];
+
+        const embed = new EmbedBuilder()
+          .setTitle("ℹ️ Squig Survival — Info")
+          .setDescription(lines.join("\n"))
+          .setColor(0x9b59b6);
+
+        return interaction.reply({ embeds: [embed], flags: 64 });
       }
     }
 

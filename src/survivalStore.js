@@ -179,6 +179,7 @@ class SurvivalStore {
 
   _rangeStart(range) {
     const now = new Date();
+    if (range === "all") return new Date(0);
     if (range === "week") {
       const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       return start;
@@ -189,6 +190,7 @@ class SurvivalStore {
 
   _rangeEnd(range) {
     const now = new Date();
+    if (range === "all") return now;
     if (range === "week") return now;
     return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
   }
@@ -256,6 +258,34 @@ class SurvivalStore {
       seconds: 0,
       thirds: 0,
     };
+  }
+
+  async getOverallRank(userId) {
+    if (!(await this._ensureReady())) return null;
+    const r = await this.pool.query(
+      `
+      WITH totals AS (
+        SELECT
+          gp.user_id,
+          COUNT(*) FILTER (WHERE gp.placement = 1) AS firsts,
+          COUNT(*) FILTER (WHERE gp.placement = 2) AS seconds,
+          COUNT(*) FILTER (WHERE gp.placement = 3) AS thirds,
+          COUNT(*) AS games
+        FROM squig_survival_game_players gp
+        JOIN squig_survival_games g ON g.id = gp.game_id
+        GROUP BY gp.user_id
+      ),
+      ranked AS (
+        SELECT
+          user_id,
+          RANK() OVER (ORDER BY firsts DESC, seconds DESC, thirds DESC, games DESC, user_id ASC) AS rank
+        FROM totals
+      )
+      SELECT rank FROM ranked WHERE user_id = $1
+      `,
+      [userId]
+    );
+    return r.rows[0]?.rank || null;
   }
 }
 
