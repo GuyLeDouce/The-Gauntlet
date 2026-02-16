@@ -143,55 +143,6 @@ async function rewardCharmAmount({
 
   let baseUsed = memberBaseUrls[0];
   try {
-    // Manual override: let admins route a Discord ID directly to a DRIP member ID.
-    let manualOverride = null;
-    try {
-      manualOverride = await Store.getDripUserOverride(String(userId || ""));
-    } catch (err) {
-      console.warn(
-        "[GAUNTLET:DRIP] Override lookup failed, continuing with normal search:",
-        err?.message || err
-      );
-    }
-
-    if (manualOverride?.drip_user_id) {
-      const overridePatchPayload = { tokens: amount };
-      const overridePatchOpts = {
-        headers: {
-          Authorization: auth,
-          "Content-Type": "application/json",
-        },
-        timeout: DRIP_TIMEOUT_MS,
-      };
-
-      let overrideErr = null;
-      for (const baseUrl of memberBaseUrls) {
-        const patchUrl = `${baseUrl}/members/${manualOverride.drip_user_id}/point-balance`;
-        try {
-          await axios.patch(patchUrl, overridePatchPayload, overridePatchOpts);
-          console.log(
-            `[GAUNTLET:DRIP] Rewarded ${amount} $CHARM to ${userId} (${source}) via manual override -> ${manualOverride.drip_user_id}.`
-          );
-          return { ok: true, amount };
-        } catch (err) {
-          overrideErr = err;
-          if (err?.response?.status !== 404) throw err;
-        }
-      }
-
-      if (overrideErr) {
-        console.warn(
-          `[GAUNTLET:DRIP] Manual override DRIP member not found for Discord ID ${userId} -> ${manualOverride.drip_user_id}. Falling back to normal lookup.`
-        );
-      }
-    }
-
-    // Preferred path: update by credential identifier (discord-id) via credentials balance endpoint.
-    const credentialValue =
-      typeof userId === "string" ? userId : String(userId || "");
-    if (!credentialValue) {
-      throw new Error("missing_discord_id");
-    }
     const credentialPatchPayload = {
       amount,
       ...(DRIP_REALM_POINT_ID ? { realmPointId: DRIP_REALM_POINT_ID } : {}),
@@ -204,27 +155,85 @@ async function rewardCharmAmount({
       timeout: DRIP_TIMEOUT_MS,
     };
 
-    for (const baseUrl of credentialBaseUrls) {
-      const patchUrl = `${baseUrl}/credentials/balance?type=discord-id&value=${encodeURIComponent(
-        credentialValue
-      )}`;
-      try {
-        if (DRIP_DEBUG) {
+    const tryCredentialBalancePatch = async (type, value, label) => {
+      const cleanType = String(type || "").trim();
+      const cleanValue = String(value || "").trim();
+      if (!cleanType || !cleanValue) return false;
+
+      for (const baseUrl of credentialBaseUrls) {
+        baseUsed = baseUrl;
+        const patchUrl = `${baseUrl}/credentials/balance?type=${encodeURIComponent(
+          cleanType
+        )}&value=${encodeURIComponent(cleanValue)}`;
+        try {
+          if (DRIP_DEBUG) {
+            console.log(
+              `[GAUNTLET:DRIP] credentials/balance type=${cleanType} valueType=${typeof cleanValue} valueLen=${cleanValue.length} value=${cleanValue}`
+            );
+            console.log(
+              `[GAUNTLET:DRIP] credentials/balance payload=${JSON.stringify(credentialPatchPayload)}`
+            );
+          }
+          await axios.patch(patchUrl, credentialPatchPayload, credentialPatchOpts);
           console.log(
-            `[GAUNTLET:DRIP] credentials/balance valueType=${typeof credentialValue} valueLen=${credentialValue.length} value=${credentialValue}`
+            `[GAUNTLET:DRIP] Rewarded ${amount} $CHARM to ${userId} (${source}) via credentials/balance (${label || `${cleanType}:${cleanValue}`}).`
           );
-          console.log(
-            `[GAUNTLET:DRIP] credentials/balance payload=${JSON.stringify(credentialPatchPayload)}`
-          );
+          return true;
+        } catch (err) {
+          const status = err?.response?.status;
+          // Keep trying other bases/types when DRIP can't resolve this credential.
+          if (status === 404 || status === 400) continue;
+          throw err;
         }
-        await axios.patch(patchUrl, credentialPatchPayload, credentialPatchOpts);
-        console.log(
-          `[GAUNTLET:DRIP] Rewarded ${amount} $CHARM to ${userId} (${source}) via credentials/balance.`
-        );
-        return { ok: true, amount };
-      } catch (err) {
-        if (err?.response?.status !== 404) throw err;
       }
+      return false;
+    };
+
+    // Manual override: admins can route Discord ID to a specific DRIP identifier.
+    let manualOverride = null;
+    try {
+      manualOverride = await Store.getDripUserOverride(String(userId || ""));
+    } catch (err) {
+      console.warn(
+        "[GAUNTLET:DRIP] Override lookup failed, continuing with normal search:",
+        err?.message || err
+      );
+    }
+
+    if (manualOverride?.drip_user_id) {
+      const overrideValue = String(manualOverride.drip_user_id).trim();
+      const looksLikeObjectId = /^[a-f0-9]{24}$/i.test(overrideValue);
+      const overrideTypes = looksLikeObjectId
+        ? ["id", "member-id", "user-id", "discord-id", "username"]
+        : ["discord-id", "username", "id", "member-id", "user-id"];
+
+      for (const type of overrideTypes) {
+        const ok = await tryCredentialBalancePatch(
+          type,
+          overrideValue,
+          `manual-override ${type}:${overrideValue}`
+        );
+        if (ok) return { ok: true, amount };
+      }
+
+      console.warn(
+        `[GAUNTLET:DRIP] Manual override could not be resolved for Discord ID ${userId} -> ${overrideValue}. Falling back to normal lookup.`
+      );
+    }
+
+    // Preferred path: update by credential identifier (discord-id) via credentials balance endpoint.
+    const credentialValue =
+      typeof userId === "string" ? userId : String(userId || "");
+    if (!credentialValue) {
+      throw new Error("missing_discord_id");
+    }
+    {
+      const ok = await tryCredentialBalancePatch(
+        "discord-id",
+        credentialValue,
+        "discord-id"
+      );
+      if (ok) return { ok: true, amount };
     }
 
     let member = null;
@@ -284,47 +293,55 @@ async function rewardCharmAmount({
       return { ok: false, skipped: true, reason: "member_not_found" };
     }
 
-    const patchPayload = { tokens: amount };
-    const patchOpts = {
-      headers: {
-        Authorization: auth,
-        "Content-Type": "application/json",
-      },
-      timeout: DRIP_TIMEOUT_MS,
+    const fallbackCandidates = [];
+    const seen = new Set();
+    const pushCandidate = (type, value) => {
+      const t = String(type || "").trim();
+      const v = String(value || "").trim();
+      if (!t || !v) return;
+      const key = `${t}:${v}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      fallbackCandidates.push({ type: t, value: v });
     };
 
-    const triedPatchUrls = [];
-    let patchErr = null;
-    for (const baseUrl of memberBaseUrls) {
-      const patchUrl = `${baseUrl}/members/${member.id}/point-balance`;
-      triedPatchUrls.push(patchUrl);
-      try {
-        await axios.patch(patchUrl, patchPayload, patchOpts);
-        patchErr = null;
-        break;
-      } catch (err) {
-        patchErr = err;
-        if (err?.response?.status !== 404) throw err;
-      }
+    pushCandidate("discord-id", credentialValue);
+    pushCandidate("username", member?.username || username);
+    pushCandidate("id", member?.id);
+    pushCandidate("member-id", member?.id);
+    pushCandidate("user-id", member?.id);
+
+    for (const c of fallbackCandidates) {
+      const ok = await tryCredentialBalancePatch(
+        c.type,
+        c.value,
+        `fallback ${c.type}:${c.value}`
+      );
+      if (ok) return { ok: true, amount };
     }
-    if (patchErr) {
-      patchErr.triedPatchUrls = triedPatchUrls;
-      throw patchErr;
-    }
-    console.log(
-      `[GAUNTLET:DRIP] Rewarded ${amount} $CHARM to ${userId} (${source}).`
+
+    console.warn(
+      `[GAUNTLET:DRIP] DRIP member found (${member.id}) but no supported credential accepted for payout.`
     );
-    return { ok: true, amount };
+    if (logClient) {
+      await logCharmReward(logClient, {
+        userId,
+        amount,
+        score: 0,
+        source,
+        channelId,
+        reason: `${logReason || source} payout failed (no usable credential)`,
+      });
+    }
+    return { ok: false, skipped: true, reason: "no_usable_credential" };
   } catch (err) {
     const status = err?.response?.status;
     const data = err?.response?.data;
-    const triedPatchUrls = err?.triedPatchUrls;
     console.error(
       "[GAUNTLET:DRIP] Reward failed:",
       status || err.message,
       data || "",
-      `url=${baseUsed}`,
-      triedPatchUrls ? `patchUrls=${triedPatchUrls.join(",")}` : ""
+      `url=${baseUsed}`
     );
     if (logClient) {
       await logCharmReward(logClient, {
