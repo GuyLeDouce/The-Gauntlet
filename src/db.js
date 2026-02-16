@@ -118,10 +118,15 @@ class PgStore {
       CREATE TABLE IF NOT EXISTS gauntlet_drip_user_overrides (
         discord_user_id TEXT PRIMARY KEY,
         drip_user_id TEXT NOT NULL,
+        drip_credential_type TEXT NOT NULL DEFAULT 'discord-id',
         added_by TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
       );
+    `);
+    await this.pool.query(`
+      ALTER TABLE gauntlet_drip_user_overrides
+      ADD COLUMN IF NOT EXISTS drip_credential_type TEXT NOT NULL DEFAULT 'discord-id';
     `);
 
     this._initialized = true;
@@ -315,22 +320,34 @@ class PgStore {
   /**
    * Upsert manual DRIP user mapping for a Discord user ID.
    */
-  async upsertDripUserOverride(discordUserId, dripUserId, addedBy) {
+  async upsertDripUserOverride(
+    discordUserId,
+    dripUserId,
+    addedBy,
+    dripCredentialType = "discord-id"
+  ) {
     await this.pool.query(
       `
       INSERT INTO gauntlet_drip_user_overrides (
         discord_user_id,
         drip_user_id,
+        drip_credential_type,
         added_by
       )
-      VALUES ($1, $2, $3)
+      VALUES ($1, $2, $3, $4)
       ON CONFLICT (discord_user_id)
       DO UPDATE SET
         drip_user_id = EXCLUDED.drip_user_id,
+        drip_credential_type = EXCLUDED.drip_credential_type,
         added_by = EXCLUDED.added_by,
         updated_at = now()
       `,
-      [discordUserId, dripUserId, addedBy || null]
+      [
+        discordUserId,
+        dripUserId,
+        dripCredentialType || "discord-id",
+        addedBy || null,
+      ]
     );
   }
 
@@ -340,7 +357,13 @@ class PgStore {
   async getDripUserOverride(discordUserId) {
     const r = await this.pool.query(
       `
-      SELECT discord_user_id, drip_user_id, added_by, created_at, updated_at
+      SELECT
+        discord_user_id,
+        drip_user_id,
+        drip_credential_type,
+        added_by,
+        created_at,
+        updated_at
       FROM gauntlet_drip_user_overrides
       WHERE discord_user_id = $1
       LIMIT 1

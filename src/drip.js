@@ -202,10 +202,17 @@ async function rewardCharmAmount({
 
     if (manualOverride?.drip_user_id) {
       const overrideValue = String(manualOverride.drip_user_id).trim();
+      const configuredType = String(
+        manualOverride.drip_credential_type || "discord-id"
+      ).trim();
       const looksLikeObjectId = /^[a-f0-9]{24}$/i.test(overrideValue);
-      const overrideTypes = looksLikeObjectId
+      const inferredOrder = looksLikeObjectId
         ? ["id", "member-id", "user-id", "discord-id", "username"]
         : ["discord-id", "username", "id", "member-id", "user-id"];
+      const overrideTypes = [
+        configuredType,
+        ...inferredOrder.filter((t) => t !== configuredType),
+      ];
 
       for (const type of overrideTypes) {
         const ok = await tryCredentialBalancePatch(

@@ -940,8 +940,21 @@ async function registerCommands() {
       .addStringOption((o) =>
         o
           .setName("drip_user_id")
-          .setDescription("DRIP member/user ID to force for this Discord ID")
+          .setDescription("DRIP credential value to force for this Discord ID")
           .setRequired(true)
+      )
+      .addStringOption((o) =>
+        o
+          .setName("type")
+          .setDescription("Which DRIP credential type this value represents")
+          .addChoices(
+            { name: "discord-id", value: "discord-id" },
+            { name: "username", value: "username" },
+            { name: "id", value: "id" },
+            { name: "member-id", value: "member-id" },
+            { name: "user-id", value: "user-id" }
+          )
+          .setRequired(false)
       ),
     new SlashCommandBuilder()
       .setName("paytest")
@@ -1404,8 +1417,10 @@ async function handleInteractionCreate(interaction) {
 
         const discordIdRaw = interaction.options.getString("discord_id");
         const dripUserIdRaw = interaction.options.getString("drip_user_id");
+        const dripTypeRaw = interaction.options.getString("type");
         const discordId = String(discordIdRaw || "").trim();
         const dripUserId = String(dripUserIdRaw || "").trim();
+        const dripCredentialType = String(dripTypeRaw || "discord-id").trim();
 
         if (!/^\d{5,30}$/.test(discordId)) {
           return interaction.reply({
@@ -1425,13 +1440,15 @@ async function handleInteractionCreate(interaction) {
           await Store.upsertDripUserOverride(
             discordId,
             dripUserId,
-            interaction.user.id
+            interaction.user.id,
+            dripCredentialType
           );
           return interaction.reply({
             content:
               `✅ DRIP override saved.\nDiscord ID: \`${discordId}\`\n` +
-              `DRIP user ID: \`${dripUserId}\`\n` +
-              "Future payouts for this Discord ID will use this DRIP user first.",
+              `DRIP credential type: \`${dripCredentialType}\`\n` +
+              `DRIP credential value: \`${dripUserId}\`\n` +
+              "Future payouts for this Discord ID will use this DRIP credential first.",
             flags: 64,
           });
         } catch (err) {
@@ -1492,11 +1509,15 @@ async function handleInteractionCreate(interaction) {
 
           const status = reward?.error?.response?.status;
           const reason = reward?.reason || reward?.error?.message || "unknown";
+          const hint =
+            reason === "no_usable_credential"
+              ? "\nTip: use /adduser with `type` + `drip_user_id` matching a real DRIP credential."
+              : "";
           return interaction.editReply({
             content:
               `⚠️ DRIP paytest did not complete.\nTarget: <@${target.id}>\n` +
               `Amount attempted: **${amount} $CHARM**\n` +
-              `Status: ${status || "n/a"}\nReason: ${reason}`,
+              `Status: ${status || "n/a"}\nReason: ${reason}${hint}`,
           });
         } catch (err) {
           const status = err?.response?.status;
