@@ -944,6 +944,23 @@ async function registerCommands() {
           .setRequired(true)
       ),
     new SlashCommandBuilder()
+      .setName("paytest")
+      .setDescription("Run a DRIP payout connectivity test (admins only).")
+      .addUserOption((o) =>
+        o
+          .setName("user")
+          .setDescription("Optional user to test payout against (default: you)")
+          .setRequired(false)
+      )
+      .addIntegerOption((o) =>
+        o
+          .setName("amount")
+          .setDescription("Test payout amount (default: 1)")
+          .setMinValue(1)
+          .setMaxValue(1000)
+          .setRequired(false)
+      ),
+    new SlashCommandBuilder()
       .setName("addimage")
       .setDescription("Add a Squig Survival stage image (admins only).")
       .addStringOption((o) =>
@@ -1421,6 +1438,76 @@ async function handleInteractionCreate(interaction) {
           return interaction.reply({
             content: `❌ Failed to save override: ${err?.message || err}`,
             flags: 64,
+          });
+        }
+      }
+
+      // /paytest
+      if (interaction.commandName === "paytest") {
+        if (!isAdminUserLocal(interaction)) {
+          return interaction.reply({
+            content: "⛔ Only admins can use /paytest.",
+            flags: 64,
+          });
+        }
+
+        await interaction.deferReply({ flags: 64 });
+
+        const target = interaction.options.getUser("user") || interaction.user;
+        const amount = interaction.options.getInteger("amount") || 1;
+        const displayName =
+          target.username || target.globalName || `User-${target.id}`;
+
+        try {
+          const reward = await rewardCharmAmount({
+            userId: target.id,
+            username: displayName,
+            amount,
+            source: "paytest",
+            guildId: interaction.guildId,
+            channelId: interaction.channelId,
+            metadata: {
+              runBy: interaction.user.id,
+              type: "manual-paytest",
+            },
+            logClient: interaction.client,
+            logReason: `Manual DRIP paytest by ${interaction.user.id}`,
+          });
+
+          if (reward?.ok) {
+            await logCharmReward(interaction.client, {
+              userId: target.id,
+              amount: reward.amount,
+              score: 0,
+              source: "paytest",
+              channelId: interaction.channelId,
+              reason: `Manual DRIP paytest by <@${interaction.user.id}>`,
+            });
+            return interaction.editReply({
+              content:
+                `✅ DRIP paytest succeeded.\nTarget: <@${target.id}>\n` +
+                `Amount: **${reward.amount} $CHARM**`,
+            });
+          }
+
+          const status = reward?.error?.response?.status;
+          const reason = reward?.reason || reward?.error?.message || "unknown";
+          return interaction.editReply({
+            content:
+              `⚠️ DRIP paytest did not complete.\nTarget: <@${target.id}>\n` +
+              `Amount attempted: **${amount} $CHARM**\n` +
+              `Status: ${status || "n/a"}\nReason: ${reason}`,
+          });
+        } catch (err) {
+          const status = err?.response?.status;
+          const reason = err?.response?.data
+            ? JSON.stringify(err.response.data)
+            : err?.message || String(err);
+          return interaction.editReply({
+            content:
+              `❌ DRIP paytest failed.\nTarget: <@${target.id}>\n` +
+              `Amount attempted: **${amount} $CHARM**\n` +
+              `Status: ${status || "n/a"}\nReason: ${reason}`,
           });
         }
       }
