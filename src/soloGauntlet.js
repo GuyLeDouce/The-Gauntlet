@@ -929,6 +929,21 @@ async function registerCommands() {
       .setName("podiumtest")
       .setDescription("Test the Squig Survival podium art (uses your avatar)."),
     new SlashCommandBuilder()
+      .setName("adduser")
+      .setDescription("Manually map Discord ID to DRIP user ID (admins only).")
+      .addStringOption((o) =>
+        o
+          .setName("discord_id")
+          .setDescription("Discord user ID to override")
+          .setRequired(true)
+      )
+      .addStringOption((o) =>
+        o
+          .setName("drip_user_id")
+          .setDescription("DRIP member/user ID to force for this Discord ID")
+          .setRequired(true)
+      ),
+    new SlashCommandBuilder()
       .setName("addimage")
       .setDescription("Add a Squig Survival stage image (admins only).")
       .addStringOption((o) =>
@@ -1359,6 +1374,55 @@ async function handleInteractionCreate(interaction) {
           embeds: [embed],
           files: [attachment],
         });
+      }
+
+      // /adduser
+      if (interaction.commandName === "adduser") {
+        if (!isAdminUserLocal(interaction)) {
+          return interaction.reply({
+            content: "⛔ Only admins can use /adduser.",
+            flags: 64,
+          });
+        }
+
+        const discordIdRaw = interaction.options.getString("discord_id");
+        const dripUserIdRaw = interaction.options.getString("drip_user_id");
+        const discordId = String(discordIdRaw || "").trim();
+        const dripUserId = String(dripUserIdRaw || "").trim();
+
+        if (!/^\d{5,30}$/.test(discordId)) {
+          return interaction.reply({
+            content: "❌ `discord_id` must be a valid Discord user ID (digits only).",
+            flags: 64,
+          });
+        }
+
+        if (!dripUserId) {
+          return interaction.reply({
+            content: "❌ `drip_user_id` is required.",
+            flags: 64,
+          });
+        }
+
+        try {
+          await Store.upsertDripUserOverride(
+            discordId,
+            dripUserId,
+            interaction.user.id
+          );
+          return interaction.reply({
+            content:
+              `✅ DRIP override saved.\nDiscord ID: \`${discordId}\`\n` +
+              `DRIP user ID: \`${dripUserId}\`\n` +
+              "Future payouts for this Discord ID will use this DRIP user first.",
+            flags: 64,
+          });
+        } catch (err) {
+          return interaction.reply({
+            content: `❌ Failed to save override: ${err?.message || err}`,
+            flags: 64,
+          });
+        }
       }
 
       // /addimage

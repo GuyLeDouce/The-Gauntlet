@@ -2,6 +2,7 @@
 // DRIP reward helper for $CHARM payouts
 
 const axios = require("axios");
+const { Store } = require("./db");
 
 const DRIP_API_KEY =
   process.env.DRIP_API_KEY ||
@@ -142,6 +143,49 @@ async function rewardCharmAmount({
 
   let baseUsed = memberBaseUrls[0];
   try {
+    // Manual override: let admins route a Discord ID directly to a DRIP member ID.
+    let manualOverride = null;
+    try {
+      manualOverride = await Store.getDripUserOverride(String(userId || ""));
+    } catch (err) {
+      console.warn(
+        "[GAUNTLET:DRIP] Override lookup failed, continuing with normal search:",
+        err?.message || err
+      );
+    }
+
+    if (manualOverride?.drip_user_id) {
+      const overridePatchPayload = { tokens: amount };
+      const overridePatchOpts = {
+        headers: {
+          Authorization: auth,
+          "Content-Type": "application/json",
+        },
+        timeout: DRIP_TIMEOUT_MS,
+      };
+
+      let overrideErr = null;
+      for (const baseUrl of memberBaseUrls) {
+        const patchUrl = `${baseUrl}/members/${manualOverride.drip_user_id}/point-balance`;
+        try {
+          await axios.patch(patchUrl, overridePatchPayload, overridePatchOpts);
+          console.log(
+            `[GAUNTLET:DRIP] Rewarded ${amount} $CHARM to ${userId} (${source}) via manual override -> ${manualOverride.drip_user_id}.`
+          );
+          return { ok: true, amount };
+        } catch (err) {
+          overrideErr = err;
+          if (err?.response?.status !== 404) throw err;
+        }
+      }
+
+      if (overrideErr) {
+        console.warn(
+          `[GAUNTLET:DRIP] Manual override DRIP member not found for Discord ID ${userId} -> ${manualOverride.drip_user_id}. Falling back to normal lookup.`
+        );
+      }
+    }
+
     // Preferred path: update by credential identifier (discord-id) via credentials balance endpoint.
     const credentialValue =
       typeof userId === "string" ? userId : String(userId || "");

@@ -74,6 +74,7 @@ class PgStore {
         DROP TABLE IF EXISTS gauntlet_daily;
         DROP TABLE IF EXISTS gauntlet_runs;
         DROP TABLE IF EXISTS gauntlet_lb_messages;
+        DROP TABLE IF EXISTS gauntlet_drip_user_overrides;
       `);
     } else {
       log("GAUNTLET_RESET is not true → keeping existing data");
@@ -109,6 +110,17 @@ class PgStore {
         month TEXT NOT NULL,
         message_id TEXT NOT NULL,
         PRIMARY KEY (guild_id, channel_id, month)
+      );
+    `);
+
+    // Manual DRIP routing override for Discord IDs.
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS gauntlet_drip_user_overrides (
+        discord_user_id TEXT PRIMARY KEY,
+        drip_user_id TEXT NOT NULL,
+        added_by TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
       );
     `);
 
@@ -294,6 +306,48 @@ class PgStore {
       [month]
     );
     return r.rows;
+  }
+
+  // ----------------------------------------------------------
+  // DRIP USER OVERRIDES
+  // ----------------------------------------------------------
+
+  /**
+   * Upsert manual DRIP user mapping for a Discord user ID.
+   */
+  async upsertDripUserOverride(discordUserId, dripUserId, addedBy) {
+    await this.pool.query(
+      `
+      INSERT INTO gauntlet_drip_user_overrides (
+        discord_user_id,
+        drip_user_id,
+        added_by
+      )
+      VALUES ($1, $2, $3)
+      ON CONFLICT (discord_user_id)
+      DO UPDATE SET
+        drip_user_id = EXCLUDED.drip_user_id,
+        added_by = EXCLUDED.added_by,
+        updated_at = now()
+      `,
+      [discordUserId, dripUserId, addedBy || null]
+    );
+  }
+
+  /**
+   * Get manual DRIP user mapping for a Discord user ID.
+   */
+  async getDripUserOverride(discordUserId) {
+    const r = await this.pool.query(
+      `
+      SELECT discord_user_id, drip_user_id, added_by, created_at, updated_at
+      FROM gauntlet_drip_user_overrides
+      WHERE discord_user_id = $1
+      LIMIT 1
+      `,
+      [discordUserId]
+    );
+    return r.rows[0] || null;
   }
 
   // ----------------------------------------------------------
