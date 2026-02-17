@@ -258,7 +258,7 @@ async function rewardCharmAmount({
       // Fallback for realms where override should be treated as a credential value.
       const overrideTypes = [
         configuredType,
-        ...["id", "member-id", "user-id", "discord-id", "username"].filter(
+        ...["drip-id", "id", "member-id", "user-id", "discord-id", "username"].filter(
           (t) => t !== configuredType
         ),
       ];
@@ -358,6 +358,7 @@ async function rewardCharmAmount({
     };
 
     pushCandidate("discord-id", credentialValue);
+    pushCandidate("drip-id", member?.id);
     pushCandidate("username", member?.username || username);
     pushCandidate("id", member?.id);
     pushCandidate("member-id", member?.id);

@@ -948,6 +948,7 @@ async function registerCommands() {
           .setName("type")
           .setDescription("Which DRIP credential type this value represents")
           .addChoices(
+            { name: "drip-id", value: "drip-id" },
             { name: "discord-id", value: "discord-id" },
             { name: "username", value: "username" },
             { name: "id", value: "id" },

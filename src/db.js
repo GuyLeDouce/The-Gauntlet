@@ -1,7 +1,7 @@
 // src/db.js
 // Postgres store for The Gauntlet (Railway-friendly, non-destructive)
 //
-// - Uses DATABASE_URL + SSL from ./utils
+// - Uses DATABASE_URL for main data and DATABASE_URL_DRIP for DRIP overrides
 // - Creates tables if they don't exist
 // - NEVER drops tables unless GAUNTLET_RESET is explicitly "true" (or true)
 // - Exposes a singleton Store + initStore()
@@ -33,10 +33,19 @@ class PgStore {
       connectionString: process.env.DATABASE_URL,
       ssl: getSSL(),
     });
+    const dripConnectionString =
+      process.env.DATABASE_URL_DRIP || process.env.DATABASE_URL;
+    this.dripPool = new Pool({
+      connectionString: dripConnectionString,
+      ssl: getSSL(),
+    });
 
     // Prevent unhandled pool errors from crashing the process.
     this.pool.on("error", (err) => {
       log("Postgres pool error (will continue):", err?.message || err);
+    });
+    this.dripPool.on("error", (err) => {
+      log("Postgres DRIP pool error (will continue):", err?.message || err);
     });
 
     this._initialized = false;
@@ -64,6 +73,14 @@ class PgStore {
       log("DB health check FAILED:", err?.message || err);
       // Keep going so the bot can retry on next query.
     }
+    try {
+      await this.dripPool.query("SELECT 1");
+      log(
+        `DRIP DB health check OK (${process.env.DATABASE_URL_DRIP ? "DATABASE_URL_DRIP" : "DATABASE_URL"}).`
+      );
+    } catch (err) {
+      log("DRIP DB health check FAILED:", err?.message || err);
+    }
 
     // Optional destructive reset – ONLY when explicitly enabled
     if (shouldReset) {
@@ -74,6 +91,8 @@ class PgStore {
         DROP TABLE IF EXISTS gauntlet_daily;
         DROP TABLE IF EXISTS gauntlet_runs;
         DROP TABLE IF EXISTS gauntlet_lb_messages;
+      `);
+      await this.dripPool.query(`
         DROP TABLE IF EXISTS gauntlet_drip_user_overrides;
       `);
     } else {
@@ -114,7 +133,7 @@ class PgStore {
     `);
 
     // Manual DRIP routing override for Discord IDs.
-    await this.pool.query(`
+    await this.dripPool.query(`
       CREATE TABLE IF NOT EXISTS gauntlet_drip_user_overrides (
         discord_user_id TEXT PRIMARY KEY,
         drip_user_id TEXT NOT NULL,
@@ -124,11 +143,11 @@ class PgStore {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
       );
     `);
-    await this.pool.query(`
+    await this.dripPool.query(`
       ALTER TABLE gauntlet_drip_user_overrides
       ADD COLUMN IF NOT EXISTS drip_credential_type TEXT NOT NULL DEFAULT 'id';
     `);
-    await this.pool.query(`
+    await this.dripPool.query(`
       ALTER TABLE gauntlet_drip_user_overrides
       ALTER COLUMN drip_credential_type SET DEFAULT 'id';
     `);
@@ -328,9 +347,9 @@ class PgStore {
     discordUserId,
     dripUserId,
     addedBy,
-    dripCredentialType = "discord-id"
+    dripCredentialType = "id"
   ) {
-    await this.pool.query(
+    await this.dripPool.query(
       `
       INSERT INTO gauntlet_drip_user_overrides (
         discord_user_id,
@@ -349,7 +368,7 @@ class PgStore {
       [
         discordUserId,
         dripUserId,
-        dripCredentialType || "discord-id",
+        dripCredentialType || "id",
         addedBy || null,
       ]
     );
@@ -359,7 +378,7 @@ class PgStore {
    * Get manual DRIP user mapping for a Discord user ID.
    */
   async getDripUserOverride(discordUserId) {
-    const r = await this.pool.query(
+    const r = await this.dripPool.query(
       `
       SELECT
         discord_user_id,
@@ -387,6 +406,7 @@ class PgStore {
       this._keepAliveTimer = null;
     }
     await this.pool.end();
+    await this.dripPool.end();
     log("Pool closed.");
   }
 }
