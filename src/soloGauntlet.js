@@ -1421,7 +1421,7 @@ async function handleInteractionCreate(interaction) {
         const dripTypeRaw = interaction.options.getString("type");
         const discordId = String(discordIdRaw || "").trim();
         const dripUserId = String(dripUserIdRaw || "").trim();
-        const dripCredentialType = String(dripTypeRaw || "id").trim();
+        const dripCredentialType = String(dripTypeRaw || "drip-id").trim();
 
         if (!/^\d{5,30}$/.test(discordId)) {
           return interaction.reply({

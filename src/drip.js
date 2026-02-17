@@ -143,10 +143,12 @@ async function rewardCharmAmount({
 
   let baseUsed = memberBaseUrls[0];
   try {
-    const credentialPatchPayload = {
-      amount,
-      ...(DRIP_REALM_POINT_ID ? { realmPointId: DRIP_REALM_POINT_ID } : {}),
-    };
+    const credentialPayloads = DRIP_REALM_POINT_ID
+      ? [
+          { amount, realmPointId: DRIP_REALM_POINT_ID },
+          { amount },
+        ]
+      : [{ amount }];
     const credentialPatchOpts = {
       headers: {
         Authorization: auth,
@@ -165,27 +167,102 @@ async function rewardCharmAmount({
         const patchUrl = `${baseUrl}/credentials/balance?type=${encodeURIComponent(
           cleanType
         )}&value=${encodeURIComponent(cleanValue)}`;
-        try {
-          if (DRIP_DEBUG) {
+        for (const payload of credentialPayloads) {
+          try {
+            if (DRIP_DEBUG) {
+              console.log(
+                `[GAUNTLET:DRIP] credentials/balance type=${cleanType} valueType=${typeof cleanValue} valueLen=${cleanValue.length} value=${cleanValue}`
+              );
+              console.log(
+                `[GAUNTLET:DRIP] credentials/balance payload=${JSON.stringify(payload)}`
+              );
+            }
+            await axios.patch(patchUrl, payload, credentialPatchOpts);
             console.log(
-              `[GAUNTLET:DRIP] credentials/balance type=${cleanType} valueType=${typeof cleanValue} valueLen=${cleanValue.length} value=${cleanValue}`
+              `[GAUNTLET:DRIP] Rewarded ${amount} $CHARM to ${userId} (${source}) via credentials/balance (${label || `${cleanType}:${cleanValue}`}).`
             );
-            console.log(
-              `[GAUNTLET:DRIP] credentials/balance payload=${JSON.stringify(credentialPatchPayload)}`
-            );
+            return true;
+          } catch (err) {
+            const status = err?.response?.status;
+            // Keep trying other payloads/bases/types when DRIP can't resolve this credential.
+            if (status === 404 || status === 400) continue;
+            throw err;
           }
-          await axios.patch(patchUrl, credentialPatchPayload, credentialPatchOpts);
+        }
+      }
+      return false;
+    };
+
+    const tryMemberBalancePatchByDripId = async (dripId, label) => {
+      const cleanDripId = String(dripId || "").trim();
+      if (!cleanDripId) return false;
+
+      const modernPayloads = DRIP_REALM_POINT_ID
+        ? [
+            {
+              amount,
+              currencyId: DRIP_REALM_POINT_ID,
+              ...(DRIP_CLIENT_ID ? { initiatorId: DRIP_CLIENT_ID } : {}),
+            },
+            {
+              amount,
+              ...(DRIP_CLIENT_ID ? { initiatorId: DRIP_CLIENT_ID } : {}),
+            },
+          ]
+        : [
+            {
+              amount,
+              ...(DRIP_CLIENT_ID ? { initiatorId: DRIP_CLIENT_ID } : {}),
+            },
+          ];
+      const legacyPayload = {
+        tokens: amount,
+        ...(DRIP_REALM_POINT_ID ? { realmPointId: DRIP_REALM_POINT_ID } : {}),
+      };
+      const patchOpts = {
+        headers: {
+          Authorization: auth,
+          "Content-Type": "application/json",
+        },
+        timeout: DRIP_TIMEOUT_MS,
+      };
+
+      for (const baseUrl of memberBaseUrls) {
+        baseUsed = baseUrl;
+        const modernUrl = `${baseUrl}/members/${encodeURIComponent(cleanDripId)}/balance`;
+        for (const payload of modernPayloads) {
+          try {
+            await axios.patch(modernUrl, payload, patchOpts);
+            console.log(
+              `[GAUNTLET:DRIP] Rewarded ${amount} $CHARM to ${userId} (${source}) via members/{dripId}/balance (${label || cleanDripId}).`
+            );
+            return true;
+          } catch (err) {
+            const status = err?.response?.status;
+            if (status === 404 || status === 400) continue;
+            throw err;
+          }
+        }
+      }
+
+      // Backward-compatible fallback for older DRIP routes.
+      for (const baseUrl of memberBaseUrls) {
+        baseUsed = baseUrl;
+        const legacyUrl = `${baseUrl}/members/${encodeURIComponent(
+          cleanDripId
+        )}/point-balance`;
+        try {
+          await axios.patch(legacyUrl, legacyPayload, patchOpts);
           console.log(
-            `[GAUNTLET:DRIP] Rewarded ${amount} $CHARM to ${userId} (${source}) via credentials/balance (${label || `${cleanType}:${cleanValue}`}).`
+            `[GAUNTLET:DRIP] Rewarded ${amount} $CHARM to ${userId} (${source}) via legacy members/{id}/point-balance (${label || cleanDripId}).`
           );
           return true;
         } catch (err) {
           const status = err?.response?.status;
-          // Keep trying other bases/types when DRIP can't resolve this credential.
-          if (status === 404 || status === 400) continue;
-          throw err;
+          if (status !== 404) throw err;
         }
       }
+
       return false;
     };
 
@@ -218,41 +295,17 @@ async function rewardCharmAmount({
     if (manualOverride?.drip_user_id) {
       const overrideValue = String(manualOverride.drip_user_id).trim();
       const configuredType = String(
-        manualOverride.drip_credential_type || "id"
+        manualOverride.drip_credential_type || "drip-id"
       ).trim();
 
-      const memberPatchPayload = {
-        tokens: amount,
-        ...(DRIP_REALM_POINT_ID ? { realmPointId: DRIP_REALM_POINT_ID } : {}),
-      };
-      const memberPatchOpts = {
-        headers: {
-          Authorization: auth,
-          "Content-Type": "application/json",
-        },
-        timeout: DRIP_TIMEOUT_MS,
-      };
-
-      let memberPatch404 = false;
-      for (const baseUrl of memberBaseUrls) {
-        baseUsed = baseUrl;
-        const patchUrl = `${baseUrl}/members/${encodeURIComponent(
-          overrideValue
-        )}/point-balance`;
-        try {
-          await axios.patch(patchUrl, memberPatchPayload, memberPatchOpts);
-          console.log(
-            `[GAUNTLET:DRIP] Rewarded ${amount} $CHARM to ${userId} (${source}) via manual override member id ${overrideValue}.`
-          );
-          return { ok: true, amount };
-        } catch (err) {
-          const status = err?.response?.status;
-          if (status === 404) {
-            memberPatch404 = true;
-            continue;
-          }
-          throw err;
-        }
+      if (
+        ["drip-id", "id", "member-id", "user-id"].includes(configuredType)
+      ) {
+        const okById = await tryMemberBalancePatchByDripId(
+          overrideValue,
+          `manual-override ${configuredType}:${overrideValue}`
+        );
+        if (okById) return { ok: true, amount };
       }
 
       // Fallback for realms where override should be treated as a credential value.
@@ -273,7 +326,7 @@ async function rewardCharmAmount({
       }
 
       console.warn(
-        `[GAUNTLET:DRIP] Manual override failed for Discord ID ${userId} -> ${overrideValue} (memberPatch404=${memberPatch404}).`
+        `[GAUNTLET:DRIP] Manual override failed for Discord ID ${userId} -> ${overrideValue}.`
       );
       if (logClient) {
         await logCharmReward(logClient, {
@@ -343,6 +396,14 @@ async function rewardCharmAmount({
         });
       }
       return { ok: false, skipped: true, reason: "member_not_found" };
+    }
+
+    {
+      const okByMemberId = await tryMemberBalancePatchByDripId(
+        member.id,
+        `search-result drip-id:${member.id}`
+      );
+      if (okByMemberId) return { ok: true, amount };
     }
 
     const fallbackCandidates = [];
