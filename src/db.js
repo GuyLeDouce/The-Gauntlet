@@ -165,6 +165,11 @@ class PgStore {
         } catch (err) {
           log("DB keep-alive failed:", err?.message || err);
         }
+        try {
+          await this.dripPool.query("SELECT 1");
+        } catch (err) {
+          log("DRIP DB keep-alive failed:", err?.message || err);
+        }
       }, intervalMs);
       // Don't keep the process alive just for the timer.
       if (this._keepAliveTimer.unref) this._keepAliveTimer.unref();

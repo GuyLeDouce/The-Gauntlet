@@ -1449,7 +1449,7 @@ async function handleInteractionCreate(interaction) {
               `✅ DRIP override saved.\nDiscord ID: \`${discordId}\`\n` +
               `DRIP credential type: \`${dripCredentialType}\`\n` +
               `DRIP credential value: \`${dripUserId}\`\n` +
-              "Future payouts for this Discord ID will use this DRIP credential first.",
+              "Future payouts will try normal Discord-linked payout first, then this override.",
             flags: 64,
           });
         } catch (err) {

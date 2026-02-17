@@ -35,10 +35,11 @@ function buildRealmBaseUrl() {
   const raw = DRIP_BASE_URL || "";
   const base = raw.endsWith("/") ? raw.slice(0, -1) : raw;
   const lower = base.toLowerCase();
-  if (lower.includes("/api/v1/realm")) return base;
+  // Check "/realms" first so it doesn't get captured by "/realm" substring matching.
   if (lower.includes("/api/v1/realms")) {
     return base.replace(/\/api\/v1\/realms/i, "/api/v1/realm");
   }
+  if (lower.includes("/api/v1/realm")) return base;
   if (lower.endsWith("/realms")) return `${base.slice(0, -"/realms".length)}/realm`;
   if (lower.endsWith("/realm")) return base;
   return `${base}/api/v1/realm`;
@@ -60,13 +61,13 @@ function buildRealmsBaseUrl() {
 function getMemberBaseUrls() {
   const realm = buildRealmBaseUrl();
   const realms = buildRealmsBaseUrl();
-  return realm === realms ? [realm] : [realms, realm];
+  return Array.from(new Set(realm === realms ? [realm] : [realms, realm]));
 }
 
 function getCredentialsBaseUrls() {
   const realms = buildRealmsBaseUrl();
   const realm = buildRealmBaseUrl();
-  return realms === realm ? [realms] : [realms, realm];
+  return Array.from(new Set(realms === realm ? [realms] : [realms, realm]));
 }
 
 function getCharmRewardAmount(score) {
@@ -185,7 +186,14 @@ async function rewardCharmAmount({
           } catch (err) {
             const status = err?.response?.status;
             // Keep trying other payloads/bases/types when DRIP can't resolve this credential.
-            if (status === 404 || status === 400) continue;
+            if (status === 404 || status === 400) {
+              if (DRIP_DEBUG) {
+                console.log(
+                  `[GAUNTLET:DRIP] credentials/balance miss status=${status} type=${cleanType} value=${cleanValue} url=${patchUrl}`
+                );
+              }
+              continue;
+            }
             throw err;
           }
         }
@@ -239,7 +247,14 @@ async function rewardCharmAmount({
             return true;
           } catch (err) {
             const status = err?.response?.status;
-            if (status === 404 || status === 400) continue;
+            if (status === 404 || status === 400) {
+              if (DRIP_DEBUG) {
+                console.log(
+                  `[GAUNTLET:DRIP] members/balance miss status=${status} dripId=${cleanDripId} url=${modernUrl}`
+                );
+              }
+              continue;
+            }
             throw err;
           }
         }
@@ -259,7 +274,15 @@ async function rewardCharmAmount({
           return true;
         } catch (err) {
           const status = err?.response?.status;
-          if (status !== 404) throw err;
+          if (status === 404) {
+            if (DRIP_DEBUG) {
+              console.log(
+                `[GAUNTLET:DRIP] legacy point-balance miss status=404 dripId=${cleanDripId} url=${legacyUrl}`
+              );
+            }
+            continue;
+          }
+          throw err;
         }
       }
 
