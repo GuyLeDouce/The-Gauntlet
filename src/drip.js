@@ -189,7 +189,22 @@ async function rewardCharmAmount({
       return false;
     };
 
-    // Manual override: admins can route Discord ID to a specific DRIP identifier.
+    // Preferred path: original payout route by Discord credential.
+    const credentialValue =
+      typeof userId === "string" ? userId : String(userId || "");
+    if (!credentialValue) {
+      throw new Error("missing_discord_id");
+    }
+    {
+      const ok = await tryCredentialBalancePatch(
+        "discord-id",
+        credentialValue,
+        "discord-id"
+      );
+      if (ok) return { ok: true, amount };
+    }
+
+    // If original path fails, try manual override from /adduser as direct member payout.
     let manualOverride = null;
     try {
       manualOverride = await Store.getDripUserOverride(String(userId || ""));
@@ -203,15 +218,49 @@ async function rewardCharmAmount({
     if (manualOverride?.drip_user_id) {
       const overrideValue = String(manualOverride.drip_user_id).trim();
       const configuredType = String(
-        manualOverride.drip_credential_type || "discord-id"
+        manualOverride.drip_credential_type || "id"
       ).trim();
-      const looksLikeObjectId = /^[a-f0-9]{24}$/i.test(overrideValue);
-      const inferredOrder = looksLikeObjectId
-        ? ["id", "member-id", "user-id", "discord-id", "username"]
-        : ["discord-id", "username", "id", "member-id", "user-id"];
+
+      const memberPatchPayload = {
+        tokens: amount,
+        ...(DRIP_REALM_POINT_ID ? { realmPointId: DRIP_REALM_POINT_ID } : {}),
+      };
+      const memberPatchOpts = {
+        headers: {
+          Authorization: auth,
+          "Content-Type": "application/json",
+        },
+        timeout: DRIP_TIMEOUT_MS,
+      };
+
+      let memberPatch404 = false;
+      for (const baseUrl of memberBaseUrls) {
+        baseUsed = baseUrl;
+        const patchUrl = `${baseUrl}/members/${encodeURIComponent(
+          overrideValue
+        )}/point-balance`;
+        try {
+          await axios.patch(patchUrl, memberPatchPayload, memberPatchOpts);
+          console.log(
+            `[GAUNTLET:DRIP] Rewarded ${amount} $CHARM to ${userId} (${source}) via manual override member id ${overrideValue}.`
+          );
+          return { ok: true, amount };
+        } catch (err) {
+          const status = err?.response?.status;
+          if (status === 404) {
+            memberPatch404 = true;
+            continue;
+          }
+          throw err;
+        }
+      }
+
+      // Fallback for realms where override should be treated as a credential value.
       const overrideTypes = [
         configuredType,
-        ...inferredOrder.filter((t) => t !== configuredType),
+        ...["id", "member-id", "user-id", "discord-id", "username"].filter(
+          (t) => t !== configuredType
+        ),
       ];
 
       for (const type of overrideTypes) {
@@ -224,23 +273,19 @@ async function rewardCharmAmount({
       }
 
       console.warn(
-        `[GAUNTLET:DRIP] Manual override could not be resolved for Discord ID ${userId} -> ${overrideValue}. Falling back to normal lookup.`
+        `[GAUNTLET:DRIP] Manual override failed for Discord ID ${userId} -> ${overrideValue} (memberPatch404=${memberPatch404}).`
       );
-    }
-
-    // Preferred path: update by credential identifier (discord-id) via credentials balance endpoint.
-    const credentialValue =
-      typeof userId === "string" ? userId : String(userId || "");
-    if (!credentialValue) {
-      throw new Error("missing_discord_id");
-    }
-    {
-      const ok = await tryCredentialBalancePatch(
-        "discord-id",
-        credentialValue,
-        "discord-id"
-      );
-      if (ok) return { ok: true, amount };
+      if (logClient) {
+        await logCharmReward(logClient, {
+          userId,
+          amount,
+          score: 0,
+          source,
+          channelId,
+          reason: `${logReason || source} payout failed (manual override failed)`,
+        });
+      }
+      return { ok: false, skipped: true, reason: "manual_override_failed" };
     }
 
     let member = null;
@@ -399,8 +444,20 @@ async function logCharmReward(
     if (!ch || !ch.send) return false;
     const reasonText = reason || source || "Gauntlet";
     const isFailure = /failed/i.test(reasonText);
+    const failureHelp = [
+      "How to Connect to DRIP",
+      "",
+      "1. Go to https://app.drip.re/user/profile",
+      "2. Open the Linked Accounts tab",
+      "3. Connect your Discord",
+      "4. Connect your Wallet",
+      "",
+      "That's it — you're linked and ready to go",
+      "",
+      "If it still doesn't work, open a support ticket with a screenshot and the team will help get it sorted.",
+    ].join("\n");
     const message = isFailure
-      ? `PAYOUT FAILED: <@${userId}> | ${amount} $CHARM | ${reasonText}`
+      ? `PAYOUT FAILED: <@${userId}> | ${amount} $CHARM | ${reasonText}\n\n${failureHelp}`
       : `<@${userId}> received **${amount} $CHARM** for ${reasonText}.`;
     await ch.send(message);
     return true;

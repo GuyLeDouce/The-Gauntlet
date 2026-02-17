@@ -940,7 +940,7 @@ async function registerCommands() {
       .addStringOption((o) =>
         o
           .setName("drip_user_id")
-          .setDescription("DRIP credential value to force for this Discord ID")
+          .setDescription("DRIP user/member ID from admin panel for direct fallback payout")
           .setRequired(true)
       )
       .addStringOption((o) =>
@@ -1420,7 +1420,7 @@ async function handleInteractionCreate(interaction) {
         const dripTypeRaw = interaction.options.getString("type");
         const discordId = String(discordIdRaw || "").trim();
         const dripUserId = String(dripUserIdRaw || "").trim();
-        const dripCredentialType = String(dripTypeRaw || "discord-id").trim();
+        const dripCredentialType = String(dripTypeRaw || "id").trim();
 
         if (!/^\d{5,30}$/.test(discordId)) {
           return interaction.reply({

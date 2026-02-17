@@ -118,7 +118,7 @@ class PgStore {
       CREATE TABLE IF NOT EXISTS gauntlet_drip_user_overrides (
         discord_user_id TEXT PRIMARY KEY,
         drip_user_id TEXT NOT NULL,
-        drip_credential_type TEXT NOT NULL DEFAULT 'discord-id',
+        drip_credential_type TEXT NOT NULL DEFAULT 'id',
         added_by TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -126,7 +126,11 @@ class PgStore {
     `);
     await this.pool.query(`
       ALTER TABLE gauntlet_drip_user_overrides
-      ADD COLUMN IF NOT EXISTS drip_credential_type TEXT NOT NULL DEFAULT 'discord-id';
+      ADD COLUMN IF NOT EXISTS drip_credential_type TEXT NOT NULL DEFAULT 'id';
+    `);
+    await this.pool.query(`
+      ALTER TABLE gauntlet_drip_user_overrides
+      ALTER COLUMN drip_credential_type SET DEFAULT 'id';
     `);
 
     this._initialized = true;
