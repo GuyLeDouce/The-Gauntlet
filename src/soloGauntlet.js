@@ -53,6 +53,64 @@ const { survivalStore } = require("./survivalStore");
 // --------------------------------------------
 const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
+async function buildDisplayNameMap(client, guildId, userIds) {
+  const map = new Map();
+  const unique = Array.from(new Set(userIds || [])).filter(Boolean);
+  if (!unique.length) return map;
+
+  let guild = null;
+  if (guildId) {
+    try {
+      guild = await client.guilds.fetch(guildId);
+    } catch {
+      guild = null;
+    }
+  }
+
+  if (guild) {
+    try {
+      const members = await guild.members.fetch({ user: unique });
+      for (const [id, member] of members) {
+        const name =
+          member.nickname ||
+          member.user.displayName ||
+          member.user.globalName ||
+          member.user.username ||
+          `User-${id}`;
+        map.set(id, name);
+      }
+    } catch {
+      for (const id of unique) {
+        if (map.has(id)) continue;
+        try {
+          const member = await guild.members.fetch(id);
+          const name =
+            member.nickname ||
+            member.user.displayName ||
+            member.user.globalName ||
+            member.user.username ||
+            `User-${id}`;
+          map.set(id, name);
+        } catch {}
+      }
+    }
+  }
+
+  for (const id of unique) {
+    if (map.has(id)) continue;
+    try {
+      const user = await client.users.fetch(id);
+      const name =
+        user.displayName || user.globalName || user.username || `User-${id}`;
+      map.set(id, name);
+    } catch {
+      map.set(id, `User-${id}`);
+    }
+  }
+
+  return map;
+}
+
 // --------------------------------------------
 // Survival lobby state (single instance)
 // --------------------------------------------
@@ -1693,7 +1751,15 @@ async function handleInteractionCreate(interaction) {
 
       if (interaction.customId === "survive:list") {
         const ids = Array.from(survivalLobby.joined || []);
-        const list = ids.length ? ids.map((id) => `<@${id}>`).join("\n") : "None";
+        let list = "None";
+        if (ids.length) {
+          const nameMap = await buildDisplayNameMap(
+            interaction.client,
+            interaction.guildId,
+            ids
+          );
+          list = ids.map((id) => nameMap.get(id) || `User-${id}`).join("\n");
+        }
         return interaction.reply({
           content: `Players joined (${ids.length}):\n${list}`,
           flags: 64,
@@ -1819,6 +1885,4 @@ module.exports = {
   registerCommands,
   handleInteractionCreate,
 };
-
-
 

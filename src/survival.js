@@ -25,6 +25,64 @@ function shuffle(arr) {
   return a;
 }
 
+async function buildDisplayNameMap(client, guildId, userIds) {
+  const map = new Map();
+  const unique = Array.from(new Set(userIds || [])).filter(Boolean);
+  if (!unique.length) return map;
+
+  let guild = null;
+  if (guildId) {
+    try {
+      guild = await client.guilds.fetch(guildId);
+    } catch {
+      guild = null;
+    }
+  }
+
+  if (guild) {
+    try {
+      const members = await guild.members.fetch({ user: unique });
+      for (const [id, member] of members) {
+        const name =
+          member.nickname ||
+          member.user.displayName ||
+          member.user.globalName ||
+          member.user.username ||
+          `User-${id}`;
+        map.set(id, name);
+      }
+    } catch {
+      for (const id of unique) {
+        if (map.has(id)) continue;
+        try {
+          const member = await guild.members.fetch(id);
+          const name =
+            member.nickname ||
+            member.user.displayName ||
+            member.user.globalName ||
+            member.user.username ||
+            `User-${id}`;
+          map.set(id, name);
+        } catch {}
+      }
+    }
+  }
+
+  for (const id of unique) {
+    if (map.has(id)) continue;
+    try {
+      const user = await client.users.fetch(id);
+      const name =
+        user.displayName || user.globalName || user.username || `User-${id}`;
+      map.set(id, name);
+    } catch {
+      map.set(id, `User-${id}`);
+    }
+  }
+
+  return map;
+}
+
 /**
  * Life stages for each milestone.
  * We clamp to the last stage if the game runs longer than this list.
@@ -290,14 +348,14 @@ async function buildPodiumImage(client, placements, guildId) {
   }
 }
 
-function format(template, victimId, killerId) {
-  // Victim is always eliminated ? crossed out.
-  const victimMention = `~~<@${victimId}>~~`;
-  const killerMention = killerId ? `<@${killerId}>` : "another Squig";
+function format(template, victimId, killerId, nameOf) {
+  // Victim is always eliminated -> crossed out.
+  const victimName = `~~${nameOf(victimId)}~~`;
+  const killerName = killerId ? nameOf(killerId) : "another Squig";
 
   return template
-    .replace(/{victim}/g, victimMention)
-    .replace(/{killer}/g, killerMention);
+    .replace(/{victim}/g, victimName)
+    .replace(/{killer}/g, killerName);
 }
 
 /**
@@ -341,6 +399,13 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
       uniquePlayers.map((id) => survivalStore.recordJoin(gameId, id, new Date()))
     );
   }
+  const nameMap = await buildDisplayNameMap(
+    channel.client,
+    channel.guildId,
+    uniquePlayers
+  );
+  const nameOf = (id) => nameMap.get(id) || `User-${id}`;
+
   let alive = [...uniquePlayers];
   const eliminated = [];
   let imageBag = shuffle(mergedStageImages);
@@ -364,7 +429,7 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
         new EmbedBuilder()
           .setTitle("Squig Survival - Default Victory")
           .setDescription(
-            `<@${alive[0]}> is the only Squig who dared the portal.\nThey survive by technicality... the portal is unimpressed.`
+            `${nameOf(alive[0])} is the only Squig who dared the portal.\nThey survive by technicality... the portal is unimpressed.`
           )
           .setColor(0x2ecc71),
       ],
@@ -392,17 +457,17 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
 
       if (category === 0) {
         // Hiding spot
-        text = format(pick(stories.hidingSpots), victimId);
+        text = format(pick(stories.hidingSpots), victimId, null, nameOf);
       } else if (category === 1) {
         // Clumsiness
-        text = format(pick(stories.clumsiness), victimId);
+        text = format(pick(stories.clumsiness), victimId, null, nameOf);
       } else {
         // Sabotage - needs a killer if possible
         if (alive.length === 0) {
-          text = format(pick(stories.clumsiness), victimId);
+          text = format(pick(stories.clumsiness), victimId, null, nameOf);
         } else {
           const killerId = alive[Math.floor(Math.random() * alive.length)];
-          text = format(pick(stories.sabotage), victimId, killerId);
+          text = format(pick(stories.sabotage), victimId, killerId, nameOf);
           if (gameId) {
             await survivalStore.addElimination(gameId, killerId, 1);
           }
@@ -428,7 +493,7 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
       // Revived Squig should appear normally (no strikethrough)
       const resurrectionText = resurrectionTemplate.replace(
         /{victim}/g,
-        `<@${revivedId}>`
+        nameOf(revivedId)
       );
 
       // ✨ Revival line (emphasized)
@@ -440,7 +505,7 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
     const loreCount = randInt(2, 3);
     for (let i = 0; i < loreCount; i++) {
       const who = pick(alive.length ? alive : uniquePlayers);
-      const lore = pick(LORE_LINES).replace(/{player}/g, `<@${who}>`);
+      const lore = pick(LORE_LINES).replace(/{player}/g, nameOf(who));
       const insertAt = randInt(0, lines.length);
       lines.splice(insertAt, 0, lore);
     }
@@ -573,7 +638,7 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
     else if (rank === 2) prefix = "🥈 2nd";
     else if (rank === 3) prefix = "🥉 3rd";
     else prefix = `${rank}.`;
-    return `${prefix} - <@${id}>`;
+    return `${prefix} - ${nameOf(id)}`;
   });
 
   const standingsEmbed = new EmbedBuilder()
@@ -702,5 +767,4 @@ async function sendSurvivalPayouts(
 }
 
 module.exports = { runSurvival, calculateSurvivalPayouts, buildPodiumImage };
-
 
