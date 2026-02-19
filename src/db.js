@@ -132,6 +132,23 @@ class PgStore {
       );
     `);
 
+    // Active Squig Survival lobby (single row).
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS gauntlet_survival_lobby (
+        id TEXT PRIMARY KEY,
+        created_by TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        game_status TEXT NOT NULL,
+        channel_id TEXT,
+        guild_id TEXT,
+        join_message_id TEXT,
+        era TEXT,
+        pool_increment INTEGER,
+        countdown_end TIMESTAMPTZ,
+        joined_ids JSONB NOT NULL DEFAULT '[]'
+      );
+    `);
+
     // Manual DRIP routing override for Discord IDs.
     await this.dripPool.query(`
       CREATE TABLE IF NOT EXISTS gauntlet_drip_user_overrides (
@@ -287,13 +304,14 @@ class PgStore {
 
   /**
    * Get my stats for a given month:
-   * best (max), total (sum), plays (count).
+   * best (max), least (min), total (sum), plays (count).
    */
   async getMyMonth(userId, month) {
     const r = await this.pool.query(
       `
       SELECT
         COALESCE(MAX(score), 0) AS best,
+        COALESCE(MIN(score), 0) AS least,
         COALESCE(SUM(score), 0) AS total,
         COUNT(*) AS plays
       FROM gauntlet_runs
@@ -302,7 +320,31 @@ class PgStore {
       [userId, month]
     );
 
-    return r.rows[0] || { best: 0, total: 0, plays: 0 };
+    return r.rows[0] || { best: 0, least: 0, total: 0, plays: 0 };
+  }
+
+  /**
+   * Get top players for a given month by total points.
+   * Returns rows like:
+   * { user_id, username, total, best }
+   */
+  async getMonthlyTopByTotal(month, limit = 10) {
+    const r = await this.pool.query(
+      `
+      SELECT
+        user_id,
+        MAX(username) AS username,
+        SUM(score) AS total,
+        MAX(score) AS best
+      FROM gauntlet_runs
+      WHERE month = $1
+      GROUP BY user_id
+      ORDER BY total DESC, best DESC, username ASC
+      LIMIT $2
+      `,
+      [month, limit]
+    );
+    return r.rows;
   }
 
   // ----------------------------------------------------------
@@ -339,6 +381,112 @@ class PgStore {
       [month]
     );
     return r.rows;
+  }
+
+  // ----------------------------------------------------------
+  // SURVIVAL LOBBY (PERSISTED)
+  // ----------------------------------------------------------
+
+  async upsertSurvivalLobby(lobby) {
+    const joinedIds = Array.from(lobby?.joined || []);
+    const createdAt =
+      lobby?.created_at instanceof Date
+        ? lobby.created_at
+        : lobby?.created_at
+        ? new Date(lobby.created_at)
+        : new Date();
+    const countdownEnd =
+      typeof lobby?.countdown_end === "number"
+        ? new Date(lobby.countdown_end)
+        : lobby?.countdown_end
+        ? new Date(lobby.countdown_end)
+        : null;
+
+    await this.pool.query(
+      `
+      INSERT INTO gauntlet_survival_lobby (
+        id,
+        created_by,
+        created_at,
+        game_status,
+        channel_id,
+        guild_id,
+        join_message_id,
+        era,
+        pool_increment,
+        countdown_end,
+        joined_ids
+      )
+      VALUES (
+        'active',
+        $1,
+        $2,
+        $3,
+        $4,
+        $5,
+        $6,
+        $7,
+        $8,
+        $9,
+        $10
+      )
+      ON CONFLICT (id)
+      DO UPDATE SET
+        created_by = EXCLUDED.created_by,
+        created_at = EXCLUDED.created_at,
+        game_status = EXCLUDED.game_status,
+        channel_id = EXCLUDED.channel_id,
+        guild_id = EXCLUDED.guild_id,
+        join_message_id = EXCLUDED.join_message_id,
+        era = EXCLUDED.era,
+        pool_increment = EXCLUDED.pool_increment,
+        countdown_end = EXCLUDED.countdown_end,
+        joined_ids = EXCLUDED.joined_ids
+      `,
+      [
+        lobby?.created_by || null,
+        createdAt,
+        lobby?.game_status || "lobby",
+        lobby?.channel_id || null,
+        lobby?.guild_id || null,
+        lobby?.join_message_id || null,
+        lobby?.era || null,
+        Number(lobby?.pool_increment || 0) || 0,
+        countdownEnd,
+        JSON.stringify(joinedIds),
+      ]
+    );
+  }
+
+  async getSurvivalLobby() {
+    const r = await this.pool.query(
+      `
+      SELECT
+        created_by,
+        created_at,
+        game_status,
+        channel_id,
+        guild_id,
+        join_message_id,
+        era,
+        pool_increment,
+        countdown_end,
+        joined_ids
+      FROM gauntlet_survival_lobby
+      WHERE id = 'active'
+      LIMIT 1
+      `
+    );
+    return r.rows[0] || null;
+  }
+
+  async clearSurvivalLobby() {
+    await this.pool.query(
+      `
+      DELETE FROM gauntlet_survival_lobby
+      WHERE id = 'active'
+      `
+    );
   }
 
   // ----------------------------------------------------------

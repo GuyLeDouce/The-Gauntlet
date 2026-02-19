@@ -22,6 +22,7 @@ const {
   CLIENT_ID,
   GUILD_IDS,
   AUTHORIZED_ADMINS,
+  GAUNTLET_PLAY_REWARD,
   torontoDateStr,
   currentMonthStr,
   nextTorontoMidnight,
@@ -116,6 +117,12 @@ async function buildDisplayNameMap(client, guildId, userIds) {
 // --------------------------------------------
 let survivalLobby = null;
 
+async function persistSurvivalLobby(lobby) {
+  try {
+    await Store.upsertSurvivalLobby(lobby);
+  } catch {}
+}
+
 function formatCountdown(ms) {
   const totalSec = Math.max(0, Math.floor(ms / 1000));
   const mins = Math.floor(totalSec / 60);
@@ -163,6 +170,9 @@ function clearSurvivalLobby() {
     survivalLobby.countdownTimers.forEach((t) => clearTimeout(t));
   }
   survivalLobby = null;
+  try {
+    Store.clearSurvivalLobby().catch(() => {});
+  } catch {}
 }
 
 function buildLobbyJumpButton(guildId, channelId, messageId) {
@@ -176,9 +186,145 @@ function buildLobbyJumpButton(guildId, channelId, messageId) {
   );
 }
 
+function setupSurvivalCountdown(lobby, channel) {
+  if (!lobby?.countdown_end) return;
+  const totalMs = lobby.countdown_end - Date.now();
+  if (totalMs <= 0) {
+    setTimeout(() => {
+      if (!survivalLobby || survivalLobby.game_status !== "lobby") return;
+      startSurvivalFromLobby(null, survivalLobby);
+    }, 250);
+    return;
+  }
+
+  const totalSec = Math.max(1, Math.floor(totalMs / 1000));
+  const finalPingSec = totalSec / 3 < 30 ? 10 : 30;
+  const pingTimes = [
+    Math.floor((totalSec * 2) / 3),
+    Math.floor(totalSec / 3),
+    finalPingSec,
+  ];
+  const uniquePingTimes = Array.from(new Set(pingTimes))
+    .filter((s) => s > 0 && s < totalSec)
+    .sort((a, b) => b - a);
+
+  const jumpRow = buildLobbyJumpButton(
+    lobby.guild_id,
+    lobby.channel_id,
+    lobby.join_message_id
+  );
+
+  uniquePingTimes.forEach((remainingSec) => {
+    const delayMs = Math.max(0, (totalSec - remainingSec) * 1000);
+    const t = setTimeout(async () => {
+      if (!survivalLobby || survivalLobby.game_status !== "lobby") return;
+      const msg = `⏳ Squig Survival starts in **${formatCountdown(
+        remainingSec * 1000
+      )}**.`;
+      try {
+        await channel.send(
+          jumpRow ? { content: msg, components: [jumpRow] } : { content: msg }
+        );
+      } catch {}
+    }, delayMs);
+    lobby.countdownTimers.push(t);
+  });
+
+  const autoStartTimer = setTimeout(async () => {
+    if (!survivalLobby || survivalLobby.game_status !== "lobby") return;
+    await startSurvivalFromLobby(null, survivalLobby);
+  }, totalMs);
+  lobby.countdownTimers.push(autoStartTimer);
+
+  lobby.countdownInterval = setInterval(async () => {
+    if (!survivalLobby || survivalLobby.game_status !== "lobby") return;
+    const remaining = lobby.countdown_end - Date.now();
+    if (remaining <= 0) return;
+    try {
+      const updated = buildSurvivalLobbyEmbed(
+        lobby.era,
+        lobby.joined.size,
+        lobby.pool_increment || 50,
+        remaining
+      );
+      await lobby.join_message.edit({ embeds: [updated] });
+    } catch {}
+  }, 15_000);
+}
+
+async function initSurvivalLobby(client) {
+  try {
+    const saved = await Store.getSurvivalLobby();
+    if (!saved || saved.game_status !== "lobby") {
+      if (saved) {
+        await Store.clearSurvivalLobby();
+      }
+      return;
+    }
+
+    const channel = await client.channels.fetch(saved.channel_id).catch(() => null);
+    if (!channel) {
+      await Store.clearSurvivalLobby();
+      return;
+    }
+
+    const joinMessage = await channel.messages
+      .fetch(saved.join_message_id)
+      .catch(() => null);
+    if (!joinMessage) {
+      await Store.clearSurvivalLobby();
+      return;
+    }
+
+    let joinedIds = saved.joined_ids || [];
+    if (typeof joinedIds === "string") {
+      try {
+        joinedIds = JSON.parse(joinedIds);
+      } catch {
+        joinedIds = [];
+      }
+    }
+
+    const countdownEnd = saved.countdown_end
+      ? new Date(saved.countdown_end).getTime()
+      : null;
+
+    survivalLobby = {
+      created_by: saved.created_by,
+      created_at: saved.created_at,
+      joined: new Set(Array.isArray(joinedIds) ? joinedIds : []),
+      game_status: "lobby",
+      channel_id: saved.channel_id,
+      guild_id: saved.guild_id,
+      join_message_id: saved.join_message_id,
+      join_message: joinMessage,
+      era: saved.era,
+      pool_increment: saved.pool_increment || 50,
+      countdown_end: countdownEnd,
+      countdownInterval: null,
+      countdownTimers: [],
+      collector: null,
+    };
+
+    const remaining = countdownEnd ? countdownEnd - Date.now() : undefined;
+    const updated = buildSurvivalLobbyEmbed(
+      survivalLobby.era,
+      survivalLobby.joined.size,
+      survivalLobby.pool_increment || 50,
+      remaining
+    );
+    await joinMessage.edit({ embeds: [updated] });
+
+    setupSurvivalCountdown(survivalLobby, channel);
+  } catch {}
+}
+
 async function startSurvivalFromLobby(interaction, lobby) {
   if (!lobby || lobby.game_status !== "lobby") return;
   lobby.game_status = "running";
+  try {
+    Store.clearSurvivalLobby().catch(() => {});
+  } catch {}
   if (lobby.collector) {
     try {
       lobby.collector.stop("start");
@@ -858,7 +1004,7 @@ async function runSoloGauntletEphemeral(interaction) {
     const reward = await rewardCharmAmount({
       userId: interaction.user.id,
       username: player.username,
-      amount: 50,
+      amount: GAUNTLET_PLAY_REWARD,
       source: "gauntlet-solo",
       guildId: interaction.guildId,
       channelId: interaction.channelId,
@@ -904,6 +1050,26 @@ async function renderLeaderboardEmbed(month) {
     .setDescription(lines)
     .setFooter({
       text: "Ranked by highest single-game score; ties broken by total monthly points.",
+    })
+    .setColor(0x00ccff);
+}
+
+async function renderTotalLeaderboardEmbed(month) {
+  const rows = await Store.getMonthlyTopByTotal(month, 10);
+  const lines = rows.length
+    ? rows
+        .map(
+          (r, i) =>
+            `**#${i + 1}** ${r.username || `<@${r.user_id}>`} — **${r.total}**`
+        )
+        .join("\n")
+    : "No runs yet.";
+
+  return new EmbedBuilder()
+    .setTitle(`🏆 Total Points — ${month}`)
+    .setDescription(lines)
+    .setFooter({
+      text: "Ranked by total monthly points; ties broken by best single-game score.",
     })
     .setColor(0x00ccff);
 }
@@ -1111,7 +1277,8 @@ function startPanelEmbed() {
     .setDescription(
       [
         "Click **Start** to play privately via **ephemeral** messages in this channel.",
-        "You can play **once per day** (Toronto time). Every run is **saved**. Monthly LB shows **best** per user (total points = tiebreaker).",
+        "Use **My Stats** for your monthly totals (private) or **Leaderboard** for this month's standings.",
+        "You can play **once per day** (Toronto time). Every run is **saved**. Monthly LB shows **best** per user (total points = tiebreaker); **Leaderboard** shows monthly total points.",
         "",
         "**Rounds (6):**",
         "1) MiniGame + Riddle",
@@ -1131,7 +1298,15 @@ function startPanelRow() {
     new ButtonBuilder()
       .setCustomId("gauntlet:start")
       .setLabel("Start")
-      .setStyle(ButtonStyle.Success)
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId("gauntlet:mystats")
+      .setLabel("My Stats")
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId("gauntlet:leaderboard")
+      .setLabel("Leaderboard")
+      .setStyle(ButtonStyle.Primary)
   );
 }
 
@@ -1358,64 +1533,8 @@ async function handleInteractionCreate(interaction) {
           collector: null,
         };
 
-        if (countdownEnd) {
-          const totalMs = countdownEnd - Date.now();
-          const totalSec = Math.max(1, Math.floor(totalMs / 1000));
-          const finalPingSec = totalSec / 3 < 30 ? 10 : 30;
-          const pingTimes = [
-            Math.floor((totalSec * 2) / 3),
-            Math.floor(totalSec / 3),
-            finalPingSec,
-          ];
-          const uniquePingTimes = Array.from(new Set(pingTimes))
-            .filter((s) => s > 0 && s < totalSec)
-            .sort((a, b) => b - a);
-
-          const jumpRow = buildLobbyJumpButton(
-            survivalLobby.guild_id,
-            survivalLobby.channel_id,
-            survivalLobby.join_message_id
-          );
-
-          uniquePingTimes.forEach((remainingSec) => {
-            const delayMs = Math.max(0, (totalSec - remainingSec) * 1000);
-            const t = setTimeout(async () => {
-              if (!survivalLobby || survivalLobby.game_status !== "lobby") return;
-              const msg = `⏳ Squig Survival starts in **${formatCountdown(
-                remainingSec * 1000
-              )}**.`;
-              try {
-                await channel.send(
-                  jumpRow
-                    ? { content: msg, components: [jumpRow] }
-                    : { content: msg }
-                );
-              } catch {}
-            }, delayMs);
-            survivalLobby.countdownTimers.push(t);
-          });
-
-          const autoStartTimer = setTimeout(async () => {
-            if (!survivalLobby || survivalLobby.game_status !== "lobby") return;
-            await startSurvivalFromLobby(null, survivalLobby);
-          }, totalMs);
-          survivalLobby.countdownTimers.push(autoStartTimer);
-
-          survivalLobby.countdownInterval = setInterval(async () => {
-            if (!survivalLobby || survivalLobby.game_status !== "lobby") return;
-            const remaining = survivalLobby.countdown_end - Date.now();
-            if (remaining <= 0) return;
-            try {
-              const updated = buildSurvivalLobbyEmbed(
-                survivalLobby.era,
-                survivalLobby.joined.size,
-                survivalLobby.pool_increment || 50,
-                remaining
-              );
-              await survivalLobby.join_message.edit({ embeds: [updated] });
-            } catch {}
-          }, 15_000);
-        }
+        await persistSurvivalLobby(survivalLobby);
+        setupSurvivalCountdown(survivalLobby, channel);
 
         return;
       }
@@ -1727,6 +1846,7 @@ async function handleInteractionCreate(interaction) {
           );
           await survivalLobby.join_message.edit({ embeds: [updated] });
         } catch {}
+        persistSurvivalLobby(survivalLobby);
         return interaction.reply({
           content: "You joined the Squig Survival lobby.",
           flags: 64,
@@ -1747,6 +1867,7 @@ async function handleInteractionCreate(interaction) {
           );
           await survivalLobby.join_message.edit({ embeds: [updated] });
         } catch {}
+        persistSurvivalLobby(survivalLobby);
         return interaction.reply({
           content: "You left the Squig Survival lobby.",
           flags: 64,
@@ -1831,6 +1952,35 @@ async function handleInteractionCreate(interaction) {
       }
     }
 
+    if (interaction.isButton() && interaction.customId === "gauntlet:mystats") {
+      const month = currentMonthStr();
+      const mine = await Store.getMyMonth(interaction.user.id, month);
+      const hasPlays = Number(mine.plays) > 0;
+      const bestText = hasPlays ? mine.best : "—";
+      const leastText = hasPlays ? mine.least : "—";
+
+      const embed = new EmbedBuilder()
+        .setTitle(`🧾 Your Gauntlet — ${month}`)
+        .setDescription(
+          [
+            `🎮 **Games Played:** ${mine.plays}`,
+            `🏆 **Most Points:** ${bestText}`,
+            `🔻 **Least Points:** ${leastText}`,
+            `🧮 **Total Points:** ${mine.total}`,
+          ].join("\n")
+        )
+        .setColor(0x00ccff);
+
+      return interaction.reply({ embeds: [embed], flags: 64 });
+    }
+
+    if (interaction.isButton() && interaction.customId === "gauntlet:leaderboard") {
+      await interaction.deferReply({ ephemeral: true });
+      const month = currentMonthStr();
+      const embed = await renderTotalLeaderboardEmbed(month);
+      return interaction.editReply({ embeds: [embed] });
+    }
+
     // Start button
     if (interaction.isButton() && interaction.customId === "gauntlet:start") {
       await interaction.deferReply({ ephemeral: true });
@@ -1855,8 +2005,13 @@ async function handleInteractionCreate(interaction) {
 
       try {
         await interaction.followUp({
-          content: `✅ <@${interaction.user.id}> finished a run with **${final}** points.`,
-          ephemeral: false,
+          content: [
+            "Gauntlet Complete.",
+            `Final score: ${final} points`,
+            `Reward earned: ${GAUNTLET_PLAY_REWARD} $CHARM`,
+            "Think you can do better? Prove it tomorrow and push your way up the leaderboard.",
+          ].join("\n"),
+          ephemeral: true,
         });
       } catch {}
 
@@ -1888,4 +2043,5 @@ async function handleInteractionCreate(interaction) {
 module.exports = {
   registerCommands,
   handleInteractionCreate,
+  initSurvivalLobby,
 };

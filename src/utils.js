@@ -30,6 +30,11 @@ const AUTHORIZED_ADMINS = (
   .split(",")
   .map((s) => s.trim());
 
+const GAUNTLET_PLAY_REWARD = Math.max(
+  0,
+  Number(process.env.GAUNTLET_PLAY_REWARD || "50")
+);
+
 // ========= DB SSL HELPER =========
 
 function getSSL() {
@@ -177,6 +182,7 @@ module.exports = {
   GUILD_IDS,
   GAUNTLET_RESET,
   AUTHORIZED_ADMINS,
+  GAUNTLET_PLAY_REWARD,
   getSSL,
   wait,
   rand,

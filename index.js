@@ -18,6 +18,7 @@ const { initSurvivalStore } = require("./src/survivalStore");
 const {
   registerCommands,
   handleInteractionCreate,
+  initSurvivalLobby,
 } = require("./src/soloGauntlet");
 
 // --------------------------------------------
@@ -46,6 +47,7 @@ client.once(Events.ClientReady, async () => {
   await initStore();
   await initImageStore();
   await initSurvivalStore();
+  await initSurvivalLobby(client);
 
   try {
     // This now registers BOTH solo + group commands in one shot
@@ -74,4 +76,3 @@ client.on(Events.InteractionCreate, async (interaction) => {
 // LOGIN
 // --------------------------------------------
 client.login(TOKEN);
-
