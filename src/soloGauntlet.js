@@ -1334,6 +1334,10 @@ async function handleInteractionCreate(interaction) {
           components: [joinRow],
         });
 
+        await channel.send(
+          "<@&1389076094245671002> Squig Survival is open! Click **Join** on the panel above to hop in."
+        );
+
         const joinMessage = await interaction.fetchReply();
         const joined = new Set();
 
@@ -1885,4 +1889,3 @@ module.exports = {
   registerCommands,
   handleInteractionCreate,
 };
-
