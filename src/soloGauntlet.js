@@ -260,6 +260,7 @@ function buildSurvivalSettingsEmbed(mode, settings, note = null) {
   const lines = [
     `Mode: **${mode === "standard" ? "Set Standard" : "Play Custom"}**`,
     "",
+    `Pool Per Player: **+${cfg.pool_increment} $CHARM**`,
     `Type: **${SURVIVAL_TYPE_LABELS[cfg.type]}**`,
     `Era: **${cfg.era}**`,
     `Time: **${cfg.type === "timed" ? `${cfg.time_minutes} minute(s)` : "N/A (Team Start)" }**`,
@@ -287,6 +288,10 @@ function buildSurvivalSettingsComponents(mode, settings) {
 
   return [
     new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId("survive:config:pool")
+        .setLabel("Pool")
+        .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId("survive:config:type")
         .setLabel("Type")
@@ -2134,6 +2139,15 @@ async function handleInteractionCreate(interaction) {
         }
       }
 
+      if (interaction.customId === "survive:modal:pool") {
+        const amount = Number(value);
+        if (!Number.isFinite(amount) || amount < 1) {
+          note = "Pool per player must be a whole number of at least 1.";
+        } else {
+          session.settings.pool_increment = Math.floor(amount);
+        }
+      }
+
       if (interaction.customId === "survive:modal:bonus-req") {
         const players = Number(value);
         if (!Number.isFinite(players) || players < 1) {
@@ -2248,6 +2262,24 @@ async function handleInteractionCreate(interaction) {
               .setStyle(TextInputStyle.Short)
               .setRequired(true)
               .setValue(String(session.settings.time_minutes || 5))
+          )
+        );
+        await interaction.showModal(modal);
+        return;
+      }
+
+      if (interaction.customId === "survive:config:pool") {
+        const modal = new ModalBuilder()
+          .setCustomId("survive:modal:pool")
+          .setTitle("Set Pool Per Player");
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId("value")
+              .setLabel("$CHARM Added Per Player")
+              .setStyle(TextInputStyle.Short)
+              .setRequired(true)
+              .setValue(String(session.settings.pool_increment || SURVIVAL_BASE_POOL_INCREMENT))
           )
         );
         await interaction.showModal(modal);
