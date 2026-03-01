@@ -91,6 +91,8 @@ class PgStore {
         DROP TABLE IF EXISTS gauntlet_daily;
         DROP TABLE IF EXISTS gauntlet_runs;
         DROP TABLE IF EXISTS gauntlet_lb_messages;
+        DROP TABLE IF EXISTS gauntlet_survival_settings;
+        DROP TABLE IF EXISTS gauntlet_survival_lobby;
       `);
       await this.dripPool.query(`
         DROP TABLE IF EXISTS gauntlet_drip_user_overrides;
@@ -145,7 +147,20 @@ class PgStore {
         era TEXT,
         pool_increment INTEGER,
         countdown_end TIMESTAMPTZ,
-        joined_ids JSONB NOT NULL DEFAULT '[]'
+        joined_ids JSONB NOT NULL DEFAULT '[]',
+        settings JSONB NOT NULL DEFAULT '{}'::jsonb
+      );
+    `);
+    await this.pool.query(`
+      ALTER TABLE gauntlet_survival_lobby
+      ADD COLUMN IF NOT EXISTS settings JSONB NOT NULL DEFAULT '{}'::jsonb;
+    `);
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS gauntlet_survival_settings (
+        id TEXT PRIMARY KEY,
+        settings JSONB NOT NULL DEFAULT '{}'::jsonb,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
       );
     `);
 
@@ -415,7 +430,8 @@ class PgStore {
         era,
         pool_increment,
         countdown_end,
-        joined_ids
+        joined_ids,
+        settings
       )
       VALUES (
         'active',
@@ -428,7 +444,8 @@ class PgStore {
         $7,
         $8,
         $9,
-        $10
+        $10,
+        $11
       )
       ON CONFLICT (id)
       DO UPDATE SET
@@ -441,7 +458,8 @@ class PgStore {
         era = EXCLUDED.era,
         pool_increment = EXCLUDED.pool_increment,
         countdown_end = EXCLUDED.countdown_end,
-        joined_ids = EXCLUDED.joined_ids
+        joined_ids = EXCLUDED.joined_ids,
+        settings = EXCLUDED.settings
       `,
       [
         lobby?.created_by || null,
@@ -454,6 +472,7 @@ class PgStore {
         Number(lobby?.pool_increment || 0) || 0,
         countdownEnd,
         JSON.stringify(joinedIds),
+        JSON.stringify(lobby?.settings || {}),
       ]
     );
   }
@@ -471,7 +490,8 @@ class PgStore {
         era,
         pool_increment,
         countdown_end,
-        joined_ids
+        joined_ids,
+        settings
       FROM gauntlet_survival_lobby
       WHERE id = 'active'
       LIMIT 1
@@ -487,6 +507,32 @@ class PgStore {
       WHERE id = 'active'
       `
     );
+  }
+
+  async upsertSurvivalSettings(settings) {
+    await this.pool.query(
+      `
+      INSERT INTO gauntlet_survival_settings (id, settings, updated_at)
+      VALUES ('standard', $1, now())
+      ON CONFLICT (id)
+      DO UPDATE SET
+        settings = EXCLUDED.settings,
+        updated_at = now()
+      `,
+      [JSON.stringify(settings || {})]
+    );
+  }
+
+  async getSurvivalSettings() {
+    const r = await this.pool.query(
+      `
+      SELECT settings
+      FROM gauntlet_survival_settings
+      WHERE id = 'standard'
+      LIMIT 1
+      `
+    );
+    return r.rows[0]?.settings || null;
   }
 
   // ----------------------------------------------------------

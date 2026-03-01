@@ -6,11 +6,35 @@ const { createCanvas, loadImage } = require("@napi-rs/canvas");
 const { rewardCharmAmount, logCharmReward } = require("./drip");
 const { imageStore } = require("./imageStore");
 const { survivalStore } = require("./survivalStore");
-const stories = require("./survivalStories");
+const { getSurvivalEraDefinition } = require("./survivalEras");
 
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 const REVEAL_DELAY_MS = 2000;
 const MILESTONE_PAUSE_MS = 20000;
+const SHARED_LOCKED_FIRST_IMAGE = "https://i.imgur.com/jfVffAW.jpeg";
+const SHARED_FALLBACK_STAGE_IMAGES = [
+  "https://i.imgur.com/jYNKD3d.jpeg",
+  "https://i.imgur.com/8hJ6XEE.jpeg",
+  "https://i.imgur.com/yBmAjMh.jpeg",
+  "https://i.imgur.com/fiNkaTa.jpeg",
+  "https://i.imgur.com/r5Nysp5.jpeg",
+  "https://i.imgur.com/oDDwiXk.jpeg",
+  "https://i.imgur.com/1NTPdp2.jpeg",
+  "https://i.imgur.com/R4wlJ1q.jpeg",
+  "https://i.imgur.com/RJwmxm4.jpeg",
+  "https://i.imgur.com/atw2YPn.jpeg",
+  "https://i.imgur.com/9RY06vL.jpeg",
+  "https://i.imgur.com/dnTGhgl.jpeg",
+  "https://i.imgur.com/whAJaka.jpeg",
+  "https://i.imgur.com/njckQiQ.jpeg",
+  "https://i.imgur.com/szOnMxN.jpeg",
+  "https://i.imgur.com/K4x6Dgk.jpeg",
+  "https://i.imgur.com/Nmc9UPb.jpeg",
+  "https://i.imgur.com/bZwvi5J.jpeg",
+  "https://i.imgur.com/Tlf4elV.jpeg",
+  "https://i.imgur.com/K1BMD1e.jpeg",
+  "https://i.imgur.com/eDAkAOV.png",
+];
 
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const randInt = (min, max) =>
@@ -83,35 +107,6 @@ async function buildDisplayNameMap(client, guildId, userIds) {
   return map;
 }
 
-/**
- * Life stages for each milestone.
- * We clamp to the last stage if the game runs longer than this list.
- */
-const LOCKED_FIRST_IMAGE = "https://i.imgur.com/jfVffAW.jpeg";
-const FALLBACK_STAGE_IMAGES = [
-  "https://i.imgur.com/jYNKD3d.jpeg",
-  "https://i.imgur.com/8hJ6XEE.jpeg",
-  "https://i.imgur.com/yBmAjMh.jpeg",
-  "https://i.imgur.com/fiNkaTa.jpeg",
-  "https://i.imgur.com/r5Nysp5.jpeg",
-  "https://i.imgur.com/oDDwiXk.jpeg",
-  "https://i.imgur.com/1NTPdp2.jpeg",
-  "https://i.imgur.com/R4wlJ1q.jpeg",
-  "https://i.imgur.com/RJwmxm4.jpeg",
-  "https://i.imgur.com/atw2YPn.jpeg",
-  "https://i.imgur.com/9RY06vL.jpeg",
-  "https://i.imgur.com/dnTGhgl.jpeg",
-  "https://i.imgur.com/whAJaka.jpeg",
-  "https://i.imgur.com/njckQiQ.jpeg",
-  "https://i.imgur.com/szOnMxN.jpeg",
-  "https://i.imgur.com/K4x6Dgk.jpeg",
-  "https://i.imgur.com/Nmc9UPb.jpeg",
-  "https://i.imgur.com/bZwvi5J.jpeg",
-  "https://i.imgur.com/Tlf4elV.jpeg",
-  "https://i.imgur.com/K1BMD1e.jpeg",
-  "https://i.imgur.com/eDAkAOV.png",
-];
-const RANDOM_STAGE_IMAGES = [...new Set(FALLBACK_STAGE_IMAGES)];
 const SURVIVAL_ART_PAYOUT = 100;
 const SURVIVAL_ART_REWARDS = {
   "https://i.imgur.com/Tlf4elV.jpeg": {
@@ -130,103 +125,6 @@ const SURVIVAL_ART_REWARDS = {
     reason: "Squig Survival art bonus (image used) — thanks for your creativity!",
   },
 };
-
-const LORE_LINES = [
-  "🌀 {player} tries coffee for the first time and decides it is \"spicy water.\"",
-  "🛒 {player} discovers grocery carts and insists they are \"metal steeds.\"",
-  "📱 {player} scrolls for three hours and calls it \"research.\"",
-  "🍕 {player} argues pineapple improves portals.",
-  "🧦 {player} collects socks and declares them \"Earth skins.\"",
-  "🎧 {player} hears lo-fi beats and refuses to stop vibing.",
-  "🚌 {player} boards the wrong bus and calls it \"quest mode.\"",
-  "🧴 {player} learns sunscreen exists and applies it to a hat.",
-  "🧊 {player} meets ice for the first time and distrusts it.",
-  "🪙 {player} trades a shiny pebble for a real coin and feels powerful.",
-  "🧠 {player} reads a self-help book and still chooses chaos.",
-  "🐸 {player} tries to befriend a frog and gets judged.",
-  "🕶️ {player} buys sunglasses and claims \"the sun is rude.\"",
-  "🍔 {player} believes burgers are a cultural handshake.",
-  "🧼 {player} learns \"soap\" and becomes briefly unstoppable.",
-  "🚦 {player} stares at traffic lights like they're speaking in riddles.",
-  "📦 {player} discovers cardboard boxes are \"cozy portals.\"",
-  "💤 {player} naps in public and calls it \"social camouflage.\"",
-  "🎢 {player} rides a rollercoaster and rethinks gravity.",
-  "📺 {player} watches a sitcom and decides humans are \"strange but funny.\"",
-  "The day is calmer when {player} decides to simply people-watch.",
-  "A vending machine teaches {player} the meaning of patience.",
-  "Someone hands {player} a receipt and they keep it as a trophy.",
-  "A pigeon stares back at {player}. They negotiate a truce.",
-  "Today, {player} discovers escalators and calls them \"lazy stairs.\"",
-  "An elevator stops. {player} bows out of respect.",
-  "A hoodie becomes a ceremonial robe for {player}.",
-  "The word \"brunch\" confuses {player} for 12 minutes.",
-  "At the crosswalk, {player} misreads the tiny person as a warning sprite.",
-  "On a walk, {player} decides sidewalks are \"ground rivers.\"",
-  "A delivery driver nods at {player}. Diplomatic relations established.",
-  "A subway map makes {player} feel briefly omniscient.",
-  "A paper clip becomes a relic in {player}'s pocket.",
-  "{player} declares socks optional and is immediately corrected by a breeze.",
-  "A park bench adopts {player} for a quiet moment.",
-  "The moon gets a casual wave from {player}. It does not wave back.",
-  "Today, {player} learns the power of a good playlist.",
-  "A rainy day turns {player}'s footsteps into percussion.",
-  "A QR code confuses {player} and delights them anyway.",
-  "A smoothie tastes like \"fruit lightning\" to {player}.",
-  "A cat ignores {player}. This is taken as wisdom.",
-  "A doorway welcomes {player} with a dramatic swoosh.",
-  "A scarf becomes a cape, and {player} takes it seriously.",
-  "A bakery aroma convinces {player} that Earth is worth it.",
-  "A street musician inspires {player} to hum in Squig.",
-  "Today, {player} decides that notebooks are sacred.",
-  "A mailbox becomes {player}'s sworn enemy for five minutes.",
-  "A carousel makes {player} consider spinning as a lifestyle.",
-  "A mirror startles {player} with unexpected handsomeness.",
-  "A water fountain teaches {player} to trust buttons.",
-];
-
-const MILESTONE_STAGES = [
-  {
-    title: "Landing Day 1 - First Impact",
-    flavor:
-      "Fresh from the portal, the Squigs splatter into Earth's atmosphere like confused cosmic confetti.",
-    image: LOCKED_FIRST_IMAGE,
-  },
-  {
-    title: "Month 1 on Earth - First Confusion",
-    flavor:
-      "The Squigs are still learning gravity, weather, and why humans keep putting pineapple on pizza.",
-  },
-  {
-    title: "Month 2 on Earth - Bad Influences",
-    flavor:
-      "They discover social media, NFTs, and the horrifying power of quote-tweets.",
-  },
-  {
-    title: "Month 3 on Earth - Questionable Hobbies",
-    flavor:
-      "Some Squigs start side hustles. Others become professional lurkers. All of them are still extremely weird.",
-  },
-  {
-    title: "Month 4 on Earth - Full Degeneracy",
-    flavor:
-      "Sleep schedules are gone. Caffeine is up. Decisions are... not always good ones.",
-  },
-  {
-    title: "Month 5 on Earth - The Great Overthink",
-    flavor:
-      "The Squigs begin to wonder if humans actually know what they're doing. Signs point to 'no'.",
-  },
-  {
-    title: "Month 6 on Earth - Vanishing Acts",
-    flavor:
-      "One by one, Squigs disappear into strange side quests, mysterious DMs, and badly-timed adventures.",
-  },
-  {
-    title: "Last Known Squig Presence on Earth",
-    flavor:
-      "The portals flicker. Transmission logs corrupt. Only a handful of Squigs remain to tell the tale.",
-  },
-];
 
 const PODIUM_RINGS = [
   { color: "#d4af37", label: "1st" }, // gold
@@ -362,10 +260,28 @@ function format(template, victimId, killerId, nameOf) {
  * Run the Squig Survival story.
  * @param {import('discord.js').TextChannel} channel
  * @param {string[]} playerIds - Array of user IDs
- * @param {string|null} eraLabel
+ * @param {object} settings
  */
-async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
+async function runSurvival(channel, playerIds, settings = {}) {
   if (!playerIds || playerIds.length === 0) return;
+
+  const normalizedSettings = {
+    era_key: settings?.era_key || "day_one",
+    era: settings?.era || null,
+    pool_increment: Number(settings?.pool_increment || 50) || 50,
+    bonus_active: Boolean(settings?.bonus_active),
+    bonus_required_players: Math.max(
+      1,
+      Number(settings?.bonus_required_players || 0) || 1
+    ),
+    bonus_multiplier: Math.max(
+      1,
+      Number(settings?.bonus_multiplier || 1) || 1
+    ),
+  };
+  const defaultEraDefinition = getSurvivalEraDefinition("day_one");
+  const eraDefinition = getSurvivalEraDefinition(normalizedSettings.era_key);
+  const eraLabel = normalizedSettings.era || eraDefinition.label;
 
   let dbImageRows = [];
   try {
@@ -378,7 +294,8 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
   }
 
   const dbImageUrls = dbImageRows.map((r) => r.image_url).filter(Boolean);
-  const mergedStageImages = [...new Set([...RANDOM_STAGE_IMAGES, ...dbImageUrls])];
+  const fallbackStageImages = Array.from(new Set(SHARED_FALLBACK_STAGE_IMAGES));
+  const mergedStageImages = [...new Set([...fallbackStageImages, ...dbImageUrls])];
   const dbRewardMap = new Map(
     dbImageRows
       .filter((r) => r.image_url && r.user_id)
@@ -410,19 +327,40 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
   const eliminated = [];
   let imageBag = shuffle(mergedStageImages);
 
+  const eraStories = eraDefinition.stories || {};
+  const defaultStories = defaultEraDefinition.stories || {};
+  const hidingSpots = eraStories.hidingSpots?.length
+    ? eraStories.hidingSpots
+    : defaultStories.hidingSpots || [];
+  const clumsiness = eraStories.clumsiness?.length
+    ? eraStories.clumsiness
+    : defaultStories.clumsiness || [];
+  const sabotage = eraStories.sabotage?.length
+    ? eraStories.sabotage
+    : defaultStories.sabotage || [];
+  const resurrections = eraStories.resurrections?.length
+    ? eraStories.resurrections
+    : defaultStories.resurrections || [];
+  const loreLines = eraDefinition.loreLines?.length
+    ? eraDefinition.loreLines
+    : defaultEraDefinition.loreLines || [];
+  const milestoneStages = eraDefinition.milestoneStages?.length
+    ? eraDefinition.milestoneStages
+    : defaultEraDefinition.milestoneStages || [];
+
   // One player = instant win embed
   if (alive.length === 1) {
     const payouts = calculateSurvivalPayouts(
       uniquePlayers,
       [alive[0]],
-      poolIncrement
+      normalizedSettings
     );
     await sendSurvivalPayouts(
       channel,
       payouts,
       [alive[0]],
       uniquePlayers.length,
-      poolIncrement
+      normalizedSettings
     );
     await channel.send({
       embeds: [
@@ -457,17 +395,17 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
 
       if (category === 0) {
         // Hiding spot
-        text = format(pick(stories.hidingSpots), victimId, null, nameOf);
+        text = format(pick(hidingSpots), victimId, null, nameOf);
       } else if (category === 1) {
         // Clumsiness
-        text = format(pick(stories.clumsiness), victimId, null, nameOf);
+        text = format(pick(clumsiness), victimId, null, nameOf);
       } else {
         // Sabotage - needs a killer if possible
         if (alive.length === 0) {
-          text = format(pick(stories.clumsiness), victimId, null, nameOf);
+          text = format(pick(clumsiness), victimId, null, nameOf);
         } else {
           const killerId = alive[Math.floor(Math.random() * alive.length)];
-          text = format(pick(stories.sabotage), victimId, killerId, nameOf);
+          text = format(pick(sabotage), victimId, killerId, nameOf);
           if (gameId) {
             await survivalStore.addElimination(gameId, killerId, 1);
           }
@@ -481,15 +419,14 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
     // --- RESURRECTION CHANCE ---
     if (
       eliminated.length > 0 &&
-      stories.resurrections &&
-      stories.resurrections.length > 0 &&
+      resurrections.length > 0 &&
       Math.random() < 0.18 // ~18% chance per milestone
     ) {
       const revivedIndex = Math.floor(Math.random() * eliminated.length);
       const revivedId = eliminated.splice(revivedIndex, 1)[0];
       alive.push(revivedId);
 
-      const resurrectionTemplate = pick(stories.resurrections);
+      const resurrectionTemplate = pick(resurrections);
       // Revived Squig should appear normally (no strikethrough)
       const resurrectionText = resurrectionTemplate.replace(
         /{victim}/g,
@@ -505,7 +442,7 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
     const loreCount = randInt(2, 3);
     for (let i = 0; i < loreCount; i++) {
       const who = pick(alive.length ? alive : uniquePlayers);
-      const lore = pick(LORE_LINES).replace(/{player}/g, nameOf(who));
+      const lore = pick(loreLines).replace(/{player}/g, nameOf(who));
       const insertAt = randInt(0, lines.length);
       lines.splice(insertAt, 0, lore);
     }
@@ -513,9 +450,9 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
     // Pick the stage for this milestone
     const stageIndex = Math.min(
       milestone - 1,
-      MILESTONE_STAGES.length - 1
+      milestoneStages.length - 1
     );
-    const stage = MILESTONE_STAGES[stageIndex];
+    const stage = milestoneStages[stageIndex];
 
     const embed = new EmbedBuilder()
       .setTitle(`Squig Life - ${stage.title}`)
@@ -523,7 +460,7 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
 
     let imageUrl = null;
     if (milestone === 1) {
-      imageUrl = LOCKED_FIRST_IMAGE;
+      imageUrl = SHARED_LOCKED_FIRST_IMAGE;
     } else if (mergedStageImages.length) {
       if (!imageBag.length) imageBag = shuffle(mergedStageImages);
       imageUrl = imageBag.shift() || null;
@@ -670,20 +607,49 @@ async function runSurvival(channel, playerIds, eraLabel, poolIncrement = 50) {
   const payouts = calculateSurvivalPayouts(
     uniquePlayers,
     placements,
-    poolIncrement
+    normalizedSettings
   );
   await sendSurvivalPayouts(
     channel,
     payouts,
     placements,
     uniquePlayers.length,
-    poolIncrement
+    normalizedSettings
   );
 }
 
-function calculateSurvivalPayouts(playerIds, placements, poolIncrement = 50) {
+function resolveSurvivalPrizePool(totalPlayers, settings = {}) {
+  const poolIncrement = Math.max(1, Number(settings?.pool_increment || 50) || 50);
+  const basePrizePool = poolIncrement * Math.max(0, totalPlayers);
+  const bonusActive = Boolean(settings?.bonus_active);
+  const bonusRequiredPlayers = Math.max(
+    1,
+    Number(settings?.bonus_required_players || 0) || 1
+  );
+  const bonusMultiplier = Math.max(
+    1,
+    Number(settings?.bonus_multiplier || 1) || 1
+  );
+  const bonusTriggered = bonusActive && totalPlayers >= bonusRequiredPlayers;
+  const finalPrizePool = bonusTriggered
+    ? Math.floor(basePrizePool * bonusMultiplier)
+    : basePrizePool;
+
+  return {
+    poolIncrement,
+    basePrizePool,
+    bonusActive,
+    bonusRequiredPlayers,
+    bonusMultiplier,
+    bonusTriggered,
+    finalPrizePool,
+  };
+}
+
+function calculateSurvivalPayouts(playerIds, placements, settings = {}) {
   const uniquePlayers = Array.from(new Set(playerIds || []));
-  const prizePool = poolIncrement * uniquePlayers.length;
+  const poolInfo = resolveSurvivalPrizePool(uniquePlayers.length, settings);
+  const prizePool = poolInfo.finalPrizePool;
 
   const uniquePlacements = [];
   for (const id of placements || []) {
@@ -722,11 +688,12 @@ async function sendSurvivalPayouts(
   payouts,
   placements,
   totalPlayers,
-  poolIncrement = 50
+  settings = {}
 ) {
   try {
     const entries = Object.entries(payouts || {});
     if (!entries.length) return;
+    const poolInfo = resolveSurvivalPrizePool(totalPlayers, settings);
 
     await Promise.all(
       entries.map(async ([userId, amount]) => {
@@ -756,7 +723,7 @@ async function sendSurvivalPayouts(
             score: 0,
             source: "survival",
             channelId: channel.id,
-            reason: `Squig Survival ${rankLabel} (pool ${poolIncrement * totalPlayers})`,
+            reason: `Squig Survival ${rankLabel} (pool ${poolInfo.finalPrizePool})`,
           });
         }
       })
@@ -767,4 +734,3 @@ async function sendSurvivalPayouts(
 }
 
 module.exports = { runSurvival, calculateSurvivalPayouts, buildPodiumImage };
-
