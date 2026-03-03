@@ -1310,6 +1310,8 @@ async function runRiskItEphemeral(interaction, player) {
 // --------------------------------------------
 const GAUNTLET_DECISION_TIMEOUT_MS = 60_000;
 const GAUNTLET_REVEAL_DELAY_MS = 2_000;
+const GAUNTLET_RESULT_DISPLAY_MS = 3_000;
+const GAUNTLET_RESTART_MESSAGE_MS = 6_000;
 const GAUNTLET_COMPLETION_BONUS = 500;
 const DECISION_GAUNTLET_PAYOUT_CHANNEL_ID = "1477463175665287410";
 
@@ -1917,6 +1919,7 @@ async function runSoloGauntletEphemeral(interaction) {
         interaction,
         buildDecisionRevealPayload(round, survived ? "ALIVE" : "DEAD")
       )) || message;
+    await waitMs(GAUNTLET_RESULT_DISPLAY_MS);
 
     if (!survived) {
       state.livesRemaining -= 1;
@@ -1940,6 +1943,7 @@ async function runSoloGauntletEphemeral(interaction) {
           interaction,
           buildDecisionRevealPayload(round, DECISION_GAUNTLET_RESTART_TEXT)
         )) || message;
+      await waitMs(GAUNTLET_RESTART_MESSAGE_MS);
       message =
         (await editDecisionGauntletReply(
           interaction,
