@@ -1729,9 +1729,17 @@ async function logDecisionGauntletPayout(client, payload) {
   }
 }
 
+async function editDecisionGauntletReply(interaction, payload) {
+  await interaction.editReply(payload);
+  try {
+    return await interaction.fetchReply();
+  } catch {
+    return null;
+  }
+}
+
 async function finalizeDecisionGauntletRun(
   interaction,
-  message,
   state,
   { resultType, finalRound, bonus = 0, finalText }
 ) {
@@ -1825,7 +1833,7 @@ async function finalizeDecisionGauntletRun(
   }
 
   try {
-    await message.edit({
+    await interaction.editReply({
       content: null,
       embeds: [finalEmbed],
       components: [],
@@ -1851,7 +1859,7 @@ async function runSoloGauntletEphemeral(interaction) {
   };
 
   await interaction.editReply(buildDecisionRoundPayload(state));
-  const message = await interaction.fetchReply();
+  let message = await interaction.fetchReply();
   state.messageId = message.id;
 
   while (!state.isEnding) {
@@ -1863,7 +1871,7 @@ async function runSoloGauntletEphemeral(interaction) {
 
     const pick = await waitForDecisionButton(message, choiceIds, state.userId);
     if (!pick) {
-      return finalizeDecisionGauntletRun(interaction, message, state, {
+      return finalizeDecisionGauntletRun(interaction, state, {
         resultType: "Cash Out",
         finalRound: state.roundsClearedThisRun,
         finalText: "Time expired. Your current stack was cashed out automatically.",
@@ -1876,24 +1884,26 @@ async function runSoloGauntletEphemeral(interaction) {
     const survived =
       pickedIndex === state.safeIndexForAttempt && Math.random() <= round.passChance;
 
-    await message.edit({
+    message =
+      (await editDecisionGauntletReply(interaction, {
       content: "You chose. Now InSquignito is...",
       embeds: [],
       components: [],
-    });
+      })) || message;
     await waitMs(GAUNTLET_REVEAL_DELAY_MS);
 
-    await message.edit({
+    message =
+      (await editDecisionGauntletReply(interaction, {
       content: survived ? "ALIVE" : "DEAD",
       embeds: [],
       components: [],
-    });
+      })) || message;
 
     if (!survived) {
       state.livesRemaining -= 1;
 
       if (state.livesRemaining <= 0) {
-        return finalizeDecisionGauntletRun(interaction, message, state, {
+        return finalizeDecisionGauntletRun(interaction, state, {
           resultType: "Out of Lives",
           finalRound: state.roundIndex,
           finalText: DECISION_GAUNTLET_FAIL_END_TEXT(state.charmEarnedThisRun),
@@ -1905,12 +1915,17 @@ async function runSoloGauntletEphemeral(interaction) {
       state.roundsClearedThisRun = 0;
       state.safeIndexForAttempt = rerollSafeIndex();
 
-      await message.edit({
+      message =
+        (await editDecisionGauntletReply(interaction, {
         content: DECISION_GAUNTLET_RESTART_TEXT,
         embeds: [],
         components: [],
-      });
-      await message.edit(buildDecisionRoundPayload(state));
+        })) || message;
+      message =
+        (await editDecisionGauntletReply(
+          interaction,
+          buildDecisionRoundPayload(state)
+        )) || message;
       continue;
     }
 
@@ -1918,7 +1933,7 @@ async function runSoloGauntletEphemeral(interaction) {
     state.roundsClearedThisRun = state.roundIndex;
 
     if (state.roundIndex === DECISION_GAUNTLET_ROUNDS.length) {
-      return finalizeDecisionGauntletRun(interaction, message, state, {
+      return finalizeDecisionGauntletRun(interaction, state, {
         resultType: "Completion",
         finalRound: 10,
         bonus: GAUNTLET_COMPLETION_BONUS,
@@ -1926,7 +1941,11 @@ async function runSoloGauntletEphemeral(interaction) {
       });
     }
 
-    await message.edit(buildPostRoundDecisionPayload(state, round));
+    message =
+      (await editDecisionGauntletReply(
+        interaction,
+        buildPostRoundDecisionPayload(state, round)
+      )) || message;
 
     const decisionIds = [
       `gauntlet:continue:${state.runId}`,
@@ -1934,7 +1953,7 @@ async function runSoloGauntletEphemeral(interaction) {
     ];
     const decision = await waitForDecisionButton(message, decisionIds, state.userId);
     if (!decision) {
-      return finalizeDecisionGauntletRun(interaction, message, state, {
+      return finalizeDecisionGauntletRun(interaction, state, {
         resultType: "Cash Out",
         finalRound: state.roundsClearedThisRun,
         finalText: "Time expired. Your current stack was cashed out automatically.",
@@ -1945,14 +1964,18 @@ async function runSoloGauntletEphemeral(interaction) {
 
     if (decision.customId === `gauntlet:cashout:${state.runId}`) {
       if (state.livesRemaining > 0) {
-        await message.edit(buildCashOutConfirmPayload(state));
+        message =
+          (await editDecisionGauntletReply(
+            interaction,
+            buildCashOutConfirmPayload(state)
+          )) || message;
         const confirmIds = [
           `gauntlet:cashout:confirm:${state.runId}`,
           `gauntlet:cashout:resume:${state.runId}`,
         ];
         const confirm = await waitForDecisionButton(message, confirmIds, state.userId);
         if (!confirm) {
-          return finalizeDecisionGauntletRun(interaction, message, state, {
+          return finalizeDecisionGauntletRun(interaction, state, {
             resultType: "Cash Out",
             finalRound: state.roundsClearedThisRun,
             finalText: "Time expired. Your current stack was cashed out automatically.",
@@ -1962,7 +1985,7 @@ async function runSoloGauntletEphemeral(interaction) {
         await confirm.deferUpdate();
 
         if (confirm.customId === `gauntlet:cashout:confirm:${state.runId}`) {
-          return finalizeDecisionGauntletRun(interaction, message, state, {
+          return finalizeDecisionGauntletRun(interaction, state, {
             resultType: "Cash Out",
             finalRound: state.roundsClearedThisRun,
             finalText: "You cashed out and ended the run.",
@@ -1971,10 +1994,14 @@ async function runSoloGauntletEphemeral(interaction) {
 
         state.roundIndex += 1;
         state.safeIndexForAttempt = rerollSafeIndex();
-        await message.edit(buildDecisionRoundPayload(state));
+        message =
+          (await editDecisionGauntletReply(
+            interaction,
+            buildDecisionRoundPayload(state)
+          )) || message;
         continue;
       } else {
-        return finalizeDecisionGauntletRun(interaction, message, state, {
+        return finalizeDecisionGauntletRun(interaction, state, {
           resultType: "Cash Out",
           finalRound: state.roundsClearedThisRun,
           finalText: "You cashed out and ended the run.",
@@ -1984,7 +2011,11 @@ async function runSoloGauntletEphemeral(interaction) {
 
     state.roundIndex += 1;
     state.safeIndexForAttempt = rerollSafeIndex();
-    await message.edit(buildDecisionRoundPayload(state));
+    message =
+      (await editDecisionGauntletReply(
+        interaction,
+        buildDecisionRoundPayload(state)
+      )) || message;
   }
 
   return state.charmEarnedThisRun;
@@ -2342,7 +2373,7 @@ async function handleInteractionCreate(interaction) {
 
       // /gauntletinfo
       if (interaction.commandName === "gauntletinfo") {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: 64 });
         const embed = new EmbedBuilder()
           .setTitle("📜 Welcome to The Gauntlet — Decision Gauntlet")
           .setDescription(
@@ -2367,7 +2398,7 @@ async function handleInteractionCreate(interaction) {
 
       // /mygauntlet
       if (interaction.commandName === "mygauntlet") {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: 64 });
         const month = currentMonthStr();
         const mine = await Store.getMyMonth(interaction.user.id, month);
 
@@ -3135,7 +3166,7 @@ async function handleInteractionCreate(interaction) {
     }
 
     if (interaction.isButton() && interaction.customId === "gauntlet:leaderboard") {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: 64 });
       const month = currentMonthStr();
       const embed = await renderTotalLeaderboardEmbed(month);
       return interaction.editReply({ embeds: [embed] });
@@ -3143,7 +3174,7 @@ async function handleInteractionCreate(interaction) {
 
     // Start button
     if (interaction.isButton() && interaction.customId === "gauntlet:start") {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: 64 });
       const today = torontoDateStr();
       const played = await Store.hasPlayed(interaction.user.id, today);
 
