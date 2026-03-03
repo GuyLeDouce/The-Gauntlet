@@ -3175,8 +3175,11 @@ async function handleInteractionCreate(interaction) {
     // Start button
     if (interaction.isButton() && interaction.customId === "gauntlet:start") {
       await interaction.deferReply({ flags: 64 });
+      const isAdmin = isAdminUserLocal(interaction);
       const today = torontoDateStr();
-      const played = await Store.hasPlayed(interaction.user.id, today);
+      const played = isAdmin
+        ? false
+        : await Store.hasPlayed(interaction.user.id, today);
 
       if (played) {
         const when = nextTorontoMidnight();
@@ -3186,7 +3189,9 @@ async function handleInteractionCreate(interaction) {
       }
 
       // Lock the daily play immediately to prevent multiple starts in one day.
-      await Store.recordPlay(interaction.user.id, today);
+      if (!isAdmin) {
+        await Store.recordPlay(interaction.user.id, today);
+      }
 
       await interaction.editReply({
         content: "⚔️ Decision Gauntlet is loading...",
