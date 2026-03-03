@@ -1901,9 +1901,7 @@ async function runSoloGauntletEphemeral(interaction) {
 
     await pick.deferUpdate();
 
-    const pickedIndex = Number(pick.customId.split(":").pop());
-    const survived =
-      pickedIndex === state.safeIndexForAttempt && Math.random() <= round.passChance;
+    const survived = Math.random() <= round.passChance;
 
     await waitMs(GAUNTLET_REVEAL_DELAY_MS);
 
@@ -2274,19 +2272,48 @@ function startPanelEmbed() {
     .setTitle("⚔️ The Gauntlet — Decision Gauntlet")
     .setDescription(
       [
-        "Click **Start** to play privately via **ephemeral** messages in this channel.",
-        "Use **My Stats** for your monthly totals (private) or **Leaderboard** for this month's standings.",
-        "You can play **once per day** (Toronto time). Every run is **saved**. Monthly LB shows **best** per user (total reward = tiebreaker); **Leaderboard** shows monthly total rewards.",
+        "Click **Start** to enter the Decision Gauntlet alone. Every choice is made in private, and every mistake is yours to carry.",
         "",
-        "**Decision Gauntlet:**",
-        "10 survival rooms.",
-        "Pick one of two paths each round.",
-        "Wrong choice or bad luck costs a life and restarts you at Room 1.",
-        "No $CHARM is paid until the run ends.",
+        "Beyond the first door, InSquignito waits inside a sequence of brutal rooms built to test instinct, nerve, and luck. Some choices lead forward. Some end in silence. If you still have lives remaining, the Gauntlet drags you back to the beginning and makes you try again.",
+        "",
+        "After each cleared room, you may press deeper into the dark or cash out what you have managed to keep. Survive all 10 rooms, and the arena pays out a final bonus to those rare enough to reach the end.",
+        "",
+        "One run per day for most challengers. Every run is recorded. The leaderboard remembers who walked out richest.",
       ].join("\n")
     )
     .setColor(0xaa00ff)
     .setImage("https://i.imgur.com/MKHosuC.png");
+}
+
+function buildDecisionGauntletInfoEmbed() {
+  return new EmbedBuilder()
+    .setTitle("ℹ️ Decision Gauntlet - How It Works")
+    .setDescription(
+      [
+        "Play privately via ephemeral messages. One run per day (Toronto time), except admins who can bypass the cooldown.",
+        "",
+        "**How it works:**",
+        "1. You start with lives based on your highest eligible holder role tier.",
+        "2. Clear 10 path-choice rooms in order.",
+        "3. Each room has one safe choice, plus a survival roll.",
+        "4. If you die and still have lives left, the run restarts at Room 1 and your current stack resets to 0.",
+        "5. After every cleared room, choose Continue or Cash Out.",
+        "6. $CHARM is paid once, only when the run ends.",
+        "",
+        "**Payouts:**",
+        "- Cash Out: current stacked reward",
+        "- Out of Lives: current stacked reward",
+        "- Full Clear: current stacked reward + 500 $CHARM bonus",
+        "",
+        "**Extra lives by role tier:**",
+        "1 Life: Ugly Holder, Monster Holder, Squig Holder",
+        "2 Lives: Ugly Master, Monster Master, Squig Master",
+        "3 Lives: Ugly Lord, Monster Lord, Squig Lord, Ugly King, Ugly Legend, Monster King, Squig King, Squig Legend, Horrible Holder, Squig Editions Holder",
+        "",
+        "If you do not have one of those roles, you still get 1 life.",
+      ].join("\n")
+    )
+    .setColor(0x00ccff);
 }
 
 function startPanelRow() {
@@ -2302,6 +2329,10 @@ function startPanelRow() {
     new ButtonBuilder()
       .setCustomId("gauntlet:leaderboard")
       .setLabel("Leaderboard")
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId("gauntlet:info")
+      .setLabel("Info")
       .setStyle(ButtonStyle.Primary)
   );
 }
@@ -2402,26 +2433,7 @@ async function handleInteractionCreate(interaction) {
       // /gauntletinfo
       if (interaction.commandName === "gauntletinfo") {
         await interaction.deferReply({ flags: 64 });
-        const embed = new EmbedBuilder()
-          .setTitle("📜 Welcome to The Gauntlet — Decision Gauntlet")
-          .setDescription(
-            [
-              "Play **any time** via ephemeral messages. One run per day (Toronto time).",
-              "",
-              "**Flow:**",
-              "1) Start with lives based on your highest holder tier (non-holders still get 1 life).",
-              "2) Clear 10 path-choice rooms.",
-              "3) Every death restarts you at Room 1 and wipes the current stack.",
-              "4) After each clear, choose Continue or Cash Out.",
-              "5) $CHARM is paid once at run end only.",
-              "",
-              "Completion pays your full stack plus a **500 $CHARM** bonus.",
-              "Leaderboard ranks **highest single-run $CHARM payout**, with **total monthly $CHARM** as tiebreaker.",
-            ].join("\n")
-          )
-          .setColor(0x00ccff);
-
-        return interaction.editReply({ embeds: [embed] });
+        return interaction.editReply({ embeds: [buildDecisionGauntletInfoEmbed()] });
       }
 
       // /mygauntlet
@@ -3198,6 +3210,11 @@ async function handleInteractionCreate(interaction) {
       const month = currentMonthStr();
       const embed = await renderTotalLeaderboardEmbed(month);
       return interaction.editReply({ embeds: [embed] });
+    }
+
+    if (interaction.isButton() && interaction.customId === "gauntlet:info") {
+      await interaction.deferReply({ flags: 64 });
+      return interaction.editReply({ embeds: [buildDecisionGauntletInfoEmbed()] });
     }
 
     // Start button
