@@ -1308,9 +1308,10 @@ async function runRiskItEphemeral(interaction, player) {
 // --------------------------------------------
 // SOLO ORCHESTRATOR (Decision Gauntlet)
 // --------------------------------------------
-const GAUNTLET_DECISION_TIMEOUT_MS = 20_000;
+const GAUNTLET_DECISION_TIMEOUT_MS = 60_000;
 const GAUNTLET_REVEAL_DELAY_MS = 2_000;
 const GAUNTLET_COMPLETION_BONUS = 500;
+const DECISION_GAUNTLET_PAYOUT_CHANNEL_ID = "1477463175665287410";
 
 const GAUNTLET_ROLE_LIFE_TIERS = [
   {
@@ -1684,6 +1685,18 @@ function buildCashOutConfirmPayload(state) {
   };
 }
 
+function buildDecisionRevealPayload(round, content) {
+  return {
+    content,
+    embeds: [
+      new EmbedBuilder()
+        .setColor(0xc0392b)
+        .setImage(round.image),
+    ],
+    components: [],
+  };
+}
+
 async function waitForDecisionButton(message, expectedIds, userId) {
   try {
     return await message.awaitMessageComponent({
@@ -1698,7 +1711,8 @@ async function waitForDecisionButton(message, expectedIds, userId) {
 }
 
 async function logDecisionGauntletPayout(client, payload) {
-  const targetChannelId = DRIP_LOG_CHANNEL_ID || payload.channelId;
+  const targetChannelId =
+    DECISION_GAUNTLET_PAYOUT_CHANNEL_ID || DRIP_LOG_CHANNEL_ID || payload.channelId;
   if (!client || !targetChannelId) return false;
 
   try {
@@ -1741,7 +1755,7 @@ async function editDecisionGauntletReply(interaction, payload) {
 async function finalizeDecisionGauntletRun(
   interaction,
   state,
-  { resultType, finalRound, bonus = 0, finalText }
+  { resultType, finalRound, bonus = 0, finalText, finalImage = null }
 ) {
   if (state.isEnding) return state.charmEarnedThisRun + bonus;
   state.isEnding = true;
@@ -1828,6 +1842,10 @@ async function finalizeDecisionGauntletRun(
     )
     .setColor(payoutOk ? 0x2ecc71 : 0xe74c3c);
 
+  if (finalImage) {
+    finalEmbed.setImage(finalImage);
+  }
+
   if (payoutReason) {
     finalEmbed.setFooter({ text: payoutReason });
   }
@@ -1875,6 +1893,7 @@ async function runSoloGauntletEphemeral(interaction) {
         resultType: "Cash Out",
         finalRound: state.roundsClearedThisRun,
         finalText: "Time expired. Your current stack was cashed out automatically.",
+        finalImage: round.image,
       });
     }
 
@@ -1884,20 +1903,20 @@ async function runSoloGauntletEphemeral(interaction) {
     const survived =
       pickedIndex === state.safeIndexForAttempt && Math.random() <= round.passChance;
 
-    message =
-      (await editDecisionGauntletReply(interaction, {
-      content: "You chose. Now InSquignito is...",
-      embeds: [],
-      components: [],
-      })) || message;
     await waitMs(GAUNTLET_REVEAL_DELAY_MS);
 
     message =
-      (await editDecisionGauntletReply(interaction, {
-      content: survived ? "ALIVE" : "DEAD",
-      embeds: [],
-      components: [],
-      })) || message;
+      (await editDecisionGauntletReply(
+        interaction,
+        buildDecisionRevealPayload(round, "You chose. Now InSquignito is...")
+      )) || message;
+    await waitMs(GAUNTLET_REVEAL_DELAY_MS);
+
+    message =
+      (await editDecisionGauntletReply(
+        interaction,
+        buildDecisionRevealPayload(round, survived ? "ALIVE" : "DEAD")
+      )) || message;
 
     if (!survived) {
       state.livesRemaining -= 1;
@@ -1907,6 +1926,7 @@ async function runSoloGauntletEphemeral(interaction) {
           resultType: "Out of Lives",
           finalRound: state.roundIndex,
           finalText: DECISION_GAUNTLET_FAIL_END_TEXT(state.charmEarnedThisRun),
+          finalImage: round.image,
         });
       }
 
@@ -1916,11 +1936,10 @@ async function runSoloGauntletEphemeral(interaction) {
       state.safeIndexForAttempt = rerollSafeIndex();
 
       message =
-        (await editDecisionGauntletReply(interaction, {
-        content: DECISION_GAUNTLET_RESTART_TEXT,
-        embeds: [],
-        components: [],
-        })) || message;
+        (await editDecisionGauntletReply(
+          interaction,
+          buildDecisionRevealPayload(round, DECISION_GAUNTLET_RESTART_TEXT)
+        )) || message;
       message =
         (await editDecisionGauntletReply(
           interaction,
@@ -1938,6 +1957,7 @@ async function runSoloGauntletEphemeral(interaction) {
         finalRound: 10,
         bonus: GAUNTLET_COMPLETION_BONUS,
         finalText: DECISION_GAUNTLET_WIN_END_TEXT,
+        finalImage: round.image,
       });
     }
 
@@ -1957,6 +1977,7 @@ async function runSoloGauntletEphemeral(interaction) {
         resultType: "Cash Out",
         finalRound: state.roundsClearedThisRun,
         finalText: "Time expired. Your current stack was cashed out automatically.",
+        finalImage: round.image,
       });
     }
 
@@ -1979,6 +2000,7 @@ async function runSoloGauntletEphemeral(interaction) {
             resultType: "Cash Out",
             finalRound: state.roundsClearedThisRun,
             finalText: "Time expired. Your current stack was cashed out automatically.",
+            finalImage: round.image,
           });
         }
 
@@ -1989,6 +2011,7 @@ async function runSoloGauntletEphemeral(interaction) {
             resultType: "Cash Out",
             finalRound: state.roundsClearedThisRun,
             finalText: "You cashed out and ended the run.",
+            finalImage: round.image,
           });
         }
 
@@ -2005,6 +2028,7 @@ async function runSoloGauntletEphemeral(interaction) {
           resultType: "Cash Out",
           finalRound: state.roundsClearedThisRun,
           finalText: "You cashed out and ended the run.",
+          finalImage: round.image,
         });
       }
     }
