@@ -22,7 +22,6 @@ const {
   CLIENT_ID,
   GUILD_IDS,
   AUTHORIZED_ADMINS,
-  GAUNTLET_PLAY_REWARD,
   torontoDateStr,
   currentMonthStr,
   nextTorontoMidnight,
@@ -46,7 +45,7 @@ const {
 
 const { runSurvival, buildPodiumImage } = require("./survival");
 const { SURVIVAL_ERAS, getSurvivalEraDefinition } = require("./survivalEras");
-const { rewardCharmAmount, logCharmReward } = require("./drip");
+const { rewardCharmAmount, logCharmReward, DRIP_LOG_CHANNEL_ID } = require("./drip");
 const { imageStore } = require("./imageStore");
 const { survivalStore } = require("./survivalStore");
 
@@ -1307,108 +1306,688 @@ async function runRiskItEphemeral(interaction, player) {
 }
 
 // --------------------------------------------
-// SOLO ORCHESTRATOR (6 rounds + store)
+// SOLO ORCHESTRATOR (Decision Gauntlet)
 // --------------------------------------------
-async function runSoloGauntletEphemeral(interaction) {
-  const player = {
-    id: interaction.user.id,
-    username:
-      interaction.user.username ||
-      interaction.user.globalName ||
-      "Player",
-    points: 0,
-  };
+const GAUNTLET_DECISION_TIMEOUT_MS = 20_000;
+const GAUNTLET_REVEAL_DELAY_MS = 2_000;
+const GAUNTLET_COMPLETION_BONUS = 500;
 
-  const usedRiddle = new Set();
-  const usedMini = new Set();
+const GAUNTLET_ROLE_LIFE_TIERS = [
+  {
+    lives: 3,
+    roles: [
+      "1331597994260430908",
+      "1365050931267502140",
+      "1402265720095637595",
+      "1333122261640675442",
+      "1374803199956877482",
+      "1365051369308033075",
+      "1402266073537187870",
+      "1402268977190801408",
+      "1355856165887676568",
+      "1453221977899798589",
+    ],
+  },
+  {
+    lives: 2,
+    roles: [
+      "1331596316467396639",
+      "1365050271155224636",
+      "1402265567481696400",
+    ],
+  },
+  {
+    lives: 1,
+    roles: [
+      "1321859390742986763",
+      "1358904123453345903",
+      "1402263646205120592",
+    ],
+  },
+];
 
-  await sendEphemeral(interaction, {
-    embeds: [
-      withScore(
-        new EmbedBuilder()
-        .setTitle("⚔️ The Gauntlet — Solo Mode")
-        .setDescription("6 rounds. Brain, luck, chaos. Good luck!")
-        .setColor(0x00ccff),
-        player
+const DECISION_GAUNTLET_ROUNDS = [
+  {
+    roundIndex: 1,
+    passChance: 0.95,
+    reward: 10,
+    image: "https://i.imgur.com/X1ZMmnA.jpeg",
+    text: [
+      "Two identical doors. No markings. No sound behind them.",
+      "One leads forward.",
+      "The other ends everything before it even begins.",
+      "",
+      "Choose a door. InSquignito is waiting.",
+    ].join("\n"),
+    buttons: ["Left", "Right"],
+  },
+  {
+    roundIndex: 2,
+    passChance: 0.85,
+    reward: 20,
+    image: "https://i.imgur.com/4VqCQxL.jpeg",
+    text: [
+      "The glass bridge hums beneath his feet.",
+      "One panel is reinforced.",
+      "The other was never meant to hold weight.",
+      "",
+      "He can’t stay in the middle forever.",
+      "Choose the next step.",
+    ].join("\n"),
+    buttons: ["Left", "Right"],
+  },
+  {
+    roundIndex: 3,
+    passChance: 0.75,
+    reward: 30,
+    image: "https://i.imgur.com/kYV5AF9.jpeg",
+    text: [
+      "Cold stone. Iron bars. Two levers.",
+      "One unlocks the cell.",
+      "The other seals it permanently.",
+      "",
+      "Pull one. Quickly.",
+    ].join("\n"),
+    buttons: ["A", "B"],
+  },
+  {
+    roundIndex: 4,
+    passChance: 0.65,
+    reward: 40,
+    image: "https://i.imgur.com/Emp2Z0z.jpeg",
+    text: [
+      "The air burns. The room is filling fast.",
+      "Two masks hang on the wall.",
+      "One filters the poison.",
+      "One feeds it straight in.",
+      "",
+      "Choose before he collapses.",
+    ].join("\n"),
+    buttons: ["Left", "Right"],
+  },
+  {
+    roundIndex: 5,
+    passChance: 0.55,
+    reward: 50,
+    image: "https://i.imgur.com/lfTtRbB.jpeg",
+    text: [
+      "A hallway splits in two - perfectly mirrored.",
+      "One path leads forward.",
+      "The other folds reality inside out.",
+      "",
+      "Choose a reflection.",
+    ].join("\n"),
+    buttons: ["Left", "Right"],
+  },
+  {
+    roundIndex: 6,
+    passChance: 0.45,
+    reward: 60,
+    image: "https://i.imgur.com/6K0D77j.jpeg",
+    text: [
+      "Two identical glasses. Clear liquid.",
+      "One is water.",
+      "One is not.",
+      "",
+      "He must drink.",
+      "Choose wisely.",
+    ].join("\n"),
+    buttons: ["Left", "Right"],
+  },
+  {
+    roundIndex: 7,
+    passChance: 0.4,
+    reward: 70,
+    image: "https://i.imgur.com/y9fAmwP.jpeg",
+    text: [
+      "A rock island in the center of a massive gorge.",
+      "Two ropes stretch across the void.",
+      "One will hold.",
+      "One will snap.",
+      "",
+      "There is no third option.",
+    ].join("\n"),
+    buttons: ["Left", "Right"],
+  },
+  {
+    roundIndex: 8,
+    passChance: 0.3,
+    reward: 80,
+    image: "https://i.imgur.com/JhDG1UH.jpeg",
+    text: [
+      "An ancient tunnel splits into two dark passages.",
+      "A faint breeze drifts from one side.",
+      "The other smells... wrong.",
+      "",
+      "Choose the path.",
+    ].join("\n"),
+    buttons: ["Left", "Right"],
+  },
+  {
+    roundIndex: 9,
+    passChance: 0.15,
+    reward: 90,
+    image: "https://i.imgur.com/ng229d4.jpeg",
+    text: [
+      "Two rusted elevator doors.",
+      "One creaks open just slightly.",
+      "The other stands still and silent.",
+      "",
+      "One rises.",
+      "One falls.",
+      "",
+      "Step inside.",
+    ].join("\n"),
+    buttons: ["Left", "Right"],
+  },
+  {
+    roundIndex: 10,
+    passChance: 0.09,
+    reward: 100,
+    image: "https://i.imgur.com/5pI2xSt.jpeg",
+    text: [
+      "The arena falls silent.",
+      "A spotlight locks onto InSquignito.",
+      "Two glowing platforms stand before him.",
+      "One is the podium.",
+      "The other is a coffin dressed in light.",
+      "",
+      "The countdown begins.",
+    ].join("\n"),
+    buttons: ["Left", "Right"],
+  },
+];
+
+const DECISION_GAUNTLET_RESTART_TEXT = [
+  "He chose.",
+  "",
+  "DEAD.",
+  "",
+  "But not finished.",
+  "",
+  "InSquignito gets another chance...",
+  "Returning to Room 1.",
+].join("\n");
+
+const DECISION_GAUNTLET_FAIL_END_TEXT = (amount) =>
+  [
+    "DEAD.",
+    "",
+    "No more chances.",
+    "No more doors.",
+    "",
+    "InSquignito falls back into the void.",
+    "",
+    `You walk away with ${amount} $CHARM.`,
+    "",
+    "Tomorrow, perhaps.",
+  ].join("\n");
+
+const DECISION_GAUNTLET_WIN_END_TEXT = [
+  "ALIVE.",
+  "",
+  "The correct platform rises.",
+  "The spotlight intensifies.",
+  "The arena trembles.",
+  "",
+  "You have completed The Gauntlet.",
+  "",
+  "550 $CHARM earned",
+  "+500 Completion Bonus",
+  "",
+  "Total: 1050 $CHARM",
+  "",
+  "Go brag. You earned it.",
+].join("\n");
+
+const waitMs = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function getGauntletRoleIds(member) {
+  if (!member?.roles) return [];
+  if (Array.isArray(member.roles)) return member.roles.map((id) => String(id));
+  if (Array.isArray(member.roles.cache)) {
+    return member.roles.cache.map((role) => String(role.id));
+  }
+  if (typeof member.roles.cache?.keys === "function") {
+    return Array.from(member.roles.cache.keys()).map((id) => String(id));
+  }
+  return [];
+}
+
+function getDecisionGauntletLives(member) {
+  const roleIds = new Set(getGauntletRoleIds(member));
+  for (const tier of GAUNTLET_ROLE_LIFE_TIERS) {
+    if (tier.roles.some((roleId) => roleIds.has(roleId))) {
+      return tier.lives;
+    }
+  }
+  return 1;
+}
+
+function makeRunId(userId) {
+  return `${userId}:${Date.now()}:${Math.floor(Math.random() * 100000)}`;
+}
+
+function getDecisionRound(roundIndex) {
+  return DECISION_GAUNTLET_ROUNDS.find((round) => round.roundIndex === roundIndex);
+}
+
+function rerollSafeIndex() {
+  return Math.floor(Math.random() * 2);
+}
+
+function buildDecisionRoundPayload(state) {
+  const round = getDecisionRound(state.roundIndex);
+  const embed = new EmbedBuilder()
+    .setTitle(`Decision Gauntlet - Round ${state.roundIndex}/10`)
+    .setDescription(round.text)
+    .setColor(0xc0392b)
+    .setImage(round.image)
+    .setFooter({
+      text: [
+        `Room Difficulty: ${Math.round(round.passChance * 100)}% survival rate`,
+        `Lives Remaining: ${"❤️".repeat(Math.max(0, state.livesRemaining)) || "None"}`,
+        `Current Stacked Reward: ${state.charmEarnedThisRun} $CHARM`,
+      ].join("\n"),
+    });
+
+  return {
+    content: null,
+    embeds: [embed],
+    components: [
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`gauntlet:pick:${state.runId}:0`)
+          .setLabel(round.buttons[0])
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId(`gauntlet:pick:${state.runId}:1`)
+          .setLabel(round.buttons[1])
+          .setStyle(ButtonStyle.Primary)
       ),
     ],
-  });
+  };
+}
 
-  // 1) Mini + Riddle
-  await runMiniGameEphemeral(interaction, player, usedMini);
-  await runRiddleEphemeral(interaction, player, usedRiddle);
+function buildPostRoundDecisionPayload(state, round) {
+  const embed = new EmbedBuilder()
+    .setTitle(`Round ${round.roundIndex} Cleared`)
+    .setDescription(
+      [
+        `InSquignito survived and stacked **${round.reward} $CHARM**.`,
+        `Current stack: **${state.charmEarnedThisRun} $CHARM**`,
+        "",
+        "Choose whether to keep pushing or end the run now.",
+      ].join("\n")
+    )
+    .setColor(0x27ae60)
+    .setImage(round.image)
+    .setFooter({
+      text: [
+        `Room Difficulty: ${Math.round(round.passChance * 100)}% survival rate`,
+        `Lives Remaining: ${"❤️".repeat(Math.max(0, state.livesRemaining)) || "None"}`,
+        `Current Stacked Reward: ${state.charmEarnedThisRun} $CHARM`,
+      ].join("\n"),
+    });
 
-  // 2) Labyrinth
-  await runLabyrinthEphemeral(interaction, player);
-
-  // 3) Mini + Riddle
-  await runMiniGameEphemeral(interaction, player, usedMini);
-  await runRiddleEphemeral(interaction, player, usedRiddle);
-
-  // 4) Squig Roulette
-  await runRouletteEphemeral(interaction, player);
-
-  // 5) Mini + Riddle
-  await runMiniGameEphemeral(interaction, player, usedMini);
-  await runRiddleEphemeral(interaction, player, usedRiddle);
-
-  // 6) Risk It
-  await runRiskItEphemeral(interaction, player);
-
-  const final = player.points;
-  const flavor =
-    final >= 12
-      ? "✨ The charm purrs. You wear the static like a crown."
-      : final >= 6
-      ? "✨ The Squigs nod in approval. You’ll be remembered by at least three of them."
-      : final >= 0
-      ? "🫡 You survived the weird. The weird survived you."
-      : "🕳️ The void learned your name. It may return it later.";
-
-  await sendEphemeral(interaction, {
-    embeds: [
-      new EmbedBuilder()
-        .setTitle("🏁 Your Final Score")
-        .setDescription(`**${final}** point${final === 1 ? "" : "s"}`)
-        .setFooter({ text: flavor })
-        .setColor(0x00ff88),
+  return {
+    content: null,
+    embeds: [embed],
+    components: [
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`gauntlet:continue:${state.runId}`)
+          .setLabel("Continue")
+          .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+          .setCustomId(`gauntlet:cashout:${state.runId}`)
+          .setLabel("Cash Out")
+          .setStyle(ButtonStyle.Secondary)
+      ),
     ],
-    noExpire: true,
-  });
+  };
+}
 
-  const month = currentMonthStr();
-  await Store.insertRun(interaction.user.id, player.username, month, final);
-  await Store.recordPlay(interaction.user.id, torontoDateStr());
+function buildCashOutConfirmPayload(state) {
+  const embed = new EmbedBuilder()
+    .setTitle("End This Run?")
+    .setDescription(
+      [
+        "You still have lives remaining. Are you sure you want to cash out and end this run?",
+        "",
+        `Current Stacked Reward: **${state.charmEarnedThisRun} $CHARM**`,
+      ].join("\n")
+    )
+    .setColor(0xf39c12)
+    .setFooter({
+      text: [
+        `Lives Remaining: ${"❤️".repeat(Math.max(0, state.livesRemaining)) || "None"}`,
+        `Current Stacked Reward: ${state.charmEarnedThisRun} $CHARM`,
+      ].join("\n"),
+    });
+
+  return {
+    content: null,
+    embeds: [embed],
+    components: [
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`gauntlet:cashout:confirm:${state.runId}`)
+          .setLabel("Confirm Cash Out")
+          .setStyle(ButtonStyle.Danger),
+        new ButtonBuilder()
+          .setCustomId(`gauntlet:cashout:resume:${state.runId}`)
+          .setLabel("Continue Playing")
+          .setStyle(ButtonStyle.Success)
+      ),
+    ],
+  };
+}
+
+async function waitForDecisionButton(message, expectedIds, userId) {
+  try {
+    return await message.awaitMessageComponent({
+      componentType: ComponentType.Button,
+      time: GAUNTLET_DECISION_TIMEOUT_MS,
+      filter: (i) =>
+        expectedIds.includes(i.customId) && String(i.user?.id || "") === String(userId || ""),
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function logDecisionGauntletPayout(client, payload) {
+  const targetChannelId = DRIP_LOG_CHANNEL_ID || payload.channelId;
+  if (!client || !targetChannelId) return false;
 
   try {
-    const reward = await rewardCharmAmount({
-      userId: interaction.user.id,
-      username: player.username,
-      amount: GAUNTLET_PLAY_REWARD,
-      source: "gauntlet-solo",
-      guildId: interaction.guildId,
-      channelId: interaction.channelId,
-      metadata: { score: final },
-      logClient: interaction.client,
-      logReason: "Solo Gauntlet completion",
-    });
-    if (reward?.ok) {
-      await logCharmReward(interaction.client, {
+    const channel = await client.channels.fetch(targetChannelId);
+    if (!channel?.send) return false;
+
+    const embed = new EmbedBuilder()
+      .setTitle("Decision Gauntlet Payout")
+      .addFields(
+        { name: "User", value: `<@${payload.userId}>`, inline: true },
+        { name: "Final Round", value: String(payload.finalRound), inline: true },
+        { name: "Amount Awarded", value: `${payload.amount} $CHARM`, inline: true },
+        { name: "Result Type", value: payload.resultType, inline: true },
+        { name: "DRIP Status", value: payload.dripStatus, inline: true }
+      )
+      .setColor(payload.dripStatus === "Success" ? 0x2ecc71 : 0xe74c3c)
+      .setTimestamp();
+
+    if (payload.note) {
+      embed.setDescription(payload.note);
+    }
+
+    await channel.send({ embeds: [embed] });
+    return true;
+  } catch (err) {
+    console.error("[GAUNTLET] Failed to log Decision Gauntlet payout:", err?.message || err);
+    return false;
+  }
+}
+
+async function finalizeDecisionGauntletRun(
+  interaction,
+  message,
+  state,
+  { resultType, finalRound, bonus = 0, finalText }
+) {
+  if (state.isEnding) return state.charmEarnedThisRun + bonus;
+  state.isEnding = true;
+
+  const playerName =
+    interaction.user.username || interaction.user.globalName || "Player";
+  const payoutAmount = Math.max(0, state.charmEarnedThisRun + bonus);
+  let dripStatus = payoutAmount > 0 ? "Failure" : "Skipped (0 payout)";
+  let payoutOk = payoutAmount <= 0;
+  let payoutReason = null;
+
+  try {
+    if (payoutAmount > 0) {
+      const reward = await rewardCharmAmount({
         userId: interaction.user.id,
-        amount: reward.amount,
-        score: final,
+        username: playerName,
+        amount: payoutAmount,
         source: "gauntlet-solo",
+        guildId: interaction.guildId,
         channelId: interaction.channelId,
-        reason: "Solo Gauntlet completion",
+        metadata: {
+          score: payoutAmount,
+          resultType,
+          finalRound,
+        },
+        logClient: interaction.client,
+        logReason: `Decision Gauntlet ${resultType}`,
+      });
+
+      if (reward?.ok) {
+        payoutOk = true;
+        dripStatus = "Success";
+        await logCharmReward(interaction.client, {
+          userId: interaction.user.id,
+          amount: reward.amount,
+          score: payoutAmount,
+          source: "gauntlet-solo",
+          channelId: interaction.channelId,
+          reason: `Decision Gauntlet ${resultType}`,
+        });
+      } else {
+        payoutReason = reward?.reason || reward?.error?.message || "DRIP payout failed";
+        dripStatus = "Failure";
+      }
+    }
+  } catch (err) {
+    payoutReason = err?.message || String(err);
+    dripStatus = "Failure";
+    console.error("[GAUNTLET] Decision Gauntlet payout failed:", err);
+  }
+
+  try {
+    await Store.insertRun(interaction.user.id, playerName, currentMonthStr(), payoutAmount);
+  } catch (err) {
+    console.error("[GAUNTLET] Failed to store Decision Gauntlet run:", err?.message || err);
+  }
+
+  try {
+    await updateAllLeaderboards(interaction.client, currentMonthStr());
+  } catch {}
+
+  try {
+    await logDecisionGauntletPayout(interaction.client, {
+      userId: interaction.user.id,
+      channelId: interaction.channelId,
+      finalRound,
+      amount: payoutAmount,
+      resultType,
+      dripStatus,
+      note: payoutReason,
+    });
+  } catch {}
+
+  const finalEmbed = new EmbedBuilder()
+    .setTitle("Decision Gauntlet Complete")
+    .setDescription(
+      [
+        finalText,
+        "",
+        `Final Round: **${finalRound}**`,
+        `Final Award: **${payoutAmount} $CHARM**`,
+        `DRIP Status: **${dripStatus}**`,
+      ].join("\n")
+    )
+    .setColor(payoutOk ? 0x2ecc71 : 0xe74c3c);
+
+  if (payoutReason) {
+    finalEmbed.setFooter({ text: payoutReason });
+  }
+
+  try {
+    await message.edit({
+      content: null,
+      embeds: [finalEmbed],
+      components: [],
+    });
+  } catch {}
+
+  return payoutAmount;
+}
+
+async function runSoloGauntletEphemeral(interaction) {
+  const state = {
+    runId: makeRunId(interaction.user.id),
+    userId: interaction.user.id,
+    guildId: interaction.guildId,
+    channelId: interaction.channelId,
+    messageId: null,
+    roundIndex: 1,
+    livesRemaining: getDecisionGauntletLives(interaction.member),
+    charmEarnedThisRun: 0,
+    roundsClearedThisRun: 0,
+    safeIndexForAttempt: rerollSafeIndex(),
+    isEnding: false,
+  };
+
+  await interaction.editReply(buildDecisionRoundPayload(state));
+  const message = await interaction.fetchReply();
+  state.messageId = message.id;
+
+  while (!state.isEnding) {
+    const round = getDecisionRound(state.roundIndex);
+    const choiceIds = [
+      `gauntlet:pick:${state.runId}:0`,
+      `gauntlet:pick:${state.runId}:1`,
+    ];
+
+    const pick = await waitForDecisionButton(message, choiceIds, state.userId);
+    if (!pick) {
+      return finalizeDecisionGauntletRun(interaction, message, state, {
+        resultType: "Cash Out",
+        finalRound: state.roundsClearedThisRun,
+        finalText: "Time expired. Your current stack was cashed out automatically.",
       });
     }
-  } catch {}
 
-  try {
-    await updateAllLeaderboards(interaction.client, month);
-  } catch {}
+    await pick.deferUpdate();
 
-  return final;
+    const pickedIndex = Number(pick.customId.split(":").pop());
+    const survived =
+      pickedIndex === state.safeIndexForAttempt && Math.random() <= round.passChance;
+
+    await message.edit({
+      content: "You chose. Now InSquignito is...",
+      embeds: [],
+      components: [],
+    });
+    await waitMs(GAUNTLET_REVEAL_DELAY_MS);
+
+    await message.edit({
+      content: survived ? "ALIVE" : "DEAD",
+      embeds: [],
+      components: [],
+    });
+
+    if (!survived) {
+      state.livesRemaining -= 1;
+
+      if (state.livesRemaining <= 0) {
+        return finalizeDecisionGauntletRun(interaction, message, state, {
+          resultType: "Out of Lives",
+          finalRound: state.roundIndex,
+          finalText: DECISION_GAUNTLET_FAIL_END_TEXT(state.charmEarnedThisRun),
+        });
+      }
+
+      state.roundIndex = 1;
+      state.charmEarnedThisRun = 0;
+      state.roundsClearedThisRun = 0;
+      state.safeIndexForAttempt = rerollSafeIndex();
+
+      await message.edit({
+        content: DECISION_GAUNTLET_RESTART_TEXT,
+        embeds: [],
+        components: [],
+      });
+      await message.edit(buildDecisionRoundPayload(state));
+      continue;
+    }
+
+    state.charmEarnedThisRun += round.reward;
+    state.roundsClearedThisRun = state.roundIndex;
+
+    if (state.roundIndex === DECISION_GAUNTLET_ROUNDS.length) {
+      return finalizeDecisionGauntletRun(interaction, message, state, {
+        resultType: "Completion",
+        finalRound: 10,
+        bonus: GAUNTLET_COMPLETION_BONUS,
+        finalText: DECISION_GAUNTLET_WIN_END_TEXT,
+      });
+    }
+
+    await message.edit(buildPostRoundDecisionPayload(state, round));
+
+    const decisionIds = [
+      `gauntlet:continue:${state.runId}`,
+      `gauntlet:cashout:${state.runId}`,
+    ];
+    const decision = await waitForDecisionButton(message, decisionIds, state.userId);
+    if (!decision) {
+      return finalizeDecisionGauntletRun(interaction, message, state, {
+        resultType: "Cash Out",
+        finalRound: state.roundsClearedThisRun,
+        finalText: "Time expired. Your current stack was cashed out automatically.",
+      });
+    }
+
+    await decision.deferUpdate();
+
+    if (decision.customId === `gauntlet:cashout:${state.runId}`) {
+      if (state.livesRemaining > 0) {
+        await message.edit(buildCashOutConfirmPayload(state));
+        const confirmIds = [
+          `gauntlet:cashout:confirm:${state.runId}`,
+          `gauntlet:cashout:resume:${state.runId}`,
+        ];
+        const confirm = await waitForDecisionButton(message, confirmIds, state.userId);
+        if (!confirm) {
+          return finalizeDecisionGauntletRun(interaction, message, state, {
+            resultType: "Cash Out",
+            finalRound: state.roundsClearedThisRun,
+            finalText: "Time expired. Your current stack was cashed out automatically.",
+          });
+        }
+
+        await confirm.deferUpdate();
+
+        if (confirm.customId === `gauntlet:cashout:confirm:${state.runId}`) {
+          return finalizeDecisionGauntletRun(interaction, message, state, {
+            resultType: "Cash Out",
+            finalRound: state.roundsClearedThisRun,
+            finalText: "You cashed out and ended the run.",
+          });
+        }
+
+        state.roundIndex += 1;
+        state.safeIndexForAttempt = rerollSafeIndex();
+        await message.edit(buildDecisionRoundPayload(state));
+        continue;
+      } else {
+        return finalizeDecisionGauntletRun(interaction, message, state, {
+          resultType: "Cash Out",
+          finalRound: state.roundsClearedThisRun,
+          finalText: "You cashed out and ended the run.",
+        });
+      }
+    }
+
+    state.roundIndex += 1;
+    state.safeIndexForAttempt = rerollSafeIndex();
+    await message.edit(buildDecisionRoundPayload(state));
+  }
+
+  return state.charmEarnedThisRun;
 }
 
 // --------------------------------------------
@@ -1418,10 +1997,10 @@ async function renderLeaderboardEmbed(month) {
   const rows = await Store.getMonthlyTop(month, 10);
   const lines = rows.length
     ? rows
-        .map(
-          (r, i) =>
-            `**#${i + 1}** ${r.username || `<@${r.user_id}>`} — **${r.best}**`
-        )
+      .map(
+        (r, i) =>
+          `**#${i + 1}** ${r.username || `<@${r.user_id}>`} — **${r.best} $CHARM**`
+      )
         .join("\n")
     : "No runs yet.";
 
@@ -1429,7 +2008,7 @@ async function renderLeaderboardEmbed(month) {
     .setTitle(`🏆 Leaderboard — ${month}`)
     .setDescription(lines)
     .setFooter({
-      text: "Ranked by highest single-game score; ties broken by total monthly points.",
+      text: "Ranked by highest single-run $CHARM payout; ties broken by total monthly $CHARM.",
     })
     .setColor(0x00ccff);
 }
@@ -1438,18 +2017,18 @@ async function renderTotalLeaderboardEmbed(month) {
   const rows = await Store.getMonthlyTopByTotal(month, 10);
   const lines = rows.length
     ? rows
-        .map(
-          (r, i) =>
-            `**#${i + 1}** ${r.username || `<@${r.user_id}>`} — **${r.total}**`
-        )
+      .map(
+        (r, i) =>
+          `**#${i + 1}** ${r.username || `<@${r.user_id}>`} — **${r.total} $CHARM**`
+      )
         .join("\n")
     : "No runs yet.";
 
   return new EmbedBuilder()
-    .setTitle(`🏆 Total Points — ${month}`)
+    .setTitle(`🏆 Total Rewards — ${month}`)
     .setDescription(lines)
     .setFooter({
-      text: "Ranked by total monthly points; ties broken by best single-game score.",
+      text: "Ranked by total monthly $CHARM; ties broken by best single-run payout.",
     })
     .setColor(0x00ccff);
 }
@@ -1479,7 +2058,7 @@ async function registerCommands() {
       .setDescription("Post the Gauntlet Start Panel in this channel (admins only)."),
     new SlashCommandBuilder()
       .setName("gauntletlb")
-      .setDescription("Show the monthly leaderboard (best score per user, totals tie-break).")
+      .setDescription("Show the monthly leaderboard (best reward per user, totals tie-break).")
       .addStringOption((o) =>
         o
           .setName("month")
@@ -1497,10 +2076,10 @@ async function registerCommands() {
       ),
     new SlashCommandBuilder()
       .setName("gauntletinfo")
-      .setDescription("How Solo Gauntlet works (rounds & rules)."),
+      .setDescription("How Decision Gauntlet works (rounds & rules)."),
     new SlashCommandBuilder()
       .setName("mygauntlet")
-      .setDescription("Your current-month stats (best, total, plays)."),
+      .setDescription("Your current-month Decision Gauntlet stats (best, total, plays)."),
 
     // Squig Survival command
     new SlashCommandBuilder()
@@ -1633,20 +2212,18 @@ async function registerCommands() {
 // --------------------------------------------
 function startPanelEmbed() {
   return new EmbedBuilder()
-    .setTitle("⚔️ The Gauntlet — Solo Mode")
+    .setTitle("⚔️ The Gauntlet — Decision Gauntlet")
     .setDescription(
       [
         "Click **Start** to play privately via **ephemeral** messages in this channel.",
         "Use **My Stats** for your monthly totals (private) or **Leaderboard** for this month's standings.",
-        "You can play **once per day** (Toronto time). Every run is **saved**. Monthly LB shows **best** per user (total points = tiebreaker); **Leaderboard** shows monthly total points.",
+        "You can play **once per day** (Toronto time). Every run is **saved**. Monthly LB shows **best** per user (total reward = tiebreaker); **Leaderboard** shows monthly total rewards.",
         "",
-        "**Rounds (6):**",
-        "1) MiniGame + Riddle",
-        "2) The Labyrinth",
-        "3) MiniGame + Riddle",
-        "4) Squig Roulette",
-        "5) MiniGame + Riddle",
-        "6) Risk It",
+        "**Decision Gauntlet:**",
+        "10 survival rooms.",
+        "Pick one of two paths each round.",
+        "Wrong choice or bad luck costs a life and restarts you at Room 1.",
+        "No $CHARM is paid until the run ends.",
       ].join("\n")
     )
     .setColor(0xaa00ff)
@@ -1741,7 +2318,7 @@ async function handleInteractionCreate(interaction) {
           ? rows
               .map(
                 (r) =>
-                  `• <@${r.user_id}> — **${r.score}**  _(at ${new Intl.DateTimeFormat(
+                  `• <@${r.user_id}> — **${r.score} $CHARM**  _(at ${new Intl.DateTimeFormat(
                     "en-CA",
                     {
                       timeZone: "America/Toronto",
@@ -1756,7 +2333,7 @@ async function handleInteractionCreate(interaction) {
           : "No recent runs.";
 
         const embed = new EmbedBuilder()
-          .setTitle(`🕒 Recent Runs — ${month}`)
+          .setTitle(`🕒 Recent Decision Gauntlet Runs — ${month}`)
           .setDescription(lines)
           .setColor(0x00ccff);
 
@@ -1767,20 +2344,20 @@ async function handleInteractionCreate(interaction) {
       if (interaction.commandName === "gauntletinfo") {
         await interaction.deferReply({ ephemeral: true });
         const embed = new EmbedBuilder()
-          .setTitle("📜 Welcome to The Gauntlet — Solo Edition")
+          .setTitle("📜 Welcome to The Gauntlet — Decision Gauntlet")
           .setDescription(
             [
               "Play **any time** via ephemeral messages. One run per day (Toronto time).",
               "",
               "**Flow:**",
-              "1) MiniGame — Riddle",
-              "2) Labyrinth",
-              "3) MiniGame — Riddle",
-              "4) Squig Roulette",
-              "5) MiniGame — Riddle",
-              "6) Risk It",
+              "1) Start with lives based on your highest holder tier (non-holders still get 1 life).",
+              "2) Clear 10 path-choice rooms.",
+              "3) Every death restarts you at Room 1 and wipes the current stack.",
+              "4) After each clear, choose Continue or Cash Out.",
+              "5) $CHARM is paid once at run end only.",
               "",
-              "Leaderboard ranks **highest single-game score**, with **total monthly points** as tiebreaker.",
+              "Completion pays your full stack plus a **500 $CHARM** bonus.",
+              "Leaderboard ranks **highest single-run $CHARM payout**, with **total monthly $CHARM** as tiebreaker.",
             ].join("\n")
           )
           .setColor(0x00ccff);
@@ -1797,7 +2374,7 @@ async function handleInteractionCreate(interaction) {
         const embed = new EmbedBuilder()
           .setTitle(`🧾 Your Gauntlet — ${month}`)
           .setDescription(
-            `**Best:** ${mine.best}\n**Total:** ${mine.total}\n**Plays:** ${mine.plays}`
+            `**Best:** ${mine.best} $CHARM\n**Total:** ${mine.total} $CHARM\n**Plays:** ${mine.plays}`
           )
           .setColor(0x00ccff);
 
@@ -2547,9 +3124,9 @@ async function handleInteractionCreate(interaction) {
         .setDescription(
           [
             `🎮 **Games Played:** ${mine.plays}`,
-            `🏆 **Most Points:** ${bestText}`,
-            `🔻 **Least Points:** ${leastText}`,
-            `🧮 **Total Points:** ${mine.total}`,
+            `🏆 **Best Reward:** ${bestText}${hasPlays ? " $CHARM" : ""}`,
+            `🔻 **Lowest Reward:** ${leastText}${hasPlays ? " $CHARM" : ""}`,
+            `🧮 **Total Reward:** ${mine.total} $CHARM`,
           ].join("\n")
         )
         .setColor(0x00ccff);
@@ -2581,23 +3158,10 @@ async function handleInteractionCreate(interaction) {
       await Store.recordPlay(interaction.user.id, today);
 
       await interaction.editReply({
-        content: "⚔️ Your Gauntlet run begins now (ephemeral). Good luck!",
+        content: "⚔️ Decision Gauntlet is loading...",
       });
 
-      const final = await runSoloGauntletEphemeral(interaction);
-
-      try {
-        await interaction.followUp({
-          content: [
-            "Gauntlet Complete.",
-            `Final score: ${final} points`,
-            `Reward earned: ${GAUNTLET_PLAY_REWARD} $CHARM`,
-            "Think you can do better? Prove it tomorrow and push your way up the leaderboard.",
-          ].join("\n"),
-          ephemeral: true,
-        });
-      } catch {}
-
+      await runSoloGauntletEphemeral(interaction);
       return;
     }
   } catch (err) {
