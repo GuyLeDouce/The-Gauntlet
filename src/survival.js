@@ -107,6 +107,15 @@ async function buildDisplayNameMap(client, guildId, userIds) {
   return map;
 }
 
+function parseEraKeys(raw) {
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  const keys = raw
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return keys.length ? Array.from(new Set(keys)) : null;
+}
+
 const SURVIVAL_ART_PAYOUT = 100;
 const SURVIVAL_ART_REWARDS = {
   "https://i.imgur.com/Tlf4elV.jpeg": {
@@ -282,6 +291,8 @@ async function runSurvival(channel, playerIds, settings = {}) {
   const defaultEraDefinition = getSurvivalEraDefinition("day_one");
   const eraDefinition = getSurvivalEraDefinition(normalizedSettings.era_key);
   const eraLabel = normalizedSettings.era || eraDefinition.label;
+  const creatorChaosActive = Boolean(normalizedSettings.bonus_active);
+  const useEraLockedImagesOnly = Boolean(eraDefinition.useEraLockedImagesOnly);
 
   let dbImageRows = [];
   try {
@@ -293,17 +304,29 @@ async function runSurvival(channel, playerIds, settings = {}) {
     );
   }
 
-  const dbImageUrls = dbImageRows.map((r) => r.image_url).filter(Boolean);
-  const fallbackStageImages = Array.from(new Set(SHARED_FALLBACK_STAGE_IMAGES));
+  const eligibleDbImageRows = dbImageRows.filter((row) => {
+    if (!row?.image_url) return false;
+    const eraKeys = parseEraKeys(row.era_keys);
+    if (!eraKeys?.length) return true;
+    return eraKeys.includes(normalizedSettings.era_key);
+  });
+
+  const dbImageUrls = eligibleDbImageRows.map((r) => r.image_url).filter(Boolean);
+  const fallbackStageImages = useEraLockedImagesOnly
+    ? []
+    : Array.from(new Set(SHARED_FALLBACK_STAGE_IMAGES));
   const mergedStageImages = [...new Set([...fallbackStageImages, ...dbImageUrls])];
   const dbRewardMap = new Map(
-    dbImageRows
+    eligibleDbImageRows
       .filter((r) => r.image_url && r.user_id)
       .map((r) => [
         r.image_url,
         {
           userId: r.user_id,
-          amount: SURVIVAL_ART_PAYOUT,
+          amount:
+            Number.isFinite(Number(r.reward_points)) && Number(r.reward_points) > 0
+              ? Number(r.reward_points)
+              : SURVIVAL_ART_PAYOUT,
           reason: "Squig Survival art bonus (image used) — thanks for your creativity!",
         },
       ])
@@ -379,7 +402,9 @@ async function runSurvival(channel, playerIds, settings = {}) {
 
   while (alive.length > 1) {
     const lines = [];
-    const killsThisRound = Math.max(1, Math.floor(alive.length / 3));
+    const killsThisRound = creatorChaosActive
+      ? 1
+      : Math.max(1, Math.floor(alive.length / 3));
 
     // --- ELIMINATIONS ---
     for (let i = 0; i < killsThisRound && alive.length > 1; i++) {
@@ -439,7 +464,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
     }
 
     // --- LORE-ONLY LINES ---
-    const loreCount = randInt(2, 3);
+    const loreCount = creatorChaosActive ? 2 : randInt(2, 3);
     for (let i = 0; i < loreCount; i++) {
       const who = pick(alive.length ? alive : uniquePlayers);
       const lore = pick(loreLines).replace(/{player}/g, nameOf(who));
@@ -459,7 +484,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
       .setColor(0x9b59b6);
 
     let imageUrl = null;
-    if (milestone === 1) {
+    if (milestone === 1 && !useEraLockedImagesOnly) {
       imageUrl = SHARED_LOCKED_FIRST_IMAGE;
     } else if (mergedStageImages.length) {
       if (!imageBag.length) imageBag = shuffle(mergedStageImages);

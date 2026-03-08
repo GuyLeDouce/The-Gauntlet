@@ -704,10 +704,181 @@ const JOBSITE_SQUIGS_ERA = {
   stories: JOBSITE_SQUIGS_STORIES,
 };
 
+const MOVIE_THEATER_LORE_LINES = [
+  "🍿 {player} shakes a popcorn bucket like it might reveal plot spoilers.",
+  "🎟️ {player} studies the ticket stub as if it is a legal defense.",
+  "🥤 {player} takes one sip of theater soda and sees three timelines at once.",
+  "🪑 {player} kicks the recliner once and decides they have mastered luxury.",
+  "📽️ {player} stares at the projector beam like it is a tractor beam for snacks.",
+  "🤫 {player} gets shushed by row G and takes it as a personal challenge.",
+  "🍫 {player} unwraps candy with the stealth of a chainsaw in a church.",
+  "🎬 {player} whispers 'I could direct this better' and immediately becomes suspicious.",
+  "🧈 {player} adds so much butter that the popcorn develops structural shine.",
+  "👓 {player} puts on 3D glasses and starts respecting flat surfaces less.",
+  "📱 {player} lowers phone brightness to one percent and still becomes public enemy number one.",
+  "🚪 {player} tests the exit door with their whole shoulder just to see if it's dramatic.",
+  "🎧 {player} hears the surround sound swirl and assumes the walls are gossiping.",
+  "🛋️ {player} sinks into a seat so deeply they briefly qualify as missing.",
+  "🍬 {player} drops exactly one gummy and launches a full seat excavation mission.",
+  "🎞️ {player} calls the trailers 'the movie before the movie' and feels clever about it.",
+  "🧃 {player} smuggles in snacks with the confidence of a repeat offender.",
+  "🕶️ {player} keeps the shades on indoors and blames the projector glare.",
+  "🍕 {player} opens a contraband pizza box and changes the smell profile of the room.",
+  "🧍 {player} stands up mid-scene like the aisle belongs to them personally.",
+  "🔦 {player} follows the floor lights as if they are divine guidance.",
+  "🎟️ {player} loses their seat number and starts squatting in premium territory.",
+  "🎭 {player} reacts to the previews like they are live theater and deserves applause.",
+  "🍪 {player} crunches a cookie during the quietest scene imaginable.",
+  "📣 {player} guesses the twist out loud and creates four new enemies instantly.",
+  "🧨 {player} jumps at one jump scare and spills half the row into panic.",
+  "🛎️ {player} expects table service in the cheap seats and will not be corrected.",
+  "🎵 {player} hums along with the score like they were personally hired for ambiance.",
+  "🚨 {player} mistakes the emergency exit sign for a review score.",
+  "🪙 {player} checks under the seat for dropped coins and finds only ancient gum lore.",
+  "👀 {player} watches the audience more than the movie and calls it research.",
+  "📼 {player} refers to the whole experience as 'going to the tapes.'",
+];
+
+const MOVIE_THEATER_MILESTONE_STAGES = [
+  {
+    title: "Pre-Show - Trailers and Tension",
+    flavor:
+      "The Ugly Theater lights dim, snacks rustle, and every Squig is one bad decision away from getting bounced into the lobby.",
+  },
+  {
+    title: "Opening Scene - House Rules Ignored",
+    flavor:
+      "Security makes the first lap through the aisles. Nobody looks innocent, and several Squigs are actively sticky.",
+  },
+  {
+    title: "Act One - Snack Smuggling Escalates",
+    flavor:
+      "The movie is rolling, the contraband is flowing, and somebody in the back row is already losing their theater privileges.",
+  },
+  {
+    title: "Mid-Movie - Audience Revolt",
+    flavor:
+      "The plot thickens, the seat-kicking intensifies, and accusations are now flying faster than popcorn.",
+  },
+  {
+    title: "Third Act - Security Sweep",
+    flavor:
+      "Flashlights cut through the darkness. The staff have stopped asking questions and started making examples.",
+  },
+  {
+    title: "Final Reel - Chaos in the Aisles",
+    flavor:
+      "The credits are still far away, but the patience of the theater staff absolutely is not.",
+  },
+  {
+    title: "End Credits - Last Warnings",
+    flavor:
+      "Only the most disciplined, devious, or lucky Squigs are still in their seats as the theater enters legend status.",
+  },
+  {
+    title: "Closing Night - Last Squig in the Theater",
+    flavor:
+      "The screen glows, the ushers circle, and one final Squig fights to stay in the building until the very end.",
+  },
+];
+
+const MOVIE_THEATER_STORIES = {
+  hidingSpots: [
+    "{victim} hid under a recliner until the footrest folded shut and security dragged them out by the ankles.",
+    "{victim} tried to disappear behind the screen and got booted for tampering with cinematic destiny.",
+    "{victim} crouched inside the janitor closet to dodge the ushers and got caught smelling like mop water and guilt.",
+    "{victim} slipped into the projector booth and was kicked out for 'unauthorized directing.'",
+    "{victim} hid beneath a mountain of coats in the back row until an usher found the pile blinking.",
+    "{victim} ducked behind the arcade machine in the lobby and was removed for loitering with intent.",
+    "{victim} flattened themselves under the snack counter and got discovered by a nacho cheese drip betrayal.",
+    "{victim} tucked into the wheelchair space and was escorted out for fake accessibility theater.",
+    "{victim} hid inside the cardboard movie standee until it started whispering.",
+    "{victim} wedged into the curtain by the emergency exit and got thrown out for looking extremely flammable.",
+    "{victim} tried to live inside a popcorn bucket and was evicted at the butter refill station.",
+    "{victim} hid in the lost-and-found bin and was tossed out as 'unclaimed nonsense.'",
+    "{victim} crawled behind row J and got caught chewing a seat bracket like contraband gum.",
+    "{victim} vanished into the ceiling tiles above the lobby, then dropped directly into a security incident.",
+    "{victim} folded themselves into a cup holder and was removed for being aggressively unsanitary.",
+    "{victim} sneaked into the closed caption device cabinet and got kicked out for unauthorized subtitles.",
+    "{victim} hid under the giant claw machine in the lobby and was hauled out like a rigged prize.",
+    "{victim} tried to blend in with the trash near the exit and got taken out with the cleanup round.",
+  ],
+  clumsiness: [
+    "{victim} spilled a full soda down three rows and got kicked out before the ice even stopped bouncing.",
+    "{victim} tripped over the glowing aisle lights and face-planted into a family combo meal.",
+    "{victim} tried to leap between reclining seats and got ejected for reckless row conduct.",
+    "{victim} fumbled a popcorn refill so badly that security called it a hostile event.",
+    "{victim} stood up during the quietest scene, lost balance, and pinballed through six offended viewers.",
+    "{victim} sprinted to the restroom during a jump scare and took out the wet floor sign on the way.",
+    "{victim} dropped their phone under row F, crawled after it, and emerged banned on sight.",
+    "{victim} misjudged the step into the theater and introduced their skull to the handrail with enough noise to end their night.",
+    "{victim} opened a crinkly candy bag for so long that staff assumed it was sabotage and removed them anyway.",
+    "{victim} tried to sneak in with an entire pizza, slipped on the grease, and got escorted out in disgrace.",
+    "{victim} confused the emergency exit for the bathroom and triggered a full-theater incident response.",
+    "{victim} got their hoodie caught in a folding seat and started a disturbance trying to escape it.",
+    "{victim} attempted a dramatic aisle strut and clipped a drink tray hard enough to become a cautionary tale.",
+    "{victim} laughed so violently at the wrong scene that the entire row voted them off the premises.",
+    "{victim} used their flashlight to find a dropped candy, then got removed for running an unauthorized search operation.",
+    "{victim} kicked the seat in front one too many times and was launched into the lobby by collective willpower.",
+    "{victim} tried to switch seats mid-movie, tripped over three footrests, and got tossed for chaotic migration.",
+    "{victim} wore squeaky shoes to a silent scene and discovered that the theater staff have limits.",
+  ],
+  sabotage: [
+    "{killer} told staff that {victim} recorded the movie, and security launched {victim} into the lobby before the appeal could begin.",
+    "{killer} framed {victim} for bringing outside snacks by planting a burrito under their seat.",
+    "{killer} whispered that {victim} had been reading spoilers out loud, and the row turned on them instantly.",
+    "{killer} blamed {victim} for the phone glow in row D and security believed every word of it.",
+    "{killer} swapped their spilled soda with {victim}'s cup and watched the ushers escort the wrong Squig out.",
+    "{killer} reported {victim} for seat-kicking while actively kicking the seat themselves.",
+    "{killer} slipped contraband candy wrappers into {victim}'s lap and yelled for an usher like a narc with purpose.",
+    "{killer} claimed {victim} pulled the fire door handle and let security skip the investigation entirely.",
+    "{killer} pointed at {victim} when the projector glitched, and somehow that was enough.",
+    "{killer} told the manager {victim} snuck in without a ticket and the flashlight squad accepted the assignment.",
+    "{killer} framed {victim} for leaking the ending, a crime this theater apparently punishes immediately.",
+    "{killer} blamed the smell of outside pizza on {victim}, who was removed for culinary dishonesty.",
+    "{killer} declared {victim} the mastermind behind the talking in row H and watched the ushers pounce.",
+    "{killer} tucked a recording light-up toy under {victim}'s seat and sold the story with confidence.",
+    "{killer} convinced staff that {victim} had swapped into premium seats without authorization, and the bounce was swift.",
+    "{killer} yelled that {victim} started the popcorn fight and disappeared behind innocence while security handled the rest.",
+    "{killer} pointed to {victim} when the alarm chirped and let theater law do what theater law does.",
+    "{killer} framed {victim} for sneaking into a second screening and got them ejected for serial cinema fraud.",
+  ],
+  resurrections: [
+    "An usher checks the wrong stamp, shrugs, and lets {victim} back into the theater like nothing happened.",
+    "{victim} returns with a fresh ticket after convincing the box office this was all a misunderstanding.",
+    "The manager gets distracted by a broken soda nozzle, and {victim} slips back to their seat unnoticed.",
+    "A friend claims {victim} was in the restroom the whole time, and somehow security buys it.",
+    "The theater scanner double-beeps, reopening the timeline just long enough for {victim} to re-enter.",
+    "A shift change at the front doors gives {victim} the loophole they needed to walk back in.",
+    "Someone says 'they already got checked,' and {victim} is allowed back with zero follow-up.",
+    "The lights flicker during a loud trailer, and {victim} sneaks back into the darkness like a rumor.",
+    "A spilled popcorn cleanup distracts the entire staff, and {victim} reappears three rows deeper in the theater.",
+    "{victim} comes back carrying a suspiciously official-looking refill cup and undeniable confidence.",
+    "The ticket taker waves a line through too quickly, and {victim} rides the chaos back inside.",
+    "A broken scanner forces staff to eyeball everyone, which is exactly how {victim} gets restored.",
+    "{victim} returns wearing a different hoodie and the theater's standards collapse on contact.",
+    "A comped voucher appears from nowhere, and {victim} uses it to legally haunt the screening again.",
+    "Security chases the wrong disturbance, leaving {victim} free to reclaim a seat in the confusion.",
+    "A sympathetic employee mutters 'just go in' and {victim} accepts this miracle immediately.",
+    "The crowd rushes the concession stand at intermission, and {victim} slips back in on pure foot traffic.",
+    "{victim} re-enters holding enough popcorn to look legitimate, and somehow that works.",
+  ],
+};
+
+const MOVIE_THEATER_ERA = {
+  key: "movie_theater",
+  label: "Movie Theater",
+  loreLines: MOVIE_THEATER_LORE_LINES,
+  milestoneStages: MOVIE_THEATER_MILESTONE_STAGES,
+  stories: MOVIE_THEATER_STORIES,
+  useEraLockedImagesOnly: true,
+};
+
 const SURVIVAL_ERAS = {
   day_one: DAY_ONE_ERA,
   office_squigs: OFFICE_SQUIGS_ERA,
   jobsite_squigs: JOBSITE_SQUIGS_ERA,
+  movie_theater: MOVIE_THEATER_ERA,
   // Placeholder until unique content is added.
   tbd: {
     ...DAY_ONE_ERA,

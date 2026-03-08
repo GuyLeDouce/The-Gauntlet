@@ -131,6 +131,61 @@ const SURVIVAL_ERA_LABELS = Object.fromEntries(
   Object.entries(SURVIVAL_ERAS).map(([key, era]) => [key, era.label])
 );
 
+function parseSurvivalImageEraInput(raw) {
+  if (typeof raw !== "string" || !raw.trim()) {
+    return { ok: true, eraKeys: null, label: "standard" };
+  }
+
+  const tokens = raw
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (!tokens.length) {
+    return { ok: true, eraKeys: null, label: "standard" };
+  }
+
+  const normalized = [];
+  const seen = new Set();
+
+  for (const token of tokens) {
+    const lowered = token.toLowerCase();
+    if (["standard", "all", "any", "default"].includes(lowered)) {
+      continue;
+    }
+
+    const directKey = Object.keys(SURVIVAL_ERAS).find(
+      (key) => key.toLowerCase() === lowered
+    );
+    const matchedByLabel = Object.entries(SURVIVAL_ERA_LABELS).find(
+      ([, label]) => label.toLowerCase() === lowered
+    )?.[0];
+    const matchedKey = directKey || matchedByLabel || null;
+
+    if (!matchedKey) {
+      return {
+        ok: false,
+        reason: `Unknown era: ${token}`,
+      };
+    }
+
+    if (!seen.has(matchedKey)) {
+      seen.add(matchedKey);
+      normalized.push(matchedKey);
+    }
+  }
+
+  if (!normalized.length) {
+    return { ok: true, eraKeys: null, label: "standard" };
+  }
+
+  return {
+    ok: true,
+    eraKeys: normalized,
+    label: normalized.map((key) => SURVIVAL_ERA_LABELS[key] || key).join(", "),
+  };
+}
+
 function formatSurvivalMultiplier(value) {
   const n = Number(value || 1);
   if (!Number.isFinite(n)) return "1x";
@@ -388,6 +443,29 @@ function formatCountdown(ms) {
 
 function buildSurvivalLobbyEmbed(settings, count, countdownMs) {
   const cfg = normalizeSurvivalSettings(settings);
+  if (cfg.era_key === "movie_theater") {
+    const lines = [
+      "The Ugly Theater is different, come to the theater and watch a movie, if you can stay till the end without getting kicked out, we pay you!",
+      "",
+      typeof countdownMs === "number"
+        ? `Game Starts in **${formatCountdown(countdownMs)}**`
+        : "Game Starts when staff open the screening.",
+      `Prize Pool: **+${cfg.pool_increment} $CHARM per Squig**`,
+      `Creator Chaos: **${cfg.bonus_active ? "ON" : "OFF"}**`,
+      `Era: **${cfg.era}**`,
+      "",
+      `Players joined: **${count}**`,
+      "",
+      "Click **Join** to take a seat before security starts watching the aisles.",
+    ];
+
+    return new EmbedBuilder()
+      .setTitle("Squig Survival - Lobby Open")
+      .setImage("https://i.imgur.com/GFyykAa.png")
+      .setDescription(lines.join("\n"))
+      .setColor(0xc0392b);
+  }
+
   const lines = [
     "Click **Join** to enter **Squig Survival**.",
     "Try out life as a Squig stumbling through Earth.",
@@ -747,16 +825,29 @@ async function startSurvivalFromLobby(interaction, lobby) {
   }
   await channel.send("Game starting now.");
 
-  const startEmbed = new EmbedBuilder()
-    .setTitle("Squig Survival - Game Starting!")
-    .setDescription(
-      [
-        `The portal snaps shut. **${players.length} Squigs** are now loose on Earth.`,
-        "Sit back and watch who survives the chaos...",
-      ].join("\n")
-    )
-    .setImage("http://gifs.squigs.io/gifs/v-bullish-fly.gif")
-    .setColor(0x2ecc71);
+  const startEmbed =
+    settings.era_key === "movie_theater"
+      ? new EmbedBuilder()
+          .setTitle("Squig Survival - The Movie is starting")
+          .setDescription(
+            [
+              "Take your seats and enjoy the show.",
+              `Security is watching all **${players.length}** of you in the theater.`,
+              "Looks like a rowdy bunch we have in here, lets see who stays for the whole show.",
+            ].join("\n")
+          )
+          .setImage("https://i.imgur.com/2TPjlR1.png")
+          .setColor(0xe67e22)
+      : new EmbedBuilder()
+          .setTitle("Squig Survival - Game Starting!")
+          .setDescription(
+            [
+              `The portal snaps shut. **${players.length} Squigs** are now loose on Earth.`,
+              "Sit back and watch who survives the chaos...",
+            ].join("\n")
+          )
+          .setImage("http://gifs.squigs.io/gifs/v-bullish-fly.gif")
+          .setColor(0x2ecc71);
 
   await channel.send({ embeds: [startEmbed] });
 
@@ -2206,7 +2297,20 @@ async function registerCommands() {
       .addUserOption((o) =>
         o
           .setName("user")
-          .setDescription("Optional artist to reward when this image is used.")
+          .setDescription("Artist to reward when this image is used.")
+          .setRequired(true)
+      )
+      .addStringOption((o) =>
+        o
+          .setName("era")
+          .setDescription("Optional era key(s) or labels, comma-separated. Default: standard")
+          .setRequired(false)
+      )
+      .addIntegerOption((o) =>
+        o
+          .setName("points")
+          .setDescription("Optional reward amount. Standard: 100")
+          .setMinValue(1)
           .setRequired(false)
       ),
     new SlashCommandBuilder()
@@ -2656,7 +2760,9 @@ async function handleInteractionCreate(interaction) {
 
         const imageUrl = interaction.options.getString("url");
         const artist = interaction.options.getUser("user");
-        const userId = artist?.id || null;
+        const eraInput = interaction.options.getString("era");
+        const points = interaction.options.getInteger("points") || 100;
+        const userId = artist.id;
 
         if (!/^https?:\/\//i.test(imageUrl || "")) {
           return interaction.reply({
@@ -2665,10 +2771,20 @@ async function handleInteractionCreate(interaction) {
           });
         }
 
+        const parsedEra = parseSurvivalImageEraInput(eraInput);
+        if (!parsedEra.ok) {
+          return interaction.reply({
+            content: `❌ ${parsedEra.reason}`,
+            flags: 64,
+          });
+        }
+
         try {
           const result = await imageStore.addSurvivalImage({
             imageUrl,
             userId,
+            eraKeys: parsedEra.eraKeys ? parsedEra.eraKeys.join(",") : null,
+            rewardPoints: points,
             addedBy: interaction.user.id,
           });
 
@@ -2682,7 +2798,7 @@ async function handleInteractionCreate(interaction) {
           return interaction.reply({
             content: `✅ Added survival image.\nURL: ${imageUrl}${
               userId ? `\nArtist: <@${userId}>` : ""
-            }`,
+            }\nEra: ${parsedEra.label}\nPoints: ${points}`,
           });
         } catch (err) {
           return interaction.reply({

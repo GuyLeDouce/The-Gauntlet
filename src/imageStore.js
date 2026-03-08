@@ -56,16 +56,32 @@ class ImageStore {
         id BIGSERIAL PRIMARY KEY,
         image_url TEXT NOT NULL UNIQUE,
         user_id TEXT NULL,
+        era_keys TEXT NULL,
+        reward_points INTEGER NOT NULL DEFAULT 100,
         added_by TEXT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
       );
+    `);
+    await this.pool.query(`
+      ALTER TABLE squig_survival_images
+      ADD COLUMN IF NOT EXISTS era_keys TEXT NULL
+    `);
+    await this.pool.query(`
+      ALTER TABLE squig_survival_images
+      ADD COLUMN IF NOT EXISTS reward_points INTEGER NOT NULL DEFAULT 100
     `);
 
     this._initialized = true;
     log("Image database ready.");
   }
 
-  async addSurvivalImage({ imageUrl, userId = null, addedBy = null }) {
+  async addSurvivalImage({
+    imageUrl,
+    userId = null,
+    eraKeys = null,
+    rewardPoints = 100,
+    addedBy = null,
+  }) {
     await this.init();
 
     if (!process.env.DATABASE_URL_IMAGE || !this.pool) {
@@ -74,13 +90,17 @@ class ImageStore {
 
     const r = await this.pool.query(
       `
-      INSERT INTO squig_survival_images (image_url, user_id, added_by)
-      VALUES ($1, $2, $3)
+      INSERT INTO squig_survival_images (image_url, user_id, era_keys, reward_points, added_by)
+      VALUES ($1, $2, $3, $4, $5)
       ON CONFLICT (image_url)
-      DO UPDATE SET user_id = EXCLUDED.user_id, added_by = EXCLUDED.added_by
+      DO UPDATE SET
+        user_id = EXCLUDED.user_id,
+        era_keys = EXCLUDED.era_keys,
+        reward_points = EXCLUDED.reward_points,
+        added_by = EXCLUDED.added_by
       RETURNING id
       `,
-      [imageUrl, userId, addedBy]
+      [imageUrl, userId, eraKeys, rewardPoints, addedBy]
     );
 
     return { ok: true, id: r.rows[0]?.id || null };
@@ -92,7 +112,7 @@ class ImageStore {
     if (!process.env.DATABASE_URL_IMAGE || !this.pool) return [];
 
     const r = await this.pool.query(`
-      SELECT image_url, user_id
+      SELECT image_url, user_id, era_keys, reward_points
       FROM squig_survival_images
       ORDER BY id ASC
     `);
