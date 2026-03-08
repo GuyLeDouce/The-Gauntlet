@@ -2359,7 +2359,14 @@ async function registerCommands() {
       .addStringOption((o) =>
         o
           .setName("era")
-          .setDescription("Optional era key(s) or labels, comma-separated. Default: standard")
+          .setDescription("Optional era lock. Default: standard")
+          .addChoices(
+            { name: "standard", value: "standard" },
+            ...Object.values(SURVIVAL_ERAS).map((era) => ({
+              name: era.label,
+              value: era.key,
+            }))
+          )
           .setRequired(false)
       )
       .addIntegerOption((o) =>
