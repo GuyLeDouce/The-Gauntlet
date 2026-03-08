@@ -120,7 +120,7 @@ let survivalStandardSettings = null;
 const survivalConfigSessions = new Map();
 const SURVIVAL_BASE_POOL_INCREMENT = 50;
 const SURVIVAL_REPLAY_DELAY_MS = 10_000;
-const SURVIVAL_ROLE_PING = "<@&1389076094245671002>";
+const DEFAULT_SURVIVAL_ROLE_ID = "1389076094245671002";
 
 const SURVIVAL_TYPE_LABELS = {
   team_start: "Team Start",
@@ -192,8 +192,42 @@ function formatSurvivalMultiplier(value) {
   return `${parseFloat(n.toFixed(2))}x`;
 }
 
+function normalizeSurvivalPingRoleIds(raw) {
+  const values = Array.isArray(raw)
+    ? raw
+    : typeof raw === "string"
+    ? raw.split(",")
+    : raw == null
+    ? []
+    : [String(raw)];
+  const ids = [];
+  const seen = new Set();
+
+  for (const value of values) {
+    const matches = String(value || "").match(/\d{6,}/g) || [];
+    for (const id of matches) {
+      if (!seen.has(id)) {
+        seen.add(id);
+        ids.push(id);
+      }
+    }
+  }
+
+  return ids;
+}
+
+function formatSurvivalPingRoles(roleIds) {
+  const normalized = normalizeSurvivalPingRoleIds(roleIds);
+  return normalized.length
+    ? normalized.map((id) => `<@&${id}>`).join(" ")
+    : "None";
+}
+
 function normalizeSurvivalSettings(raw = {}) {
   const type = raw?.type === "timed" ? "timed" : "team_start";
+  const hasPingRoleIds =
+    raw && (Object.prototype.hasOwnProperty.call(raw, "ping_role_ids") ||
+    Object.prototype.hasOwnProperty.call(raw, "ping_roles"));
   const requestedEraKey =
     typeof raw?.era_key === "string" && raw.era_key.trim()
       ? raw.era_key.trim()
@@ -228,6 +262,10 @@ function normalizeSurvivalSettings(raw = {}) {
     era_key: eraKey,
     era: eraDefinition.label,
     time_minutes: timeMinutes,
+    ping_role_ids: normalizeSurvivalPingRoleIds(
+      hasPingRoleIds ? raw?.ping_role_ids ?? raw?.ping_roles : DEFAULT_SURVIVAL_ROLE_ID
+    ),
+    creator_chaos: Boolean(raw?.creator_chaos),
     bonus_active: Boolean(raw?.bonus_active),
     bonus_required_players: bonusRequiredPlayers,
     bonus_multiplier: bonusMultiplier,
@@ -272,6 +310,8 @@ function buildSurvivalMenuEmbed(standardSettings, note = null) {
     `Active lobby: **${survivalLobby ? "Yes" : "No"}**`,
     `Standard Type: **${SURVIVAL_TYPE_LABELS[settings.type]}**`,
     `Standard Era: **${settings.era}**`,
+    `Standard Ping Roles: **${formatSurvivalPingRoles(settings.ping_role_ids)}**`,
+    `Standard Creator Chaos: **${settings.creator_chaos ? "On" : "Off"}**`,
     `Standard Bonus: **${
       settings.bonus_active
         ? `${formatSurvivalMultiplier(settings.bonus_multiplier)} at ${settings.bonus_required_players}+ players`
@@ -317,7 +357,9 @@ function buildSurvivalSettingsEmbed(mode, settings, note = null) {
     `Pool Per Player: **+${cfg.pool_increment} $CHARM**`,
     `Type: **${SURVIVAL_TYPE_LABELS[cfg.type]}**`,
     `Era: **${cfg.era}**`,
+    `Ping Roles: **${formatSurvivalPingRoles(cfg.ping_role_ids)}**`,
     `Time: **${cfg.type === "timed" ? `${cfg.time_minutes} minute(s)` : "N/A (Team Start)" }**`,
+    `Creator Chaos: **${cfg.creator_chaos ? "Y" : "N"}**`,
     `Bonus Active: **${cfg.bonus_active ? "Y" : "N"}**`,
     `Bonus Rq'd: **${cfg.bonus_active ? cfg.bonus_required_players : "N/A"}**`,
     `Bonus Multiplier: **${
@@ -355,11 +397,19 @@ function buildSurvivalSettingsComponents(mode, settings) {
         .setLabel("Era")
         .setStyle(ButtonStyle.Primary),
       new ButtonBuilder()
+        .setCustomId("survive:config:ping-roles")
+        .setLabel("Ping Role")
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
         .setCustomId("survive:config:time")
         .setLabel("Time")
         .setStyle(ButtonStyle.Secondary)
     ),
     new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId("survive:config:creator-chaos")
+        .setLabel("Creator Chaos")
+        .setStyle(cfg.creator_chaos ? ButtonStyle.Success : ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId("survive:config:bonus-active")
         .setLabel("Bonus Active")
@@ -411,8 +461,11 @@ function buildSurvivalSettingsComponents(mode, settings) {
 
 function buildSurvivalLobbyAnnouncement(settings, isReplay = false) {
   const cfg = normalizeSurvivalSettings(settings);
+  const pingPrefix = formatSurvivalPingRoles(cfg.ping_role_ids);
   const parts = [
-    `${SURVIVAL_ROLE_PING} ${isReplay ? "Squig Survival replay lobby is open!" : "Squig Survival is open!"}`,
+    `${pingPrefix !== "None" ? `${pingPrefix} ` : ""}${
+      isReplay ? "Squig Survival replay lobby is open!" : "Squig Survival is open!"
+    }`,
     "Click **Join** on the panel above to hop in.",
   ];
 
@@ -451,7 +504,7 @@ function buildSurvivalLobbyEmbed(settings, count, countdownMs) {
         ? `Game Starts in **${formatCountdown(countdownMs)}**`
         : "Game Starts when staff open the screening.",
       `Prize Pool: **+${cfg.pool_increment} $CHARM per Squig**`,
-      `Creator Chaos: **${cfg.bonus_active ? "ON" : "OFF"}**`,
+      `Creator Chaos: **${cfg.creator_chaos ? "ON" : "OFF"}**`,
       `Era: **${cfg.era}**`,
       "",
       `Players joined: **${count}**`,
@@ -640,9 +693,12 @@ function setupSurvivalCountdown(lobby, channel) {
     const delayMs = Math.max(0, (totalSec - remainingSec) * 1000);
     const t = setTimeout(async () => {
       if (!survivalLobby || survivalLobby.game_status !== "lobby") return;
-      const msg = `⏳ Squig Survival starts in **${formatCountdown(
-        remainingSec * 1000
-      )}**.`;
+      const pingPrefix = formatSurvivalPingRoles(
+        lobby.settings?.ping_role_ids || []
+      );
+      const msg = `${
+        pingPrefix !== "None" ? `${pingPrefix} ` : ""
+      }⏳ Squig Survival starts in **${formatCountdown(remainingSec * 1000)}**.`;
       try {
         await channel.send(
           jumpRow ? { content: msg, components: [jumpRow] } : { content: msg }
@@ -2912,6 +2968,10 @@ async function handleInteractionCreate(interaction) {
         }
       }
 
+      if (interaction.customId === "survive:modal:ping-roles") {
+        session.settings.ping_role_ids = normalizeSurvivalPingRoleIds(value);
+      }
+
       if (interaction.customId === "survive:modal:bonus-req") {
         const players = Number(value);
         if (!Number.isFinite(players) || players < 1) {
@@ -3050,6 +3110,28 @@ async function handleInteractionCreate(interaction) {
         return;
       }
 
+      if (interaction.customId === "survive:config:ping-roles") {
+        const modal = new ModalBuilder()
+          .setCustomId("survive:modal:ping-roles")
+          .setTitle("Set Ping Role(s)");
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId("value")
+              .setLabel("Role mention(s) or ID(s), comma-separated")
+              .setStyle(TextInputStyle.Short)
+              .setRequired(false)
+              .setValue(
+                (session.settings.ping_role_ids || [])
+                  .map((id) => `<@&${id}>`)
+                  .join(", ")
+              )
+          )
+        );
+        await interaction.showModal(modal);
+        return;
+      }
+
       if (interaction.customId === "survive:config:bonus-req") {
         const modal = new ModalBuilder()
           .setCustomId("survive:modal:bonus-req")
@@ -3139,6 +3221,10 @@ async function handleInteractionCreate(interaction) {
         );
         session.settings.era_key =
           eraKeys[(currentIndex + 1) % Math.max(1, eraKeys.length)];
+      }
+
+      if (interaction.customId === "survive:config:creator-chaos") {
+        session.settings.creator_chaos = !session.settings.creator_chaos;
       }
 
       if (interaction.customId === "survive:config:bonus-active") {

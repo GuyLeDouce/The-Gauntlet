@@ -278,6 +278,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
     era_key: settings?.era_key || "day_one",
     era: settings?.era || null,
     pool_increment: Number(settings?.pool_increment || 50) || 50,
+    creator_chaos: Boolean(settings?.creator_chaos),
     bonus_active: Boolean(settings?.bonus_active),
     bonus_required_players: Math.max(
       1,
@@ -291,7 +292,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
   const defaultEraDefinition = getSurvivalEraDefinition("day_one");
   const eraDefinition = getSurvivalEraDefinition(normalizedSettings.era_key);
   const eraLabel = normalizedSettings.era || eraDefinition.label;
-  const creatorChaosActive = Boolean(normalizedSettings.bonus_active);
+  const creatorChaosActive = Boolean(normalizedSettings.creator_chaos);
   const useEraLockedImagesOnly = Boolean(eraDefinition.useEraLockedImagesOnly);
 
   let dbImageRows = [];
