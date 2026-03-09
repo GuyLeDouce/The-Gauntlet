@@ -12,6 +12,7 @@ const {
   ButtonStyle,
   ComponentType,
   ModalBuilder,
+  RoleSelectMenuBuilder,
   TextInputBuilder,
   TextInputStyle,
   PermissionFlagsBits,
@@ -223,6 +224,18 @@ function formatSurvivalPingRoles(roleIds) {
     : "None";
 }
 
+function buildSurvivalPingRoleSelectRow(roleIds) {
+  const normalized = normalizeSurvivalPingRoleIds(roleIds).slice(0, 25);
+  return new ActionRowBuilder().addComponents(
+    new RoleSelectMenuBuilder()
+      .setCustomId("survive:config:ping-roles:select")
+      .setPlaceholder("Select role(s) to ping")
+      .setMinValues(1)
+      .setMaxValues(Math.min(5, Math.max(1, normalized.length || 5)))
+      .setDefaultRoles(...normalized)
+  );
+}
+
 function normalizeSurvivalSettings(raw = {}) {
   const type = raw?.type === "timed" ? "timed" : "team_start";
   const hasPingRoleIds =
@@ -349,7 +362,7 @@ function buildSurvivalMenuComponents() {
   ];
 }
 
-function buildSurvivalSettingsEmbed(mode, settings, note = null) {
+function buildSurvivalSettingsEmbed(mode, settings, note = null, options = {}) {
   const cfg = normalizeSurvivalSettings(settings);
   const lines = [
     `Mode: **${mode === "standard" ? "Set Standard" : "Play Custom"}**`,
@@ -368,6 +381,10 @@ function buildSurvivalSettingsEmbed(mode, settings, note = null) {
     `Replay: **${cfg.replay ? "Y" : "N"}**`,
   ];
 
+  if (options.selectingPingRoles) {
+    lines.push("", "Role picker open below. Select roles from the server list.");
+  }
+
   if (note) {
     lines.push("", note);
   }
@@ -378,11 +395,11 @@ function buildSurvivalSettingsEmbed(mode, settings, note = null) {
     .setColor(0x3498db);
 }
 
-function buildSurvivalSettingsComponents(mode, settings) {
+function buildSurvivalSettingsComponents(mode, settings, options = {}) {
   const cfg = normalizeSurvivalSettings(settings);
   const presetMultipliers = [1.5, 2, 2.5];
 
-  return [
+  const rows = [
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId("survive:config:pool")
@@ -399,7 +416,7 @@ function buildSurvivalSettingsComponents(mode, settings) {
       new ButtonBuilder()
         .setCustomId("survive:config:ping-roles")
         .setLabel("Ping Role")
-        .setStyle(ButtonStyle.Secondary),
+        .setStyle(options.selectingPingRoles ? ButtonStyle.Success : ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId("survive:config:time")
         .setLabel("Time")
@@ -451,12 +468,30 @@ function buildSurvivalSettingsComponents(mode, settings) {
         .setCustomId("survive:config:save")
         .setLabel(mode === "standard" ? "Save Standard" : "Start Custom")
         .setStyle(ButtonStyle.Success),
+      ...(options.selectingPingRoles
+        ? [
+            new ButtonBuilder()
+              .setCustomId("survive:config:ping-roles:clear")
+              .setLabel("Clear Roles")
+              .setStyle(ButtonStyle.Secondary),
+          ]
+        : []),
       new ButtonBuilder()
         .setCustomId("survive:config:cancel")
         .setLabel("Back")
         .setStyle(ButtonStyle.Secondary)
     ),
   ];
+
+  if (options.selectingPingRoles) {
+    rows.splice(
+      1,
+      0,
+      buildSurvivalPingRoleSelectRow(cfg.ping_role_ids)
+    );
+  }
+
+  return rows;
 }
 
 function buildSurvivalLobbyAnnouncement(settings, isReplay = false) {
@@ -2975,10 +3010,6 @@ async function handleInteractionCreate(interaction) {
         }
       }
 
-      if (interaction.customId === "survive:modal:ping-roles") {
-        session.settings.ping_role_ids = normalizeSurvivalPingRoleIds(value);
-      }
-
       if (interaction.customId === "survive:modal:bonus-req") {
         const players = Number(value);
         if (!Number.isFinite(players) || players < 1) {
@@ -3001,8 +3032,17 @@ async function handleInteractionCreate(interaction) {
       survivalConfigSessions.set(interaction.user.id, session);
 
       return interaction.reply({
-        embeds: [buildSurvivalSettingsEmbed(session.mode, session.settings, note)],
-        components: buildSurvivalSettingsComponents(session.mode, session.settings),
+        embeds: [
+          buildSurvivalSettingsEmbed(
+            session.mode,
+            session.settings,
+            note,
+            { selectingPingRoles: Boolean(session.selectingPingRoles) }
+          ),
+        ],
+        components: buildSurvivalSettingsComponents(session.mode, session.settings, {
+          selectingPingRoles: Boolean(session.selectingPingRoles),
+        }),
         flags: 64,
       });
     }
@@ -3041,8 +3081,14 @@ async function handleInteractionCreate(interaction) {
         });
         const session = survivalConfigSessions.get(interaction.user.id);
         return interaction.update({
-          embeds: [buildSurvivalSettingsEmbed(session.mode, session.settings)],
-          components: buildSurvivalSettingsComponents(session.mode, session.settings),
+          embeds: [
+            buildSurvivalSettingsEmbed(session.mode, session.settings, null, {
+              selectingPingRoles: Boolean(session.selectingPingRoles),
+            }),
+          ],
+          components: buildSurvivalSettingsComponents(session.mode, session.settings, {
+            selectingPingRoles: Boolean(session.selectingPingRoles),
+          }),
         });
       }
 
@@ -3053,10 +3099,60 @@ async function handleInteractionCreate(interaction) {
         });
         const session = survivalConfigSessions.get(interaction.user.id);
         return interaction.update({
-          embeds: [buildSurvivalSettingsEmbed(session.mode, session.settings)],
-          components: buildSurvivalSettingsComponents(session.mode, session.settings),
+          embeds: [
+            buildSurvivalSettingsEmbed(session.mode, session.settings, null, {
+              selectingPingRoles: Boolean(session.selectingPingRoles),
+            }),
+          ],
+          components: buildSurvivalSettingsComponents(session.mode, session.settings, {
+            selectingPingRoles: Boolean(session.selectingPingRoles),
+          }),
         });
       }
+    }
+
+    if (
+      interaction.isRoleSelectMenu() &&
+      interaction.customId === "survive:config:ping-roles:select"
+    ) {
+      if (!isAdminUserLocal(interaction)) {
+        return interaction.reply({
+          content: "⛔ Only admins can use the Squig Survival menu.",
+          flags: 64,
+        });
+      }
+
+      const session = survivalConfigSessions.get(interaction.user.id);
+      if (!session) {
+        const standardSettings = await getSurvivalStandardSettings();
+        return interaction.update({
+          embeds: [
+            buildSurvivalMenuEmbed(
+              standardSettings,
+              "That settings panel expired. Open /survive again or pick a new menu option."
+            ),
+          ],
+          components: buildSurvivalMenuComponents(),
+        });
+      }
+
+      session.settings.ping_role_ids = normalizeSurvivalPingRoleIds(
+        interaction.values
+      );
+      session.selectingPingRoles = true;
+      session.settings = normalizeSurvivalSettings(session.settings);
+      survivalConfigSessions.set(interaction.user.id, session);
+
+      return interaction.update({
+        embeds: [
+          buildSurvivalSettingsEmbed(session.mode, session.settings, null, {
+            selectingPingRoles: true,
+          }),
+        ],
+        components: buildSurvivalSettingsComponents(session.mode, session.settings, {
+          selectingPingRoles: true,
+        }),
+      });
     }
 
     if (interaction.isButton() && interaction.customId.startsWith("survive:config:")) {
@@ -3111,28 +3207,6 @@ async function handleInteractionCreate(interaction) {
               .setStyle(TextInputStyle.Short)
               .setRequired(true)
               .setValue(String(session.settings.pool_increment || SURVIVAL_BASE_POOL_INCREMENT))
-          )
-        );
-        await interaction.showModal(modal);
-        return;
-      }
-
-      if (interaction.customId === "survive:config:ping-roles") {
-        const modal = new ModalBuilder()
-          .setCustomId("survive:modal:ping-roles")
-          .setTitle("Set Ping Role(s)");
-        modal.addComponents(
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId("value")
-              .setLabel("Role mention(s) or ID(s), comma-separated")
-              .setStyle(TextInputStyle.Short)
-              .setRequired(false)
-              .setValue(
-                (session.settings.ping_role_ids || [])
-                  .map((id) => `<@&${id}>`)
-                  .join(", ")
-              )
           )
         );
         await interaction.showModal(modal);
@@ -3201,8 +3275,14 @@ async function handleInteractionCreate(interaction) {
         }
 
         return interaction.update({
-          embeds: [buildSurvivalSettingsEmbed(session.mode, session.settings, result.reason)],
-          components: buildSurvivalSettingsComponents(session.mode, session.settings),
+          embeds: [
+            buildSurvivalSettingsEmbed(session.mode, session.settings, result.reason, {
+              selectingPingRoles: Boolean(session.selectingPingRoles),
+            }),
+          ],
+          components: buildSurvivalSettingsComponents(session.mode, session.settings, {
+            selectingPingRoles: Boolean(session.selectingPingRoles),
+          }),
         });
       }
 
@@ -3230,6 +3310,15 @@ async function handleInteractionCreate(interaction) {
           eraKeys[(currentIndex + 1) % Math.max(1, eraKeys.length)];
       }
 
+      if (interaction.customId === "survive:config:ping-roles") {
+        session.selectingPingRoles = !session.selectingPingRoles;
+      }
+
+      if (interaction.customId === "survive:config:ping-roles:clear") {
+        session.settings.ping_role_ids = [];
+        session.selectingPingRoles = true;
+      }
+
       if (interaction.customId === "survive:config:creator-chaos") {
         session.settings.creator_chaos = !session.settings.creator_chaos;
       }
@@ -3254,8 +3343,14 @@ async function handleInteractionCreate(interaction) {
       survivalConfigSessions.set(interaction.user.id, session);
 
       return interaction.update({
-        embeds: [buildSurvivalSettingsEmbed(session.mode, session.settings)],
-        components: buildSurvivalSettingsComponents(session.mode, session.settings),
+        embeds: [
+          buildSurvivalSettingsEmbed(session.mode, session.settings, null, {
+            selectingPingRoles: Boolean(session.selectingPingRoles),
+          }),
+        ],
+        components: buildSurvivalSettingsComponents(session.mode, session.settings, {
+          selectingPingRoles: Boolean(session.selectingPingRoles),
+        }),
       });
     }
 
