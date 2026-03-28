@@ -554,6 +554,29 @@ function buildSurvivalLobbyEmbed(settings, count, countdownMs) {
       .setColor(0xc0392b);
   }
 
+  if (cfg.era_key === "airport") {
+    const lines = [
+      "The terminal is packed, the board keeps changing, and every Squig is trying to make it home before the airport decides otherwise.",
+      "",
+      typeof countdownMs === "number"
+        ? `Boarding Begins in **${formatCountdown(countdownMs)}**`
+        : "Boarding begins when staff open the gate.",
+      `Prize Pool: **+${cfg.pool_increment} $CHARM per Squig**`,
+      `Creator Chaos: **${cfg.creator_chaos ? "ON" : "OFF"}**`,
+      `Era: **${cfg.era}**`,
+      "",
+      `Players joined: **${count}**`,
+      "",
+      "Click **Join** to enter the terminal before the first delay ruins everything.",
+    ];
+
+    return new EmbedBuilder()
+      .setTitle("Squig Survival - Terminal Open")
+      .setImage("https://i.imgur.com/jrWVQbv.png")
+      .setDescription(lines.join("\n"))
+      .setColor(0x2980b9);
+  }
+
   const lines = [
     "Click **Join** to enter **Squig Survival**.",
     "Try out life as a Squig stumbling through Earth.",
@@ -929,6 +952,17 @@ async function startSurvivalFromLobby(interaction, lobby) {
           )
           .setImage("https://i.imgur.com/2TPjlR1.png")
           .setColor(0xe67e22)
+      : settings.era_key === "airport"
+      ? new EmbedBuilder()
+          .setTitle("Squig Survival - Final Boarding Begins")
+          .setDescription(
+            [
+              "The departure board flickers and the terminal starts lying to everyone at once.",
+              `All **${players.length}** of you are trying to get home before delays, gate changes, and pure airport cruelty take over.`,
+              "Keep moving. Miss the flight, miss the game.",
+            ].join("\n")
+          )
+          .setColor(0x3498db)
       : new EmbedBuilder()
           .setTitle("Squig Survival - Game Starting!")
           .setDescription(
@@ -2394,7 +2428,7 @@ async function registerCommands() {
       .addStringOption((o) =>
         o
           .setName("era")
-          .setDescription("Optional era lock. Default: standard")
+          .setDescription("Optional era tag/lock. Era-locked modes only use matching tagged images.")
           .addChoices(
             { name: "standard", value: "standard" },
             ...Object.values(SURVIVAL_ERAS).map((era) => ({
@@ -2896,7 +2930,7 @@ async function handleInteractionCreate(interaction) {
           return interaction.reply({
             content: `✅ Added survival image.\nURL: ${imageUrl}${
               userId ? `\nArtist: <@${userId}>` : ""
-            }\nEra: ${parsedEra.label}\nPoints: ${points}`,
+            }\nEra Tag: ${parsedEra.label}\nPoints: ${points}`,
           });
         } catch (err) {
           return interaction.reply({
@@ -3472,6 +3506,7 @@ async function handleInteractionCreate(interaction) {
           "",
           "**How to add images:**",
           "Post your art in <#1334884237727240267>. Staff will get it added. If it's taking too long, ping them.",
+          "Era-locked modes like Movie Theater and Airport only pull images tagged to that era through /addimage.",
           "",
           "**Pro tips:**",
           "- More players = bigger prize pool.",

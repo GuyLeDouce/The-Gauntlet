@@ -874,11 +874,272 @@ const MOVIE_THEATER_ERA = {
   useEraLockedImagesOnly: true,
 };
 
+const AIRPORT_ERA_LORE_LINES = [
+  "🧳 {player} arrives with one carry-on, two bad instincts, and a boarding group they absolutely made up.",
+  "🎫 {player} studies the boarding pass like it might contain a secret extraction route.",
+  "🛫 The departures board changes once, and {player} immediately stops trusting civilization.",
+  "☕ {player} buys airport coffee at criminal pricing and calls it a survival tax.",
+  "🪑 {player} claims three charging seats with one backpack and a dangerous amount of entitlement.",
+  "📣 Every gate announcement sounds to {player} like destiny speaking through static.",
+  "🧦 {player} takes off their shoes near the gate and becomes a regional problem.",
+  "🔌 {player} finds the only working outlet and guards it like inherited land.",
+  "🥨 {player} spends $14 on a pretzel and decides air travel is mostly psychological warfare.",
+  "🛄 At baggage drop, {player} watches a suitcase vanish and feels spiritually warned.",
+  "📱 {player} refreshes the airline app so often it starts to feel threatened.",
+  "🚶 On the moving walkway, {player} acts like they've discovered advanced transportation.",
+  "🪪 {player} pats every pocket twice, then a third time for drama.",
+  "🚨 One security beep later, {player} is suddenly explaining their entire life story.",
+  "🛍️ {player} wanders duty-free with the posture of someone who was never going to buy anything.",
+  "🥤 {player} forgets the water bottle is full and learns that TSA has no sense of poetry.",
+  "🧠 {player} invents three alternate routes home while standing perfectly still at gate C19.",
+  "🍟 {player} treats airport fries like a medically necessary intervention.",
+  "📍 {player} loses the gate, finds the gate, then loses faith.",
+  "🛬 {player} hears another flight land and assumes it is showing off.",
+  "🪫 {player} hits five percent battery and enters a more honest stage of consciousness.",
+  "🧥 {player} uses a neck pillow with the confidence of a veteran traveler and the posture of a shrimp.",
+  "📦 {player} opens a carry-on like it contains tactical options instead of tangled cords.",
+  "🕶️ In the terminal glare, {player} looks suspicious entirely by accident.",
+  "🚪 {player} walks toward the wrong gate with enough confidence to mislead others.",
+  "🧼 {player} leaves the airport bathroom feeling less clean and more informed.",
+  "📡 {player} connects to airport Wi-Fi and immediately distrusts every notification they've ever received.",
+  "🛒 {player} loads their whole emotional state onto a luggage cart and starts pushing.",
+  "🌧️ A weather delay hits, and {player} begins bargaining with the sky personally.",
+  "😴 {player} falls asleep at the gate in a pose only airports can produce.",
+  "🗺️ {player} checks the terminal map and somehow becomes less certain.",
+  "🎧 {player} keeps headphones on through every announcement and calls that self-care.",
+];
+
+const AIRPORT_ERA_MILESTONE_STAGES = [
+  {
+    title: "Check-In - Hope Still Exists",
+    flavor:
+      "The terminal lights glare, the suitcase wheels rattle, and every Squig still believes they might actually get home today.",
+  },
+  {
+    title: "Bag Drop - First Separation",
+    flavor:
+      "Suitcases vanish behind rubber curtains, and the Squigs begin learning that trust is not an airport resource.",
+  },
+  {
+    title: "TSA Shuffle - Bin Economics",
+    flavor:
+      "Belts, shoes, phones, and dignity are redistributed into grey plastic trays at industrial speed.",
+  },
+  {
+    title: "Security Line - Shoes Off, Dignity Lower",
+    flavor:
+      "Bins slide forward, scanners hum, and one forgotten water bottle is already rewriting fate.",
+  },
+  {
+    title: "Secondary Screening - Fate Beeps Once",
+    flavor:
+      "Somewhere near the body scanner, random selection starts feeling very personal.",
+  },
+  {
+    title: "Post-Security - False Confidence Returns",
+    flavor:
+      "The hard part appears over, which is exactly how the airport likes to set up the next disappointment.",
+  },
+  {
+    title: "Gate Hunt - Terminal Delirium",
+    flavor:
+      "The signs contradict each other, the moving walkways judge silently, and every Squig is speed-walking toward uncertainty.",
+  },
+  {
+    title: "Food Court Drift - Expensive Stabilization",
+    flavor:
+      "Salt, grease, and seven-dollar bottled water briefly convince the Squigs they can survive anything.",
+  },
+  {
+    title: "Charging Station Politics",
+    flavor:
+      "Outlet territory becomes sacred land, and every cable now represents power in both senses.",
+  },
+  {
+    title: "First Delay - Optimism Under Review",
+    flavor:
+      "An announcement crackles overhead. The departure board flickers. The phrase 'just a short delay' begins ruining lives.",
+  },
+  {
+    title: "App Refresh Hour - Digital Misery",
+    flavor:
+      "Every phone screen tells a slightly different story, and none of them are good.",
+  },
+  {
+    title: "Weather Hold - Sky-Based Tyranny",
+    flavor:
+      "Somewhere beyond the windows, clouds have unionized against the departure schedule.",
+  },
+  {
+    title: "Terminal Spiral - Snacks and False Rumors",
+    flavor:
+      "Battery levels dip, overpriced food circulates, and every nearby stranger suddenly becomes an unverified source.",
+  },
+  {
+    title: "Crew Delay - Operational Folklore",
+    flavor:
+      "A missing crew, a vague update, and one gate agent trying not to become history in front of the line.",
+  },
+  {
+    title: "Standby Panic - Hope on a Spreadsheet",
+    flavor:
+      "Names rise and fall on invisible lists while the Squigs begin bargaining with mathematics.",
+  },
+  {
+    title: "Gate Change - Full Stampede",
+    flavor:
+      "A new gate appears across the terminal, and the airport transforms into rolling luggage, panic, and betrayal.",
+  },
+  {
+    title: "Cross-Terminal Migration",
+    flavor:
+      "The whole pack moves at once, dragged by rumor, signage, and the sound of suitcase wheels screaming on tile.",
+  },
+  {
+    title: "Boarding Zone Lies",
+    flavor:
+      "Nobody belongs to the group being called, and yet somehow everyone is already standing.",
+  },
+  {
+    title: "Carry-On Conflict - Overhead Justice",
+    flavor:
+      "Bag dimensions become a moral issue as the line tightens and the bins fill with consequences.",
+  },
+  {
+    title: "Final Boarding Call - Last Bad Decisions",
+    flavor:
+      "The line tightens, the app refreshes again, and only the fastest, luckiest, or most morally flexible Squigs are still in this.",
+  },
+  {
+    title: "Door Reopen Mirage",
+    flavor:
+      "Someone says the plane door might reopen, and false hope sprints faster than any Squig can.",
+  },
+  {
+    title: "Rebooking Queue - Ritual Suffering",
+    flavor:
+      "The customer service line grows theological, testing faith, patience, and leg strength all at once.",
+  },
+  {
+    title: "Voucher Diplomacy",
+    flavor:
+      "Meal vouchers appear like minor miracles, but nobody can eat enough to repair the timeline.",
+  },
+  {
+    title: "Hotel Shuttle Rumors",
+    flavor:
+      "The stranded begin speaking in hearsay, QR codes, and the names of distant airport hotels.",
+  },
+  {
+    title: "Last Agent Standing",
+    flavor:
+      "One exhausted gate agent remains, and every Squig now treats eye contact like a negotiation channel.",
+  },
+  {
+    title: "Cancellation Board - Last Squig in the Terminal",
+    flavor:
+      "Flights vanish from the screen, customer service hardens into stone, and one final Squig fights to beat the airport itself.",
+  },
+];
+
+const AIRPORT_ERA_STORIES = {
+  hidingSpots: [
+    "{victim} hid behind the gate desk hoping to dodge the boarding cutoff, but a reroute announcement buried them in pure chaos.",
+    "Trying to disappear under a row of charging seats, {victim} got folded by three rolling suitcases and a desperate family of six.",
+    "{victim} tucked into the oversized luggage zone and was conveyor-belted straight out of contention.",
+    "The neck pillow display looked harmless until {victim} vanished beneath an avalanche of travel accessories.",
+    "{victim} hid beside baggage claim carousel 4 and got claimed by the carousel's infinite confidence instead.",
+    "Inside an unattended stroller parking lane, {victim} was flattened the moment pre-boarding turned feral.",
+    "The moving walkway side panel concealed {victim} briefly, then the maintenance hatch made the rest permanent.",
+    "{victim} squeezed into the gap behind a self check-in kiosk and was discovered by one violent printer jam.",
+    "Under the customer service rope maze, {victim} survived two complaints before the stampede reached them.",
+    "The airport chapel offered {victim} a moment of peace right up until rolling luggage entered at highway speed.",
+    "{victim} hid in a duty-free stock corner and was boxed in by perfume crates and regret.",
+    "Between stacked carry-on bins, {victim} learned that overhead storage technology was never meant for the ground.",
+    "{victim} curled up near gate C27's dead outlet and was trampled by a wave of charger-seeking pilgrims.",
+    "The janitor closet near arrivals almost saved {victim} until a mop bucket came off the turn too hot.",
+    "{victim} camped inside the family restroom queue and got erased when a stroller convoy breached the lane.",
+    "Behind the arrivals board, {victim} was pinned when another cancellation lit up the screen like prophecy.",
+    "{victim} hid under the food court table forest and was ended by a falling tray and terminal-grade panic.",
+    "The luggage cart return corral swallowed {victim}, then snapped back into service with brutal efficiency.",
+  ],
+  clumsiness: [
+    "While sprinting to a gate that had already changed, {victim} wiped out on polished tile and never recovered the boarding group.",
+    "A full-speed merge between {victim}, a rolling suitcase, and the moving walkway ended exactly how airport physics intended.",
+    "{victim} tried to repack a bag in the middle of the security line and got obliterated by bins, belts, and collective hatred.",
+    "Mid-announcement, {victim} spun to check the departures board and walked straight into a pillar with terminal velocity.",
+    "Trying to save a phone at three percent battery, {victim} lunged for an outlet and lost the entire terminal negotiation.",
+    "{victim} took the escalator with too much luggage and too little planning, then became a cautionary story for gate B.",
+    "At the water refill station, {victim} slipped on one heroic drop and skidded directly into a luggage cart pileup.",
+    "{victim} power-walked through a gate crowd while staring at the airline app and got introduced to a metal stanchion at speed.",
+    "A neck pillow overcorrection sent {victim} backward off the charging seat island and into the airport's final judgment.",
+    "{victim} tried to hop the rope line at customer service and discovered why the airport prefers suffering in order.",
+    "One badly timed shoe-removal at security turned {victim} into a barefoot projectile of pure inconvenience.",
+    "Trying to grab a falling passport, {victim} dove under the scanner and let the conveyor finish the sentence.",
+    "{victim} sprinted for final boarding, clipped a carry-on wheel, and cartwheeled into the last call of their life.",
+    "An aggressive pivot toward a gate-change rumor sent {victim} face-first into the world's least sympathetic trash can.",
+    "{victim} misjudged the speed of the airport train doors and got deleted by regional transit indifference.",
+    "The food court floor turned traitor under {victim}, who was carrying too many fries and not enough balance.",
+    "{victim} tried to sleep sitting upright, slid off the gate chair stack, and woke up eliminated.",
+    "While attempting a dramatic terminal shortcut, {victim} tripped over a charging cable nest and lost the whole route.",
+  ],
+  sabotage: [
+    "{killer} told {victim} the gate had moved to the far terminal, then watched them miss reality by twenty-seven minutes.",
+    "'They're still boarding,' lied {killer}, sending {victim} straight into a closed door and permanent regret.",
+    "{killer} swapped {victim}'s carry-on tag and let baggage services erase the rest of the travel plan.",
+    "{killer} pointed {victim} to the longest security line in North America and called it a shortcut.",
+    "With fake urgency, {killer} convinced {victim} to leave the gate for snacks right before the final boarding call.",
+    "{killer} said the airline app was bugged and talked {victim} into waiting at the wrong gate on purpose.",
+    "{killer} stacked luggage in {victim}'s path just before the terminal stampede began.",
+    "'They never check liquids,' said {killer}, letting TSA write the rest of {victim}'s obituary.",
+    "{killer} sent {victim} to customer service for a problem that did not exist and let the line consume them whole.",
+    "{killer} claimed pre-boarding had already started and launched {victim} into a stroller battalion with no mercy.",
+    "At the moving walkway, {killer} gave {victim} one little shove and let airport momentum do the rest.",
+    "{killer} told {victim} the passport was definitely in the other pocket, buying just enough delay to end the run.",
+    "{killer} baited {victim} into arguing with the gate agent while the boarding line quietly vanished.",
+    "Just as the gate changed, {killer} sent {victim} in the exact opposite direction with professional confidence.",
+    "{killer} unplugged {victim}'s phone at one percent battery and let the dead screen finish the navigation disaster.",
+    "{killer} insisted the airport train was optional and watched {victim} attempt an unsustainable sprint.",
+    "{killer} framed {victim} as the seat thief at the charging station, and the resulting luggage war handled everything else.",
+    "{killer} told {victim} there was more time, then watched the cancellation board close over them like a coffin lid.",
+  ],
+  resurrections: [
+    "A replacement aircraft appears from nowhere, and {victim} is suddenly back in the game with fresh delusions.",
+    "The gate agent takes pity, taps a keyboard twice, and {victim} gets rebooked into existence.",
+    "A standby list collapses in divine order, opening one improbable seat for {victim}.",
+    "An apology voucher, a gate swap, and one broken scanner combine to restore {victim}'s entire travel destiny.",
+    "The weather clears just enough for operations to pretend this was manageable, and {victim} returns to contention.",
+    "A miracle announcement confirms the door is reopening, and {victim} materializes in line like they were always there.",
+    "Baggage services finds the missing passport in the least honest possible place, reviving {victim} on technicality alone.",
+    "A customer service agent whispers, 'run,' and {victim} obeys so effectively it counts as resurrection.",
+    "The delayed crew arrives at a sprint, and with them comes {victim}, reborn through scheduling failure.",
+    "A fresh boarding pass prints from the kiosk and somehow includes {victim}'s soul.",
+    "The airline app refreshes one more time and reverses {victim}'s fate out of pure instability.",
+    "An overbooked volunteer deal shifts the whole manifest, and {victim} slides back onto the plane by loophole.",
+    "The airport train stalls every other passenger just long enough for {victim} to catch up with destiny.",
+    "A gate agent says, 'one more,' and against all policy that turns out to mean {victim}.",
+    "The cancellation gets uncancelled in a burst of corporate confusion, restoring {victim} to the departures board.",
+    "A lost-and-found miracle returns {victim}'s documents, charger, and will to continue in one blessed bundle.",
+    "The final boarding call repeats a second time, and {victim} takes that as legal resurrection.",
+    "A seat opens in row 32, and {victim} is hurled back into hope by raw airline math.",
+  ],
+};
+
+const AIRPORT_ERA = {
+  key: "airport",
+  label: "Airport",
+  loreLines: AIRPORT_ERA_LORE_LINES,
+  milestoneStages: AIRPORT_ERA_MILESTONE_STAGES,
+  stories: AIRPORT_ERA_STORIES,
+  useEraLockedImagesOnly: true,
+};
+
 const SURVIVAL_ERAS = {
   day_one: DAY_ONE_ERA,
   office_squigs: OFFICE_SQUIGS_ERA,
   jobsite_squigs: JOBSITE_SQUIGS_ERA,
   movie_theater: MOVIE_THEATER_ERA,
+  airport: AIRPORT_ERA,
   // Placeholder until unique content is added.
   tbd: {
     ...DAY_ONE_ERA,
