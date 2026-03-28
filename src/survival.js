@@ -1,6 +1,7 @@
 ﻿// survival.js
 // Core RNG story engine for Squig Survival.
 
+const { randomInt: cryptoRandomInt } = require("crypto");
 const { EmbedBuilder, AttachmentBuilder } = require("discord.js");
 const { createCanvas, loadImage } = require("@napi-rs/canvas");
 const { rewardCharmAmount, logCharmReward } = require("./drip");
@@ -36,14 +37,15 @@ const SHARED_FALLBACK_STAGE_IMAGES = [
   "https://i.imgur.com/eDAkAOV.png",
 ];
 
-const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-const randInt = (min, max) =>
-  Math.floor(Math.random() * (max - min + 1)) + min;
+const pick = (arr) => arr[cryptoRandomInt(arr.length)];
+const randInt = (min, max) => cryptoRandomInt(min, max + 1);
+const chance = (probability) =>
+  cryptoRandomInt(1_000_000) < Math.floor(probability * 1_000_000);
 
 function shuffle(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = cryptoRandomInt(i + 1);
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
@@ -308,7 +310,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
   const eligibleDbImageRows = dbImageRows.filter((row) => {
     if (!row?.image_url) return false;
     const eraKeys = parseEraKeys(row.era_keys);
-    if (!eraKeys?.length) return true;
+    if (!eraKeys?.length) return !useEraLockedImagesOnly;
     return eraKeys.includes(normalizedSettings.era_key);
   });
 
@@ -409,14 +411,14 @@ async function runSurvival(channel, playerIds, settings = {}) {
 
     // --- ELIMINATIONS ---
     for (let i = 0; i < killsThisRound && alive.length > 1; i++) {
-      const victimIndex = Math.floor(Math.random() * alive.length);
+      const victimIndex = cryptoRandomInt(alive.length);
       const victimId = alive.splice(victimIndex, 1)[0];
       eliminated.push(victimId);
       if (gameId) {
         await survivalStore.addDeath(gameId, victimId, 1);
       }
 
-      const category = Math.floor(Math.random() * 3);
+      const category = cryptoRandomInt(3);
       let text;
 
       if (category === 0) {
@@ -430,7 +432,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
         if (alive.length === 0) {
           text = format(pick(clumsiness), victimId, null, nameOf);
         } else {
-          const killerId = alive[Math.floor(Math.random() * alive.length)];
+          const killerId = alive[cryptoRandomInt(alive.length)];
           text = format(pick(sabotage), victimId, killerId, nameOf);
           if (gameId) {
             await survivalStore.addElimination(gameId, killerId, 1);
@@ -446,9 +448,9 @@ async function runSurvival(channel, playerIds, settings = {}) {
     if (
       eliminated.length > 0 &&
       resurrections.length > 0 &&
-      Math.random() < 0.18 // ~18% chance per milestone
+      chance(0.18) // ~18% chance per milestone
     ) {
-      const revivedIndex = Math.floor(Math.random() * eliminated.length);
+      const revivedIndex = cryptoRandomInt(eliminated.length);
       const revivedId = eliminated.splice(revivedIndex, 1)[0];
       alive.push(revivedId);
 
