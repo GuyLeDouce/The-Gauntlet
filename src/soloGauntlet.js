@@ -2478,6 +2478,16 @@ async function registerCommands() {
       )
       .addStringOption((o) =>
         o
+          .setName("creator_chaos")
+          .setDescription("Whether Creator Chaos is enabled")
+          .addChoices(
+            { name: "On", value: "on" },
+            { name: "Off", value: "off" }
+          )
+          .setRequired(false)
+      )
+      .addStringOption((o) =>
+        o
           .setName("bonus")
           .setDescription("Whether the bonus prize pool is active")
           .addChoices(
@@ -2860,6 +2870,7 @@ async function handleInteractionCreate(interaction) {
         const pingRoleInput = interaction.options.getString("ping_role");
         const pool = interaction.options.getInteger("pool");
         const time = interaction.options.getInteger("time");
+        const creatorChaos = interaction.options.getString("creator_chaos");
         const bonus = interaction.options.getString("bonus");
         const bonusReqd = interaction.options.getInteger("bonus_reqd");
         const bonusMultiplier = interaction.options.getNumber("bonus_multiplier");
@@ -2894,6 +2905,10 @@ async function handleInteractionCreate(interaction) {
 
         if (time !== null) {
           settings.time_minutes = time;
+        }
+
+        if (creatorChaos !== null) {
+          settings.creator_chaos = creatorChaos === "on";
         }
 
         if (bonus !== null) {
@@ -2934,6 +2949,7 @@ async function handleInteractionCreate(interaction) {
             `Era: **${cfg.era}**\n` +
             `Ping: **${formatSurvivalPingRoles(cfg.ping_role_ids)}**\n` +
             `Time: **${cfg.type === "timed" ? `${cfg.time_minutes} minute(s)` : "N/A (Staff)"}**\n` +
+            `Creator Chaos: **${cfg.creator_chaos ? "On" : "Off"}**\n` +
             `Bonus: **${cfg.bonus_active ? "Active" : "Not Active"}**\n` +
             `Bonus Req'd: **${cfg.bonus_required_players}**\n` +
             `Bonus Multiplier: **${formatSurvivalMultiplier(cfg.bonus_multiplier)}**\n` +
