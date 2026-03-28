@@ -221,7 +221,7 @@ function formatSurvivalPingRoles(roleIds) {
   const normalized = normalizeSurvivalPingRoleIds(roleIds);
   return normalized.length
     ? normalized.map((id) => `<@&${id}>`).join(" ")
-    : "None";
+    : "@everyone";
 }
 
 function buildSurvivalPingRoleSelectRow(roleIds) {
