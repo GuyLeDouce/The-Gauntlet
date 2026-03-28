@@ -44,7 +44,11 @@ const {
   handleGroupInteractionCreate,
 } = require("./groupGauntlet");
 
-const { runSurvival, buildPodiumImage } = require("./survival");
+const {
+  runSurvival,
+  buildPodiumImage,
+  getSurvivalRunLifeStatus,
+} = require("./survival");
 const { SURVIVAL_ERAS, getSurvivalEraDefinition } = require("./survivalEras");
 const { rewardCharmAmount, logCharmReward, DRIP_LOG_CHANNEL_ID } = require("./drip");
 const { imageStore } = require("./imageStore");
@@ -224,6 +228,72 @@ function formatSurvivalPingRoles(roleIds) {
     : "@everyone";
 }
 
+async function resolveSurvivalPingRoleInput(guild, rawInput) {
+  if (rawInput === null || rawInput === undefined) {
+    return { ok: true, roleIds: null };
+  }
+
+  const input = String(rawInput).trim();
+  if (!input) {
+    return { ok: true, roleIds: [] };
+  }
+
+  const lowered = input.toLowerCase();
+  if (["everyone", "@everyone", "all", "default", "none"].includes(lowered)) {
+    return { ok: true, roleIds: [] };
+  }
+
+  const directIds = normalizeSurvivalPingRoleIds(input);
+  if (directIds.length) {
+    return { ok: true, roleIds: directIds };
+  }
+
+  let roleCollection = guild?.roles?.cache;
+  if (!roleCollection?.size && guild?.roles?.fetch) {
+    try {
+      roleCollection = await guild.roles.fetch();
+    } catch {
+      roleCollection = guild?.roles?.cache || null;
+    }
+  }
+
+  if (!roleCollection?.size) {
+    return {
+      ok: false,
+      reason: "Couldn't load server roles for `ping_role`.",
+    };
+  }
+
+  const names = input
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const resolved = [];
+  const seen = new Set();
+
+  for (const name of names) {
+    const normalizedName = name.replace(/^@/, "").trim().toLowerCase();
+    const role = roleCollection.find(
+      (entry) => entry?.name?.trim().toLowerCase() === normalizedName
+    );
+
+    if (!role?.id) {
+      return {
+        ok: false,
+        reason:
+          `Unknown ping role: \`${name}\`. Use @everyone, a role mention, a role ID, or an exact role name.`,
+      };
+    }
+
+    if (!seen.has(role.id)) {
+      seen.add(role.id);
+      resolved.push(role.id);
+    }
+  }
+
+  return { ok: true, roleIds: resolved };
+}
+
 function buildSurvivalPingRoleSelectRow(roleIds) {
   const normalized = normalizeSurvivalPingRoleIds(roleIds).slice(0, 25);
   return new ActionRowBuilder().addComponents(
@@ -382,7 +452,10 @@ function buildSurvivalSettingsEmbed(mode, settings, note = null, options = {}) {
   ];
 
   if (options.selectingPingRoles) {
-    lines.push("", "Role picker open below. Select roles from the server list.");
+    lines.push(
+      "",
+      "Role picker open below. Select roles from the server list or use the @everyone button."
+    );
   }
 
   if (note) {
@@ -471,9 +544,11 @@ function buildSurvivalSettingsComponents(mode, settings, options = {}) {
       ...(options.selectingPingRoles
         ? [
             new ButtonBuilder()
-              .setCustomId("survive:config:ping-roles:clear")
-              .setLabel("Clear Roles")
-              .setStyle(ButtonStyle.Secondary),
+              .setCustomId("survive:config:ping-roles:everyone")
+              .setLabel("@everyone")
+              .setStyle(
+                cfg.ping_role_ids.length ? ButtonStyle.Secondary : ButtonStyle.Success
+              ),
           ]
         : []),
       new ButtonBuilder()
@@ -2357,7 +2432,88 @@ async function registerCommands() {
     // Squig Survival command
     new SlashCommandBuilder()
       .setName("survive")
-      .setDescription("Open the hidden Squig Survival admin menu."),
+      .setDescription("Open a Squig Survival lobby with slash-command settings.")
+      .addStringOption((o) =>
+        o
+          .setName("type")
+          .setDescription("Lobby start mode")
+          .addChoices(
+            { name: "Timed", value: "timed" },
+            { name: "Staff", value: "team_start" }
+          )
+          .setRequired(false)
+      )
+      .addStringOption((o) =>
+        o
+          .setName("era")
+          .setDescription("Which Survival era to use")
+          .addChoices(
+            { name: "Random", value: "random" },
+            ...Object.values(SURVIVAL_ERAS).map((era) => ({
+              name: era.label,
+              value: era.key,
+            }))
+          )
+          .setRequired(false)
+      )
+      .addStringOption((o) =>
+        o
+          .setName("ping_role")
+          .setDescription("Type @everyone, a role mention, a role ID, or an exact role name")
+          .setRequired(false)
+      )
+      .addIntegerOption((o) =>
+        o
+          .setName("pool")
+          .setDescription("$CHARM added to the prize pool per player")
+          .setMinValue(1)
+          .setRequired(false)
+      )
+      .addIntegerOption((o) =>
+        o
+          .setName("time")
+          .setDescription("Timed mode duration in minutes")
+          .setMinValue(1)
+          .setRequired(false)
+      )
+      .addStringOption((o) =>
+        o
+          .setName("bonus")
+          .setDescription("Whether the bonus prize pool is active")
+          .addChoices(
+            { name: "Active", value: "on" },
+            { name: "Not Active", value: "off" }
+          )
+          .setRequired(false)
+      )
+      .addIntegerOption((o) =>
+        o
+          .setName("bonus_reqd")
+          .setDescription("Players needed for the bonus to activate")
+          .setMinValue(1)
+          .setRequired(false)
+      )
+      .addNumberOption((o) =>
+        o
+          .setName("bonus_multiplier")
+          .setDescription("Bonus prize pool multiplier")
+          .addChoices(
+            { name: "1.5x", value: 1.5 },
+            { name: "2x", value: 2 },
+            { name: "2.5x", value: 2.5 }
+          )
+          .setRequired(false)
+      )
+      .addStringOption((o) =>
+        o
+          .setName("replay")
+          .setDescription("Reopen the lobby after the game ends")
+          .addChoices(
+            { name: "Yes", value: "yes" },
+            { name: "No", value: "no" }
+          )
+          .setRequired(false)
+      ),
     new SlashCommandBuilder()
       .setName("survivestart")
       .setDescription("Start the active Squig Survival lobby."),
@@ -2692,15 +2848,96 @@ async function handleInteractionCreate(interaction) {
       if (interaction.commandName === "survive") {
         if (!isAdminUserLocal(interaction)) {
           return interaction.reply({
-            content: "⛔ Only admins can use the Squig Survival menu.",
+            content: "⛔ Only admins can use /survive.",
             flags: 64,
           });
         }
 
         const standardSettings = await getSurvivalStandardSettings();
+        const settings = cloneSurvivalSettings(standardSettings);
+        const type = interaction.options.getString("type");
+        const era = interaction.options.getString("era");
+        const pingRoleInput = interaction.options.getString("ping_role");
+        const pool = interaction.options.getInteger("pool");
+        const time = interaction.options.getInteger("time");
+        const bonus = interaction.options.getString("bonus");
+        const bonusReqd = interaction.options.getInteger("bonus_reqd");
+        const bonusMultiplier = interaction.options.getNumber("bonus_multiplier");
+        const replay = interaction.options.getString("replay");
+
+        if (type) {
+          settings.type = type;
+        }
+
+        if (era) {
+          settings.era_key =
+            era === "random" ? rand(Object.keys(SURVIVAL_ERAS)) : era;
+        }
+
+        if (pingRoleInput !== null) {
+          const resolvedPingRoles = await resolveSurvivalPingRoleInput(
+            interaction.guild,
+            pingRoleInput
+          );
+          if (!resolvedPingRoles.ok) {
+            return interaction.reply({
+              content: `❌ ${resolvedPingRoles.reason}`,
+              flags: 64,
+            });
+          }
+          settings.ping_role_ids = resolvedPingRoles.roleIds;
+        }
+
+        if (pool !== null) {
+          settings.pool_increment = pool;
+        }
+
+        if (time !== null) {
+          settings.time_minutes = time;
+        }
+
+        if (bonus !== null) {
+          settings.bonus_active = bonus === "on";
+        }
+
+        if (bonusReqd !== null) {
+          settings.bonus_required_players = bonusReqd;
+        }
+
+        if (bonusMultiplier !== null) {
+          settings.bonus_multiplier = bonusMultiplier;
+        }
+
+        if (replay !== null) {
+          settings.replay = replay === "yes";
+        }
+
+        const cfg = normalizeSurvivalSettings(settings);
+        const result = await openSurvivalLobby(
+          interaction.channel,
+          interaction.user.id,
+          cfg
+        );
+
+        if (!result.ok) {
+          return interaction.reply({
+            content: result.reason,
+            flags: 64,
+          });
+        }
+
         return interaction.reply({
-          embeds: [buildSurvivalMenuEmbed(standardSettings)],
-          components: buildSurvivalMenuComponents(),
+          content:
+            "Squig Survival lobby opened.\n" +
+            `Pool: **+${cfg.pool_increment} $CHARM per player**\n` +
+            `Type: **${SURVIVAL_TYPE_LABELS[cfg.type]}**\n` +
+            `Era: **${cfg.era}**\n` +
+            `Ping: **${formatSurvivalPingRoles(cfg.ping_role_ids)}**\n` +
+            `Time: **${cfg.type === "timed" ? `${cfg.time_minutes} minute(s)` : "N/A (Staff)"}**\n` +
+            `Bonus: **${cfg.bonus_active ? "Active" : "Not Active"}**\n` +
+            `Bonus Req'd: **${cfg.bonus_required_players}**\n` +
+            `Bonus Multiplier: **${formatSurvivalMultiplier(cfg.bonus_multiplier)}**\n` +
+            `Replay: **${cfg.replay ? "Yes" : "No"}**`,
           flags: 64,
         });
       }
@@ -3348,7 +3585,7 @@ async function handleInteractionCreate(interaction) {
         session.selectingPingRoles = !session.selectingPingRoles;
       }
 
-      if (interaction.customId === "survive:config:ping-roles:clear") {
+      if (interaction.customId === "survive:config:ping-roles:everyone") {
         session.settings.ping_role_ids = [];
         session.selectingPingRoles = true;
       }
@@ -3520,6 +3757,41 @@ async function handleInteractionCreate(interaction) {
 
         return interaction.reply({ embeds: [embed], flags: 64 });
       }
+    }
+
+    if (
+      interaction.isButton() &&
+      interaction.customId.startsWith("survive:alive-check:")
+    ) {
+      const runKey = interaction.customId.replace("survive:alive-check:", "");
+      const status = getSurvivalRunLifeStatus(runKey, interaction.user.id);
+
+      if (!status.ok) {
+        return interaction.reply({
+          content: "That Survival check expired or the run could not be found.",
+          flags: 64,
+        });
+      }
+
+      if (!status.joined) {
+        return interaction.reply({
+          content: status.ended
+            ? "You were not part of that Squig Survival run."
+            : "You are not in this Squig Survival run.",
+          flags: 64,
+        });
+      }
+
+      return interaction.reply({
+        content: status.alive
+          ? status.ended
+            ? "Yes. You finished that Squig Survival run alive."
+            : "Yes. You are still alive in this Squig Survival run."
+          : status.ended
+          ? "No. You were eliminated before that Squig Survival run ended."
+          : "No. You have already been eliminated from this Squig Survival run.",
+        flags: 64,
+      });
     }
 
     if (interaction.isButton() && interaction.customId === "gauntlet:mystats") {

@@ -2,7 +2,13 @@
 // Core RNG story engine for Squig Survival.
 
 const { randomInt: cryptoRandomInt } = require("crypto");
-const { EmbedBuilder, AttachmentBuilder } = require("discord.js");
+const {
+  EmbedBuilder,
+  AttachmentBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+} = require("discord.js");
 const { createCanvas, loadImage } = require("@napi-rs/canvas");
 const { rewardCharmAmount, logCharmReward } = require("./drip");
 const { imageStore } = require("./imageStore");
@@ -41,6 +47,40 @@ const pick = (arr) => arr[cryptoRandomInt(arr.length)];
 const randInt = (min, max) => cryptoRandomInt(min, max + 1);
 const chance = (probability) =>
   cryptoRandomInt(1_000_000) < Math.floor(probability * 1_000_000);
+const survivalRunStatuses = new Map();
+
+function upsertSurvivalRunStatus(runKey, joinedIds, aliveIds, ended = false) {
+  if (!runKey) return;
+  survivalRunStatuses.set(runKey, {
+    joined: new Set(joinedIds || []),
+    alive: new Set(aliveIds || []),
+    ended,
+    updatedAt: Date.now(),
+  });
+
+  if (survivalRunStatuses.size > 10) {
+    const oldest = [...survivalRunStatuses.entries()]
+      .sort((a, b) => a[1].updatedAt - b[1].updatedAt)
+      .slice(0, survivalRunStatuses.size - 10);
+    for (const [key] of oldest) {
+      survivalRunStatuses.delete(key);
+    }
+  }
+}
+
+function getSurvivalRunLifeStatus(runKey, userId) {
+  const status = survivalRunStatuses.get(runKey);
+  if (!status) {
+    return { ok: false };
+  }
+
+  return {
+    ok: true,
+    joined: status.joined.has(userId),
+    alive: status.alive.has(userId),
+    ended: Boolean(status.ended),
+  };
+}
 
 function shuffle(arr) {
   const a = [...arr];
@@ -337,6 +377,9 @@ async function runSurvival(channel, playerIds, settings = {}) {
 
   const uniquePlayers = Array.from(new Set(playerIds));
   const gameId = await survivalStore.createGame(new Date());
+  const runKey = gameId
+    ? `game-${gameId}`
+    : `run-${Date.now()}-${cryptoRandomInt(1_000_000)}`;
   if (gameId) {
     await Promise.all(
       uniquePlayers.map((id) => survivalStore.recordJoin(gameId, id, new Date()))
@@ -351,6 +394,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
 
   let alive = [...uniquePlayers];
   const eliminated = [];
+  upsertSurvivalRunStatus(runKey, uniquePlayers, alive);
   let imageBag = shuffle(mergedStageImages);
 
   const eraStories = eraDefinition.stories || {};
@@ -485,6 +529,12 @@ async function runSurvival(channel, playerIds, settings = {}) {
     const embed = new EmbedBuilder()
       .setTitle(`Squig Life - ${stage.title}`)
       .setColor(0x9b59b6);
+    const statusRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`survive:alive-check:${runKey}`)
+        .setLabel("Am I still alive?")
+        .setStyle(ButtonStyle.Secondary)
+    );
 
     let imageUrl = null;
     if (milestone === 1 && !useEraLockedImagesOnly) {
@@ -574,6 +624,10 @@ async function runSurvival(channel, playerIds, settings = {}) {
         }
       }
     }
+    upsertSurvivalRunStatus(runKey, uniquePlayers, alive);
+    try {
+      await msg.edit({ embeds: [embed], components: [statusRow] });
+    } catch {}
     milestone += 1;
 
     // Short breather between milestones
@@ -582,6 +636,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
 
   // Winner + standings
   const winnerId = alive[0];
+  upsertSurvivalRunStatus(runKey, uniquePlayers, alive, true);
   const placements = [winnerId, ...eliminated.reverse()];
   if (gameId) {
     const uniquePlacements = [];
@@ -761,4 +816,9 @@ async function sendSurvivalPayouts(
   }
 }
 
-module.exports = { runSurvival, calculateSurvivalPayouts, buildPodiumImage };
+module.exports = {
+  runSurvival,
+  calculateSurvivalPayouts,
+  buildPodiumImage,
+  getSurvivalRunLifeStatus,
+};
