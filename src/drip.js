@@ -104,6 +104,38 @@ const DRIP_RETRY_COUNT = Number(process.env.DRIP_RETRY_COUNT) || 2;
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
+function safeJson(value) {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return "[unserializable]";
+  }
+}
+
+function summarizeAxiosError(err) {
+  return {
+    message: err?.message || String(err),
+    code: err?.code || null,
+    status: err?.response?.status || null,
+    data: err?.response?.data || null,
+    url: err?.config?.url || null,
+    method: err?.config?.method || null,
+  };
+}
+
+function logDripAttempt(step, details) {
+  console.log(`[GAUNTLET:DRIP] ${step} ${safeJson(details)}`);
+}
+
+function logDripFailure(step, details, err) {
+  console.error(
+    `[GAUNTLET:DRIP] ${step} failed ${safeJson({
+      ...details,
+      error: summarizeAxiosError(err),
+    })}`
+  );
+}
+
 async function getWithRetry(url, opts) {
   let lastErr;
   for (let attempt = 0; attempt <= DRIP_RETRY_COUNT; attempt += 1) {
@@ -168,6 +200,21 @@ async function rewardCharmAmount({
     String(DRIP_SENDER_ID || "").trim() ||
     dripInitiatorId ||
     null;
+  logDripAttempt("reward:start", {
+    userId: String(userId || ""),
+    username: username || null,
+    amount,
+    source: source || null,
+    guildId: guildId || null,
+    channelId: channelId || null,
+    dripInitiatorId,
+    dripSenderId,
+    hasRealmPointId: Boolean(DRIP_REALM_POINT_ID),
+    allowProjectFallback: DRIP_ALLOW_PROJECT_PAYOUT_FALLBACK,
+    memberBaseUrls,
+    credentialBaseUrls,
+    metadata: metadata || null,
+  });
 
   let baseUsed = memberBaseUrls[0];
   try {
@@ -210,12 +257,15 @@ async function rewardCharmAmount({
               ...(dripInitiatorId ? { initiatorId: dripInitiatorId } : {}),
             };
             if (DRIP_DEBUG) {
-              console.log(
-                `[GAUNTLET:DRIP] credentials/transaction type=${cleanType} valueType=${typeof cleanValue} valueLen=${cleanValue.length} value=${cleanValue} initiator=${dripInitiatorId || "none"}`
-              );
-              console.log(
-                `[GAUNTLET:DRIP] credentials/transaction payload=${JSON.stringify(transactionPayload)}`
-              );
+              logDripAttempt("credentials/transaction:request", {
+                type: cleanType,
+                value: cleanValue,
+                valueType: typeof cleanValue,
+                valueLen: cleanValue.length,
+                initiatorId: dripInitiatorId || null,
+                url: transactionUrl,
+                payload: transactionPayload,
+              });
             }
             const response = await axios.patch(
               transactionUrl,
@@ -251,11 +301,18 @@ async function rewardCharmAmount({
 
             // Keep trying other payloads/bases/types when DRIP can't resolve this credential.
             if (missingCredential) {
-              if (DRIP_DEBUG) {
-                console.log(
-                  `[GAUNTLET:DRIP] credentials/transaction miss status=${status} type=${cleanType} value=${cleanValue} url=${transactionUrl}`
-                );
-              }
+              logDripFailure(
+                "credentials/transaction",
+                {
+                  type: cleanType,
+                  value: cleanValue,
+                  label: label || `${cleanType}:${cleanValue}`,
+                  url: transactionUrl,
+                  payload: transactionPayload,
+                  missingCredential: true,
+                },
+                err
+              );
             } else {
               throw err;
             }
@@ -265,12 +322,12 @@ async function rewardCharmAmount({
             )}&value=${encodeURIComponent(cleanValue)}`;
             try {
               if (DRIP_DEBUG) {
-                console.log(
-                  `[GAUNTLET:DRIP] credentials/balance fallback type=${cleanType} value=${cleanValue}`
-                );
-                console.log(
-                  `[GAUNTLET:DRIP] credentials/balance fallback payload=${JSON.stringify(payload)}`
-                );
+                logDripAttempt("credentials/balance:request", {
+                  type: cleanType,
+                  value: cleanValue,
+                  url: patchUrl,
+                  payload,
+                });
               }
               await axios.patch(patchUrl, payload, credentialPatchOpts);
               console.log(
@@ -280,11 +337,18 @@ async function rewardCharmAmount({
             } catch (fallbackErr) {
               const fallbackStatus = fallbackErr?.response?.status;
               if (fallbackStatus === 404 || fallbackStatus === 400) {
-                if (DRIP_DEBUG) {
-                  console.log(
-                    `[GAUNTLET:DRIP] legacy credentials/balance miss status=${fallbackStatus} type=${cleanType} value=${cleanValue} url=${patchUrl}`
-                  );
-                }
+                logDripFailure(
+                  "credentials/balance",
+                  {
+                    type: cleanType,
+                    value: cleanValue,
+                    label: label || `${cleanType}:${cleanValue}`,
+                    url: patchUrl,
+                    payload,
+                    missingCredential: true,
+                  },
+                  fallbackErr
+                );
                 continue;
               }
               throw fallbackErr;
@@ -334,6 +398,13 @@ async function rewardCharmAmount({
         const modernUrl = `${baseUrl}/members/${encodeURIComponent(cleanDripId)}/balance`;
         for (const payload of modernPayloads) {
           try {
+            if (DRIP_DEBUG) {
+              logDripAttempt("members/balance:request", {
+                dripId: cleanDripId,
+                url: modernUrl,
+                payload,
+              });
+            }
             await axios.patch(modernUrl, payload, patchOpts);
             console.log(
               `[GAUNTLET:DRIP] Rewarded ${amount} $CHARM to ${userId} (${source}) via members/{dripId}/balance (${label || cleanDripId}).`
@@ -342,11 +413,16 @@ async function rewardCharmAmount({
           } catch (err) {
             const status = err?.response?.status;
             if (status === 404 || status === 400) {
-              if (DRIP_DEBUG) {
-                console.log(
-                  `[GAUNTLET:DRIP] members/balance miss status=${status} dripId=${cleanDripId} url=${modernUrl}`
-                );
-              }
+              logDripFailure(
+                "members/balance",
+                {
+                  dripId: cleanDripId,
+                  label: label || cleanDripId,
+                  url: modernUrl,
+                  payload,
+                },
+                err
+              );
               continue;
             }
             throw err;
@@ -361,6 +437,13 @@ async function rewardCharmAmount({
           cleanDripId
         )}/point-balance`;
         try {
+          if (DRIP_DEBUG) {
+            logDripAttempt("members/point-balance:request", {
+              dripId: cleanDripId,
+              url: legacyUrl,
+              payload: legacyPayload,
+            });
+          }
           await axios.patch(legacyUrl, legacyPayload, patchOpts);
           console.log(
             `[GAUNTLET:DRIP] Rewarded ${amount} $CHARM to ${userId} (${source}) via legacy members/{id}/point-balance (${label || cleanDripId}).`
@@ -369,11 +452,16 @@ async function rewardCharmAmount({
         } catch (err) {
           const status = err?.response?.status;
           if (status === 404) {
-            if (DRIP_DEBUG) {
-              console.log(
-                `[GAUNTLET:DRIP] legacy point-balance miss status=404 dripId=${cleanDripId} url=${legacyUrl}`
-              );
-            }
+            logDripFailure(
+              "members/point-balance",
+              {
+                dripId: cleanDripId,
+                label: label || cleanDripId,
+                url: legacyUrl,
+                payload: legacyPayload,
+              },
+              err
+            );
             continue;
           }
           throw err;
@@ -395,14 +483,41 @@ async function rewardCharmAmount({
           const searchUrl = `${baseUrl}/members/search?type=${encodeURIComponent(
             cleanType
           )}&values=${encodeURIComponent(cleanValue)}`;
+          logDripAttempt("members/search:request", {
+            type: cleanType,
+            value: cleanValue,
+            url: searchUrl,
+          });
           const search = await getWithRetry(searchUrl, {
             headers: { Authorization: auth },
             timeout: DRIP_TIMEOUT_MS,
           });
           const found = search?.data?.data?.[0] || null;
+          logDripAttempt("members/search:response", {
+            type: cleanType,
+            value: cleanValue,
+            url: searchUrl,
+            found: found
+              ? {
+                  id: found.id || null,
+                  username: found.username || null,
+                  discordId: found.discordId || null,
+                }
+              : null,
+            rawCount: Array.isArray(search?.data?.data) ? search.data.data.length : null,
+          });
           if (found?.id) return found;
         } catch (err) {
           lastSearchErr = err;
+          logDripFailure(
+            "members/search",
+            {
+              type: cleanType,
+              value: cleanValue,
+              baseUrl,
+            },
+            err
+          );
           if (err?.response?.status !== 404) throw err;
         }
       }
@@ -433,14 +548,15 @@ async function rewardCharmAmount({
           dripSenderId
         )}/transfer`;
         try {
-          if (DRIP_DEBUG) {
-            console.log(
-              `[GAUNTLET:DRIP] members/transfer sender=${dripSenderId} recipient=${cleanRecipientId} amount=${amount}`
-            );
-            console.log(
-              `[GAUNTLET:DRIP] members/transfer payload=${JSON.stringify(transferPayload)}`
-            );
-          }
+          logDripAttempt("members/transfer:request", {
+            senderId: dripSenderId,
+            recipientId: cleanRecipientId,
+            amount,
+            source: source || null,
+            label: label || cleanRecipientId,
+            url: transferUrl,
+            payload: transferPayload,
+          });
           await axios.patch(transferUrl, transferPayload, patchOpts);
           console.log(
             `[GAUNTLET:DRIP] Transferred ${amount} $CHARM from ${dripSenderId} to ${cleanRecipientId} for Discord ${userId} (${source}) via members/{senderId}/transfer (${label || cleanRecipientId}).`
@@ -448,12 +564,20 @@ async function rewardCharmAmount({
           return true;
         } catch (err) {
           const status = err?.response?.status;
+          logDripFailure(
+            "members/transfer",
+            {
+              senderId: dripSenderId,
+              recipientId: cleanRecipientId,
+              amount,
+              source: source || null,
+              label: label || cleanRecipientId,
+              url: transferUrl,
+              payload: transferPayload,
+            },
+            err
+          );
           if (status === 404 || status === 400) {
-            if (DRIP_DEBUG) {
-              console.log(
-                `[GAUNTLET:DRIP] members/transfer miss status=${status} sender=${dripSenderId} recipient=${cleanRecipientId} url=${transferUrl}`
-              );
-            }
             continue;
           }
           throw err;
@@ -532,6 +656,22 @@ async function rewardCharmAmount({
     if (!recipientMember?.id && username) {
       recipientMember = await searchMemberByType("username", username);
     }
+    logDripAttempt("recipient:resolved", {
+      userId: credentialValue,
+      username: username || null,
+      manualOverride: manualOverride
+        ? {
+            drip_user_id: manualOverride.drip_user_id || null,
+            drip_credential_type: manualOverride.drip_credential_type || null,
+          }
+        : null,
+      recipientMember: recipientMember
+        ? {
+            id: recipientMember.id || null,
+            username: recipientMember.username || null,
+          }
+        : null,
+    });
 
     if (!recipientMember?.id) {
       console.warn(
@@ -554,7 +694,7 @@ async function rewardCharmAmount({
 
     if (!DRIP_ALLOW_PROJECT_PAYOUT_FALLBACK) {
       console.warn(
-        `[GAUNTLET:DRIP] Transfer payout failed for recipient ${recipientMember.id}; project fallback disabled.`
+        `[GAUNTLET:DRIP] Transfer payout failed for recipient ${recipientMember.id}; project fallback disabled. sender=${dripSenderId} amount=${amount} realmPointId=${DRIP_REALM_POINT_ID || "none"}`
       );
       return maybeLogAndReturnSkipped("transfer_failed");
     }
@@ -668,7 +808,6 @@ module.exports = {
   DRIP_LOG_CHANNEL_ID,
   logCharmReward,
 };
-
 
 
 
