@@ -10,14 +10,16 @@ const DRIP_API_KEY =
   process.env.DRIP_CLIENT_SECRET;
 const DRIP_CLIENT_ID = process.env.DRIP_CLIENT_ID;
 const DRIP_REALM_ID = process.env.DRIP_REALM_ID;
+const DEFAULT_DRIP_MEMBER_SENDER_ID = "66d2d8b48ddf8cc315a86f57";
 const DRIP_INITIATOR_ID =
   process.env.DRIP_INITIATOR_ID ||
   process.env.DRIP_TIPPER_ID ||
-  "1366220686460194877";
+  DEFAULT_DRIP_MEMBER_SENDER_ID;
 const DRIP_SENDER_ID =
   process.env.DRIP_SENDER_ID ||
   process.env.DRIP_TRANSFER_SENDER_ID ||
-  DRIP_INITIATOR_ID;
+  process.env.DRIP_TIPPER_ID ||
+  DEFAULT_DRIP_MEMBER_SENDER_ID;
 const DRIP_ALLOW_PROJECT_PAYOUT_FALLBACK =
   (process.env.DRIP_ALLOW_PROJECT_PAYOUT_FALLBACK || "false").toLowerCase() ===
   "true";
@@ -487,6 +489,7 @@ async function rewardCharmAmount({
       if (!cleanType || !cleanValue) return null;
 
       let lastSearchErr = null;
+      let hadSuccessfulLookup = false;
       for (const baseUrl of memberBaseUrls) {
         try {
           baseUsed = baseUrl;
@@ -502,6 +505,7 @@ async function rewardCharmAmount({
             headers: { Authorization: auth },
             timeout: DRIP_TIMEOUT_MS,
           });
+          hadSuccessfulLookup = true;
           const found = search?.data?.data?.[0] || null;
           logDripAttempt("members/search:response", {
             type: cleanType,
@@ -533,7 +537,7 @@ async function rewardCharmAmount({
           if (err?.response?.status !== 404) throw err;
         }
       }
-      if (lastSearchErr) throw lastSearchErr;
+      if (lastSearchErr && !hadSuccessfulLookup) throw lastSearchErr;
       return null;
     };
 
