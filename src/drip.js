@@ -13,7 +13,7 @@ const DRIP_REALM_ID = process.env.DRIP_REALM_ID;
 const DRIP_INITIATOR_ID =
   process.env.DRIP_INITIATOR_ID ||
   process.env.DRIP_TIPPER_ID ||
-  "66d2d8b48ddf8cc315a86f57";
+  "1366220686460194877";
 const DRIP_SENDER_ID =
   process.env.DRIP_SENDER_ID ||
   process.env.DRIP_TRANSFER_SENDER_ID ||
@@ -539,10 +539,9 @@ async function rewardCharmAmount({
 
     const transferPointsFromMember = async (recipientMember, label) => {
       const recipientIdCandidates = uniqueNonEmpty([
-        recipientMember?.realmMemberId,
         recipientMember?.id,
+        recipientMember?.realmMemberId,
         recipientMember?.dynamicId,
-        recipientMember,
       ]);
       if (!dripSenderId || !recipientIdCandidates.length) return false;
 
@@ -566,10 +565,10 @@ async function rewardCharmAmount({
       }
 
       const senderIdCandidates = uniqueNonEmpty([
-        senderMember?.realmMemberId,
         senderMember?.id,
-        senderMember?.dynamicId,
         dripSenderId,
+        senderMember?.realmMemberId,
+        senderMember?.dynamicId,
       ]);
       const payloadBases = DRIP_REALM_POINT_ID
         ? [{ tokens: amount, realmPointId: DRIP_REALM_POINT_ID }, { tokens: amount }]
@@ -857,5 +856,3 @@ module.exports = {
   DRIP_LOG_CHANNEL_ID,
   logCharmReward,
 };
-
-
