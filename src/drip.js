@@ -14,6 +14,13 @@ const DRIP_INITIATOR_ID =
   process.env.DRIP_INITIATOR_ID ||
   process.env.DRIP_TIPPER_ID ||
   "66d2d8b48ddf8cc315a86f57";
+const DRIP_SENDER_ID =
+  process.env.DRIP_SENDER_ID ||
+  process.env.DRIP_TRANSFER_SENDER_ID ||
+  DRIP_INITIATOR_ID;
+const DRIP_ALLOW_PROJECT_PAYOUT_FALLBACK =
+  (process.env.DRIP_ALLOW_PROJECT_PAYOUT_FALLBACK || "false").toLowerCase() ===
+  "true";
 const DRIP_LOG_CHANNEL_ID =
   process.env.DRIP_LOG_CHANNEL_ID || "1403005536982794371";
 const DRIP_BASE_URL = process.env.DRIP_BASE_URL || "https://api.drip.re";
@@ -31,10 +38,13 @@ function logEnvOnce() {
   const hasInitiatorId = Boolean(
     process.env.DRIP_INITIATOR_ID || process.env.DRIP_TIPPER_ID
   );
+  const hasSenderId = Boolean(
+    process.env.DRIP_SENDER_ID || process.env.DRIP_TRANSFER_SENDER_ID
+  );
   const hasRealm = Boolean(process.env.DRIP_REALM_ID);
   const hasBase = Boolean(process.env.DRIP_BASE_URL);
   console.log(
-    `[GAUNTLET:DRIP] Env check: key=${hasKey} token=${hasToken} clientSecret=${hasClientSecret} clientId=${hasClientId} initiatorId=${hasInitiatorId} realm=${hasRealm} baseUrl=${hasBase}`
+    `[GAUNTLET:DRIP] Env check: key=${hasKey} token=${hasToken} clientSecret=${hasClientSecret} clientId=${hasClientId} initiatorId=${hasInitiatorId} senderId=${hasSenderId} realm=${hasRealm} baseUrl=${hasBase}`
   );
 }
 
@@ -152,6 +162,11 @@ async function rewardCharmAmount({
     String(metadata?.dripInitiatorId || "").trim() ||
     String(DRIP_INITIATOR_ID || "").trim() ||
     String(DRIP_CLIENT_ID || "").trim() ||
+    null;
+  const dripSenderId =
+    String(metadata?.dripSenderId || "").trim() ||
+    String(DRIP_SENDER_ID || "").trim() ||
+    dripInitiatorId ||
     null;
 
   let baseUsed = memberBaseUrls[0];
@@ -368,22 +383,107 @@ async function rewardCharmAmount({
       return false;
     };
 
-    // Preferred path: original payout route by Discord credential.
+    const searchMemberByType = async (type, value) => {
+      const cleanType = String(type || "").trim();
+      const cleanValue = String(value || "").trim();
+      if (!cleanType || !cleanValue) return null;
+
+      let lastSearchErr = null;
+      for (const baseUrl of memberBaseUrls) {
+        try {
+          baseUsed = baseUrl;
+          const searchUrl = `${baseUrl}/members/search?type=${encodeURIComponent(
+            cleanType
+          )}&values=${encodeURIComponent(cleanValue)}`;
+          const search = await getWithRetry(searchUrl, {
+            headers: { Authorization: auth },
+            timeout: DRIP_TIMEOUT_MS,
+          });
+          const found = search?.data?.data?.[0] || null;
+          if (found?.id) return found;
+        } catch (err) {
+          lastSearchErr = err;
+          if (err?.response?.status !== 404) throw err;
+        }
+      }
+      if (lastSearchErr) throw lastSearchErr;
+      return null;
+    };
+
+    const transferPointsFromMember = async (recipientDripId, label) => {
+      const cleanRecipientId = String(recipientDripId || "").trim();
+      if (!dripSenderId || !cleanRecipientId) return false;
+
+      const transferPayload = {
+        tokens: amount,
+        recipientId: cleanRecipientId,
+        ...(DRIP_REALM_POINT_ID ? { realmPointId: DRIP_REALM_POINT_ID } : {}),
+      };
+      const patchOpts = {
+        headers: {
+          Authorization: auth,
+          "Content-Type": "application/json",
+        },
+        timeout: DRIP_TIMEOUT_MS,
+      };
+
+      for (const baseUrl of memberBaseUrls) {
+        baseUsed = baseUrl;
+        const transferUrl = `${baseUrl}/members/${encodeURIComponent(
+          dripSenderId
+        )}/transfer`;
+        try {
+          if (DRIP_DEBUG) {
+            console.log(
+              `[GAUNTLET:DRIP] members/transfer sender=${dripSenderId} recipient=${cleanRecipientId} amount=${amount}`
+            );
+            console.log(
+              `[GAUNTLET:DRIP] members/transfer payload=${JSON.stringify(transferPayload)}`
+            );
+          }
+          await axios.patch(transferUrl, transferPayload, patchOpts);
+          console.log(
+            `[GAUNTLET:DRIP] Transferred ${amount} $CHARM from ${dripSenderId} to ${cleanRecipientId} for Discord ${userId} (${source}) via members/{senderId}/transfer (${label || cleanRecipientId}).`
+          );
+          return true;
+        } catch (err) {
+          const status = err?.response?.status;
+          if (status === 404 || status === 400) {
+            if (DRIP_DEBUG) {
+              console.log(
+                `[GAUNTLET:DRIP] members/transfer miss status=${status} sender=${dripSenderId} recipient=${cleanRecipientId} url=${transferUrl}`
+              );
+            }
+            continue;
+          }
+          throw err;
+        }
+      }
+
+      return false;
+    };
+
+    const maybeLogAndReturnSkipped = async (reason) => {
+      if (logClient) {
+        await logCharmReward(logClient, {
+          userId,
+          amount,
+          score: 0,
+          source,
+          channelId,
+          reason: `${logReason || source} payout failed (${reason})`,
+        });
+      }
+      return { ok: false, skipped: true, reason };
+    };
+
     const credentialValue =
       typeof userId === "string" ? userId : String(userId || "");
     if (!credentialValue) {
       throw new Error("missing_discord_id");
     }
-    {
-      const ok = await tryCredentialBalancePatch(
-        "discord-id",
-        credentialValue,
-        "discord-id"
-      );
-      if (ok) return { ok: true, amount };
-    }
 
-    // If original path fails, try manual override from /adduser as direct member payout.
+    // Preferred path: resolve recipient member ID, then transfer from the configured sender balance.
     let manualOverride = null;
     try {
       manualOverride = await Store.getDripUserOverride(String(userId || ""));
@@ -394,6 +494,7 @@ async function rewardCharmAmount({
       );
     }
 
+    let recipientMember = null;
     if (manualOverride?.drip_user_id) {
       const overrideValue = String(manualOverride.drip_user_id).trim();
       const configuredType = String(
@@ -403,153 +504,82 @@ async function rewardCharmAmount({
       if (
         ["drip-id", "id", "member-id", "user-id"].includes(configuredType)
       ) {
-        const okById = await tryMemberBalancePatchByDripId(
-          overrideValue,
-          `manual-override ${configuredType}:${overrideValue}`
-        );
-        if (okById) return { ok: true, amount };
+        recipientMember = {
+          id: overrideValue,
+          username: null,
+        };
+      } else {
+        recipientMember = await searchMemberByType(configuredType, overrideValue);
       }
 
-      // Fallback for realms where override should be treated as a credential value.
-      const overrideTypes = [
-        configuredType,
-        ...["drip-id", "id", "member-id", "user-id", "discord-id", "username"].filter(
-          (t) => t !== configuredType
-        ),
-      ];
-
-      for (const type of overrideTypes) {
-        const ok = await tryCredentialBalancePatch(
-          type,
-          overrideValue,
-          `manual-override ${type}:${overrideValue}`
-        );
-        if (ok) return { ok: true, amount };
-      }
-
-      console.warn(
-        `[GAUNTLET:DRIP] Manual override failed for Discord ID ${userId} -> ${overrideValue}.`
-      );
-      if (logClient) {
-        await logCharmReward(logClient, {
-          userId,
-          amount,
-          score: 0,
-          source,
-          channelId,
-          reason: `${logReason || source} payout failed (manual override failed)`,
-        });
-      }
-      return { ok: false, skipped: true, reason: "manual_override_failed" };
-    }
-
-    let member = null;
-
-    const trySearch = async (baseUrl) => {
-      const searchDiscordUrl = `${baseUrl}/members/search?type=discord-id&values=${encodeURIComponent(
-        userId
-      )}`;
-      const searchUsernameUrl = username
-        ? `${baseUrl}/members/search?type=username&values=${encodeURIComponent(username)}`
-        : null;
-
-      let search = await getWithRetry(searchDiscordUrl, {
-        headers: { Authorization: auth },
-        timeout: DRIP_TIMEOUT_MS,
-      });
-
-      let found = search?.data?.data?.[0];
-      if (!found?.id && searchUsernameUrl) {
-        search = await getWithRetry(searchUsernameUrl, {
-          headers: { Authorization: auth },
-          timeout: DRIP_TIMEOUT_MS,
-        });
-        found = search?.data?.data?.[0];
-      }
-      return found || null;
-    };
-
-    let lastSearchErr = null;
-    for (const baseUrl of memberBaseUrls) {
-      try {
-        member = await trySearch(baseUrl);
-        baseUsed = baseUrl;
-        break;
-      } catch (err) {
-        lastSearchErr = err;
-        if (err?.response?.status !== 404) throw err;
+      if (!recipientMember?.id) {
+        const overrideTypes = [
+          configuredType,
+          ...["drip-id", "id", "member-id", "user-id", "discord-id", "username"].filter(
+            (t) => t !== configuredType
+          ),
+        ];
+        for (const type of overrideTypes) {
+          recipientMember = await searchMemberByType(type, overrideValue);
+          if (recipientMember?.id) break;
+        }
       }
     }
-    if (!member && lastSearchErr) {
-      throw lastSearchErr;
+
+    if (!recipientMember?.id) {
+      recipientMember = await searchMemberByType("discord-id", credentialValue);
     }
-    if (!member?.id) {
+    if (!recipientMember?.id && username) {
+      recipientMember = await searchMemberByType("username", username);
+    }
+
+    if (!recipientMember?.id) {
       console.warn(
         `[GAUNTLET:DRIP] No DRIP member found for Discord ID ${userId}.`
       );
-      if (logClient) {
-        await logCharmReward(logClient, {
-          userId,
-          amount,
-          score: 0,
-          source,
-          channelId,
-          reason: `${logReason || source} payout failed (member not found)`,
-        });
-      }
-      return { ok: false, skipped: true, reason: "member_not_found" };
+      return maybeLogAndReturnSkipped(
+        manualOverride?.drip_user_id ? "manual_override_failed" : "member_not_found"
+      );
+    }
+
+    {
+      const okByTransfer = await transferPointsFromMember(
+        recipientMember.id,
+        manualOverride?.drip_user_id
+          ? `manual-override recipient:${recipientMember.id}`
+          : `search-result recipient:${recipientMember.id}`
+      );
+      if (okByTransfer) return { ok: true, amount, mode: "transfer" };
+    }
+
+    if (!DRIP_ALLOW_PROJECT_PAYOUT_FALLBACK) {
+      console.warn(
+        `[GAUNTLET:DRIP] Transfer payout failed for recipient ${recipientMember.id}; project fallback disabled.`
+      );
+      return maybeLogAndReturnSkipped("transfer_failed");
     }
 
     {
       const okByMemberId = await tryMemberBalancePatchByDripId(
-        member.id,
-        `search-result drip-id:${member.id}`
+        recipientMember.id,
+        `project-fallback drip-id:${recipientMember.id}`
       );
-      if (okByMemberId) return { ok: true, amount };
+      if (okByMemberId) return { ok: true, amount, mode: "project-fallback" };
     }
 
-    const fallbackCandidates = [];
-    const seen = new Set();
-    const pushCandidate = (type, value) => {
-      const t = String(type || "").trim();
-      const v = String(value || "").trim();
-      if (!t || !v) return;
-      const key = `${t}:${v}`;
-      if (seen.has(key)) return;
-      seen.add(key);
-      fallbackCandidates.push({ type: t, value: v });
-    };
-
-    pushCandidate("discord-id", credentialValue);
-    pushCandidate("drip-id", member?.id);
-    pushCandidate("username", member?.username || username);
-    pushCandidate("id", member?.id);
-    pushCandidate("member-id", member?.id);
-    pushCandidate("user-id", member?.id);
-
-    for (const c of fallbackCandidates) {
+    {
       const ok = await tryCredentialBalancePatch(
-        c.type,
-        c.value,
-        `fallback ${c.type}:${c.value}`
+        "discord-id",
+        credentialValue,
+        "project-fallback discord-id"
       );
-      if (ok) return { ok: true, amount };
+      if (ok) return { ok: true, amount, mode: "project-fallback" };
     }
 
     console.warn(
-      `[GAUNTLET:DRIP] DRIP member found (${member.id}) but no supported credential accepted for payout.`
+      `[GAUNTLET:DRIP] Recipient ${recipientMember.id} resolved but payout could not complete.`
     );
-    if (logClient) {
-      await logCharmReward(logClient, {
-        userId,
-        amount,
-        score: 0,
-        source,
-        channelId,
-        reason: `${logReason || source} payout failed (no usable credential)`,
-      });
-    }
-    return { ok: false, skipped: true, reason: "no_usable_credential" };
+    return maybeLogAndReturnSkipped("transfer_failed");
   } catch (err) {
     const status = err?.response?.status;
     const data = err?.response?.data;
@@ -638,7 +668,6 @@ module.exports = {
   DRIP_LOG_CHANNEL_ID,
   logCharmReward,
 };
-
 
 
 
