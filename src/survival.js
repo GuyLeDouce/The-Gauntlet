@@ -374,6 +374,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
         },
       ])
   );
+  const creatorRewardTotals = new Map();
 
   const uniquePlayers = Array.from(new Set(playerIds));
   const gameId = await survivalStore.createGame(new Date());
@@ -425,12 +426,22 @@ async function runSurvival(channel, playerIds, settings = {}) {
       [alive[0]],
       normalizedSettings
     );
-    await sendSurvivalPayouts(
+    const awardedPayouts = await sendSurvivalPayouts(
       channel,
       payouts,
       [alive[0]],
       uniquePlayers.length,
       normalizedSettings
+    );
+    const awardedCreatorPayouts = await sendSurvivalCreatorPayouts(
+      channel,
+      creatorRewardTotals
+    );
+    await sendSurvivalRewardsSummary(
+      channel,
+      [alive[0]],
+      awardedPayouts,
+      awardedCreatorPayouts
     );
     await channel.send({
       embeds: [
@@ -552,35 +563,18 @@ async function runSurvival(channel, playerIds, settings = {}) {
         await survivalStore.addImageUse(gameId, artReward.userId, imageUrl);
       }
       try {
-        const reward = await rewardCharmAmount({
-          userId: artReward.userId,
-          username: `Artist-${artReward.userId}`,
-          amount: artReward.amount,
-          source: "survival-art",
-          guildId: channel.guildId,
-          channelId: channel.id,
-          metadata: { imageUrl },
-          logClient: channel.client,
-          logReason: artReward.reason,
-        });
-        if (reward?.ok) {
-          try {
-            await channel.send(
-              `-# 🎨 Art drop! Thanks to <@${artReward.userId}> — your Squig Survival art just got used and earned you **+${artReward.amount} $CHARM**.\n-# Want in? Post your image in <#1334884237727240267> and staff can add it so you earn $CHARM whenever it appears.`
-            );
-          } catch {}
-          await logCharmReward(channel.client, {
-            userId: artReward.userId,
-            amount: artReward.amount,
-            score: 0,
-            source: "survival-art",
-            channelId: channel.id,
-            reason: artReward.reason,
-          });
-        }
+        creatorRewardTotals.set(
+          artReward.userId,
+          (creatorRewardTotals.get(artReward.userId) || 0) + artReward.amount
+        );
+        try {
+          await channel.send(
+            `-# 🎨 Art drop! Thanks to <@${artReward.userId}> — your Squig Survival art was used and **+${artReward.amount} $CHARM** was added to your end-of-game creator total.\n-# Want in? Post your image in <#1334884237727240267> and staff can add it so you earn $CHARM whenever it appears.`
+          );
+        } catch {}
       } catch (err) {
         console.error(
-          "[GAUNTLET:DRIP] Survival art reward failed:",
+          "[GAUNTLET:DRIP] Survival art tally failed:",
           err?.message || err
         );
       }
@@ -692,12 +686,22 @@ async function runSurvival(channel, playerIds, settings = {}) {
     placements,
     normalizedSettings
   );
-  await sendSurvivalPayouts(
+  const awardedPayouts = await sendSurvivalPayouts(
     channel,
     payouts,
     placements,
     uniquePlayers.length,
     normalizedSettings
+  );
+  const awardedCreatorPayouts = await sendSurvivalCreatorPayouts(
+    channel,
+    creatorRewardTotals
+  );
+  await sendSurvivalRewardsSummary(
+    channel,
+    placements,
+    awardedPayouts,
+    awardedCreatorPayouts
   );
 }
 
@@ -775,8 +779,9 @@ async function sendSurvivalPayouts(
 ) {
   try {
     const entries = Object.entries(payouts || {});
-    if (!entries.length) return;
+    if (!entries.length) return {};
     const poolInfo = resolveSurvivalPrizePool(totalPlayers, settings);
+    const awardedPayouts = {};
 
     await Promise.all(
       entries.map(async ([userId, amount]) => {
@@ -800,6 +805,7 @@ async function sendSurvivalPayouts(
           logReason: `Squig Survival ${rankLabel}`,
         });
         if (reward?.ok) {
+          awardedPayouts[userId] = amount;
           await logCharmReward(channel.client, {
             userId,
             amount,
@@ -811,8 +817,104 @@ async function sendSurvivalPayouts(
         }
       })
     );
+    return awardedPayouts;
   } catch (err) {
     console.error("[GAUNTLET:DRIP] Survival payouts failed:", err?.message || err);
+    return {};
+  }
+}
+
+async function sendSurvivalRewardsSummary(
+  channel,
+  placements,
+  awardedPayouts = {},
+  creatorRewardTotals = {}
+) {
+  try {
+    const labels = ["1st Place", "2nd Place", "3rd Place"];
+    const uniquePlacements = [];
+    for (const id of placements || []) {
+      if (!id || uniquePlacements.includes(id)) continue;
+      uniquePlacements.push(id);
+      if (uniquePlacements.length >= 3) break;
+    }
+
+    const topLines = uniquePlacements
+      .map((userId, index) => {
+        const amount = Number(awardedPayouts?.[userId] || 0);
+        if (amount <= 0) return null;
+        return `${labels[index]} - <@${userId}> - ${amount} $CHARM`;
+      })
+      .filter(Boolean);
+
+    const creatorLines = Object.entries(creatorRewardTotals)
+      .filter(([, amount]) => Number(amount) > 0)
+      .sort((a, b) => b[1] - a[1])
+      .map(([userId, amount]) => `<@${userId}> - ${amount} $CHARM earned this game`);
+
+    if (!topLines.length && !creatorLines.length) return;
+
+    const lines = [];
+    if (topLines.length) {
+      lines.push("**Top Survivors:**");
+      lines.push(...topLines);
+    }
+    if (creatorLines.length) {
+      if (lines.length) lines.push("");
+      lines.push("**Content Creators:**");
+      lines.push(...creatorLines);
+    }
+
+    await channel.send({ content: lines.join("\n") });
+  } catch (err) {
+    console.error(
+      "[GAUNTLET:DRIP] Failed to send survival rewards summary:",
+      err?.message || err
+    );
+  }
+}
+
+async function sendSurvivalCreatorPayouts(channel, creatorRewardTotals = new Map()) {
+  try {
+    const entries = Array.from(creatorRewardTotals.entries()).filter(
+      ([, amount]) => Number(amount) > 0
+    );
+    if (!entries.length) return {};
+
+    const awardedCreatorPayouts = {};
+    await Promise.all(
+      entries.map(async ([userId, amount]) => {
+        const reward = await rewardCharmAmount({
+          userId,
+          username: `Artist-${userId}`,
+          amount,
+          source: "survival-art",
+          guildId: channel.guildId,
+          channelId: channel.id,
+          metadata: { mode: "survival-art-total" },
+          logClient: channel.client,
+          logReason: "Squig Survival art creator total",
+        });
+        if (reward?.ok) {
+          awardedCreatorPayouts[userId] = amount;
+          await logCharmReward(channel.client, {
+            userId,
+            amount,
+            score: 0,
+            source: "survival-art",
+            channelId: channel.id,
+            reason: "Squig Survival art creator total",
+          });
+        }
+      })
+    );
+    return awardedCreatorPayouts;
+  } catch (err) {
+    console.error(
+      "[GAUNTLET:DRIP] Survival creator payouts failed:",
+      err?.message || err
+    );
+    return {};
   }
 }
 

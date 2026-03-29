@@ -339,6 +339,7 @@ function normalizeSurvivalSettings(raw = {}) {
     Number.isFinite(rawBonusMultiplier) && rawBonusMultiplier >= 1
       ? Number(rawBonusMultiplier.toFixed(2))
       : 1.5;
+  const bonusPrize = String(raw?.bonus_prize || "").trim().slice(0, 300);
 
   return {
     type,
@@ -352,6 +353,7 @@ function normalizeSurvivalSettings(raw = {}) {
     bonus_active: Boolean(raw?.bonus_active),
     bonus_required_players: bonusRequiredPlayers,
     bonus_multiplier: bonusMultiplier,
+    bonus_prize: bonusPrize || null,
     replay: Boolean(raw?.replay),
     pool_increment:
       Math.max(1, Number(raw?.pool_increment || SURVIVAL_BASE_POOL_INCREMENT) || 1) ||
@@ -361,6 +363,10 @@ function normalizeSurvivalSettings(raw = {}) {
 
 function cloneSurvivalSettings(settings) {
   return normalizeSurvivalSettings(settings);
+}
+
+function formatSurvivalBonusPrize(settings) {
+  return settings?.bonus_prize || "None";
 }
 
 async function getSurvivalStandardSettings(forceRefresh = false) {
@@ -399,6 +405,9 @@ function buildSurvivalMenuEmbed(standardSettings, note = null) {
       settings.bonus_active
         ? `${formatSurvivalMultiplier(settings.bonus_multiplier)} at ${settings.bonus_required_players}+ players`
         : "Off"
+    }**`,
+    `Standard Bonus Prize: **${
+      settings.bonus_active ? formatSurvivalBonusPrize(settings) : "N/A"
     }**`,
     `Standard Replay: **${settings.replay ? "Yes" : "No"}**`,
   ];
@@ -448,6 +457,7 @@ function buildSurvivalSettingsEmbed(mode, settings, note = null, options = {}) {
     `Bonus Multiplier: **${
       cfg.bonus_active ? formatSurvivalMultiplier(cfg.bonus_multiplier) : "N/A"
     }**`,
+    `Bonus Prize: **${cfg.bonus_active ? formatSurvivalBonusPrize(cfg) : "N/A"}**`,
     `Replay: **${cfg.replay ? "Y" : "N"}**`,
   ];
 
@@ -585,6 +595,9 @@ function buildSurvivalLobbyAnnouncement(settings, isReplay = false) {
         cfg.bonus_multiplier
       )}** total prize pool.`
     );
+    if (cfg.bonus_prize) {
+      parts.push(`Bonus prize: **${formatSurvivalBonusPrize(cfg)}**.`);
+    }
   }
 
   return parts.join(" ");
@@ -616,6 +629,14 @@ function buildSurvivalLobbyEmbed(settings, count, countdownMs) {
       `Prize Pool: **+${cfg.pool_increment} $CHARM per Squig**`,
       `Creator Chaos: **${cfg.creator_chaos ? "ON" : "OFF"}**`,
       `Era: **${cfg.era}**`,
+      ...(cfg.bonus_active
+        ? [
+            `Bonus: **${formatSurvivalMultiplier(
+              cfg.bonus_multiplier
+            )}** at **${cfg.bonus_required_players}+** players`,
+            `Bonus Prize: **${formatSurvivalBonusPrize(cfg)}**`,
+          ]
+        : []),
       "",
       `Players joined: **${count}**`,
       "",
@@ -639,6 +660,14 @@ function buildSurvivalLobbyEmbed(settings, count, countdownMs) {
       `Prize Pool: **+${cfg.pool_increment} $CHARM per Squig**`,
       `Creator Chaos: **${cfg.creator_chaos ? "ON" : "OFF"}**`,
       `Era: **${cfg.era}**`,
+      ...(cfg.bonus_active
+        ? [
+            `Bonus: **${formatSurvivalMultiplier(
+              cfg.bonus_multiplier
+            )}** at **${cfg.bonus_required_players}+** players`,
+            `Bonus Prize: **${formatSurvivalBonusPrize(cfg)}**`,
+          ]
+        : []),
       "",
       `Players joined: **${count}**`,
       "",
@@ -667,6 +696,7 @@ function buildSurvivalLobbyEmbed(settings, count, countdownMs) {
           `Bonus: **${formatSurvivalMultiplier(
             cfg.bonus_multiplier
           )}** total prize pool at **${cfg.bonus_required_players}+** players`,
+          `Bonus Prize: **${formatSurvivalBonusPrize(cfg)}**`,
         ]
       : []),
     ...(typeof countdownMs === "number"
@@ -2516,6 +2546,13 @@ async function registerCommands() {
       )
       .addStringOption((o) =>
         o
+          .setName("bonus_prize")
+          .setDescription("Optional NFT prize name or link unlocked with the bonus")
+          .setMaxLength(300)
+          .setRequired(false)
+      )
+      .addStringOption((o) =>
+        o
           .setName("replay")
           .setDescription("Reopen the lobby after the game ends")
           .addChoices(
@@ -2874,6 +2911,7 @@ async function handleInteractionCreate(interaction) {
         const bonus = interaction.options.getString("bonus");
         const bonusReqd = interaction.options.getInteger("bonus_reqd");
         const bonusMultiplier = interaction.options.getNumber("bonus_multiplier");
+        const bonusPrize = interaction.options.getString("bonus_prize");
         const replay = interaction.options.getString("replay");
 
         if (type) {
@@ -2923,6 +2961,10 @@ async function handleInteractionCreate(interaction) {
           settings.bonus_multiplier = bonusMultiplier;
         }
 
+        if (bonusPrize !== null) {
+          settings.bonus_prize = bonusPrize;
+        }
+
         if (replay !== null) {
           settings.replay = replay === "yes";
         }
@@ -2953,6 +2995,7 @@ async function handleInteractionCreate(interaction) {
             `Bonus: **${cfg.bonus_active ? "Active" : "Not Active"}**\n` +
             `Bonus Req'd: **${cfg.bonus_required_players}**\n` +
             `Bonus Multiplier: **${formatSurvivalMultiplier(cfg.bonus_multiplier)}**\n` +
+            `Bonus Prize: **${cfg.bonus_active ? formatSurvivalBonusPrize(cfg) : "N/A"}**\n` +
             `Replay: **${cfg.replay ? "Yes" : "No"}**`,
           flags: 64,
         });
