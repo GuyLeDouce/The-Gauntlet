@@ -87,6 +87,16 @@ function getCredentialsBaseUrls() {
   return Array.from(new Set(realms === realm ? [realms] : [realms, realm]));
 }
 
+function uniqueNonEmpty(values) {
+  return Array.from(
+    new Set(
+      (values || [])
+        .map((value) => String(value || "").trim())
+        .filter(Boolean)
+    )
+  );
+}
+
 function getCharmRewardAmount(score) {
   if (score > 20) return 500;
   if (score > 10) return 100;
@@ -500,6 +510,8 @@ async function rewardCharmAmount({
             found: found
               ? {
                   id: found.id || null,
+                  realmMemberId: found.realmMemberId || null,
+                  dynamicId: found.dynamicId || null,
                   username: found.username || null,
                   discordId: found.discordId || null,
                 }
@@ -525,15 +537,15 @@ async function rewardCharmAmount({
       return null;
     };
 
-    const transferPointsFromMember = async (recipientDripId, label) => {
-      const cleanRecipientId = String(recipientDripId || "").trim();
-      if (!dripSenderId || !cleanRecipientId) return false;
+    const transferPointsFromMember = async (recipientMember, label) => {
+      const recipientIdCandidates = uniqueNonEmpty([
+        recipientMember?.realmMemberId,
+        recipientMember?.id,
+        recipientMember?.dynamicId,
+        recipientMember,
+      ]);
+      if (!dripSenderId || !recipientIdCandidates.length) return false;
 
-      const transferPayload = {
-        tokens: amount,
-        recipientId: cleanRecipientId,
-        ...(DRIP_REALM_POINT_ID ? { realmPointId: DRIP_REALM_POINT_ID } : {}),
-      };
       const patchOpts = {
         headers: {
           Authorization: auth,
@@ -542,45 +554,80 @@ async function rewardCharmAmount({
         timeout: DRIP_TIMEOUT_MS,
       };
 
+      let senderMember = null;
+      try {
+        senderMember = await searchMemberByType("drip-id", dripSenderId);
+      } catch (err) {
+        logDripFailure(
+          "members/transfer:sender-resolve",
+          { senderId: dripSenderId },
+          err
+        );
+      }
+
+      const senderIdCandidates = uniqueNonEmpty([
+        senderMember?.realmMemberId,
+        senderMember?.id,
+        senderMember?.dynamicId,
+        dripSenderId,
+      ]);
+      const payloadBases = DRIP_REALM_POINT_ID
+        ? [{ tokens: amount, realmPointId: DRIP_REALM_POINT_ID }, { tokens: amount }]
+        : [{ tokens: amount }];
+
       for (const baseUrl of memberBaseUrls) {
-        baseUsed = baseUrl;
-        const transferUrl = `${baseUrl}/members/${encodeURIComponent(
-          dripSenderId
-        )}/transfer`;
-        try {
-          logDripAttempt("members/transfer:request", {
-            senderId: dripSenderId,
-            recipientId: cleanRecipientId,
-            amount,
-            source: source || null,
-            label: label || cleanRecipientId,
-            url: transferUrl,
-            payload: transferPayload,
-          });
-          await axios.patch(transferUrl, transferPayload, patchOpts);
-          console.log(
-            `[GAUNTLET:DRIP] Transferred ${amount} $CHARM from ${dripSenderId} to ${cleanRecipientId} for Discord ${userId} (${source}) via members/{senderId}/transfer (${label || cleanRecipientId}).`
-          );
-          return true;
-        } catch (err) {
-          const status = err?.response?.status;
-          logDripFailure(
-            "members/transfer",
-            {
-              senderId: dripSenderId,
-              recipientId: cleanRecipientId,
-              amount,
-              source: source || null,
-              label: label || cleanRecipientId,
-              url: transferUrl,
-              payload: transferPayload,
-            },
-            err
-          );
-          if (status === 404 || status === 400) {
-            continue;
+        for (const senderIdCandidate of senderIdCandidates) {
+          baseUsed = baseUrl;
+          const transferUrl = `${baseUrl}/members/${encodeURIComponent(
+            senderIdCandidate
+          )}/transfer`;
+          for (const recipientIdCandidate of recipientIdCandidates) {
+            for (const payloadBase of payloadBases) {
+              const transferPayload = {
+                ...payloadBase,
+                recipientId: recipientIdCandidate,
+              };
+              try {
+                logDripAttempt("members/transfer:request", {
+                  senderId: senderIdCandidate,
+                  senderCandidates: senderIdCandidates,
+                  recipientId: recipientIdCandidate,
+                  recipientCandidates: recipientIdCandidates,
+                  amount,
+                  source: source || null,
+                  label: label || recipientIdCandidate,
+                  url: transferUrl,
+                  payload: transferPayload,
+                });
+                await axios.patch(transferUrl, transferPayload, patchOpts);
+                console.log(
+                  `[GAUNTLET:DRIP] Transferred ${amount} $CHARM from ${senderIdCandidate} to ${recipientIdCandidate} for Discord ${userId} (${source}) via members/{senderId}/transfer (${label || recipientIdCandidate}).`
+                );
+                return true;
+              } catch (err) {
+                const status = err?.response?.status;
+                logDripFailure(
+                  "members/transfer",
+                  {
+                    senderId: senderIdCandidate,
+                    senderCandidates: senderIdCandidates,
+                    recipientId: recipientIdCandidate,
+                    recipientCandidates: recipientIdCandidates,
+                    amount,
+                    source: source || null,
+                    label: label || recipientIdCandidate,
+                    url: transferUrl,
+                    payload: transferPayload,
+                  },
+                  err
+                );
+                if (status === 404 || status === 400) {
+                  continue;
+                }
+                throw err;
+              }
+            }
           }
-          throw err;
         }
       }
 
@@ -668,6 +715,8 @@ async function rewardCharmAmount({
       recipientMember: recipientMember
         ? {
             id: recipientMember.id || null,
+            realmMemberId: recipientMember.realmMemberId || null,
+            dynamicId: recipientMember.dynamicId || null,
             username: recipientMember.username || null,
           }
         : null,
@@ -684,7 +733,7 @@ async function rewardCharmAmount({
 
     {
       const okByTransfer = await transferPointsFromMember(
-        recipientMember.id,
+        recipientMember,
         manualOverride?.drip_user_id
           ? `manual-override recipient:${recipientMember.id}`
           : `search-result recipient:${recipientMember.id}`
@@ -808,6 +857,5 @@ module.exports = {
   DRIP_LOG_CHANNEL_ID,
   logCharmReward,
 };
-
 
 
