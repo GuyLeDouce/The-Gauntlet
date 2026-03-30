@@ -544,8 +544,6 @@ async function rewardCharmAmount({
     const transferPointsFromMember = async (recipientMember, label) => {
       const recipientIdCandidates = uniqueNonEmpty([
         recipientMember?.id,
-        recipientMember?.realmMemberId,
-        recipientMember?.dynamicId,
       ]);
       if (!dripSenderId || !recipientIdCandidates.length) return false;
 
@@ -571,14 +569,23 @@ async function rewardCharmAmount({
       const senderIdCandidates = uniqueNonEmpty([
         senderMember?.id,
         dripSenderId,
-        senderMember?.realmMemberId,
-        senderMember?.dynamicId,
       ]);
+      const transferBaseUrls = memberBaseUrls.filter((baseUrl) =>
+        /\/api\/v1\/realms\//i.test(baseUrl)
+      );
+      const activeTransferBaseUrls = transferBaseUrls.length
+        ? transferBaseUrls
+        : memberBaseUrls;
       const payloadBases = DRIP_REALM_POINT_ID
-        ? [{ tokens: amount, realmPointId: DRIP_REALM_POINT_ID }, { tokens: amount }]
-        : [{ tokens: amount }];
+        ? [
+            { amount, currencyId: DRIP_REALM_POINT_ID },
+            { tokens: amount, realmPointId: DRIP_REALM_POINT_ID },
+            { amount },
+            { tokens: amount },
+          ]
+        : [{ amount }, { tokens: amount }];
 
-      for (const baseUrl of memberBaseUrls) {
+      for (const baseUrl of activeTransferBaseUrls) {
         for (const senderIdCandidate of senderIdCandidates) {
           baseUsed = baseUrl;
           const transferUrl = `${baseUrl}/members/${encodeURIComponent(
