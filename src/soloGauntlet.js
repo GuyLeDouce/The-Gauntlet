@@ -2610,7 +2610,7 @@ async function registerCommands() {
           .setName("amount")
           .setDescription("Test payout amount (default: 1)")
           .setMinValue(1)
-          .setMaxValue(1000)
+          .setMaxValue(100000)
           .setRequired(false)
       ),
     new SlashCommandBuilder()
