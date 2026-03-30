@@ -18,6 +18,7 @@ const { getSurvivalEraDefinition } = require("./survivalEras");
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 const REVEAL_DELAY_MS = 2000;
 const MILESTONE_PAUSE_MS = 20000;
+const PAYOUT_DELAY_MS = 5000;
 const SHARED_LOCKED_FIRST_IMAGE = "https://i.imgur.com/jfVffAW.jpeg";
 const SHARED_FALLBACK_STAGE_IMAGES = [
   "https://i.imgur.com/jYNKD3d.jpeg",
@@ -433,7 +434,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
       uniquePlayers.length,
       normalizedSettings
     );
-    const awardedCreatorPayouts = await sendSurvivalCreatorPayouts(
+    await sendSurvivalCreatorPayouts(
       channel,
       creatorRewardTotals
     );
@@ -441,7 +442,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
       channel,
       [alive[0]],
       awardedPayouts,
-      awardedCreatorPayouts
+      creatorRewardTotals
     );
     await channel.send({
       embeds: [
@@ -693,7 +694,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
     uniquePlayers.length,
     normalizedSettings
   );
-  const awardedCreatorPayouts = await sendSurvivalCreatorPayouts(
+  await sendSurvivalCreatorPayouts(
     channel,
     creatorRewardTotals
   );
@@ -701,7 +702,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
     channel,
     placements,
     awardedPayouts,
-    awardedCreatorPayouts
+    creatorRewardTotals
   );
 }
 
@@ -783,40 +784,42 @@ async function sendSurvivalPayouts(
     const poolInfo = resolveSurvivalPrizePool(totalPlayers, settings);
     const awardedPayouts = {};
 
-    await Promise.all(
-      entries.map(async ([userId, amount]) => {
-        if (!amount || amount <= 0) return;
-        const rank = placements ? placements.indexOf(userId) + 1 : 0;
-        const rankLabel =
-          rank === 1 ? "1st place" : rank === 2 ? "2nd place" : rank === 3 ? "3rd place" : "placement";
-        const reward = await rewardCharmAmount({
+    for (let index = 0; index < entries.length; index += 1) {
+      const [userId, amount] = entries[index];
+      if (!amount || amount <= 0) continue;
+      const rank = placements ? placements.indexOf(userId) + 1 : 0;
+      const rankLabel =
+        rank === 1 ? "1st place" : rank === 2 ? "2nd place" : rank === 3 ? "3rd place" : "placement";
+      const reward = await rewardCharmAmount({
+        userId,
+        username: `Player-${userId}`,
+        amount,
+        source: "survival",
+        guildId: channel.guildId,
+        channelId: channel.id,
+        metadata: {
+          mode: "survival",
+          placement: rank || undefined,
+          totalPlayers,
+        },
+        logClient: channel.client,
+        logReason: `Squig Survival ${rankLabel}`,
+      });
+      if (reward?.ok) {
+        awardedPayouts[userId] = amount;
+        await logCharmReward(channel.client, {
           userId,
-          username: `Player-${userId}`,
           amount,
+          score: 0,
           source: "survival",
-          guildId: channel.guildId,
           channelId: channel.id,
-          metadata: {
-            mode: "survival",
-            placement: rank || undefined,
-            totalPlayers,
-          },
-          logClient: channel.client,
-          logReason: `Squig Survival ${rankLabel}`,
+          reason: `Squig Survival ${rankLabel} (pool ${poolInfo.finalPrizePool})`,
         });
-        if (reward?.ok) {
-          awardedPayouts[userId] = amount;
-          await logCharmReward(channel.client, {
-            userId,
-            amount,
-            score: 0,
-            source: "survival",
-            channelId: channel.id,
-            reason: `Squig Survival ${rankLabel} (pool ${poolInfo.finalPrizePool})`,
-          });
-        }
-      })
-    );
+      }
+      if (index < entries.length - 1) {
+        await sleep(PAYOUT_DELAY_MS);
+      }
+    }
     return awardedPayouts;
   } catch (err) {
     console.error("[GAUNTLET:DRIP] Survival payouts failed:", err?.message || err);
@@ -847,7 +850,12 @@ async function sendSurvivalRewardsSummary(
       })
       .filter(Boolean);
 
-    const creatorLines = Object.entries(creatorRewardTotals)
+    const creatorEntries =
+      creatorRewardTotals instanceof Map
+        ? Array.from(creatorRewardTotals.entries())
+        : Object.entries(creatorRewardTotals || {});
+
+    const creatorLines = creatorEntries
       .filter(([, amount]) => Number(amount) > 0)
       .sort((a, b) => b[1] - a[1])
       .map(([userId, amount]) => `<@${userId}> - ${amount} $CHARM earned this game`);
@@ -882,32 +890,34 @@ async function sendSurvivalCreatorPayouts(channel, creatorRewardTotals = new Map
     if (!entries.length) return {};
 
     const awardedCreatorPayouts = {};
-    await Promise.all(
-      entries.map(async ([userId, amount]) => {
-        const reward = await rewardCharmAmount({
+    for (let index = 0; index < entries.length; index += 1) {
+      const [userId, amount] = entries[index];
+      const reward = await rewardCharmAmount({
+        userId,
+        username: `Artist-${userId}`,
+        amount,
+        source: "survival-art",
+        guildId: channel.guildId,
+        channelId: channel.id,
+        metadata: { mode: "survival-art-total" },
+        logClient: channel.client,
+        logReason: "Squig Survival art creator total",
+      });
+      if (reward?.ok) {
+        awardedCreatorPayouts[userId] = amount;
+        await logCharmReward(channel.client, {
           userId,
-          username: `Artist-${userId}`,
           amount,
+          score: 0,
           source: "survival-art",
-          guildId: channel.guildId,
           channelId: channel.id,
-          metadata: { mode: "survival-art-total" },
-          logClient: channel.client,
-          logReason: "Squig Survival art creator total",
+          reason: "Squig Survival art creator total",
         });
-        if (reward?.ok) {
-          awardedCreatorPayouts[userId] = amount;
-          await logCharmReward(channel.client, {
-            userId,
-            amount,
-            score: 0,
-            source: "survival-art",
-            channelId: channel.id,
-            reason: "Squig Survival art creator total",
-          });
-        }
-      })
-    );
+      }
+      if (index < entries.length - 1) {
+        await sleep(PAYOUT_DELAY_MS);
+      }
+    }
     return awardedCreatorPayouts;
   } catch (err) {
     console.error(

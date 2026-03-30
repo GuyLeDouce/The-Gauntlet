@@ -113,6 +113,7 @@ function buildAuthHeader(apiKey) {
 
 const DRIP_TIMEOUT_MS = Number(process.env.DRIP_TIMEOUT_MS) || 30_000;
 const DRIP_RETRY_COUNT = Number(process.env.DRIP_RETRY_COUNT) || 2;
+const senderMemberSearchCache = new Map();
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -164,6 +165,30 @@ async function getWithRetry(url, opts) {
     }
   }
   throw lastErr;
+}
+
+function clearSenderMemberCache(dripSenderId) {
+  const key = String(dripSenderId || "").trim();
+  if (!key) return;
+  senderMemberSearchCache.delete(key);
+}
+
+async function getSenderMemberCached(dripSenderId, loader) {
+  const key = String(dripSenderId || "").trim();
+  if (!key) return null;
+  if (senderMemberSearchCache.has(key)) {
+    return senderMemberSearchCache.get(key);
+  }
+  const pendingLookup = (async () => {
+    try {
+      return await loader();
+    } catch (err) {
+      clearSenderMemberCache(key);
+      throw err;
+    }
+  })();
+  senderMemberSearchCache.set(key, pendingLookup);
+  return pendingLookup;
 }
 
 async function rewardCharmAmount({
@@ -557,7 +582,9 @@ async function rewardCharmAmount({
 
       let senderMember = null;
       try {
-        senderMember = await searchMemberByType("drip-id", dripSenderId);
+        senderMember = await getSenderMemberCached(dripSenderId, () =>
+          searchMemberByType("drip-id", dripSenderId)
+        );
       } catch (err) {
         logDripFailure(
           "members/transfer:sender-resolve",
@@ -632,6 +659,9 @@ async function rewardCharmAmount({
                   err
                 );
                 if (status === 404 || status === 400) {
+                  if (status === 404 && senderIdCandidate === dripSenderId) {
+                    clearSenderMemberCache(dripSenderId);
+                  }
                   continue;
                 }
                 throw err;
