@@ -191,6 +191,20 @@ function parseSurvivalImageEraInput(raw) {
   };
 }
 
+function parseLeaderboardMonthInput(raw, fallbackMonth) {
+  if (typeof raw !== "string" || !raw.trim()) {
+    return { ok: true, month: fallbackMonth };
+  }
+  const month = raw.trim();
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+    return {
+      ok: false,
+      reason: "Month must use `YYYY-MM` format (example: 2026-04).",
+    };
+  }
+  return { ok: true, month };
+}
+
 function formatSurvivalMultiplier(value) {
   const n = Number(value || 1);
   if (!Number.isFinite(n)) return "1x";
@@ -2650,7 +2664,19 @@ async function registerCommands() {
       ),
     new SlashCommandBuilder()
       .setName("survivorboard")
-      .setDescription("Top Squig Survival winners for the current month."),
+      .setDescription("Top Squig Survival winners for a selected month.")
+      .addStringOption((o) =>
+        o
+          .setName("month")
+          .setDescription("Month to view in YYYY-MM format (default: current month)")
+          .setRequired(false)
+      )
+      .addRoleOption((o) =>
+        o
+          .setName("role")
+          .setDescription("Optional role filter for the leaderboard")
+          .setRequired(false)
+      ),
     new SlashCommandBuilder()
       .setName("lives")
       .setDescription("Your Squig Survival stats (all-time).")
@@ -3239,7 +3265,50 @@ async function handleInteractionCreate(interaction) {
       // /survivorboard
       if (interaction.commandName === "survivorboard") {
         await interaction.deferReply();
-        const rows = await survivalStore.getMonthlyWinnersTop10();
+        const fallbackMonth = currentMonthStr();
+        const parsedMonth = parseLeaderboardMonthInput(
+          interaction.options.getString("month"),
+          fallbackMonth
+        );
+        if (!parsedMonth.ok) {
+          return interaction.editReply({ content: `❌ ${parsedMonth.reason}` });
+        }
+
+        const selectedMonth = parsedMonth.month;
+        const selectedRole = interaction.options.getRole("role");
+        const candidateLimit = selectedRole ? 250 : 10;
+        let rows = await survivalStore.getMonthlyWinnersTop10(selectedMonth, candidateLimit);
+
+        if (selectedRole) {
+          if (!interaction.inGuild() || !interaction.guild) {
+            return interaction.editReply({
+              content: "❌ Role filtering only works in a server channel.",
+            });
+          }
+
+          const candidateIds = rows.map((r) => r.user_id);
+          const membersById = new Map();
+
+          if (candidateIds.length) {
+            try {
+              const batch = await interaction.guild.members.fetch({ user: candidateIds });
+              for (const [id, member] of batch) membersById.set(id, member);
+            } catch {}
+
+            for (const id of candidateIds) {
+              if (membersById.has(id)) continue;
+              try {
+                const member = await interaction.guild.members.fetch(id);
+                if (member) membersById.set(id, member);
+              } catch {}
+            }
+          }
+
+          rows = rows
+            .filter((r) => membersById.get(r.user_id)?.roles?.cache?.has(selectedRole.id))
+            .slice(0, 10);
+        }
+
         const lines = rows.length
           ? rows
               .map((r, i) => {
@@ -3247,10 +3316,16 @@ async function handleInteractionCreate(interaction) {
                 return `${medal} <@${r.user_id}> — **${r.firsts}** wins (2nd: ${r.seconds}, 3rd: ${r.thirds}, games: ${r.games})`;
               })
               .join("\n")
-          : "No Squig Survival wins yet this month.";
+          : selectedRole
+          ? `No qualifying Squig Survival wins for ${selectedMonth} with role ${selectedRole}.`
+          : `No Squig Survival wins yet for ${selectedMonth}.`;
 
         const embed = new EmbedBuilder()
-          .setTitle("🏆 Squig Survival — Monthly Winners")
+          .setTitle(
+            selectedRole
+              ? `🏆 Squig Survival — ${selectedMonth} Winners (${selectedRole.name})`
+              : `🏆 Squig Survival — ${selectedMonth} Winners`
+          )
           .setDescription(lines)
           .setColor(0xf1c40f);
 

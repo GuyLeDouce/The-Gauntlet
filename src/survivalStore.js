@@ -195,10 +195,25 @@ class SurvivalStore {
     return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
   }
 
-  async getMonthlyWinnersTop10() {
+  _parseMonthStart(monthKey) {
+    if (typeof monthKey !== "string") return null;
+    const match = monthKey.trim().match(/^(\d{4})-(0[1-9]|1[0-2])$/);
+    if (!match) return null;
+    const year = Number(match[1]);
+    const monthIndex = Number(match[2]) - 1;
+    if (!Number.isInteger(year) || !Number.isInteger(monthIndex)) return null;
+    return new Date(Date.UTC(year, monthIndex, 1));
+  }
+
+  async getMonthlyWinnersTop10(monthKey = null, limit = 10) {
     if (!(await this._ensureReady())) return [];
-    const start = this._rangeStart("month");
-    const end = this._rangeEnd("month");
+    let start = this._rangeStart("month");
+    if (monthKey) {
+      const parsed = this._parseMonthStart(monthKey);
+      if (parsed) start = parsed;
+    }
+    const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
+    const safeLimit = Math.min(1000, Math.max(1, Number(limit) || 10));
     const r = await this.pool.query(
       `
       SELECT
@@ -212,9 +227,9 @@ class SurvivalStore {
       WHERE g.started_at >= $1 AND g.started_at < $2
       GROUP BY gp.user_id
       ORDER BY firsts DESC, seconds DESC, thirds DESC, games DESC, gp.user_id ASC
-      LIMIT 10
+      LIMIT $3
       `,
-      [start, end]
+      [start, end, safeLimit]
     );
     return r.rows || [];
   }
