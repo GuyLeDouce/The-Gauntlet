@@ -1148,11 +1148,137 @@ const SURVIVAL_ERAS = {
   },
 };
 
+const SURVIVAL_REVIVE_FAIL_LORE = {
+  day_one: [
+    "🪦 {player} tried to respawn by yelling 'undo' at a vending machine. The machine accepted the drama and rejected the request.",
+    "🧦 {player} wrapped themselves in mismatched socks and called it a healing cocoon. Earth disagreed immediately.",
+    "📱 {player} searched 'how to come back from the dead fast' and only found a skincare routine.",
+    "🛒 {player} attempted a revival lap in a grocery cart, then rolled directly into more embarrassment.",
+    "🍕 {player} offered the portal a slice of pineapple pizza and got ghosted by the universe itself.",
+    "🧴 {player} applied sunscreen to a resurrection crystal and somehow made it less alive.",
+    "🧊 {player} lay dramatically on a bag of ice waiting for destiny. Destiny walked past without making eye contact.",
+    "🚦 {player} mistook a crossing signal for a cosmic blessing and posed under it for nothing.",
+    "📦 {player} climbed into a cardboard box labeled 'fragile soul' and still failed quality control.",
+    "🎧 {player} queued inspirational lo-fi for their comeback and only achieved a sad little vibe.",
+    "🚌 {player} boarded the wrong bus hoping it led back to life. It led to public shame instead.",
+    "🪙 {player} tossed a coin into a fountain and wished for revival. The fountain requested better material.",
+    "🧼 {player} scrubbed themselves with soap like a reset button and remained extremely deceased.",
+    "🐸 {player} asked a frog for necromancy tips and got silently judged into the dirt.",
+    "🕶️ {player} put on sunglasses and announced a dramatic return. Even the portal refused the bit."
+  ],
+  office_squigs: [
+    "📎 {player} filed a revival request with zero approvals and three passive-aggressive comments.",
+    "☕ {player} drank break room coffee hoping to restart their soul. HR logged it as an incident instead.",
+    "🖨️ {player} tried printing a new body, but the printer jammed out of self-respect.",
+    "📅 {player} scheduled their comeback for 3:00 PM and still got declined by Outlook.",
+    "🪑 {player} spun in an office chair for momentum and only generated dizziness and concern.",
+    "📊 {player} built a pie chart proving they should be alive. Leadership called it non-actionable.",
+    "💼 {player} showed up with a briefcase full of confidence and no actual pulse.",
+    "📠 {player} faxed the afterlife a rebuttal. The machine ate it and improved nothing.",
+    "🧾 {player} submitted revival as an expense and got reimbursed in humiliation.",
+    "⌨️ {player} mashed the keyboard like resurrection was a hotkey. IT has blocked worse ideas.",
+    "🔔 {player} treated a Teams ping like a divine summons and still stayed dead on company time.",
+    "📂 {player} hid in the archives hoping to be reclassified as active. Compliance said absolutely not.",
+    "🪴 {player} stood beside the office plant trying to photosynthesize a comeback. The plant looked embarrassed.",
+    "📉 {player} pitched a revival initiative and somehow made morale fall even lower.",
+    "🎧 {player} put on productivity music and attempted a strategic return to life. The spreadsheet refused to collaborate."
+  ],
+  jobsite_squigs: [
+    "🦺 {player} slapped on a hi-vis vest and assumed OSHA would handle the resurrection paperwork.",
+    "🔨 {player} tapped their own tombstone twice and called it a renovation plan.",
+    "🪜 {player} climbed a ladder looking for a higher state of being and found only worse balance.",
+    "🚧 {player} ducked under caution tape and learned it does not lead to miracles.",
+    "🧱 {player} tried to brick-by-brick rebuild themselves and ran out of both bricks and dignity.",
+    "⚙️ {player} asked a power tool to jump-start their comeback. The power tool declined for legal reasons.",
+    "🪚 {player} yelled 'send it' at the void and immediately looked less hireable.",
+    "🚜 {player} attempted a dramatic return on heavy machinery and got outperformed by the backup alarm.",
+    "🛠️ {player} opened a toolbox hoping for resurrection equipment and found zip ties and disappointment.",
+    "🪛 {player} tightened one random bolt and declared the soul structurally sound. Inspection failed.",
+    "🏗️ {player} posed under the scaffolding like a foreman of destiny and still couldn't pass rebirth code.",
+    "🧤 {player} put on work gloves as if professionalism alone could reverse mortality.",
+    "📐 {player} measured out the perfect comeback angle and somehow made it more crooked.",
+    "🪨 {player} sat on a pile of gravel waiting to be reborn rugged. It just got itchy.",
+    "🚚 {player} yelled at a dump truck to back them into the living world. The truck kept reversing into their pride."
+  ],
+  movie_theater: [
+    "🍿 {player} tried to respawn by dramatically emerging from a popcorn tub and only got extra butter on the shame.",
+    "🎟️ {player} waved a crumpled ticket stub and claimed it was a second chance pass. Security remained unconvinced.",
+    "🥤 {player} attempted a comeback through the cup refill line and got denied by fountain logic.",
+    "🎬 {player} whispered 'director's cut' at their own fate and received zero bonus scenes.",
+    "🪑 {player} climbed back into the same seat like the theater wouldn't notice the haunting attempt.",
+    "🔦 {player} followed an usher flashlight thinking it was destiny. It was just more ejection energy.",
+    "📽️ {player} stood near the projector hoping for a reboot and only achieved silhouette-based embarrassment.",
+    "🍫 {player} bribed the afterlife with melted chocolate and still got the thumbs-down from row G.",
+    "🚪 {player} tried sneaking through the side exit like a prestige plot twist. The theater called it sad.",
+    "🎧 {player} put one ear to the trailer audio waiting for a cue to return. The cue never came.",
+    "😬 {player} fake-coughed through a resurrection attempt and got outacted by the previews.",
+    "🧃 {player} spilled a drink for dramatic effect and still failed to generate a comeback montage.",
+    "📱 {player} lit up the aisle with their phone and somehow made death look even tackier.",
+    "🍕 {player} offered staff cold pizza in exchange for re-entry. The staff chose dignity.",
+    "🎭 {player} committed so hard to the bit that even the seats recoiled from the performance."
+  ],
+  airport: [
+    "🛫 {player} tried to revive by standing near the gate with fake confidence and no valid miracle.",
+    "🎫 {player} flashed an expired boarding pass at fate and got sorted into a higher class of embarrassment.",
+    "🧳 {player} climbed into a carry-on hoping to be rerouted back to life. Baggage policy rejected the claim.",
+    "☕ {player} bought another airport coffee and briefly mistook panic for resurrection.",
+    "🔌 {player} plugged into the only outlet like a charging cable could restore a soul. It could not.",
+    "🚨 {player} called secondary screening a rebirth ritual and made the whole terminal uncomfortable.",
+    "🥨 {player} ate an overpriced pretzel as if salt alone could revive them. The pretzel remained the stronger entity.",
+    "🪪 {player} checked every pocket for a return to life and found only lint and worsening optics.",
+    "📱 {player} refreshed the airline app for a new status and got 'still dead, now delayed.'",
+    "🚶 {player} power-walked the moving walkway like momentum might count as reincarnation.",
+    "🛬 {player} pointed at an arriving plane and announced 'that's probably for me.' It absolutely was not.",
+    "🧥 {player} put on a neck pillow like ceremonial armor and still couldn't clear spiritual boarding.",
+    "🌧️ {player} blamed weather systems for the failed comeback and, for once, had almost no proof.",
+    "🗺️ {player} studied the terminal map trying to locate Gate Rebirth. It was between nowhere and delusion.",
+    "😴 {player} attempted a revival nap across three seats and only woke up looking more publicly defeated."
+  ],
+};
+
+const SURVIVAL_ALIVE_TAUNTS = [
+  "🫵 {player} is still alive somehow, which feels less like skill and more like a clerical error.",
+  "📣 {player} yelled 'main character energy' and the universe regrettably let it slide.",
+  "🧠 {player} remains in the game despite making choices that should be studied by professionals.",
+  "🪞 {player} caught their reflection mid-survival and looked surprised it was still happening.",
+  "🎯 {player} is still standing, mostly because disaster keeps missing out of sheer disbelief.",
+  "🛟 {player} calls this strategy. Observers are calling it unverified luck.",
+  "📦 {player} is one bad decision away from becoming lore, and everyone can feel it.",
+  "🧃 {player} survived this long with the posture of someone losing an argument to a folding chair.",
+  "🫠 {player} keeps acting confident for someone one sneeze away from a public obituary.",
+  "🧍 {player} is alive, but only in the technical sense currently recognized by the portal.",
+  "🎪 {player} somehow turned survival into a slapstick side quest.",
+  "📉 {player}'s judgment remains low while their luck remains irresponsibly high.",
+  "🧤 {player} is still here, proving that consequences are running late again.",
+  "🚪 {player} keeps walking past obvious danger like it owes them rent.",
+  "🪤 {player} has survived long enough to become a problem for basic narrative structure.",
+  "🎟️ {player} is still in the game on what appears to be a counterfeit ticket.",
+  "🔦 {player} keeps stumbling through chaos with the confidence of someone who cannot read warnings.",
+  "🧽 {player} has been spared again, and frankly the timeline looks weaker for it.",
+  "📎 {player} is hanging on by one metaphorical paper clip and several poor assumptions.",
+  "🛒 {player} keeps rolling forward like a shopping cart with one screaming wheel.",
+  "🧨 {player} has mistaken not dying yet for being good at this.",
+  "🧵 {player} is still stitched into the match by loose thread and louder delusion.",
+  "📡 {player} continues broadcasting survival without ever earning a stable signal.",
+  "🥴 {player} is alive enough to be mocked, which is honestly the worst tier of survival.",
+  "🪦 {player} keeps dodging death like it is waiting for a funnier moment."
+];
+
 function getSurvivalEraDefinition(eraKey) {
   return SURVIVAL_ERAS[eraKey] || SURVIVAL_ERAS.day_one;
+}
+
+function getSurvivalReviveFailLore(eraKey) {
+  return SURVIVAL_REVIVE_FAIL_LORE[eraKey] || SURVIVAL_REVIVE_FAIL_LORE.day_one;
+}
+
+function getSurvivalAliveTauntLore() {
+  return SURVIVAL_ALIVE_TAUNTS;
 }
 
 module.exports = {
   SURVIVAL_ERAS,
   getSurvivalEraDefinition,
+  getSurvivalReviveFailLore,
+  getSurvivalAliveTauntLore,
 };

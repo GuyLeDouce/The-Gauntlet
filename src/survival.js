@@ -13,7 +13,11 @@ const { createCanvas, loadImage } = require("@napi-rs/canvas");
 const { rewardCharmAmount, logCharmReward } = require("./drip");
 const { imageStore } = require("./imageStore");
 const { survivalStore } = require("./survivalStore");
-const { getSurvivalEraDefinition } = require("./survivalEras");
+const {
+  getSurvivalEraDefinition,
+  getSurvivalReviveFailLore,
+  getSurvivalAliveTauntLore,
+} = require("./survivalEras");
 
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 const REVEAL_DELAY_MS = 2000;
@@ -49,6 +53,7 @@ const randInt = (min, max) => cryptoRandomInt(min, max + 1);
 const chance = (probability) =>
   cryptoRandomInt(1_000_000) < Math.floor(probability * 1_000_000);
 const survivalRunStatuses = new Map();
+const activeSurvivalRuns = new Map();
 
 function upsertSurvivalRunStatus(runKey, joinedIds, aliveIds, ended = false) {
   if (!runKey) return;
@@ -81,6 +86,82 @@ function getSurvivalRunLifeStatus(runKey, userId) {
     alive: status.alive.has(userId),
     ended: Boolean(status.ended),
   };
+}
+
+function registerActiveSurvivalRun(run) {
+  if (!run?.runKey || !run?.channelId) return;
+  activeSurvivalRuns.set(run.channelId, run);
+}
+
+function clearActiveSurvivalRun(channelId) {
+  if (!channelId) return;
+  activeSurvivalRuns.delete(channelId);
+}
+
+function formatReviveLore(template, mention) {
+  return String(template || "").replace(/{victim}/g, mention);
+}
+
+function formatPlayerLore(template, mention) {
+  return String(template || "").replace(/{player}/g, mention);
+}
+
+async function handlePublicReviveCommand(message) {
+  const channelId = message?.channelId || message?.channel?.id;
+  if (!channelId) return false;
+
+  const run = activeSurvivalRuns.get(channelId);
+  if (!run || run.ended) return false;
+
+  const userId = message.author.id;
+  const mention = `<@${userId}>`;
+
+  if (!run.joined.has(userId)) {
+    await message.channel.send(
+      `${mention} you were not in this Squig Survival game. Mid-game entry costs **100 BTC** 😂`
+    );
+    return true;
+  }
+
+  if (run.aliveSet.has(userId)) {
+    const taunts = getSurvivalAliveTauntLore();
+    const line = formatPlayerLore(pick(taunts), mention);
+    await message.channel.send(line);
+    return true;
+  }
+
+  const revived = chance(0.08);
+  if (revived) {
+    for (let i = run.eliminatedIds.length - 1; i >= 0; i -= 1) {
+      if (run.eliminatedIds[i] === userId) {
+        run.eliminatedIds.splice(i, 1);
+      }
+    }
+    for (let i = run.aliveIds.length - 1; i >= 0; i -= 1) {
+      if (run.aliveIds[i] === userId) {
+        run.aliveIds.splice(i, 1);
+      }
+    }
+    run.aliveIds.push(userId);
+    run.aliveSet = new Set(run.aliveIds);
+    upsertSurvivalRunStatus(run.runKey, run.joinedIds, run.aliveIds, false);
+
+    const eraDefinition = getSurvivalEraDefinition(run.eraKey);
+    const defaultEraDefinition = getSurvivalEraDefinition("day_one");
+    const resurrections = eraDefinition.stories?.resurrections?.length
+      ? eraDefinition.stories.resurrections
+      : defaultEraDefinition.stories?.resurrections || [];
+    const text = formatReviveLore(
+      pick(resurrections.length ? resurrections : ["{victim} stumbles back into existence."]),
+      mention
+    );
+    await message.channel.send(`🌟 **RESURRECTION!** ${text}`);
+    return true;
+  }
+
+  const failLore = getSurvivalReviveFailLore(run.eraKey);
+  await message.channel.send(formatPlayerLore(pick(failLore), mention));
+  return true;
 }
 
 function shuffle(arr) {
@@ -397,6 +478,18 @@ async function runSurvival(channel, playerIds, settings = {}) {
   let alive = [...uniquePlayers];
   const eliminated = [];
   upsertSurvivalRunStatus(runKey, uniquePlayers, alive);
+  registerActiveSurvivalRun({
+    runKey,
+    channelId: channel.id,
+    gameId,
+    eraKey: normalizedSettings.era_key,
+    joinedIds: uniquePlayers,
+    joined: new Set(uniquePlayers),
+    aliveIds: alive,
+    aliveSet: new Set(alive),
+    eliminatedIds: eliminated,
+    ended: false,
+  });
   let imageBag = shuffle(mergedStageImages);
 
   const eraStories = eraDefinition.stories || {};
@@ -444,6 +537,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
       awardedPayouts,
       creatorRewardTotals
     );
+    clearActiveSurvivalRun(channel.id);
     await channel.send({
       embeds: [
         new EmbedBuilder()
@@ -470,6 +564,10 @@ async function runSurvival(channel, playerIds, settings = {}) {
       const victimIndex = cryptoRandomInt(alive.length);
       const victimId = alive.splice(victimIndex, 1)[0];
       eliminated.push(victimId);
+      const activeRun = activeSurvivalRuns.get(channel.id);
+      if (activeRun) {
+        activeRun.aliveSet = new Set(alive);
+      }
       if (gameId) {
         await survivalStore.addDeath(gameId, victimId, 1);
       }
@@ -509,6 +607,10 @@ async function runSurvival(channel, playerIds, settings = {}) {
       const revivedIndex = cryptoRandomInt(eliminated.length);
       const revivedId = eliminated.splice(revivedIndex, 1)[0];
       alive.push(revivedId);
+      const activeRun = activeSurvivalRuns.get(channel.id);
+      if (activeRun) {
+        activeRun.aliveSet = new Set(alive);
+      }
 
       const resurrectionTemplate = pick(resurrections);
       // Revived Squig should appear normally (no strikethrough)
@@ -620,6 +722,10 @@ async function runSurvival(channel, playerIds, settings = {}) {
       }
     }
     upsertSurvivalRunStatus(runKey, uniquePlayers, alive);
+    const activeRun = activeSurvivalRuns.get(channel.id);
+    if (activeRun) {
+      activeRun.aliveSet = new Set(alive);
+    }
     try {
       await msg.edit({ embeds: [embed], components: [statusRow] });
     } catch {}
@@ -632,6 +738,11 @@ async function runSurvival(channel, playerIds, settings = {}) {
   // Winner + standings
   const winnerId = alive[0];
   upsertSurvivalRunStatus(runKey, uniquePlayers, alive, true);
+  const activeRun = activeSurvivalRuns.get(channel.id);
+  if (activeRun) {
+    activeRun.ended = true;
+    activeRun.aliveSet = new Set(alive);
+  }
   const placements = [winnerId, ...eliminated.reverse()];
   if (gameId) {
     const uniquePlacements = [];
@@ -704,6 +815,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
     awardedPayouts,
     creatorRewardTotals
   );
+  clearActiveSurvivalRun(channel.id);
 }
 
 function resolveSurvivalPrizePool(totalPlayers, settings = {}) {
@@ -933,4 +1045,5 @@ module.exports = {
   calculateSurvivalPayouts,
   buildPodiumImage,
   getSurvivalRunLifeStatus,
+  handlePublicReviveCommand,
 };

@@ -18,6 +18,7 @@ const { initSurvivalStore } = require("./src/survivalStore");
 const {
   registerCommands,
   handleInteractionCreate,
+  handleMessageCreate,
   initSurvivalLobby,
 } = require("./src/soloGauntlet");
 
@@ -69,6 +70,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await handleInteractionCreate(interaction);
   } catch (err) {
     console.error("interaction error (root):", err);
+  }
+});
+
+client.on(Events.MessageCreate, async (message) => {
+  try {
+    await handleMessageCreate(message);
+  } catch (err) {
+    console.error("messageCreate error (root):", err);
   }
 });
 

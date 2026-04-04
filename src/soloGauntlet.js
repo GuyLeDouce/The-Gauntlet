@@ -48,6 +48,7 @@ const {
   runSurvival,
   buildPodiumImage,
   getSurvivalRunLifeStatus,
+  handlePublicReviveCommand,
 } = require("./survival");
 const { SURVIVAL_ERAS, getSurvivalEraDefinition } = require("./survivalEras");
 const { rewardCharmAmount, logCharmReward, DRIP_LOG_CHANNEL_ID } = require("./drip");
@@ -4010,11 +4011,23 @@ async function handleInteractionCreate(interaction) {
   }
 }
 
+async function handleMessageCreate(message) {
+  try {
+    if (!message || message.author?.bot) return;
+    const content = String(message.content || "").trim().toLowerCase();
+    if (content !== "!revive") return;
+    await handlePublicReviveCommand(message);
+  } catch (err) {
+    console.error("messageCreate error:", err);
+  }
+}
+
 // --------------------------------------------
 // EXPORTS
 // --------------------------------------------
 module.exports = {
   registerCommands,
   handleInteractionCreate,
+  handleMessageCreate,
   initSurvivalLobby,
 };
