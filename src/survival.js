@@ -609,11 +609,14 @@ async function runSurvival(channel, playerIds, settings = {}) {
     const killsThisRound = creatorChaosActive
       ? 1
       : Math.max(1, Math.floor(alive.length / 3));
+    const eliminationOrder = shuffle(alive);
 
     // --- ELIMINATIONS ---
     for (let i = 0; i < killsThisRound && alive.length > 1; i++) {
-      const victimIndex = cryptoRandomInt(alive.length);
-      const victimId = alive.splice(victimIndex, 1)[0];
+      const victimId = eliminationOrder[i];
+      const victimIndex = alive.indexOf(victimId);
+      if (victimIndex === -1) continue;
+      alive.splice(victimIndex, 1);
       eliminated.push(victimId);
       const activeRun = activeSurvivalRuns.get(channel.id);
       if (activeRun) {
