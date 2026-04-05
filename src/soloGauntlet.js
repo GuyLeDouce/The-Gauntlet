@@ -2807,7 +2807,7 @@ function startPanelRow() {
 }
 
 const SQUIG_SHARE_TWEET_TEXT = [
-  "Squig Survival is live in the @SquigsNFT Discord :eyes:",
+  "Squig Survival is live in the @SquigsNFT Discord",
   "",
   "The more players that join... the bigger the prizes get.",
   "Pull up, survive the chaos, and see what you can win",
