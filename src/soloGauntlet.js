@@ -2839,6 +2839,7 @@ function buildSquigShareEmbed() {
         "**This helps grow the game for YOU.**",
       ].join("\n")
     )
+    .setImage("https://i.imgur.com/puZCGxP.gif")
     .setColor(0x9b59b6);
 }
 
