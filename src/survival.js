@@ -128,6 +128,13 @@ async function handlePublicReviveCommand(message) {
   const userId = message.author.id;
   const mention = `<@${userId}>`;
 
+  if (!run.revivesEnabled) {
+    await message.channel.send(
+      `${mention} tried to file a resurrection request, but revives are turned **off** for this game. The afterlife put your ticket straight into the shredder. You are still dead.`
+    );
+    return true;
+  }
+
   if ((run.aliveIds?.length || 0) <= 3) {
     await message.channel.send(
       `${mention} revive is locked once Squig Survival is down to the final **3**. The grave stays closed. You are still dead.`
@@ -436,6 +443,10 @@ async function runSurvival(channel, playerIds, settings = {}) {
     pool_increment: Number(settings?.pool_increment || 50) || 50,
     creator_chaos: Boolean(settings?.creator_chaos),
     bonus_active: Boolean(settings?.bonus_active),
+    revives_enabled:
+      settings?.revives_enabled === null || settings?.revives_enabled === undefined
+        ? true
+        : Boolean(settings?.revives_enabled),
     bonus_required_players: Math.max(
       1,
       Number(settings?.bonus_required_players || 0) || 1
@@ -515,6 +526,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
     channelId: channel.id,
     gameId,
     eraKey: normalizedSettings.era_key,
+    revivesEnabled: normalizedSettings.revives_enabled,
     joinedIds: uniquePlayers,
     joined: new Set(uniquePlayers),
     aliveIds: alive,

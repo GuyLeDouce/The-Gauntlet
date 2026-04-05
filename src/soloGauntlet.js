@@ -365,6 +365,10 @@ function normalizeSurvivalSettings(raw = {}) {
       hasPingRoleIds ? raw?.ping_role_ids ?? raw?.ping_roles : DEFAULT_SURVIVAL_ROLE_ID
     ),
     creator_chaos: Boolean(raw?.creator_chaos),
+    revives_enabled:
+      raw?.revives_enabled === null || raw?.revives_enabled === undefined
+        ? true
+        : Boolean(raw?.revives_enabled),
     bonus_active: Boolean(raw?.bonus_active),
     bonus_required_players: bonusRequiredPlayers,
     bonus_multiplier: bonusMultiplier,
@@ -416,6 +420,7 @@ function buildSurvivalMenuEmbed(standardSettings, note = null) {
     `Standard Era: **${settings.era}**`,
     `Standard Ping Roles: **${formatSurvivalPingRoles(settings.ping_role_ids)}**`,
     `Standard Creator Chaos: **${settings.creator_chaos ? "On" : "Off"}**`,
+    `Standard Revives: **${settings.revives_enabled ? "On" : "Off"}**`,
     `Standard Bonus: **${
       settings.bonus_active
         ? `${formatSurvivalMultiplier(settings.bonus_multiplier)} at ${settings.bonus_required_players}+ players`
@@ -467,6 +472,7 @@ function buildSurvivalSettingsEmbed(mode, settings, note = null, options = {}) {
     `Ping Roles: **${formatSurvivalPingRoles(cfg.ping_role_ids)}**`,
     `Time: **${cfg.type === "timed" ? `${cfg.time_minutes} minute(s)` : "N/A (Team Start)" }**`,
     `Creator Chaos: **${cfg.creator_chaos ? "Y" : "N"}**`,
+    `Revives: **${cfg.revives_enabled ? "Y" : "N"}**`,
     `Bonus Active: **${cfg.bonus_active ? "Y" : "N"}**`,
     `Bonus Rq'd: **${cfg.bonus_active ? cfg.bonus_required_players : "N/A"}**`,
     `Bonus Multiplier: **${
@@ -525,6 +531,10 @@ function buildSurvivalSettingsComponents(mode, settings, options = {}) {
         .setCustomId("survive:config:creator-chaos")
         .setLabel("Creator Chaos")
         .setStyle(cfg.creator_chaos ? ButtonStyle.Success : ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId("survive:config:revives")
+        .setLabel("Revives")
+        .setStyle(cfg.revives_enabled ? ButtonStyle.Success : ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId("survive:config:bonus-active")
         .setLabel("Bonus Active")
@@ -2533,6 +2543,16 @@ async function registerCommands() {
       )
       .addStringOption((o) =>
         o
+          .setName("revives")
+          .setDescription("Whether !revive is enabled for this game")
+          .addChoices(
+            { name: "On", value: "on" },
+            { name: "Off", value: "off" }
+          )
+          .setRequired(false)
+      )
+      .addStringOption((o) =>
+        o
           .setName("bonus")
           .setDescription("Whether the bonus prize pool is active")
           .addChoices(
@@ -2984,6 +3004,7 @@ async function handleInteractionCreate(interaction) {
         const pool = interaction.options.getInteger("pool");
         const time = interaction.options.getInteger("time");
         const creatorChaos = interaction.options.getString("creator_chaos");
+        const revives = interaction.options.getString("revives");
         const bonus = interaction.options.getString("bonus");
         const bonusReqd = interaction.options.getInteger("bonus_reqd");
         const bonusMultiplier = interaction.options.getNumber("bonus_multiplier");
@@ -3023,6 +3044,10 @@ async function handleInteractionCreate(interaction) {
 
         if (creatorChaos !== null) {
           settings.creator_chaos = creatorChaos === "on";
+        }
+
+        if (revives !== null) {
+          settings.revives_enabled = revives === "on";
         }
 
         if (bonus !== null) {
@@ -3068,6 +3093,7 @@ async function handleInteractionCreate(interaction) {
             `Ping: **${formatSurvivalPingRoles(cfg.ping_role_ids)}**\n` +
             `Time: **${cfg.type === "timed" ? `${cfg.time_minutes} minute(s)` : "N/A (Staff)"}**\n` +
             `Creator Chaos: **${cfg.creator_chaos ? "On" : "Off"}**\n` +
+            `Revives: **${cfg.revives_enabled ? "On" : "Off"}**\n` +
             `Bonus: **${cfg.bonus_active ? "Active" : "Not Active"}**\n` +
             `Bonus Req'd: **${cfg.bonus_required_players}**\n` +
             `Bonus Multiplier: **${formatSurvivalMultiplier(cfg.bonus_multiplier)}**\n` +
@@ -3796,6 +3822,10 @@ async function handleInteractionCreate(interaction) {
 
       if (interaction.customId === "survive:config:creator-chaos") {
         session.settings.creator_chaos = !session.settings.creator_chaos;
+      }
+
+      if (interaction.customId === "survive:config:revives") {
+        session.settings.revives_enabled = !session.settings.revives_enabled;
       }
 
       if (interaction.customId === "survive:config:bonus-active") {
