@@ -2687,6 +2687,9 @@ async function registerCommands() {
           .setDescription("Check another Squig's stats")
           .setRequired(false)
       ),
+    new SlashCommandBuilder()
+      .setName("squigshare")
+      .setDescription("Post the Squig Survival share embed (admins only)."),
   ];
 
   // Include the group command definition from groupGauntlet.js
@@ -2800,6 +2803,51 @@ function startPanelRow() {
       .setCustomId("gauntlet:info")
       .setLabel("Info")
       .setStyle(ButtonStyle.Primary)
+  );
+}
+
+const SQUIG_SHARE_TWEET_TEXT = [
+  "Squig Survival is live in the @SquigsNFT Discord :eyes:",
+  "",
+  "The more players that join... the bigger the prizes get.",
+  "Pull up, survive the chaos, and see what you can win",
+  "",
+  "Join us: https://discord.gg/QSCZZu6epS",
+  "",
+  "#SquigsAreWatching",
+].join("\n");
+
+function buildSquigShareIntentUrl() {
+  return `https://twitter.com/intent/tweet?text=${encodeURIComponent(
+    SQUIG_SHARE_TWEET_TEXT
+  )}`;
+}
+
+function buildSquigShareEmbed() {
+  return new EmbedBuilder()
+    .setTitle("🚨 HELP GROW SQUIG SURVIVAL 🚨")
+    .setDescription(
+      [
+        "**More players = bigger prizes.**",
+        "Simple as that.",
+        "",
+        "If you've been enjoying the game, help us spread it and bring more people in 🛸",
+        "",
+        "**Click the button below to copy/pasta a tweet and share it.**",
+        "",
+        "More players. More chaos. More rewards.",
+        "**This helps grow the game for YOU.**",
+      ].join("\n")
+    )
+    .setColor(0x9b59b6);
+}
+
+function buildSquigShareRow() {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setLabel("Copy/Pasta")
+      .setStyle(ButtonStyle.Link)
+      .setURL(buildSquigShareIntentUrl())
   );
 }
 
@@ -3024,6 +3072,26 @@ async function handleInteractionCreate(interaction) {
             `Bonus Multiplier: **${formatSurvivalMultiplier(cfg.bonus_multiplier)}**\n` +
             `Bonus Prize: **${cfg.bonus_active ? formatSurvivalBonusPrize(cfg) : "N/A"}**\n` +
             `Replay: **${cfg.replay ? "Yes" : "No"}**`,
+          flags: 64,
+        });
+      }
+
+      if (interaction.commandName === "squigshare") {
+        if (!isAdminUserLocal(interaction)) {
+          return interaction.reply({
+            content: "⛔ Only admins can use /squigshare.",
+            flags: 64,
+          });
+        }
+
+        await interaction.channel.send({
+          embeds: [buildSquigShareEmbed()],
+          components: [buildSquigShareRow()],
+        });
+
+        return interaction.reply({
+          content:
+            "Squig Survival share panel posted. The button opens a prefilled Twitter/X post; Discord cannot copy directly to a user's clipboard.",
           flags: 64,
         });
       }
