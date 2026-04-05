@@ -127,6 +127,14 @@ async function handlePublicReviveCommand(message) {
 
   const userId = message.author.id;
   const mention = `<@${userId}>`;
+
+  if ((run.aliveIds?.length || 0) <= 3) {
+    await message.channel.send(
+      `${mention} revive is locked once Squig Survival is down to the final **3**. The grave stays closed. You are still dead.`
+    );
+    return true;
+  }
+
   const reviveAttempts = getReviveAttemptCount(run, userId);
 
   if (reviveAttempts >= 2) {
