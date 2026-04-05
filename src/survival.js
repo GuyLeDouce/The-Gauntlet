@@ -106,6 +106,18 @@ function formatPlayerLore(template, mention) {
   return String(template || "").replace(/{player}/g, mention);
 }
 
+function getReviveAttemptCount(run, userId) {
+  if (!run?.reviveAttemptsByMilestone || !userId) return 0;
+  return run.reviveAttemptsByMilestone.get(userId) || 0;
+}
+
+function recordReviveAttempt(run, userId) {
+  if (!run?.reviveAttemptsByMilestone || !userId) return 0;
+  const nextCount = getReviveAttemptCount(run, userId) + 1;
+  run.reviveAttemptsByMilestone.set(userId, nextCount);
+  return nextCount;
+}
+
 async function handlePublicReviveCommand(message) {
   const channelId = message?.channelId || message?.channel?.id;
   if (!channelId) return false;
@@ -115,6 +127,16 @@ async function handlePublicReviveCommand(message) {
 
   const userId = message.author.id;
   const mention = `<@${userId}>`;
+  const reviveAttempts = getReviveAttemptCount(run, userId);
+
+  if (reviveAttempts >= 2) {
+    await message.channel.send(
+      `${mention} you've used both revive attempts for milestone **${run.currentMilestone || 1}**. The resurrection department is closed for lunch, emotionally unavailable, and ignoring your paperwork. You are still dead.`
+    );
+    return true;
+  }
+
+  recordReviveAttempt(run, userId);
 
   if (!run.joined.has(userId)) {
     await message.channel.send(
@@ -160,7 +182,9 @@ async function handlePublicReviveCommand(message) {
   }
 
   const failLore = getSurvivalReviveFailLore(run.eraKey);
-  await message.channel.send(formatPlayerLore(pick(failLore), mention));
+  await message.channel.send(
+    `${formatPlayerLore(pick(failLore), mention)}\n💀 ${mention} is still dead.`
+  );
   return true;
 }
 
@@ -488,6 +512,8 @@ async function runSurvival(channel, playerIds, settings = {}) {
     aliveIds: alive,
     aliveSet: new Set(alive),
     eliminatedIds: eliminated,
+    currentMilestone: 1,
+    reviveAttemptsByMilestone: new Map(),
     ended: false,
   });
   let imageBag = shuffle(mergedStageImages);
@@ -554,6 +580,11 @@ async function runSurvival(channel, playerIds, settings = {}) {
   let milestone = 1;
 
   while (alive.length > 1) {
+    const activeRunAtStart = activeSurvivalRuns.get(channel.id);
+    if (activeRunAtStart) {
+      activeRunAtStart.currentMilestone = milestone;
+      activeRunAtStart.reviveAttemptsByMilestone = new Map();
+    }
     const lines = [];
     const killsThisRound = creatorChaosActive
       ? 1

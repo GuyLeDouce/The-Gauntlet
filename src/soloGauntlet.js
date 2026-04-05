@@ -2812,7 +2812,7 @@ const SQUIG_SHARE_TWEET_TEXT = [
   "The more players that join... the bigger the prizes get.",
   "Pull up, survive the chaos, and see what you can win",
   "",
-  "Join us: https://discord.gg/QSCZZu6epS",
+  "Join us: https://squigs.io/discord",
   "",
   "#SquigsAreWatching",
 ].join("\n");
