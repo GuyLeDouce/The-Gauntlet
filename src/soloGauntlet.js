@@ -714,6 +714,27 @@ function buildSurvivalLobbyEmbed(settings, count, countdownMs) {
       .setColor(0x2980b9);
   }
 
+  if (cfg.era_key === "zombie_apocalypse") {
+    const lines = [
+      "The outbreak is spreading and the Squigs are gearing up to survive. Barricades are going up, supplies are getting snatched, and nobody plans to get dragged into the undead crowd without a fight.",
+      "",
+      buildSurvivalSetupParagraph(cfg, countdownMs, {
+        countdownLabel: "Containment begins in",
+        noCountdownLabel: "Containment begins when staff seal the safehouse",
+      }),
+      "",
+      `Right now there ${count === 1 ? "is" : "are"} **${count}** Squig${
+        count === 1 ? "" : "s"
+      } in the safehouse. Click **Join** and gear up before the barricades break and the infection comes through the walls.`,
+    ];
+
+    return new EmbedBuilder()
+      .setTitle("Squig Survival - Infection Detected")
+      .setImage("https://i.imgur.com/ZWUTauD.png")
+      .setDescription(lines.join("\n"))
+      .setColor(0x27ae60);
+  }
+
   const lines = [
     "Squig Survival is open. Step through the portal and see how long your Squig can make it on Earth before the story turns on you.",
     "",
