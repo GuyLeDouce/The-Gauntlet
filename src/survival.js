@@ -609,11 +609,16 @@ async function runSurvival(channel, playerIds, settings = {}) {
     const killsThisRound = creatorChaosActive
       ? 1
       : Math.max(1, Math.floor(alive.length / 3));
-    const eliminationOrder = shuffle(alive);
 
     // --- ELIMINATIONS ---
     for (let i = 0; i < killsThisRound && alive.length > 1; i++) {
-      const victimId = eliminationOrder[i];
+      const shuffledAlive = shuffle([...alive]);
+      const safeCount = cryptoRandomInt(alive.length);
+      const vulnerablePlayers = shuffledAlive.slice(safeCount);
+      const victimPool = vulnerablePlayers.length
+        ? vulnerablePlayers
+        : [shuffledAlive[shuffledAlive.length - 1]];
+      const victimId = victimPool[cryptoRandomInt(victimPool.length)];
       const victimIndex = alive.indexOf(victimId);
       if (victimIndex === -1) continue;
       alive.splice(victimIndex, 1);
@@ -1011,8 +1016,8 @@ async function sendSurvivalRewardsSummary(
     const topLines = uniquePlacements
       .map((userId, index) => {
         const amount = Number(awardedPayouts?.[userId] || 0);
-        if (amount <= 0) return null;
-        return `${labels[index]} - <@${userId}> - ${amount} $CHARM`;
+        const payoutSuffix = amount > 0 ? ` - ${amount} $CHARM` : "";
+        return `${labels[index]} - <@${userId}>${payoutSuffix}`;
       })
       .filter(Boolean);
 

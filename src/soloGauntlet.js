@@ -642,30 +642,48 @@ function formatCountdown(ms) {
   return `${mins}m ${secs}s`;
 }
 
+function buildSurvivalSetupParagraph(cfg, countdownMs, options = {}) {
+  const countdownLabel = options.countdownLabel || "Auto-start";
+  const noCountdownLabel =
+    options.noCountdownLabel || "The game starts when staff open it.";
+  const timingText =
+    cfg.type === "timed"
+      ? ` The timed round lasts **${cfg.time_minutes} minute(s)**.`
+      : "";
+  const bonusText = cfg.bonus_active
+    ? `Bonus mode is active, so hitting **${cfg.bonus_required_players}+** players boosts the total prize pool to **${formatSurvivalMultiplier(
+        cfg.bonus_multiplier
+      )}**`
+    : "Bonus mode is off";
+  const bonusPrizeText =
+    cfg.bonus_active && cfg.bonus_prize
+      ? ` and unlocks bonus prize **${formatSurvivalBonusPrize(cfg)}**`
+      : "";
+  const countdownText =
+    typeof countdownMs === "number"
+      ? `${countdownLabel} is **${formatCountdown(countdownMs)}**`
+      : noCountdownLabel;
+  const creatorChaosText = cfg.creator_chaos
+    ? "Creator Chaos is **ON**, which means there is only **1 elimination per image**"
+    : "Creator Chaos is **OFF**";
+
+  return `${countdownText}. This lobby is set to the **${cfg.era}** era, with **+${cfg.pool_increment} $CHARM per Squig** added to the prize pool.${timingText} ${creatorChaosText}, and **!revive** is **${cfg.revives_enabled ? "ON" : "OFF"}**. ${bonusText}${bonusPrizeText}.`;
+}
+
 function buildSurvivalLobbyEmbed(settings, count, countdownMs) {
   const cfg = normalizeSurvivalSettings(settings);
   if (cfg.era_key === "movie_theater") {
     const lines = [
-      "The Ugly Theater is different, come to the theater and watch a movie, if you can stay till the end without getting kicked out, we pay you!",
+      "The Ugly Theater is open. Grab a seat, keep your head down, and try to survive the screening long enough to get paid.",
       "",
-      typeof countdownMs === "number"
-        ? `Game Starts in **${formatCountdown(countdownMs)}**`
-        : "Game Starts when staff open the screening.",
-      `Prize Pool: **+${cfg.pool_increment} $CHARM per Squig**`,
-      `Creator Chaos: **${cfg.creator_chaos ? "ON" : "OFF"}**`,
-      `Era: **${cfg.era}**`,
-      ...(cfg.bonus_active
-        ? [
-            `Bonus: **${formatSurvivalMultiplier(
-              cfg.bonus_multiplier
-            )}** at **${cfg.bonus_required_players}+** players`,
-            `Bonus Prize: **${formatSurvivalBonusPrize(cfg)}**`,
-          ]
-        : []),
+      buildSurvivalSetupParagraph(cfg, countdownMs, {
+        countdownLabel: "Game start",
+        noCountdownLabel: "The screening starts when staff open the theater",
+      }),
       "",
-      `Players joined: **${count}**`,
-      "",
-      "Click **Join** to take a seat before security starts watching the aisles.",
+      `Right now there ${count === 1 ? "is" : "are"} **${count}** Squig${
+        count === 1 ? "" : "s"
+      } in the audience. Click **Join** before security starts watching the aisles.`,
     ];
 
     return new EmbedBuilder()
@@ -677,26 +695,16 @@ function buildSurvivalLobbyEmbed(settings, count, countdownMs) {
 
   if (cfg.era_key === "airport") {
     const lines = [
-      "The terminal is packed, the board keeps changing, and every Squig is trying to make it home before the airport decides otherwise.",
+      "The terminal is packed, the departure board keeps changing, and every Squig is trying to make it home before the airport decides otherwise.",
       "",
-      typeof countdownMs === "number"
-        ? `Boarding Begins in **${formatCountdown(countdownMs)}**`
-        : "Boarding begins when staff open the gate.",
-      `Prize Pool: **+${cfg.pool_increment} $CHARM per Squig**`,
-      `Creator Chaos: **${cfg.creator_chaos ? "ON" : "OFF"}**`,
-      `Era: **${cfg.era}**`,
-      ...(cfg.bonus_active
-        ? [
-            `Bonus: **${formatSurvivalMultiplier(
-              cfg.bonus_multiplier
-            )}** at **${cfg.bonus_required_players}+** players`,
-            `Bonus Prize: **${formatSurvivalBonusPrize(cfg)}**`,
-          ]
-        : []),
+      buildSurvivalSetupParagraph(cfg, countdownMs, {
+        countdownLabel: "Boarding begins in",
+        noCountdownLabel: "Boarding begins when staff open the gate",
+      }),
       "",
-      `Players joined: **${count}**`,
-      "",
-      "Click **Join** to enter the terminal before the first delay ruins everything.",
+      `Right now there ${count === 1 ? "is" : "are"} **${count}** Squig${
+        count === 1 ? "" : "s"
+      } at the gate. Click **Join** before the first delay ruins everything.`,
     ];
 
     return new EmbedBuilder()
@@ -707,30 +715,16 @@ function buildSurvivalLobbyEmbed(settings, count, countdownMs) {
   }
 
   const lines = [
-    "Click **Join** to enter **Squig Survival**.",
-    "Try out life as a Squig stumbling through Earth.",
+    "Squig Survival is open. Step through the portal and see how long your Squig can make it on Earth before the story turns on you.",
     "",
-    `Prize pool: **+${cfg.pool_increment} $CHARM** per Squig`,
-    `Type: **${SURVIVAL_TYPE_LABELS[cfg.type]}**`,
-    `Era: **${cfg.era}**`,
-    ...(cfg.type === "timed"
-      ? [`Time: **${cfg.time_minutes} minute(s)**`]
-      : []),
-    ...(cfg.bonus_active
-      ? [
-          `Bonus: **${formatSurvivalMultiplier(
-            cfg.bonus_multiplier
-          )}** total prize pool at **${cfg.bonus_required_players}+** players`,
-          `Bonus Prize: **${formatSurvivalBonusPrize(cfg)}**`,
-        ]
-      : []),
-    ...(typeof countdownMs === "number"
-      ? [`Auto-start in: **${formatCountdown(countdownMs)}**`]
-      : []),
+    buildSurvivalSetupParagraph(cfg, countdownMs, {
+      countdownLabel: "Auto-start",
+      noCountdownLabel: "The round starts when staff run **/survivestart**",
+    }),
     "",
-    `Players joined: **${count}**`,
-    "",
-    "When staff run **/survivestart**, the portal snaps shut.",
+    `Right now there ${count === 1 ? "is" : "are"} **${count}** Squig${
+      count === 1 ? "" : "s"
+    } in the lobby. Click **Join** before the portal snaps shut.`,
   ];
 
   return new EmbedBuilder()
