@@ -2928,14 +2928,35 @@ function buildSurvivalShareEmbed(shareData) {
 function buildSurvivalShareActions(sessionId, shareText) {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
+      .setCustomId(`survive:share:post:${sessionId}`)
       .setLabel("Post to X")
-      .setStyle(ButtonStyle.Link)
-      .setURL(buildTweetIntentUrl(shareText)),
+      .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId(`survive:share:copy:${sessionId}`)
       .setLabel("Copy Post to Clipboard")
-      .setStyle(ButtonStyle.Primary)
+      .setStyle(ButtonStyle.Secondary)
   );
+}
+
+function buildSurvivalShareThanksRows(sessionId, shareText) {
+  return [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setLabel("Open X Composer")
+        .setStyle(ButtonStyle.Link)
+        .setURL(buildTweetIntentUrl(shareText))
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`survive:share:back:${sessionId}`)
+        .setLabel("Back")
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId("survive:share:done")
+        .setLabel("Done")
+        .setStyle(ButtonStyle.Secondary)
+    ),
+  ];
 }
 
 function buildSurvivalShareDoneRow() {
@@ -3981,6 +4002,27 @@ async function handleInteractionCreate(interaction) {
 
     if (
       interaction.isButton() &&
+      interaction.customId.startsWith("survive:share:post:")
+    ) {
+      const sessionId = interaction.customId.replace("survive:share:post:", "");
+      const shareData = getSurvivalShareData(sessionId, interaction.user.id);
+
+      if (!shareData) {
+        return interaction.reply({
+          content: "That share panel expired, or you were not part of that Survival run.",
+          flags: 64,
+        });
+      }
+
+      return interaction.update({
+        content: "Your X post is ready. Add an image, send it, then drop the link in Discord.",
+        embeds: [buildSurvivalShareThanksEmbed()],
+        components: buildSurvivalShareThanksRows(sessionId, shareData.result.shareText),
+      });
+    }
+
+    if (
+      interaction.isButton() &&
       interaction.customId.startsWith("survive:share:copy:")
     ) {
       const sessionId = interaction.customId.replace("survive:share:copy:", "");
@@ -3996,7 +4038,28 @@ async function handleInteractionCreate(interaction) {
       return interaction.update({
         content: `Copy-ready post:\n\`\`\`\n${shareData.result.shareText}\n\`\`\``,
         embeds: [buildSurvivalShareThanksEmbed()],
-        components: [buildSurvivalShareDoneRow()],
+        components: buildSurvivalShareThanksRows(sessionId, shareData.result.shareText),
+      });
+    }
+
+    if (
+      interaction.isButton() &&
+      interaction.customId.startsWith("survive:share:back:")
+    ) {
+      const sessionId = interaction.customId.replace("survive:share:back:", "");
+      const shareData = getSurvivalShareData(sessionId, interaction.user.id);
+
+      if (!shareData) {
+        return interaction.reply({
+          content: "That share panel expired, or you were not part of that Survival run.",
+          flags: 64,
+        });
+      }
+
+      return interaction.update({
+        content: null,
+        embeds: [buildSurvivalShareEmbed(shareData)],
+        components: [buildSurvivalShareActions(sessionId, shareData.result.shareText)],
       });
     }
 
