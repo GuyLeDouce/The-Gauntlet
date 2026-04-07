@@ -2914,12 +2914,12 @@ function buildSurvivalShareEmbed(shareData) {
     .setTitle("Share on X")
     .setDescription(
       [
-        "Keep it light. If you want to share your result, your post is ready.",
-        "",
-        summaryBits.join("\n"),
+        "We'll make it as easy as possible, but feel free to edit.",
         "",
         imageLine,
         "Then use one of the buttons below.",
+        "",
+        summaryBits.map((line) => line.replace(/^([A-Za-z ]+):/, "Your $1:")).join("\n"),
       ].join("\n")
     )
     .setColor(0x9b59b6);
