@@ -22,7 +22,6 @@ const {
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 const REVEAL_DELAY_MS = 2000;
 const MILESTONE_PAUSE_MS = 20000;
-const PAYOUT_DELAY_MS = 5000;
 const SHARED_LOCKED_FIRST_IMAGE = "https://i.imgur.com/jfVffAW.jpeg";
 const SHARED_FALLBACK_STAGE_IMAGES = [
   "https://i.imgur.com/jYNKD3d.jpeg",
@@ -54,6 +53,9 @@ const chance = (probability) =>
   cryptoRandomInt(1_000_000) < Math.floor(probability * 1_000_000);
 const survivalRunStatuses = new Map();
 const activeSurvivalRuns = new Map();
+const survivalShareSessions = new Map();
+const MAX_SURVIVAL_SHARE_SESSIONS = 20;
+const SURVIVAL_SHARE_DISCORD_CHANNEL_ID = "1334345680461762671";
 
 function upsertSurvivalRunStatus(runKey, joinedIds, aliveIds, ended = false) {
   if (!runKey) return;
@@ -96,6 +98,130 @@ function registerActiveSurvivalRun(run) {
 function clearActiveSurvivalRun(channelId) {
   if (!channelId) return;
   activeSurvivalRuns.delete(channelId);
+}
+
+function trimSurvivalShareSessions() {
+  if (survivalShareSessions.size <= MAX_SURVIVAL_SHARE_SESSIONS) return;
+  const oldest = [...survivalShareSessions.entries()]
+    .sort((a, b) => a[1].createdAt - b[1].createdAt)
+    .slice(0, survivalShareSessions.size - MAX_SURVIVAL_SHARE_SESSIONS);
+  for (const [key] of oldest) {
+    survivalShareSessions.delete(key);
+  }
+}
+
+function formatPlacementLabel(rank) {
+  const placement = Math.max(1, Number(rank) || 1);
+  if (placement % 100 >= 11 && placement % 100 <= 13) {
+    return `${placement}th`;
+  }
+  if (placement % 10 === 1) return `${placement}st`;
+  if (placement % 10 === 2) return `${placement}nd`;
+  if (placement % 10 === 3) return `${placement}rd`;
+  return `${placement}th`;
+}
+
+function buildSurvivalShareText(result = {}) {
+  const placementLabel = formatPlacementLabel(result.placement);
+  const payout = Math.max(0, Number(result.payout) || 0);
+  const creatorReward = Math.max(0, Number(result.creatorReward) || 0);
+
+  if (payout > 0 && creatorReward > 0) {
+    return [
+      `I just won ${placementLabel} Place in Squig Survival and won ${payout} $CHARM, plus another ${creatorReward} $CHARM for my in-game creations`,
+      "",
+      "Join the fun at https://squigs.io/discord",
+      "@SquigsNFT #SquigsAreWatching",
+    ].join("\n");
+  }
+
+  if (payout > 0) {
+    return [
+      `I just won ${placementLabel} Place in Squig Survival and won ${payout} $CHARM`,
+      "",
+      "Join the fun at https://squigs.io/discord",
+      "@SquigsNFT #SquigsAreWatching",
+    ].join("\n");
+  }
+
+  if (creatorReward > 0) {
+    return [
+      `I just got ${placementLabel} Place in Squig Survival and still earned ${creatorReward} $CHARM for my in-game creations`,
+      "",
+      "Join the fun at https://squigs.io/discord",
+      "@SquigsNFT #SquigsAreWatching",
+    ].join("\n");
+  }
+
+  return [
+    `I just got ${placementLabel} Place in Squig Survival and didn't win anything at all`,
+    "",
+    "Come lose with me in https://squigs.io/discord",
+    "@SquigsNFT #SquigsAreWatching",
+  ].join("\n");
+}
+
+function createSurvivalShareSession({
+  gameId,
+  placements = [],
+  awardedPayouts = {},
+  creatorRewardTotals = {},
+  imageUrls = [],
+} = {}) {
+  const orderedPlayers = Array.from(new Set(placements || [])).filter(Boolean);
+  if (!orderedPlayers.length) return null;
+
+  const creatorEntries =
+    creatorRewardTotals instanceof Map
+      ? Array.from(creatorRewardTotals.entries())
+      : Object.entries(creatorRewardTotals || {});
+
+  const creatorRewardMap = new Map(
+    creatorEntries.map(([userId, amount]) => [String(userId), Math.max(0, Number(amount) || 0)])
+  );
+
+  const results = new Map(
+    orderedPlayers.map((userId, index) => {
+      const result = {
+        userId: String(userId),
+        placement: index + 1,
+        payout: Math.max(0, Number(awardedPayouts?.[userId] || 0)),
+        creatorReward: creatorRewardMap.get(String(userId)) || 0,
+      };
+      return [String(userId), result];
+    })
+  );
+
+  const sessionId = gameId
+    ? `game-${gameId}`
+    : `share-${Date.now()}-${cryptoRandomInt(1_000_000)}`;
+
+  survivalShareSessions.set(sessionId, {
+    sessionId,
+    gameId: gameId || null,
+    createdAt: Date.now(),
+    imageUrls: Array.from(new Set((imageUrls || []).filter(Boolean))).slice(0, 8),
+    results,
+  });
+  trimSurvivalShareSessions();
+  return sessionId;
+}
+
+function getSurvivalShareData(sessionId, userId) {
+  const session = survivalShareSessions.get(sessionId);
+  if (!session || !userId) return null;
+  const result = session.results.get(String(userId));
+  if (!result) return null;
+
+  return {
+    sessionId: session.sessionId,
+    gameId: session.gameId,
+    imageUrls: session.imageUrls,
+    result: {
+      ...result,
+      shareText: buildSurvivalShareText(result),
+    },
+  };
 }
 
 function formatReviveLore(template, mention) {
@@ -500,6 +626,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
       ])
   );
   const creatorRewardTotals = new Map();
+  const usedImageUrls = [];
 
   const uniquePlayers = Array.from(new Set(playerIds));
   const gameId = await survivalStore.createGame(new Date());
@@ -573,6 +700,13 @@ async function runSurvival(channel, playerIds, settings = {}) {
       uniquePlayers.length,
       normalizedSettings
     );
+    const shareSessionId = createSurvivalShareSession({
+      gameId,
+      placements: [alive[0]],
+      awardedPayouts,
+      creatorRewardTotals,
+      imageUrls: usedImageUrls,
+    });
     await sendSurvivalCreatorPayouts(
       channel,
       creatorRewardTotals
@@ -581,7 +715,8 @@ async function runSurvival(channel, playerIds, settings = {}) {
       channel,
       [alive[0]],
       awardedPayouts,
-      creatorRewardTotals
+      creatorRewardTotals,
+      shareSessionId
     );
     clearActiveSurvivalRun(channel.id);
     await channel.send({
@@ -716,7 +851,10 @@ async function runSurvival(channel, playerIds, settings = {}) {
       if (!imageBag.length) imageBag = shuffle(mergedStageImages);
       imageUrl = imageBag.shift() || null;
     }
-    if (imageUrl) embed.setImage(imageUrl);
+    if (imageUrl) {
+      embed.setImage(imageUrl);
+      usedImageUrls.push(imageUrl);
+    }
     const artReward = imageUrl
       ? dbRewardMap.get(imageUrl) || SURVIVAL_ART_REWARDS[imageUrl]
       : null;
@@ -864,6 +1002,13 @@ async function runSurvival(channel, playerIds, settings = {}) {
     uniquePlayers.length,
     normalizedSettings
   );
+  const shareSessionId = createSurvivalShareSession({
+    gameId,
+    placements,
+    awardedPayouts,
+    creatorRewardTotals,
+    imageUrls: usedImageUrls,
+  });
   await sendSurvivalCreatorPayouts(
     channel,
     creatorRewardTotals
@@ -872,7 +1017,8 @@ async function runSurvival(channel, playerIds, settings = {}) {
     channel,
     placements,
     awardedPayouts,
-    creatorRewardTotals
+    creatorRewardTotals,
+    shareSessionId
   );
   clearActiveSurvivalRun(channel.id);
 }
@@ -987,9 +1133,6 @@ async function sendSurvivalPayouts(
           reason: `Squig Survival ${rankLabel} (pool ${poolInfo.finalPrizePool})`,
         });
       }
-      if (index < entries.length - 1) {
-        await sleep(PAYOUT_DELAY_MS);
-      }
     }
     return awardedPayouts;
   } catch (err) {
@@ -1002,7 +1145,8 @@ async function sendSurvivalRewardsSummary(
   channel,
   placements,
   awardedPayouts = {},
-  creatorRewardTotals = {}
+  creatorRewardTotals = {},
+  shareSessionId = null
 ) {
   try {
     const labels = ["1st Place", "2nd Place", "3rd Place"];
@@ -1044,7 +1188,21 @@ async function sendSurvivalRewardsSummary(
       lines.push(...creatorLines);
     }
 
-    await channel.send({ content: lines.join("\n") });
+    const shareRows = shareSessionId
+      ? [
+          new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setCustomId(`survive:share:start:${shareSessionId}`)
+              .setLabel("Share Your Win (or Loss)")
+              .setStyle(ButtonStyle.Secondary)
+          ),
+        ]
+      : [];
+
+    await channel.send({
+      content: lines.join("\n"),
+      components: shareRows,
+    });
   } catch (err) {
     console.error(
       "[GAUNTLET:DRIP] Failed to send survival rewards summary:",
@@ -1085,9 +1243,6 @@ async function sendSurvivalCreatorPayouts(channel, creatorRewardTotals = new Map
           reason: "Squig Survival art creator total",
         });
       }
-      if (index < entries.length - 1) {
-        await sleep(PAYOUT_DELAY_MS);
-      }
     }
     return awardedCreatorPayouts;
   } catch (err) {
@@ -1099,10 +1254,36 @@ async function sendSurvivalCreatorPayouts(channel, creatorRewardTotals = new Map
   }
 }
 
+async function postSurvivalFinalSummaryTest(channel, userId) {
+  if (!channel || !userId) return false;
+
+  const awardedPayouts = { [userId]: 500 };
+  const creatorRewardTotals = new Map([[userId, 125]]);
+  const shareSessionId = createSurvivalShareSession({
+    gameId: null,
+    placements: [userId],
+    awardedPayouts,
+    creatorRewardTotals,
+    imageUrls: [],
+  });
+
+  await sendSurvivalRewardsSummary(
+    channel,
+    [userId],
+    awardedPayouts,
+    creatorRewardTotals,
+    shareSessionId
+  );
+  return true;
+}
+
 module.exports = {
   runSurvival,
   calculateSurvivalPayouts,
   buildPodiumImage,
   getSurvivalRunLifeStatus,
+  getSurvivalShareData,
+  postSurvivalFinalSummaryTest,
+  SURVIVAL_SHARE_DISCORD_CHANNEL_ID,
   handlePublicReviveCommand,
 };

@@ -48,6 +48,9 @@ const {
   runSurvival,
   buildPodiumImage,
   getSurvivalRunLifeStatus,
+  getSurvivalShareData,
+  postSurvivalFinalSummaryTest,
+  SURVIVAL_SHARE_DISCORD_CHANNEL_ID,
   handlePublicReviveCommand,
 } = require("./survival");
 const { SURVIVAL_ERAS, getSurvivalEraDefinition } = require("./survivalEras");
@@ -2725,6 +2728,9 @@ async function registerCommands() {
     new SlashCommandBuilder()
       .setName("squigshare")
       .setDescription("Post the Squig Survival share embed (admins only)."),
+    new SlashCommandBuilder()
+      .setName("finaltest")
+      .setDescription("Post a test Squig Survival final rewards summary (admins only)."),
   ];
 
   // Include the group command definition from groupGauntlet.js
@@ -2852,10 +2858,12 @@ const SQUIG_SHARE_TWEET_TEXT = [
   "#SquigsAreWatching",
 ].join("\n");
 
+function buildTweetIntentUrl(text) {
+  return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+}
+
 function buildSquigShareIntentUrl() {
-  return `https://twitter.com/intent/tweet?text=${encodeURIComponent(
-    SQUIG_SHARE_TWEET_TEXT
-  )}`;
+  return buildTweetIntentUrl(SQUIG_SHARE_TWEET_TEXT);
 }
 
 function buildSquigShareEmbed() {
@@ -2885,6 +2893,67 @@ function buildSquigShareRow() {
       .setStyle(ButtonStyle.Link)
       .setURL(buildSquigShareIntentUrl())
   );
+}
+
+function buildSurvivalShareEmbed(shareData) {
+  const result = shareData?.result || {};
+  const imageLinks = (shareData?.imageUrls || [])
+    .slice(0, 4)
+    .map((url, index) => `[Image ${index + 1}](${url})`);
+  const imageLine = imageLinks.length
+    ? `Pick one of your favorite game images to attach: ${imageLinks.join(" | ")}`
+    : "Pick one of your favorite images from the game above and attach it to the post.";
+
+  const summaryBits = [
+    `Placement: **${result.placement}**`,
+    `Prize: **${Number(result.payout || 0)} $CHARM**`,
+    `Creator Rewards: **${Number(result.creatorReward || 0)} $CHARM**`,
+  ];
+
+  return new EmbedBuilder()
+    .setTitle("Share on X")
+    .setDescription(
+      [
+        "Keep it light. If you want to share your result, your post is ready.",
+        "",
+        summaryBits.join("\n"),
+        "",
+        imageLine,
+        "Then use one of the buttons below.",
+      ].join("\n")
+    )
+    .setColor(0x9b59b6);
+}
+
+function buildSurvivalShareActions(sessionId, shareText) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setLabel("Post to X")
+      .setStyle(ButtonStyle.Link)
+      .setURL(buildTweetIntentUrl(shareText)),
+    new ButtonBuilder()
+      .setCustomId(`survive:share:copy:${sessionId}`)
+      .setLabel("Copy Post to Clipboard")
+      .setStyle(ButtonStyle.Primary)
+  );
+}
+
+function buildSurvivalShareDoneRow() {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("survive:share:done")
+      .setLabel("Done")
+      .setStyle(ButtonStyle.Secondary)
+  );
+}
+
+function buildSurvivalShareThanksEmbed() {
+  return new EmbedBuilder()
+    .setTitle("Thanks for sharing the Ugly!")
+    .setDescription(
+      `Don't forget to drop the link to your post in <#${SURVIVAL_SHARE_DISCORD_CHANNEL_ID}>.`
+    )
+    .setColor(0x2ecc71);
 }
 
 function isAdminUserLocal(interaction) {
@@ -3134,6 +3203,21 @@ async function handleInteractionCreate(interaction) {
         return interaction.reply({
           content:
             "Squig Survival share panel posted. The button opens a prefilled Twitter/X post; Discord cannot copy directly to a user's clipboard.",
+          flags: 64,
+        });
+      }
+
+      if (interaction.commandName === "finaltest") {
+        if (!isAdminUserLocal(interaction)) {
+          return interaction.reply({
+            content: "⛔ Only admins can use /finaltest.",
+            flags: 64,
+          });
+        }
+
+        await postSurvivalFinalSummaryTest(interaction.channel, interaction.user.id);
+        return interaction.reply({
+          content: "Squig Survival final rewards summary test posted.",
           flags: 64,
         });
       }
@@ -3871,6 +3955,56 @@ async function handleInteractionCreate(interaction) {
         components: buildSurvivalSettingsComponents(session.mode, session.settings, {
           selectingPingRoles: Boolean(session.selectingPingRoles),
         }),
+      });
+    }
+
+    if (
+      interaction.isButton() &&
+      interaction.customId.startsWith("survive:share:start:")
+    ) {
+      const sessionId = interaction.customId.replace("survive:share:start:", "");
+      const shareData = getSurvivalShareData(sessionId, interaction.user.id);
+
+      if (!shareData) {
+        return interaction.reply({
+          content: "That share panel expired, or you were not part of that Survival run.",
+          flags: 64,
+        });
+      }
+
+      return interaction.reply({
+        embeds: [buildSurvivalShareEmbed(shareData)],
+        components: [buildSurvivalShareActions(sessionId, shareData.result.shareText)],
+        flags: 64,
+      });
+    }
+
+    if (
+      interaction.isButton() &&
+      interaction.customId.startsWith("survive:share:copy:")
+    ) {
+      const sessionId = interaction.customId.replace("survive:share:copy:", "");
+      const shareData = getSurvivalShareData(sessionId, interaction.user.id);
+
+      if (!shareData) {
+        return interaction.reply({
+          content: "That share panel expired, or you were not part of that Survival run.",
+          flags: 64,
+        });
+      }
+
+      return interaction.update({
+        content: `Copy-ready post:\n\`\`\`\n${shareData.result.shareText}\n\`\`\``,
+        embeds: [buildSurvivalShareThanksEmbed()],
+        components: [buildSurvivalShareDoneRow()],
+      });
+    }
+
+    if (interaction.isButton() && interaction.customId === "survive:share:done") {
+      return interaction.update({
+        content: "Share panel closed.",
+        embeds: [],
+        components: [],
       });
     }
 

@@ -113,7 +113,13 @@ function buildAuthHeader(apiKey) {
 
 const DRIP_TIMEOUT_MS = Number(process.env.DRIP_TIMEOUT_MS) || 30_000;
 const DRIP_RETRY_COUNT = Number(process.env.DRIP_RETRY_COUNT) || 2;
+const DRIP_OVERRIDE_CACHE_TTL_MS =
+  Number(process.env.DRIP_OVERRIDE_CACHE_TTL_MS) || 5 * 60_000;
+const DRIP_OVERRIDE_FAILURE_COOLDOWN_MS =
+  Number(process.env.DRIP_OVERRIDE_FAILURE_COOLDOWN_MS) || 60_000;
 const senderMemberSearchCache = new Map();
+const dripUserOverrideCache = new Map();
+let dripOverrideLookupBlockedUntil = 0;
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -189,6 +195,37 @@ async function getSenderMemberCached(dripSenderId, loader) {
   })();
   senderMemberSearchCache.set(key, pendingLookup);
   return pendingLookup;
+}
+
+async function getDripUserOverrideCached(discordUserId) {
+  const key = String(discordUserId || "").trim();
+  if (!key) return null;
+
+  const now = Date.now();
+  if (dripOverrideLookupBlockedUntil > now) {
+    return null;
+  }
+
+  const cached = dripUserOverrideCache.get(key);
+  if (cached && cached.expiresAt > now) {
+    return cached.value;
+  }
+
+  try {
+    const override = await Store.getDripUserOverride(key);
+    dripUserOverrideCache.set(key, {
+      value: override || null,
+      expiresAt: now + DRIP_OVERRIDE_CACHE_TTL_MS,
+    });
+    return override || null;
+  } catch (err) {
+    dripOverrideLookupBlockedUntil = now + DRIP_OVERRIDE_FAILURE_COOLDOWN_MS;
+    console.warn(
+      "[GAUNTLET:DRIP] Override lookup failed, pausing override DB lookups briefly:",
+      err?.message || err
+    );
+    return null;
+  }
 }
 
 async function rewardCharmAmount({
@@ -695,15 +732,7 @@ async function rewardCharmAmount({
     }
 
     // Preferred path: resolve recipient member ID, then transfer from the configured sender balance.
-    let manualOverride = null;
-    try {
-      manualOverride = await Store.getDripUserOverride(String(userId || ""));
-    } catch (err) {
-      console.warn(
-        "[GAUNTLET:DRIP] Override lookup failed, continuing with normal search:",
-        err?.message || err
-      );
-    }
+    const manualOverride = await getDripUserOverrideCached(String(userId || ""));
 
     let recipientMember = null;
     if (manualOverride?.drip_user_id) {
