@@ -163,6 +163,17 @@ class PgStore {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
       );
     `);
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS gauntlet_survival_share_claims (
+        session_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        reward_amount INTEGER NOT NULL DEFAULT 0,
+        source_message_id TEXT,
+        source_channel_id TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (session_id, user_id)
+      );
+    `);
 
     // Manual DRIP routing override for Discord IDs.
     await this.dripPool.query(`
@@ -266,6 +277,66 @@ class PgStore {
       VALUES ($1, $2, $3, $4)
       `,
       [userId, username, month, score]
+    );
+  }
+
+  async getSurvivalShareClaim(sessionId, userId) {
+    const r = await this.pool.query(
+      `
+      SELECT
+        session_id,
+        user_id,
+        reward_amount,
+        source_message_id,
+        source_channel_id,
+        created_at
+      FROM gauntlet_survival_share_claims
+      WHERE session_id = $1 AND user_id = $2
+      LIMIT 1
+      `,
+      [sessionId, userId]
+    );
+    return r.rows[0] || null;
+  }
+
+  async createSurvivalShareClaim(
+    sessionId,
+    userId,
+    rewardAmount,
+    sourceMessageId,
+    sourceChannelId
+  ) {
+    const r = await this.pool.query(
+      `
+      INSERT INTO gauntlet_survival_share_claims (
+        session_id,
+        user_id,
+        reward_amount,
+        source_message_id,
+        source_channel_id
+      )
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (session_id, user_id) DO NOTHING
+      RETURNING
+        session_id,
+        user_id,
+        reward_amount,
+        source_message_id,
+        source_channel_id,
+        created_at
+      `,
+      [sessionId, userId, rewardAmount, sourceMessageId || null, sourceChannelId || null]
+    );
+    return r.rows[0] || null;
+  }
+
+  async deleteSurvivalShareClaim(sessionId, userId) {
+    await this.pool.query(
+      `
+      DELETE FROM gauntlet_survival_share_claims
+      WHERE session_id = $1 AND user_id = $2
+      `,
+      [sessionId, userId]
     );
   }
 

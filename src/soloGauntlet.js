@@ -57,6 +57,9 @@ const { SURVIVAL_ERAS, getSurvivalEraDefinition } = require("./survivalEras");
 const { rewardCharmAmount, logCharmReward, DRIP_LOG_CHANNEL_ID } = require("./drip");
 const { imageStore } = require("./imageStore");
 const { survivalStore } = require("./survivalStore");
+const SURVIVAL_SHARE_REWARD_AMOUNT = 150;
+const SURVIVAL_SHARE_LOOKBACK_MS = 15 * 60_000;
+const URL_PATTERN = /https?:\/\/\S+/i;
 
 // --------------------------------------------
 // Small helpers
@@ -2905,8 +2908,29 @@ function buildSurvivalShareThanksRows(sessionId, shareText) {
     ),
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId("survive:share:done")
+        .setCustomId(`survive:share:done:${sessionId}`)
         .setLabel("Done")
+        .setStyle(ButtonStyle.Secondary)
+    ),
+  ];
+}
+
+function buildSurvivalShareRetryRows(sessionId, shareText) {
+  return [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setLabel("Open X Composer")
+        .setStyle(ButtonStyle.Link)
+        .setURL(buildTweetIntentUrl(shareText))
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`survive:share:retry:${sessionId}`)
+        .setLabel("Try Again")
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId(`survive:share:close:${sessionId}`)
+        .setLabel("Close Panel")
         .setStyle(ButtonStyle.Secondary)
     ),
   ];
@@ -2916,9 +2940,60 @@ function buildSurvivalShareThanksEmbed() {
   return new EmbedBuilder()
     .setTitle("Thanks for sharing the Ugly!")
     .setDescription(
-      `Don't forget to drop the link to your post in <#${SURVIVAL_SHARE_DISCORD_CHANNEL_ID}>.`
+      [
+        "Don't forget save your favorite image above to add to the post!",
+        `When you're done, drop the link to your post in <#${SURVIVAL_SHARE_DISCORD_CHANNEL_ID}>`,
+      ].join("\n")
     )
     .setColor(0x2ecc71);
+}
+
+function messageHasShareableLink(message) {
+  if (!message) return false;
+  if (URL_PATTERN.test(String(message.content || ""))) return true;
+  if (Array.isArray(message.embeds) && message.embeds.some((embed) => embed?.url)) {
+    return true;
+  }
+  return false;
+}
+
+async function findRecentSurvivalShareMessage(client, userId) {
+  if (!client || !userId || !SURVIVAL_SHARE_DISCORD_CHANNEL_ID) return null;
+
+  try {
+    const channel = await client.channels.fetch(SURVIVAL_SHARE_DISCORD_CHANNEL_ID);
+    if (!channel?.messages?.fetch) return null;
+
+    const cutoff = Date.now() - SURVIVAL_SHARE_LOOKBACK_MS;
+    let before = null;
+
+    for (let page = 0; page < 3; page += 1) {
+      const fetched = await channel.messages.fetch(
+        before ? { limit: 100, before } : { limit: 100 }
+      );
+      if (!fetched?.size) break;
+
+      for (const message of fetched.values()) {
+        if (message.createdTimestamp < cutoff) {
+          return null;
+        }
+        if (message.author?.id !== userId) continue;
+        if (messageHasShareableLink(message)) {
+          return {
+            channel,
+            message,
+          };
+        }
+      }
+
+      before = fetched.last()?.id;
+      if (!before) break;
+    }
+  } catch (err) {
+    console.error("[GAUNTLET:SURVIVAL] Share channel lookup failed:", err?.message || err);
+  }
+
+  return null;
 }
 
 function isAdminUserLocal(interaction) {
@@ -3945,7 +4020,140 @@ async function handleInteractionCreate(interaction) {
       });
     }
 
-    if (interaction.isButton() && interaction.customId === "survive:share:done") {
+    if (
+      interaction.isButton() &&
+      interaction.customId.startsWith("survive:share:done:")
+    ) {
+      const sessionId = interaction.customId.replace("survive:share:done:", "");
+      const shareData = getSurvivalShareData(sessionId, interaction.user.id);
+
+      if (!shareData) {
+        return interaction.update({
+          content: "That share panel expired, or you were not part of that Survival run.",
+          embeds: [],
+          components: [],
+        });
+      }
+
+      let rewardNote = "Share panel closed.";
+
+      try {
+        const existingClaim = await Store.getSurvivalShareClaim(
+          sessionId,
+          interaction.user.id
+        );
+
+        if (existingClaim) {
+          rewardNote = `Share panel closed. You already claimed the ${existingClaim.reward_amount} $CHARM share reward for this post.`;
+        } else {
+          const recentShare = await findRecentSurvivalShareMessage(
+            interaction.client,
+            interaction.user.id
+          );
+
+          if (recentShare?.message?.id) {
+            const createdClaim = await Store.createSurvivalShareClaim(
+              sessionId,
+              interaction.user.id,
+              SURVIVAL_SHARE_REWARD_AMOUNT,
+              recentShare.message.id,
+              recentShare.channel.id
+            );
+
+            if (createdClaim) {
+              const reward = await rewardCharmAmount({
+                userId: interaction.user.id,
+                username:
+                  interaction.user.username ||
+                  interaction.user.globalName ||
+                  `User-${interaction.user.id}`,
+                amount: SURVIVAL_SHARE_REWARD_AMOUNT,
+                source: "survival-share",
+                guildId: interaction.guildId,
+                channelId: interaction.channelId,
+                metadata: {
+                  mode: "survival-share",
+                  sessionId,
+                  sourceChannelId: recentShare.channel.id,
+                  sourceMessageId: recentShare.message.id,
+                },
+                logClient: interaction.client,
+                logReason: "Squig Survival share reward",
+              });
+
+              if (reward?.ok) {
+                await logCharmReward(interaction.client, {
+                  userId: interaction.user.id,
+                  amount: SURVIVAL_SHARE_REWARD_AMOUNT,
+                  score: 0,
+                  source: "survival-share",
+                  channelId: interaction.channelId,
+                  reason: "Squig Survival share reward",
+                });
+                try {
+                  await interaction.channel?.send(
+                    `Thanks for sharing <@${interaction.user.id}>! **+${SURVIVAL_SHARE_REWARD_AMOUNT} $CHARM**`
+                  );
+                } catch {}
+                rewardNote = `Share panel closed. You posted a recent link in <#${SURVIVAL_SHARE_DISCORD_CHANNEL_ID}> and received ${SURVIVAL_SHARE_REWARD_AMOUNT} $CHARM.`;
+              } else {
+                await Store.deleteSurvivalShareClaim(sessionId, interaction.user.id);
+                rewardNote =
+                  "Share panel closed. Your recent share was found, but the $CHARM transfer did not complete.";
+              }
+            } else {
+              rewardNote = `Share panel closed. You already claimed the ${SURVIVAL_SHARE_REWARD_AMOUNT} $CHARM share reward for this post.`;
+            }
+          } else {
+            return interaction.update({
+              content: `No recent link from you was found in <#${SURVIVAL_SHARE_DISCORD_CHANNEL_ID}> within the last 15 minutes, so no share reward was sent.`,
+              embeds: [],
+              components: buildSurvivalShareRetryRows(
+                sessionId,
+                shareData.result.shareText
+              ),
+            });
+          }
+        }
+      } catch (err) {
+        console.error("[GAUNTLET:SURVIVAL] Share reward check failed:", err?.message || err);
+        rewardNote =
+          "Share panel closed. I could not verify your recent share link, so no reward was sent.";
+      }
+
+      return interaction.update({
+        content: rewardNote,
+        embeds: [],
+        components: [],
+      });
+    }
+
+    if (
+      interaction.isButton() &&
+      interaction.customId.startsWith("survive:share:retry:")
+    ) {
+      const sessionId = interaction.customId.replace("survive:share:retry:", "");
+      const shareData = getSurvivalShareData(sessionId, interaction.user.id);
+
+      if (!shareData) {
+        return interaction.update({
+          content: "That share panel expired, or you were not part of that Survival run.",
+          embeds: [],
+          components: [],
+        });
+      }
+
+      return interaction.update({
+        content: `Copy-ready post:\n\`\`\`\n${shareData.result.shareText}\n\`\`\``,
+        embeds: [buildSurvivalShareThanksEmbed()],
+        components: buildSurvivalShareThanksRows(sessionId, shareData.result.shareText),
+      });
+    }
+
+    if (
+      interaction.isButton() &&
+      interaction.customId.startsWith("survive:share:close:")
+    ) {
       return interaction.update({
         content: "Share panel closed.",
         embeds: [],
