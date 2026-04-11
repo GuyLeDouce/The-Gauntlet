@@ -1114,6 +1114,17 @@ async function startSurvivalFromLobby(interaction, lobby) {
             ].join("\n")
           )
           .setColor(0x3498db)
+      : settings.era_key === "zombie_apocalypse"
+      ? new EmbedBuilder()
+          .setTitle("Squig Survival - Game Starting!")
+          .setDescription(
+            [
+              "The safehouse is full, the shelves are running bare, and staying put is no longer an option.",
+              `It's time for **${players.length} Squigs** to step outside and face the undead.`,
+            ].join("\n")
+          )
+          .setImage("https://i.imgur.com/TZupWKD.png")
+          .setColor(0x27ae60)
       : new EmbedBuilder()
           .setTitle("Squig Survival - Game Starting!")
           .setDescription(
