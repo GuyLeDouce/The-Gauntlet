@@ -870,9 +870,17 @@ async function runSurvival(channel, playerIds, settings = {}) {
           (creatorRewardTotals.get(artReward.userId) || 0) + artReward.amount
         );
         try {
-          await channel.send(
-            `-# 🎨 Art drop! Thanks to <@${artReward.userId}> — your Squig Survival art was used and **+${artReward.amount} $CHARM** was added to your end-of-game creator total.\n-# Want in? **SUBMIT IMAGES** here: ${SURVIVAL_IMAGE_SUBMISSION_URL}`
-          );
+          await channel.send({
+            content: `-# 🎨 Art drop! Thanks to <@${artReward.userId}> — your Squig Survival art was used and **+${artReward.amount} $CHARM** was added to your end-of-game creator total.`,
+            components: [
+              new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                  .setStyle(ButtonStyle.Link)
+                  .setLabel("SUBMIT IMAGES")
+                  .setURL(SURVIVAL_IMAGE_SUBMISSION_URL)
+              ),
+            ],
+          });
         } catch {}
       } catch (err) {
         console.error(
