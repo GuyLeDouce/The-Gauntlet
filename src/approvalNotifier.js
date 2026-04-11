@@ -1,3 +1,4 @@
+const { EmbedBuilder } = require("discord.js");
 const { imageStore } = require("./imageStore");
 
 const SURVIVAL_IMAGE_APPROVAL_CHANNEL_ID =
@@ -8,14 +9,22 @@ function log(...args) {
 }
 
 function buildApprovalMessage(notification) {
-  return [
-    "✅ **Squig Survival image approved**",
-    `Creator: <@${notification.discord_user_id}> (${notification.discord_username})`,
-    `Era: \`${notification.era_key}\``,
-    `Reward: **${notification.reward_points} $CHARM**`,
-    `Approved by: ${notification.approved_by || "Staff"}`,
-    `Image: ${notification.image_url}`,
-  ].join("\n");
+  const embed = new EmbedBuilder()
+    .setTitle("Squig Survival image approved")
+    .setColor(0x2ecc71)
+    .setDescription(
+      [
+        `Creator: <@${notification.discord_user_id}> (${notification.discord_username})`,
+        `Era: \`${notification.era_key}\``,
+        `Reward: **${notification.reward_points} $CHARM**`,
+      ].join("\n")
+    );
+
+  if (notification.image_url) {
+    embed.setImage(notification.image_url);
+  }
+
+  return { content: "✅ **Squig Survival image approved**", embeds: [embed] };
 }
 
 async function processApprovalNotifications(client) {
