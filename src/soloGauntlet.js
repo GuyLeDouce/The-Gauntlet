@@ -59,6 +59,8 @@ const { imageStore } = require("./imageStore");
 const { survivalStore } = require("./survivalStore");
 const SURVIVAL_SHARE_REWARD_AMOUNT = 150;
 const SURVIVAL_SHARE_LOOKBACK_MS = 15 * 60_000;
+const SURVIVAL_IMAGE_SUBMISSION_URL =
+  "https://imagesubmit-production.up.railway.app/";
 const URL_PATTERN = /https?:\/\/\S+/i;
 
 // --------------------------------------------
@@ -834,10 +836,16 @@ async function openSurvivalLobby(channel, createdBy, settings, options = {}) {
       .setLabel("Info")
       .setStyle(ButtonStyle.Secondary)
   );
+  const submitImagesRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setStyle(ButtonStyle.Link)
+      .setLabel("Submit Images")
+      .setURL(SURVIVAL_IMAGE_SUBMISSION_URL)
+  );
 
   const joinMessage = await channel.send({
     embeds: [joinEmbed],
-    components: [joinRow],
+    components: [joinRow, submitImagesRow],
   });
 
   try {
@@ -4289,7 +4297,7 @@ async function handleInteractionCreate(interaction) {
           "Use **/lives** to show stats publicly.",
           "",
           "**How to add images:**",
-          "Post your art in <#1334884237727240267>. Staff will get it added. If it's taking too long, ping them.",
+          `Use **SUBMIT IMAGES**: ${SURVIVAL_IMAGE_SUBMISSION_URL}`,
           "Era-locked modes like Movie Theater and Airport only pull images tagged to that era through /addimage.",
           "",
           "**Pro tips:**",

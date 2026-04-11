@@ -23,6 +23,8 @@ const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 const REVEAL_DELAY_MS = 2000;
 const MILESTONE_PAUSE_MS = 20000;
 const SHARED_LOCKED_FIRST_IMAGE = "https://i.imgur.com/jfVffAW.jpeg";
+const SURVIVAL_IMAGE_SUBMISSION_URL =
+  "https://imagesubmit-production.up.railway.app/";
 const SHARED_FALLBACK_STAGE_IMAGES = [
   "https://i.imgur.com/jYNKD3d.jpeg",
   "https://i.imgur.com/8hJ6XEE.jpeg",
@@ -869,7 +871,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
         );
         try {
           await channel.send(
-            `-# 🎨 Art drop! Thanks to <@${artReward.userId}> — your Squig Survival art was used and **+${artReward.amount} $CHARM** was added to your end-of-game creator total.\n-# Want in? Post your image in <#1334884237727240267> and staff can add it so you earn $CHARM whenever it appears.`
+            `-# 🎨 Art drop! Thanks to <@${artReward.userId}> — your Squig Survival art was used and **+${artReward.amount} $CHARM** was added to your end-of-game creator total.\n-# Want in? **SUBMIT IMAGES** here: ${SURVIVAL_IMAGE_SUBMISSION_URL}`
           );
         } catch {}
       } catch (err) {
