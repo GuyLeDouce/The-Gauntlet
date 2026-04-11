@@ -13,6 +13,7 @@ const { TOKEN } = require("./src/utils");
 const { initStore } = require("./src/db");
 const { initImageStore } = require("./src/imageStore");
 const { initSurvivalStore } = require("./src/survivalStore");
+const { startApprovalNotificationLoop } = require("./src/approvalNotifier");
 
 // Unified Gauntlet (solo + group commands & routing)
 const {
@@ -49,6 +50,7 @@ client.once(Events.ClientReady, async () => {
   await initImageStore();
   await initSurvivalStore();
   await initSurvivalLobby(client);
+  startApprovalNotificationLoop(client);
 
   try {
     // This now registers BOTH solo + group commands in one shot

@@ -70,6 +70,31 @@ class ImageStore {
       ALTER TABLE squig_survival_images
       ADD COLUMN IF NOT EXISTS reward_points INTEGER NOT NULL DEFAULT 100
     `);
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS squig_survival_image_approval_notifications (
+        id BIGSERIAL PRIMARY KEY,
+        submission_id BIGINT,
+        discord_user_id TEXT NOT NULL,
+        discord_username TEXT NOT NULL,
+        era_key TEXT NOT NULL,
+        image_url TEXT NOT NULL,
+        reward_points INTEGER NOT NULL DEFAULT 100,
+        approved_by TEXT,
+        approved_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        post_status TEXT NOT NULL DEFAULT 'pending',
+        post_attempts INTEGER NOT NULL DEFAULT 0,
+        posted_at TIMESTAMPTZ,
+        posted_message_id TEXT,
+        post_error TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        CONSTRAINT squig_survival_image_approval_notifications_status_check
+          CHECK (post_status IN ('pending', 'processing', 'posted', 'failed'))
+      );
+    `);
+    await this.pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_squig_survival_image_approval_notifications_status
+      ON squig_survival_image_approval_notifications (post_status, approved_at ASC);
+    `);
 
     this._initialized = true;
     log("Image database ready.");
@@ -117,6 +142,126 @@ class ImageStore {
       ORDER BY id ASC
     `);
     return r.rows || [];
+  }
+
+  async enqueueApprovalNotification({
+    submissionId = null,
+    discordUserId,
+    discordUsername,
+    eraKey,
+    imageUrl,
+    rewardPoints = 100,
+    approvedBy = null,
+  }) {
+    await this.init();
+
+    if (!process.env.DATABASE_URL_IMAGE || !this.pool) {
+      return { ok: false, reason: "DATABASE_URL_IMAGE not set" };
+    }
+
+    const r = await this.pool.query(
+      `
+      INSERT INTO squig_survival_image_approval_notifications (
+        submission_id,
+        discord_user_id,
+        discord_username,
+        era_key,
+        image_url,
+        reward_points,
+        approved_by
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id
+      `,
+      [
+        submissionId,
+        discordUserId,
+        discordUsername,
+        eraKey,
+        imageUrl,
+        rewardPoints,
+        approvedBy,
+      ]
+    );
+
+    return { ok: true, id: r.rows[0]?.id || null };
+  }
+
+  async claimNextApprovalNotification() {
+    await this.init();
+
+    if (!process.env.DATABASE_URL_IMAGE || !this.pool) return null;
+
+    const r = await this.pool.query(
+      `
+      WITH next_notification AS (
+        SELECT id
+        FROM squig_survival_image_approval_notifications
+        WHERE post_status IN ('pending', 'failed')
+        ORDER BY approved_at ASC, id ASC
+        LIMIT 1
+        FOR UPDATE SKIP LOCKED
+      )
+      UPDATE squig_survival_image_approval_notifications AS notifications
+      SET
+        post_status = 'processing',
+        post_attempts = notifications.post_attempts + 1,
+        post_error = NULL
+      FROM next_notification
+      WHERE notifications.id = next_notification.id
+      RETURNING
+        notifications.id,
+        notifications.submission_id,
+        notifications.discord_user_id,
+        notifications.discord_username,
+        notifications.era_key,
+        notifications.image_url,
+        notifications.reward_points,
+        notifications.approved_by,
+        notifications.approved_at,
+        notifications.post_attempts
+      `
+    );
+
+    return r.rows[0] || null;
+  }
+
+  async markApprovalNotificationPosted(notificationId, messageId = null) {
+    await this.init();
+
+    if (!process.env.DATABASE_URL_IMAGE || !this.pool) return false;
+
+    await this.pool.query(
+      `
+      UPDATE squig_survival_image_approval_notifications
+      SET
+        post_status = 'posted',
+        posted_at = now(),
+        posted_message_id = $2,
+        post_error = NULL
+      WHERE id = $1
+      `,
+      [notificationId, messageId]
+    );
+    return true;
+  }
+
+  async markApprovalNotificationFailed(notificationId, errorMessage) {
+    await this.init();
+
+    if (!process.env.DATABASE_URL_IMAGE || !this.pool) return false;
+
+    await this.pool.query(
+      `
+      UPDATE squig_survival_image_approval_notifications
+      SET
+        post_status = 'failed',
+        post_error = $2
+      WHERE id = $1
+      `,
+      [notificationId, String(errorMessage || "Unknown error").slice(0, 1000)]
+    );
+    return true;
   }
 }
 
