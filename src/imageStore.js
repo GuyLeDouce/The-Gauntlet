@@ -78,6 +78,7 @@ class ImageStore {
         discord_username TEXT NOT NULL,
         era_key TEXT NOT NULL,
         image_url TEXT NOT NULL,
+        prompt_text TEXT,
         reward_points INTEGER NOT NULL DEFAULT 100,
         approved_by TEXT,
         approved_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -94,6 +95,10 @@ class ImageStore {
     await this.pool.query(`
       CREATE INDEX IF NOT EXISTS idx_squig_survival_image_approval_notifications_status
       ON squig_survival_image_approval_notifications (post_status, approved_at ASC);
+    `);
+    await this.pool.query(`
+      ALTER TABLE squig_survival_image_approval_notifications
+      ADD COLUMN IF NOT EXISTS prompt_text TEXT
     `);
 
     this._initialized = true;
@@ -150,6 +155,7 @@ class ImageStore {
     discordUsername,
     eraKey,
     imageUrl,
+    promptText = null,
     rewardPoints = 100,
     approvedBy = null,
   }) {
@@ -167,10 +173,11 @@ class ImageStore {
         discord_username,
         era_key,
         image_url,
+        prompt_text,
         reward_points,
         approved_by
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING id
       `,
       [
@@ -179,6 +186,7 @@ class ImageStore {
         discordUsername,
         eraKey,
         imageUrl,
+        promptText,
         rewardPoints,
         approvedBy,
       ]
@@ -216,6 +224,7 @@ class ImageStore {
         notifications.discord_username,
         notifications.era_key,
         notifications.image_url,
+        notifications.prompt_text,
         notifications.reward_points,
         notifications.approved_by,
         notifications.approved_at,

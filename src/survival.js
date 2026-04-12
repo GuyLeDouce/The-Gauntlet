@@ -14,6 +14,7 @@ const { rewardCharmAmount, logCharmReward } = require("./drip");
 const { imageStore } = require("./imageStore");
 const { survivalStore } = require("./survivalStore");
 const {
+  SURVIVAL_ERAS,
   getSurvivalEraDefinition,
   getSurvivalReviveFailLore,
   getSurvivalAliveTauntLore,
@@ -25,6 +26,12 @@ const MILESTONE_PAUSE_MS = 20000;
 const SHARED_LOCKED_FIRST_IMAGE = "https://i.imgur.com/jfVffAW.jpeg";
 const SURVIVAL_IMAGE_SUBMISSION_URL =
   "https://imagesubmit-production.up.railway.app/";
+const REVIVE_SUCCESS_IMAGE_TAG = "revive_success";
+const REVIVE_FAILED_IMAGE_TAG = "revive_failed";
+const SPECIAL_SURVIVAL_IMAGE_TAGS = new Set([
+  REVIVE_SUCCESS_IMAGE_TAG,
+  REVIVE_FAILED_IMAGE_TAG,
+]);
 const SHARED_FALLBACK_STAGE_IMAGES = [
   "https://i.imgur.com/jYNKD3d.jpeg",
   "https://i.imgur.com/8hJ6XEE.jpeg",
@@ -320,14 +327,41 @@ async function handlePublicReviveCommand(message) {
       pick(resurrections.length ? resurrections : ["{victim} stumbles back into existence."]),
       mention
     );
-    await message.channel.send(`🌟 **RESURRECTION!** ${text}`);
+    const imageUrl = takeRunImage(
+      run,
+      "reviveSuccessImagePool",
+      "reviveSuccessImageBag"
+    );
+    const payload = imageUrl
+      ? {
+          content: `🌟 **RESURRECTION!** ${text}`,
+          embeds: [new EmbedBuilder().setColor(0x2ecc71).setImage(imageUrl)],
+        }
+      : {
+          content: `🌟 **RESURRECTION!** ${text}`,
+        };
+    await message.channel.send(payload);
+    await awardSurvivalImageUse(message.channel, run, imageUrl);
     return true;
   }
 
   const failLore = getSurvivalReviveFailLore(run.eraKey);
-  await message.channel.send(
-    `${formatPlayerLore(pick(failLore), mention)}\n💀 ${mention} is still dead.`
+  const failText = `${formatPlayerLore(pick(failLore), mention)}\n💀 ${mention} is still dead.`;
+  const imageUrl = takeRunImage(
+    run,
+    "reviveFailedImagePool",
+    "reviveFailedImageBag"
   );
+  const payload = imageUrl
+    ? {
+        content: failText,
+        embeds: [new EmbedBuilder().setColor(0x95a5a6).setImage(imageUrl)],
+      }
+    : {
+        content: failText,
+      };
+  await message.channel.send(payload);
+  await awardSurvivalImageUse(message.channel, run, imageUrl);
   return true;
 }
 
@@ -402,9 +436,95 @@ function parseEraKeys(raw) {
   if (typeof raw !== "string" || !raw.trim()) return null;
   const keys = raw
     .split(",")
-    .map((part) => part.trim())
+    .map((part) => normalizeSurvivalImageTag(part) || part.trim())
     .filter(Boolean);
   return keys.length ? Array.from(new Set(keys)) : null;
+}
+
+function normalizeSurvivalImageTag(raw) {
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  const normalized = raw.trim();
+  const lowered = normalized.toLowerCase();
+
+  if (
+    lowered === REVIVE_SUCCESS_IMAGE_TAG ||
+    lowered === "!revive success" ||
+    lowered === "revive success"
+  ) {
+    return REVIVE_SUCCESS_IMAGE_TAG;
+  }
+  if (
+    lowered === REVIVE_FAILED_IMAGE_TAG ||
+    lowered === "!revive failed" ||
+    lowered === "revive failed"
+  ) {
+    return REVIVE_FAILED_IMAGE_TAG;
+  }
+
+  const directKey = Object.keys(SURVIVAL_ERAS).find(
+    (key) => key.toLowerCase() === lowered
+  );
+  if (directKey) return directKey;
+
+  return (
+    Object.entries(SURVIVAL_ERAS).find(
+      ([, era]) => era?.label?.toLowerCase() === lowered
+    )?.[0] || null
+  );
+}
+
+function takeRunImage(run, poolKey, bagKey) {
+  if (!run) return null;
+  const pool = Array.isArray(run[poolKey]) ? run[poolKey] : [];
+  if (!pool.length) return null;
+  if (!Array.isArray(run[bagKey]) || !run[bagKey].length) {
+    run[bagKey] = shuffle(pool);
+  }
+  return run[bagKey].shift() || null;
+}
+
+async function awardSurvivalImageUse(channel, run, imageUrl) {
+  if (!channel || !run || !imageUrl) return;
+
+  if (!Array.isArray(run.usedImageUrls)) {
+    run.usedImageUrls = [];
+  }
+  run.usedImageUrls.push(imageUrl);
+
+  const artReward =
+    run.dbRewardMap?.get(imageUrl) || SURVIVAL_ART_REWARDS[imageUrl] || null;
+  if (!artReward?.userId) return;
+
+  if (!(run.creatorRewardTotals instanceof Map)) {
+    run.creatorRewardTotals = new Map();
+  }
+
+  if (run.gameId) {
+    await survivalStore.addImageUse(run.gameId, artReward.userId, imageUrl);
+  }
+
+  try {
+    run.creatorRewardTotals.set(
+      artReward.userId,
+      (run.creatorRewardTotals.get(artReward.userId) || 0) + artReward.amount
+    );
+    await channel.send({
+      content: `-# 🎨 Art drop! Thanks to <@${artReward.userId}> — your Squig Survival art was used and **+${artReward.amount} $CHARM** was added to your end-of-game creator total.`,
+      components: [
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setStyle(ButtonStyle.Link)
+            .setLabel("SUBMIT IMAGES")
+            .setURL(SURVIVAL_IMAGE_SUBMISSION_URL)
+        ),
+      ],
+    });
+  } catch (err) {
+    console.error(
+      "[GAUNTLET:DRIP] Survival art tally failed:",
+      err?.message || err
+    );
+  }
 }
 
 const SURVIVAL_ART_PAYOUT = 100;
@@ -604,16 +724,29 @@ async function runSurvival(channel, playerIds, settings = {}) {
     if (!row?.image_url) return false;
     const eraKeys = parseEraKeys(row.era_keys);
     if (!eraKeys?.length) return !useEraLockedImagesOnly;
+    if (eraKeys.some((key) => SPECIAL_SURVIVAL_IMAGE_TAGS.has(key))) return false;
     return eraKeys.includes(normalizedSettings.era_key);
   });
+  const reviveSuccessImageRows = dbImageRows.filter((row) =>
+    parseEraKeys(row?.era_keys)?.includes(REVIVE_SUCCESS_IMAGE_TAG)
+  );
+  const reviveFailedImageRows = dbImageRows.filter((row) =>
+    parseEraKeys(row?.era_keys)?.includes(REVIVE_FAILED_IMAGE_TAG)
+  );
 
   const dbImageUrls = eligibleDbImageRows.map((r) => r.image_url).filter(Boolean);
   const fallbackStageImages = useEraLockedImagesOnly
     ? []
     : Array.from(new Set(SHARED_FALLBACK_STAGE_IMAGES));
   const mergedStageImages = [...new Set([...fallbackStageImages, ...dbImageUrls])];
+  const reviveSuccessImages = reviveSuccessImageRows
+    .map((r) => r.image_url)
+    .filter(Boolean);
+  const reviveFailedImages = reviveFailedImageRows
+    .map((r) => r.image_url)
+    .filter(Boolean);
   const dbRewardMap = new Map(
-    eligibleDbImageRows
+    dbImageRows
       .filter((r) => r.image_url && r.user_id)
       .map((r) => [
         r.image_url,
@@ -650,7 +783,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
   let alive = [...uniquePlayers];
   const eliminated = [];
   upsertSurvivalRunStatus(runKey, uniquePlayers, alive);
-  registerActiveSurvivalRun({
+  const activeRunState = {
     runKey,
     channelId: channel.id,
     gameId,
@@ -664,8 +797,17 @@ async function runSurvival(channel, playerIds, settings = {}) {
     currentMilestone: 1,
     reviveAttemptsByMilestone: new Map(),
     ended: false,
-  });
-  let imageBag = shuffle(mergedStageImages);
+    creatorRewardTotals,
+    usedImageUrls,
+    dbRewardMap,
+    stageImagePool: mergedStageImages,
+    stageImageBag: shuffle(mergedStageImages),
+    reviveSuccessImagePool: reviveSuccessImages,
+    reviveSuccessImageBag: shuffle(reviveSuccessImages),
+    reviveFailedImagePool: reviveFailedImages,
+    reviveFailedImageBag: shuffle(reviveFailedImages),
+  };
+  registerActiveSurvivalRun(activeRunState);
 
   const eraStories = eraDefinition.stories || {};
   const defaultStories = defaultEraDefinition.stories || {};
@@ -849,45 +991,12 @@ async function runSurvival(channel, playerIds, settings = {}) {
     let imageUrl = null;
     if (milestone === 1 && !useEraLockedImagesOnly) {
       imageUrl = SHARED_LOCKED_FIRST_IMAGE;
-    } else if (mergedStageImages.length) {
-      if (!imageBag.length) imageBag = shuffle(mergedStageImages);
-      imageUrl = imageBag.shift() || null;
+    } else if (activeRunState.stageImagePool.length) {
+      imageUrl = takeRunImage(activeRunState, "stageImagePool", "stageImageBag");
     }
     if (imageUrl) {
       embed.setImage(imageUrl);
-      usedImageUrls.push(imageUrl);
-    }
-    const artReward = imageUrl
-      ? dbRewardMap.get(imageUrl) || SURVIVAL_ART_REWARDS[imageUrl]
-      : null;
-    if (artReward) {
-      if (gameId && artReward.userId) {
-        await survivalStore.addImageUse(gameId, artReward.userId, imageUrl);
-      }
-      try {
-        creatorRewardTotals.set(
-          artReward.userId,
-          (creatorRewardTotals.get(artReward.userId) || 0) + artReward.amount
-        );
-        try {
-          await channel.send({
-            content: `-# 🎨 Art drop! Thanks to <@${artReward.userId}> — your Squig Survival art was used and **+${artReward.amount} $CHARM** was added to your end-of-game creator total.`,
-            components: [
-              new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                  .setStyle(ButtonStyle.Link)
-                  .setLabel("SUBMIT IMAGES")
-                  .setURL(SURVIVAL_IMAGE_SUBMISSION_URL)
-              ),
-            ],
-          });
-        } catch {}
-      } catch (err) {
-        console.error(
-          "[GAUNTLET:DRIP] Survival art tally failed:",
-          err?.message || err
-        );
-      }
+      await awardSurvivalImageUse(channel, activeRunState, imageUrl);
     }
 
     const baseDesc = stage.flavor ? `_${stage.flavor}_\n` : "";

@@ -144,6 +144,46 @@ const SURVIVAL_TYPE_LABELS = {
 const SURVIVAL_ERA_LABELS = Object.fromEntries(
   Object.entries(SURVIVAL_ERAS).map(([key, era]) => [key, era.label])
 );
+const SURVIVAL_SPECIAL_IMAGE_TAGS = {
+  revive_success: "!revive Success",
+  revive_failed: "!revive Failed",
+};
+const SURVIVAL_IMAGE_TAG_LABELS = {
+  ...SURVIVAL_ERA_LABELS,
+  ...SURVIVAL_SPECIAL_IMAGE_TAGS,
+};
+
+function normalizeSurvivalImageTag(raw) {
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  const normalized = raw.trim();
+  const lowered = normalized.toLowerCase();
+
+  if (
+    lowered === "revive_success" ||
+    lowered === "!revive success" ||
+    lowered === "revive success"
+  ) {
+    return "revive_success";
+  }
+  if (
+    lowered === "revive_failed" ||
+    lowered === "!revive failed" ||
+    lowered === "revive failed"
+  ) {
+    return "revive_failed";
+  }
+
+  const directKey = Object.keys(SURVIVAL_ERAS).find(
+    (key) => key.toLowerCase() === lowered
+  );
+  if (directKey) return directKey;
+
+  return (
+    Object.entries(SURVIVAL_ERA_LABELS).find(
+      ([, label]) => label.toLowerCase() === lowered
+    )?.[0] || null
+  );
+}
 
 function parseSurvivalImageEraInput(raw) {
   if (typeof raw !== "string" || !raw.trim()) {
@@ -168,13 +208,7 @@ function parseSurvivalImageEraInput(raw) {
       continue;
     }
 
-    const directKey = Object.keys(SURVIVAL_ERAS).find(
-      (key) => key.toLowerCase() === lowered
-    );
-    const matchedByLabel = Object.entries(SURVIVAL_ERA_LABELS).find(
-      ([, label]) => label.toLowerCase() === lowered
-    )?.[0];
-    const matchedKey = directKey || matchedByLabel || null;
+    const matchedKey = normalizeSurvivalImageTag(token);
 
     if (!matchedKey) {
       return {
@@ -196,7 +230,7 @@ function parseSurvivalImageEraInput(raw) {
   return {
     ok: true,
     eraKeys: normalized,
-    label: normalized.map((key) => SURVIVAL_ERA_LABELS[key] || key).join(", "),
+    label: normalized.map((key) => SURVIVAL_IMAGE_TAG_LABELS[key] || key).join(", "),
   };
 }
 

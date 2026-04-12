@@ -9,16 +9,23 @@ function log(...args) {
 }
 
 function buildApprovalMessage(notification) {
+  const promptText =
+    typeof notification.prompt_text === "string"
+      ? notification.prompt_text.trim()
+      : "";
+  const descriptionLines = [
+    `Creator: <@${notification.discord_user_id}> (${notification.discord_username})`,
+    `Era: \`${notification.era_key}\``,
+    `Reward: **${notification.reward_points} $CHARM**`,
+  ];
+  if (promptText) {
+    descriptionLines.push(`Prompt: ${promptText}`);
+  }
+
   const embed = new EmbedBuilder()
     .setTitle("Squig Survival image approved")
     .setColor(0x2ecc71)
-    .setDescription(
-      [
-        `Creator: <@${notification.discord_user_id}> (${notification.discord_username})`,
-        `Era: \`${notification.era_key}\``,
-        `Reward: **${notification.reward_points} $CHARM**`,
-      ].join("\n")
-    );
+    .setDescription(descriptionLines.join("\n"));
 
   if (notification.image_url) {
     embed.setImage(notification.image_url);
