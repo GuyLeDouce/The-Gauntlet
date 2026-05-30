@@ -37,8 +37,17 @@ const GAUNTLET_PLAY_REWARD = Math.max(
 
 // ========= DB SSL HELPER =========
 
-function getSSL() {
-  if (!process.env.DATABASE_URL) return undefined;
+function getSSL(connectionString = null) {
+  const hasConnectionString =
+    Boolean(connectionString) ||
+    Boolean(process.env.DATABASE_URL) ||
+    Boolean(process.env.GAUNTLET_DATABASE_URL) ||
+    Boolean(process.env.DATABASE_PUBLIC_URL) ||
+    Boolean(process.env.POSTGRES_PUBLIC_URL) ||
+    Boolean(process.env.DATABASE_URL_IMAGE) ||
+    Boolean(process.env.DATABASE_URL_SURVIVAL) ||
+    Boolean(process.env.DATABASUE_URL_SURVIVAL);
+  if (!hasConnectionString) return undefined;
   return process.env.PGSSL === "false"
     ? false
     : { rejectUnauthorized: false };

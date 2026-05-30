@@ -8,6 +8,21 @@ function log(...args) {
   console.log("[GAUNTLET:SURVDB]", ...args);
 }
 
+function getSurvivalDatabaseUrl() {
+  if (process.env.DATABASE_URL_SURVIVAL) {
+    return process.env.DATABASE_URL_SURVIVAL;
+  }
+
+  if (process.env.DATABASUE_URL_SURVIVAL) {
+    log(
+      "DATABASUE_URL_SURVIVAL is set, but the correct variable name is DATABASE_URL_SURVIVAL. Using the misspelled variable for now."
+    );
+    return process.env.DATABASUE_URL_SURVIVAL;
+  }
+
+  return null;
+}
+
 class SurvivalStore {
   constructor() {
     this.pool = null;
@@ -17,8 +32,8 @@ class SurvivalStore {
   _buildPool() {
     if (this.pool) return;
     this.pool = new Pool({
-      connectionString: process.env.DATABASE_URL_SURVIVAL,
-      ssl: getSSL(),
+      connectionString: getSurvivalDatabaseUrl(),
+      ssl: getSSL(getSurvivalDatabaseUrl()),
     });
     this.pool.on("error", (err) => {
       log("Postgres pool error (will continue):", err?.message || err);
@@ -28,7 +43,7 @@ class SurvivalStore {
   async init() {
     if (this._initialized) return;
 
-    if (!process.env.DATABASE_URL_SURVIVAL) {
+    if (!getSurvivalDatabaseUrl()) {
       log("DATABASE_URL_SURVIVAL not set. Survival DB disabled.");
       this._initialized = true;
       return;

@@ -22,34 +22,106 @@ function log(...args) {
   console.log("[GAUNTLET:DB]", ...args);
 }
 
+function connectionHost(connectionString) {
+  try {
+    return new URL(connectionString).host || "unknown host";
+  } catch {
+    return "unknown host";
+  }
+}
+
+function uniqueConnectionCandidates(candidates) {
+  const seen = new Set();
+  return candidates.filter((candidate) => {
+    const value = String(candidate.value || "").trim();
+    if (!value || seen.has(value)) return false;
+    seen.add(value);
+    candidate.value = value;
+    return true;
+  });
+}
+
+function getMainDatabaseCandidates() {
+  return uniqueConnectionCandidates([
+    { source: "GAUNTLET_DATABASE_URL", value: process.env.GAUNTLET_DATABASE_URL },
+    { source: "DATABASE_URL", value: process.env.DATABASE_URL },
+    { source: "DATABASE_PUBLIC_URL", value: process.env.DATABASE_PUBLIC_URL },
+    { source: "POSTGRES_PUBLIC_URL", value: process.env.POSTGRES_PUBLIC_URL },
+  ]);
+}
+
+function getDripDatabaseCandidate(mainConnectionString) {
+  return uniqueConnectionCandidates([
+    { source: "DATABASE_URL_DRIP", value: process.env.DATABASE_URL_DRIP },
+    { source: "DATABASE_PUBLIC_URL_DRIP", value: process.env.DATABASE_PUBLIC_URL_DRIP },
+    { source: "MAIN_DATABASE", value: mainConnectionString },
+  ])[0];
+}
+
 // ------------------------------------------------------------
 // PG STORE
 // ------------------------------------------------------------
 
 class PgStore {
   constructor() {
-    // Pool will reuse connections across queries
-    this.pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: getSSL(),
-    });
-    const dripConnectionString =
-      process.env.DATABASE_URL_DRIP || process.env.DATABASE_URL;
-    this.dripPool = new Pool({
-      connectionString: dripConnectionString,
-      ssl: getSSL(),
-    });
-
-    // Prevent unhandled pool errors from crashing the process.
-    this.pool.on("error", (err) => {
-      log("Postgres pool error (will continue):", err?.message || err);
-    });
-    this.dripPool.on("error", (err) => {
-      log("Postgres DRIP pool error (will continue):", err?.message || err);
-    });
-
+    this.pool = null;
+    this.dripPool = null;
+    this.mainConnectionSource = null;
+    this.mainConnectionString = null;
+    this.dripConnectionSource = null;
     this._initialized = false;
     this._keepAliveTimer = null;
+  }
+
+  _buildPool(connectionString, label) {
+    const pool = new Pool({
+      connectionString,
+      ssl: getSSL(connectionString),
+    });
+    // Prevent unhandled pool errors from crashing the process.
+    pool.on("error", (err) => {
+      log(`Postgres ${label} pool error (will continue):`, err?.message || err);
+    });
+    return pool;
+  }
+
+  async _connectMainPool() {
+    const candidates = getMainDatabaseCandidates();
+    if (!candidates.length) {
+      throw new Error(
+        "[GAUNTLET:DB] No main database URL is set. Set DATABASE_URL, GAUNTLET_DATABASE_URL, or DATABASE_PUBLIC_URL in Railway variables."
+      );
+    }
+
+    let lastError = null;
+    for (const candidate of candidates) {
+      if (this.pool) {
+        await this.pool.end().catch(() => {});
+      }
+
+      this.pool = this._buildPool(candidate.value, "main");
+      log(`Trying main DB via ${candidate.source} (${connectionHost(candidate.value)})...`);
+
+      try {
+        await this.pool.query("SELECT 1");
+        this.mainConnectionSource = candidate.source;
+        this.mainConnectionString = candidate.value;
+        log(`DB health check OK (${candidate.source}).`);
+        return;
+      } catch (err) {
+        lastError = err;
+        log(`DB health check FAILED (${candidate.source}):`, err?.message || err);
+      }
+    }
+
+    throw new Error(
+      [
+        "[GAUNTLET:DB] Main database is unreachable.",
+        "The main Gauntlet database is required at startup.",
+        "Railway private URLs only work when the bot and Postgres are in the same project/environment.",
+        `Original error: ${lastError?.message || lastError}`,
+      ].join(" ")
+    );
   }
 
   async init() {
@@ -57,33 +129,18 @@ class PgStore {
       return;
     }
 
-    if (!process.env.DATABASE_URL) {
-      throw new Error(
-        "[GAUNTLET:DB] DATABASE_URL is not set. Check Railway variables."
-      );
-    }
-
     log("Connecting to Postgres...");
 
-    // Health check: verify we can reach the DB at startup.
-    try {
-      await this.pool.query("SELECT 1");
-      log("DB health check OK.");
-    } catch (err) {
-      log("DB health check FAILED:", err?.message || err);
-      throw new Error(
-        [
-          "[GAUNTLET:DB] DATABASE_URL is unreachable.",
-          "The main Gauntlet database is required at startup.",
-          `Original error: ${err?.message || err}`,
-        ].join(" ")
-      );
-    }
+    // Health check: verify we can reach the main DB at startup.
+    await this._connectMainPool();
+
+    const dripCandidate = getDripDatabaseCandidate(this.mainConnectionString);
+    this.dripConnectionSource = dripCandidate.source;
+    this.dripPool = this._buildPool(dripCandidate.value, "DRIP");
+
     try {
       await this.dripPool.query("SELECT 1");
-      log(
-        `DRIP DB health check OK (${process.env.DATABASE_URL_DRIP ? "DATABASE_URL_DRIP" : "DATABASE_URL"}).`
-      );
+      log(`DRIP DB health check OK (${dripCandidate.source}).`);
     } catch (err) {
       log("DRIP DB health check FAILED:", err?.message || err);
     }
