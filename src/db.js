@@ -71,7 +71,13 @@ class PgStore {
       log("DB health check OK.");
     } catch (err) {
       log("DB health check FAILED:", err?.message || err);
-      // Keep going so the bot can retry on next query.
+      throw new Error(
+        [
+          "[GAUNTLET:DB] DATABASE_URL is unreachable.",
+          "The main Gauntlet database is required at startup.",
+          `Original error: ${err?.message || err}`,
+        ].join(" ")
+      );
     }
     try {
       await this.dripPool.query("SELECT 1");

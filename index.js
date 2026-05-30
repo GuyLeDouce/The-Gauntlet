@@ -46,11 +46,22 @@ const client = new Client({
 client.once(Events.ClientReady, async () => {
   console.log(`? Logged in as ${client.user.tag}`);
 
-  await initStore();
-  await initImageStore();
-  await initSurvivalStore();
-  await initSurvivalLobby(client);
-  startApprovalNotificationLoop(client);
+  try {
+    await initStore();
+    await initImageStore();
+    await initSurvivalStore();
+    await initSurvivalLobby(client);
+    startApprovalNotificationLoop(client);
+  } catch (err) {
+    console.error("? Startup failed:", err?.message || err);
+    if (err?.stack) {
+      console.error(err.stack);
+    }
+    client.destroy();
+    process.exitCode = 1;
+    setTimeout(() => process.exit(1), 100).unref();
+    return;
+  }
 
   try {
     // This now registers BOTH solo + group commands in one shot
@@ -59,6 +70,10 @@ client.once(Events.ClientReady, async () => {
   } catch (err) {
     console.error("? Error registering commands:", err);
   }
+});
+
+client.on(Events.Error, (err) => {
+  console.error("? Discord client error:", err?.message || err);
 });
 
 // --------------------------------------------
