@@ -1940,6 +1940,7 @@ const DECISION_GAUNTLET_FAIL_END_TEXT = (amount) =>
     "No more doors.",
     "",
     "InSquignito falls back into the void.",
+    "The unbanked stack is lost.",
     "",
     `You walk away with ${amount} $CHARM.`,
     "",
@@ -2008,9 +2009,9 @@ function buildDecisionRoundPayload(state) {
     .setImage(round.image)
     .setFooter({
       text: [
-        `Room Difficulty: ${Math.round(round.passChance * 100)}% survival rate`,
+        "Room Rule: one choice is safe; one choice is fatal",
         `Lives Remaining: ${"❤️".repeat(Math.max(0, state.livesRemaining)) || "None"}`,
-        `Current Stacked Reward: ${state.charmEarnedThisRun} $CHARM`,
+        `Unbanked Stack at Risk: ${state.charmEarnedThisRun} $CHARM`,
       ].join("\n"),
     });
 
@@ -2047,9 +2048,9 @@ function buildPostRoundDecisionPayload(state, round) {
     .setImage(round.image)
     .setFooter({
       text: [
-        `Room Difficulty: ${Math.round(round.passChance * 100)}% survival rate`,
+        "Cash out to secure the current stack",
         `Lives Remaining: ${"❤️".repeat(Math.max(0, state.livesRemaining)) || "None"}`,
-        `Current Stacked Reward: ${state.charmEarnedThisRun} $CHARM`,
+        `Unbanked Stack at Risk: ${state.charmEarnedThisRun} $CHARM`,
       ].join("\n"),
     });
 
@@ -2078,14 +2079,14 @@ function buildCashOutConfirmPayload(state) {
       [
         "You still have lives remaining. Are you sure you want to cash out and end this run?",
         "",
-        `Current Stacked Reward: **${state.charmEarnedThisRun} $CHARM**`,
+        `Secured Reward: **${state.charmEarnedThisRun} $CHARM**`,
       ].join("\n")
     )
     .setColor(0xf39c12)
     .setFooter({
       text: [
         `Lives Remaining: ${"❤️".repeat(Math.max(0, state.livesRemaining)) || "None"}`,
-        `Current Stacked Reward: ${state.charmEarnedThisRun} $CHARM`,
+        `Cash Out Reward: ${state.charmEarnedThisRun} $CHARM`,
       ].join("\n"),
     });
 
@@ -2177,29 +2178,32 @@ async function editDecisionGauntletReply(interaction, payload) {
 async function finalizeDecisionGauntletRun(
   interaction,
   state,
-  { resultType, finalRound, bonus = 0, finalText, finalImage = null }
+  { resultType, finalRound, bonus = 0, payoutAmount = null, finalText, finalImage = null }
 ) {
-  if (state.isEnding) return state.charmEarnedThisRun + bonus;
+  const resolvedPayout = Math.max(
+    0,
+    payoutAmount === null ? state.charmEarnedThisRun + bonus : Number(payoutAmount) || 0
+  );
+  if (state.isEnding) return resolvedPayout;
   state.isEnding = true;
 
   const playerName =
     interaction.user.username || interaction.user.globalName || "Player";
-  const payoutAmount = Math.max(0, state.charmEarnedThisRun + bonus);
-  let dripStatus = payoutAmount > 0 ? "Failure" : "Skipped (0 payout)";
-  let payoutOk = payoutAmount <= 0;
+  let dripStatus = resolvedPayout > 0 ? "Failure" : "Skipped (0 payout)";
+  let payoutOk = resolvedPayout <= 0;
   let payoutReason = null;
 
   try {
-    if (payoutAmount > 0) {
+    if (resolvedPayout > 0) {
       const reward = await rewardCharmAmount({
         userId: interaction.user.id,
         username: playerName,
-        amount: payoutAmount,
+        amount: resolvedPayout,
         source: "gauntlet-solo",
         guildId: interaction.guildId,
         channelId: interaction.channelId,
         metadata: {
-          score: payoutAmount,
+          score: resolvedPayout,
           resultType,
           finalRound,
         },
@@ -2213,7 +2217,7 @@ async function finalizeDecisionGauntletRun(
         await logCharmReward(interaction.client, {
           userId: interaction.user.id,
           amount: reward.amount,
-          score: payoutAmount,
+          score: resolvedPayout,
           source: "gauntlet-solo",
           channelId: interaction.channelId,
           reason: `Decision Gauntlet ${resultType}`,
@@ -2230,7 +2234,7 @@ async function finalizeDecisionGauntletRun(
   }
 
   try {
-    await Store.insertRun(interaction.user.id, playerName, currentMonthStr(), payoutAmount);
+    await Store.insertRun(interaction.user.id, playerName, currentMonthStr(), resolvedPayout);
   } catch (err) {
     console.error("[GAUNTLET] Failed to store Decision Gauntlet run:", err?.message || err);
   }
@@ -2244,7 +2248,7 @@ async function finalizeDecisionGauntletRun(
       userId: interaction.user.id,
       channelId: interaction.channelId,
       finalRound,
-      amount: payoutAmount,
+      amount: resolvedPayout,
       resultType,
       dripStatus,
       note: payoutReason,
@@ -2258,7 +2262,7 @@ async function finalizeDecisionGauntletRun(
         finalText,
         "",
         `Final Round: **${finalRound}**`,
-        `Final Award: **${payoutAmount} $CHARM**`,
+        `Final Award: **${resolvedPayout} $CHARM**`,
         `DRIP Status: **${dripStatus}**`,
       ].join("\n")
     )
@@ -2280,7 +2284,7 @@ async function finalizeDecisionGauntletRun(
     });
   } catch {}
 
-  return payoutAmount;
+  return resolvedPayout;
 }
 
 async function runSoloGauntletEphemeral(interaction) {
@@ -2321,7 +2325,8 @@ async function runSoloGauntletEphemeral(interaction) {
 
     await pick.deferUpdate();
 
-    const survived = Math.random() <= round.passChance;
+    const choiceIndex = Number(pick.customId.split(":").pop());
+    const survived = choiceIndex === state.safeIndexForAttempt;
 
     await waitMs(GAUNTLET_REVEAL_DELAY_MS);
 
@@ -2346,7 +2351,8 @@ async function runSoloGauntletEphemeral(interaction) {
         return finalizeDecisionGauntletRun(interaction, state, {
           resultType: "Out of Lives",
           finalRound: state.roundIndex,
-          finalText: DECISION_GAUNTLET_FAIL_END_TEXT(state.charmEarnedThisRun),
+          payoutAmount: 0,
+          finalText: DECISION_GAUNTLET_FAIL_END_TEXT(0),
           finalImage: round.image,
         });
       }
@@ -2840,7 +2846,7 @@ function startPanelEmbed() {
       [
         "Click **Start** to enter the Decision Gauntlet alone. Every choice is made in private, and every mistake is yours to carry.",
         "",
-        "Beyond the first door, InSquignito waits inside a sequence of brutal rooms built to test instinct, nerve, and luck. Some choices lead forward. Some end in silence. If you still have lives remaining, the Gauntlet drags you back to the beginning and makes you try again.",
+        "Beyond the first door, InSquignito waits inside a sequence of brutal rooms built to test instinct and nerve. Each room has one safe choice and one fatal choice. If you still have lives remaining, the Gauntlet drags you back to the beginning and makes you try again.",
         "",
         "After each cleared room, you may press deeper into the dark or cash out what you have managed to keep. Survive all 10 rooms, and the arena pays out a final bonus to those rare enough to reach the end.",
         "",
@@ -2861,14 +2867,14 @@ function buildDecisionGauntletInfoEmbed() {
         "**How it works:**",
         "1. You start with lives based on your highest eligible holder role tier.",
         "2. Clear 10 path-choice rooms in order.",
-        "3. Each room has one safe choice, plus a survival roll.",
-        "4. If you die and still have lives left, the run restarts at Room 1 and your current stack resets to 0.",
+        "3. Each room has one safe choice and one fatal choice.",
+        "4. If you choose wrong and still have lives left, the run restarts at Room 1 and your unbanked stack resets to 0.",
         "5. After every cleared room, choose Continue or Cash Out.",
         "6. $CHARM is paid once, only when the run ends.",
         "",
         "**Payouts:**",
         "- Cash Out: current stacked reward",
-        "- Out of Lives: current stacked reward",
+        "- Out of Lives: 0 $CHARM; the unbanked stack is lost",
         "- Full Clear: current stacked reward + 500 $CHARM bonus",
         "",
         "**Extra lives by role tier:**",
