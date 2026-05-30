@@ -47,6 +47,8 @@ function getMainDatabaseCandidates() {
     { source: "DATABASE_URL", value: process.env.DATABASE_URL },
     { source: "DATABASE_PUBLIC_URL", value: process.env.DATABASE_PUBLIC_URL },
     { source: "POSTGRES_PUBLIC_URL", value: process.env.POSTGRES_PUBLIC_URL },
+    { source: "DATABASE_URL_DRIP", value: process.env.DATABASE_URL_DRIP },
+    { source: "DATABASE_PUBLIC_URL_DRIP", value: process.env.DATABASE_PUBLIC_URL_DRIP },
   ]);
 }
 
