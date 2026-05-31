@@ -154,6 +154,8 @@ class PgStore {
         DROP TABLE IF EXISTS gauntlet_scores;
         DROP TABLE IF EXISTS gauntlet_plays;
         DROP TABLE IF EXISTS gauntlet_daily;
+        DROP TABLE IF EXISTS gauntlet_charm_daily_grants;
+        DROP TABLE IF EXISTS gauntlet_charm_inventory;
         DROP TABLE IF EXISTS gauntlet_runs;
         DROP TABLE IF EXISTS gauntlet_lb_messages;
         DROP TABLE IF EXISTS gauntlet_survival_settings;
@@ -178,6 +180,18 @@ class PgStore {
         finished_at TIMESTAMPTZ NOT NULL DEFAULT now()
       );
     `);
+    await this.pool.query(`
+      ALTER TABLE gauntlet_runs
+      ADD COLUMN IF NOT EXISTS result_type TEXT;
+    `);
+    await this.pool.query(`
+      ALTER TABLE gauntlet_runs
+      ADD COLUMN IF NOT EXISTS final_round INTEGER;
+    `);
+    await this.pool.query(`
+      ALTER TABLE gauntlet_runs
+      ADD COLUMN IF NOT EXISTS max_greed_level INTEGER NOT NULL DEFAULT 0;
+    `);
 
     // Daily limit table: track if a user has played today
     await this.pool.query(`
@@ -185,6 +199,26 @@ class PgStore {
         user_id TEXT NOT NULL,
         play_date DATE NOT NULL,
         PRIMARY KEY (user_id, play_date)
+      );
+    `);
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS gauntlet_charm_inventory (
+        user_id TEXT NOT NULL,
+        charm_key TEXT NOT NULL,
+        quantity INTEGER NOT NULL DEFAULT 0,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (user_id, charm_key),
+        CONSTRAINT gauntlet_charm_inventory_quantity_check CHECK (quantity >= 0)
+      );
+    `);
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS gauntlet_charm_daily_grants (
+        user_id TEXT NOT NULL,
+        grant_date DATE NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (user_id, grant_date)
       );
     `);
 
@@ -335,14 +369,104 @@ class PgStore {
    * @param {string} month - e.g. "2025-11"
    * @param {number} score
    */
-  async insertRun(userId, username, month, score) {
+  async insertRun(userId, username, month, score, options = {}) {
     await this.pool.query(
       `
-      INSERT INTO gauntlet_runs (user_id, username, month, score)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO gauntlet_runs (
+        user_id,
+        username,
+        month,
+        score,
+        result_type,
+        final_round,
+        max_greed_level
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       `,
-      [userId, username, month, score]
+      [
+        userId,
+        username,
+        month,
+        score,
+        options.resultType || null,
+        Number.isInteger(options.finalRound) ? options.finalRound : null,
+        Math.max(0, Number(options.maxGreedLevel || 0) || 0),
+      ]
     );
+  }
+
+  async getGauntletCharmInventory(userId) {
+    const r = await this.pool.query(
+      `
+      SELECT charm_key, quantity
+      FROM gauntlet_charm_inventory
+      WHERE user_id = $1
+      `,
+      [userId]
+    );
+
+    return Object.fromEntries(
+      (r.rows || []).map((row) => [
+        row.charm_key,
+        Math.max(0, Number(row.quantity || 0) || 0),
+      ])
+    );
+  }
+
+  async addGauntletCharms(userId, grants = {}) {
+    const entries = Object.entries(grants)
+      .map(([charmKey, quantity]) => [charmKey, Math.max(0, Number(quantity || 0) || 0)])
+      .filter(([, quantity]) => quantity > 0);
+
+    for (const [charmKey, quantity] of entries) {
+      await this.pool.query(
+        `
+        INSERT INTO gauntlet_charm_inventory (user_id, charm_key, quantity, updated_at)
+        VALUES ($1, $2, $3, now())
+        ON CONFLICT (user_id, charm_key)
+        DO UPDATE SET
+          quantity = gauntlet_charm_inventory.quantity + EXCLUDED.quantity,
+          updated_at = now()
+        `,
+        [userId, charmKey, quantity]
+      );
+    }
+  }
+
+  async consumeGauntletCharm(userId, charmKey) {
+    const r = await this.pool.query(
+      `
+      UPDATE gauntlet_charm_inventory
+      SET
+        quantity = quantity - 1,
+        updated_at = now()
+      WHERE user_id = $1
+        AND charm_key = $2
+        AND quantity > 0
+      RETURNING quantity
+      `,
+      [userId, charmKey]
+    );
+    return r.rowCount > 0;
+  }
+
+  async grantDailyGauntletCharmKit(userId, dateStr, grants = {}) {
+    const r = await this.pool.query(
+      `
+      INSERT INTO gauntlet_charm_daily_grants (user_id, grant_date)
+      VALUES ($1, $2)
+      ON CONFLICT DO NOTHING
+      RETURNING user_id
+      `,
+      [userId, dateStr]
+    );
+
+    if (r.rowCount === 0) {
+      return false;
+    }
+
+    await this.addGauntletCharms(userId, grants);
+    return true;
   }
 
   async getSurvivalShareClaim(sessionId, userId) {
@@ -464,14 +588,15 @@ class PgStore {
         COALESCE(MAX(score), 0) AS best,
         COALESCE(MIN(score), 0) AS least,
         COALESCE(SUM(score), 0) AS total,
-        COUNT(*) AS plays
+        COUNT(*) AS plays,
+        COALESCE(MAX(max_greed_level), 0) AS max_greed_level
       FROM gauntlet_runs
       WHERE user_id = $1 AND month = $2
       `,
       [userId, month]
     );
 
-    return r.rows[0] || { best: 0, least: 0, total: 0, plays: 0 };
+    return r.rows[0] || { best: 0, least: 0, total: 0, plays: 0, max_greed_level: 0 };
   }
 
   /**
