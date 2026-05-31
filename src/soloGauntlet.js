@@ -1734,13 +1734,13 @@ const GAUNTLET_RESULT_DISPLAY_MS = 3_000;
 const GAUNTLET_RESTART_MESSAGE_MS = 6_000;
 const GAUNTLET_COMPLETION_BONUS = 500;
 const DECISION_GAUNTLET_PAYOUT_CHANNEL_ID = "1477463175665287410";
-const DAILY_GAUNTLET_CHARM_KIT = {
+const DAILY_GAUNTLET_ITEM_KIT = {
   peek: 1,
   shield: 1,
   greed: 1,
   anchor: 1,
 };
-const GAUNTLET_CHARM_DEFS = {
+const GAUNTLET_ITEM_DEFS = {
   peek: {
     label: "Peek",
     description: "Reveals the safe choice for the current room.",
@@ -1763,32 +1763,20 @@ const GAUNTLET_ROLE_LIFE_TIERS = [
   {
     lives: 3,
     roles: [
-      "1331597994260430908",
-      "1365050931267502140",
-      "1402265720095637595",
-      "1333122261640675442",
-      "1374803199956877482",
-      "1365051369308033075",
-      "1402266073537187870",
-      "1402268977190801408",
-      "1355856165887676568",
-      "1453221977899798589",
+      "1404477669344542742",
     ],
   },
   {
     lives: 2,
     roles: [
-      "1331596316467396639",
-      "1365050271155224636",
-      "1402265567481696400",
+      "1493998083824947240",
+      "1290595729802530878",
     ],
   },
   {
     lives: 1,
     roles: [
-      "1321859390742986763",
-      "1358904123453345903",
-      "1402263646205120592",
+      "1493997923632152697",
     ],
   },
 ];
@@ -2042,13 +2030,13 @@ function getRoundReward(state, round) {
   return round.reward * (state.greedActive ? 2 : 1);
 }
 
-function formatCharmInventory(inventory = {}) {
-  return Object.keys(GAUNTLET_CHARM_DEFS)
-    .map((key) => `${GAUNTLET_CHARM_DEFS[key].label} x${Math.max(0, Number(inventory[key] || 0) || 0)}`)
+function formatItemInventory(inventory = {}) {
+  return Object.keys(GAUNTLET_ITEM_DEFS)
+    .map((key) => `${GAUNTLET_ITEM_DEFS[key].label} x${Math.max(0, Number(inventory[key] || 0) || 0)}`)
     .join(" | ");
 }
 
-function formatActiveCharms(state) {
+function formatActiveItems(state) {
   const active = [];
   if (state.peekedSafeIndex !== null && state.peekedSafeIndex !== undefined) {
     const round = getDecisionRound(state.roundIndex);
@@ -2062,7 +2050,7 @@ function formatActiveCharms(state) {
 
 function buildDecisionComponents(state) {
   const round = getDecisionRound(state.roundIndex);
-  const inventory = state.charmInventory || {};
+  const inventory = state.itemInventory || {};
 
   const rows = [
     new ActionRowBuilder().addComponents(
@@ -2080,22 +2068,22 @@ function buildDecisionComponents(state) {
   rows.push(
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId(`gauntlet:charm:${state.runId}:peek`)
+        .setCustomId(`gauntlet:item:${state.runId}:peek`)
         .setLabel(`Peek (${inventory.peek || 0})`)
         .setStyle(ButtonStyle.Secondary)
         .setDisabled(Boolean(state.peekedSafeIndex !== null && state.peekedSafeIndex !== undefined) || (inventory.peek || 0) <= 0),
       new ButtonBuilder()
-        .setCustomId(`gauntlet:charm:${state.runId}:shield`)
+        .setCustomId(`gauntlet:item:${state.runId}:shield`)
         .setLabel(`Shield (${inventory.shield || 0})`)
         .setStyle(ButtonStyle.Secondary)
         .setDisabled(Boolean(state.shieldActive) || (inventory.shield || 0) <= 0),
       new ButtonBuilder()
-        .setCustomId(`gauntlet:charm:${state.runId}:greed`)
+        .setCustomId(`gauntlet:item:${state.runId}:greed`)
         .setLabel(`Greed (${inventory.greed || 0})`)
         .setStyle(ButtonStyle.Secondary)
         .setDisabled(Boolean(state.greedActive) || (inventory.greed || 0) <= 0),
       new ButtonBuilder()
-        .setCustomId(`gauntlet:charm:${state.runId}:anchor`)
+        .setCustomId(`gauntlet:item:${state.runId}:anchor`)
         .setLabel(`Anchor (${inventory.anchor || 0})`)
         .setStyle(ButtonStyle.Secondary)
         .setDisabled(Boolean(state.anchorActive) || (inventory.anchor || 0) <= 0)
@@ -2127,8 +2115,8 @@ function buildDecisionRoundPayload(state, note = null) {
         `Lives Remaining: ${"❤️".repeat(Math.max(0, state.livesRemaining)) || "None"}`,
         `Greed Level: ${state.greedLevel} (${getGreedLabel(state.greedLevel)})`,
         `Unbanked Stack at Risk: ${state.charmEarnedThisRun} $CHARM`,
-        `Charms: ${formatCharmInventory(state.charmInventory)}`,
-        `Active: ${formatActiveCharms(state)}`,
+        `Items: ${formatItemInventory(state.itemInventory)}`,
+        `Active: ${formatActiveItems(state)}`,
       ].join("\n"),
     });
 
@@ -2243,13 +2231,13 @@ async function waitForDecisionButton(message, expectedIds, userId) {
   }
 }
 
-function getDecisionCharmIds(state) {
-  return Object.keys(GAUNTLET_CHARM_DEFS).map(
-    (key) => `gauntlet:charm:${state.runId}:${key}`
+function getDecisionItemIds(state) {
+  return Object.keys(GAUNTLET_ITEM_DEFS).map(
+    (key) => `gauntlet:item:${state.runId}:${key}`
   );
 }
 
-function getGreedCharmRewards(maxGreedLevel) {
+function getGreedItemRewards(maxGreedLevel) {
   const rewards = {};
   if (maxGreedLevel >= 2) rewards.peek = 1;
   if (maxGreedLevel >= 3) rewards.greed = 1;
@@ -2258,57 +2246,57 @@ function getGreedCharmRewards(maxGreedLevel) {
   return rewards;
 }
 
-function formatCharmGrants(grants = {}) {
+function formatItemGrants(grants = {}) {
   return Object.entries(grants)
     .filter(([, quantity]) => quantity > 0)
-    .map(([key, quantity]) => `${GAUNTLET_CHARM_DEFS[key]?.label || key} x${quantity}`)
+    .map(([key, quantity]) => `${GAUNTLET_ITEM_DEFS[key]?.label || key} x${quantity}`)
     .join(", ");
 }
 
-async function useDecisionCharm(state, charmKey) {
-  const def = GAUNTLET_CHARM_DEFS[charmKey];
+async function useDecisionItem(state, itemKey) {
+  const def = GAUNTLET_ITEM_DEFS[itemKey];
   if (!def) {
-    return "That charm does not exist.";
+    return "That item does not exist.";
   }
 
   if (
-    (charmKey === "peek" && state.peekedSafeIndex !== null && state.peekedSafeIndex !== undefined) ||
-    (charmKey === "shield" && state.shieldActive) ||
-    (charmKey === "greed" && state.greedActive) ||
-    (charmKey === "anchor" && state.anchorActive)
+    (itemKey === "peek" && state.peekedSafeIndex !== null && state.peekedSafeIndex !== undefined) ||
+    (itemKey === "shield" && state.shieldActive) ||
+    (itemKey === "greed" && state.greedActive) ||
+    (itemKey === "anchor" && state.anchorActive)
   ) {
     return `${def.label} is already active.`;
   }
 
-  if ((state.charmInventory?.[charmKey] || 0) <= 0) {
-    return `You do not have any ${def.label} charms.`;
+  if ((state.itemInventory?.[itemKey] || 0) <= 0) {
+    return `You do not have any ${def.label} items.`;
   }
 
-  const consumed = await Store.consumeGauntletCharm(state.userId, charmKey);
+  const consumed = await Store.consumeGauntletItem(state.userId, itemKey);
   if (!consumed) {
-    state.charmInventory = await Store.getGauntletCharmInventory(state.userId);
-    return `You do not have any ${def.label} charms left.`;
+    state.itemInventory = await Store.getGauntletItemInventory(state.userId);
+    return `You do not have any ${def.label} items left.`;
   }
 
-  state.charmInventory[charmKey] = Math.max(
+  state.itemInventory[itemKey] = Math.max(
     0,
-    Number(state.charmInventory[charmKey] || 0) - 1
+    Number(state.itemInventory[itemKey] || 0) - 1
   );
 
-  if (charmKey === "peek") {
+  if (itemKey === "peek") {
     state.peekedSafeIndex = state.safeIndexForAttempt;
     const round = getDecisionRound(state.roundIndex);
     return `Peek used. **${round.buttons[state.peekedSafeIndex]}** is safe.`;
   }
-  if (charmKey === "shield") {
+  if (itemKey === "shield") {
     state.shieldActive = true;
     return "Shield armed. The next fatal choice will be blocked.";
   }
-  if (charmKey === "greed") {
+  if (itemKey === "greed") {
     state.greedActive = true;
     return "Greed armed. This room pays double, but a wrong choice ends the run.";
   }
-  if (charmKey === "anchor") {
+  if (itemKey === "anchor") {
     state.anchorActive = true;
     return "Anchor armed. If this room kills you, you restart from this room.";
   }
@@ -2426,11 +2414,11 @@ async function finalizeDecisionGauntletRun(
     console.error("[GAUNTLET] Failed to store Decision Gauntlet run:", err?.message || err);
   }
 
-  const charmRewards = getGreedCharmRewards(state.maxGreedLevel || 0);
-  const charmRewardText = formatCharmGrants(charmRewards);
-  if (charmRewardText) {
+  const itemRewards = getGreedItemRewards(state.maxGreedLevel || 0);
+  const itemRewardText = formatItemGrants(itemRewards);
+  if (itemRewardText) {
     try {
-      await Store.addGauntletCharms(interaction.user.id, charmRewards);
+      await Store.addGauntletItems(interaction.user.id, itemRewards);
     } catch (err) {
       console.error("[GAUNTLET] Failed to grant Greed rewards:", err?.message || err);
     }
@@ -2461,7 +2449,7 @@ async function finalizeDecisionGauntletRun(
         `Final Round: **${finalRound}**`,
         `Final Award: **${resolvedPayout} $CHARM**`,
         `Max Greed Level: **${state.maxGreedLevel || 0} (${getGreedLabel(state.maxGreedLevel || 0)})**`,
-        charmRewardText ? `Charm Rewards: **${charmRewardText}**` : null,
+        itemRewardText ? `Item Rewards: **${itemRewardText}**` : null,
         `DRIP Status: **${dripStatus}**`,
       ].filter(Boolean).join("\n")
     )
@@ -2487,12 +2475,12 @@ async function finalizeDecisionGauntletRun(
 }
 
 async function runSoloGauntletEphemeral(interaction) {
-  await Store.grantDailyGauntletCharmKit(
+  await Store.grantDailyGauntletItemKit(
     interaction.user.id,
     torontoDateStr(),
-    DAILY_GAUNTLET_CHARM_KIT
+    DAILY_GAUNTLET_ITEM_KIT
   );
-  const charmInventory = await Store.getGauntletCharmInventory(interaction.user.id);
+  const itemInventory = await Store.getGauntletItemInventory(interaction.user.id);
 
   const state = {
     runId: makeRunId(interaction.user.id),
@@ -2506,7 +2494,7 @@ async function runSoloGauntletEphemeral(interaction) {
     roundsClearedThisRun: 0,
     greedLevel: 0,
     maxGreedLevel: 0,
-    charmInventory,
+    itemInventory,
     peekedSafeIndex: null,
     shieldActive: false,
     greedActive: false,
@@ -2525,9 +2513,9 @@ async function runSoloGauntletEphemeral(interaction) {
       `gauntlet:pick:${state.runId}:0`,
       `gauntlet:pick:${state.runId}:1`,
     ];
-    const charmIds = getDecisionCharmIds(state);
+    const itemIds = getDecisionItemIds(state);
 
-    const pick = await waitForDecisionButton(message, [...choiceIds, ...charmIds], state.userId);
+    const pick = await waitForDecisionButton(message, [...choiceIds, ...itemIds], state.userId);
     if (!pick) {
       return finalizeDecisionGauntletRun(interaction, state, {
         resultType: "Cash Out",
@@ -2539,9 +2527,9 @@ async function runSoloGauntletEphemeral(interaction) {
 
     await pick.deferUpdate();
 
-    if (pick.customId.startsWith(`gauntlet:charm:${state.runId}:`)) {
-      const charmKey = pick.customId.split(":").pop();
-      const note = await useDecisionCharm(state, charmKey);
+    if (pick.customId.startsWith(`gauntlet:item:${state.runId}:`)) {
+      const itemKey = pick.customId.split(":").pop();
+      const note = await useDecisionItem(state, itemKey);
       message =
         (await editDecisionGauntletReply(
           interaction,
@@ -3126,7 +3114,7 @@ function startPanelEmbed() {
         "",
         "Beyond the first door, InSquignito waits inside a sequence of brutal rooms built to test instinct and nerve. Each room has one safe choice and one fatal choice. If you still have lives remaining, the Gauntlet drags you back to the beginning and makes you try again.",
         "",
-        "After each cleared room, you may press deeper into the dark or cash out what you have managed to keep. Every continue raises your Greed Level. Consumable charms can bend a room, but they are gone when used.",
+        "After each cleared room, you may press deeper into the dark or cash out what you have managed to keep. Every continue raises your Greed Level. Consumable items can bend a room, but they are gone when used.",
         "",
         "One run per day for most challengers. Every run is recorded. The leaderboard remembers who walked out richest.",
       ].join("\n")
@@ -3148,7 +3136,7 @@ function buildDecisionGauntletInfoEmbed() {
         "3. Each room has one safe choice and one fatal choice.",
         "4. If you choose wrong and still have lives left, the run restarts at Room 1 and your unbanked stack resets to 0.",
         "5. After every cleared room, choose Continue or Cash Out.",
-        "6. Every Continue raises your Greed Level and improves end-of-run charm rewards.",
+        "6. Every Continue raises your Greed Level and improves end-of-run item rewards.",
         "7. $CHARM is paid once, only when the run ends.",
         "",
         "**Payouts:**",
@@ -3156,18 +3144,18 @@ function buildDecisionGauntletInfoEmbed() {
         "- Out of Lives: 0 $CHARM; the unbanked stack is lost",
         "- Full Clear: current stacked reward + 500 $CHARM bonus",
         "",
-        "**Consumable charms:**",
+        "**Consumable items:**",
         "- Peek: reveal the safe choice for the current room",
         "- Shield: block one fatal choice and clear the room",
         "- Greed: double this room's reward; wrong choice ends the run",
         "- Anchor: if this room kills you, restart from this room instead of Room 1",
         "",
-        "Each player receives one of each charm per day. Higher Greed Levels can earn extra charms at run end.",
+        "Each player receives one of each item per day. Higher Greed Levels can earn extra items at run end.",
         "",
         "**Extra lives by role tier:**",
-        "1 Life: Ugly Holder, Monster Holder, Squig Holder",
-        "2 Lives: Ugly Master, Monster Master, Squig Master",
-        "3 Lives: Ugly Lord, Monster Lord, Squig Lord, Ugly King, Ugly Legend, Monster King, Squig King, Squig Legend, Horrible Holder, Squig Editions Holder",
+        "1 Life: Weird",
+        "2 Lives: Unhinged and/or Gettin' Ugly",
+        "3 Lives: OG Holder",
         "",
         "If you do not have one of those roles, you still get 1 life.",
       ].join("\n")
@@ -4679,7 +4667,7 @@ async function handleInteractionCreate(interaction) {
     if (interaction.isButton() && interaction.customId === "gauntlet:mystats") {
       const month = currentMonthStr();
       const mine = await Store.getMyMonth(interaction.user.id, month);
-      const inventory = await Store.getGauntletCharmInventory(interaction.user.id);
+      const inventory = await Store.getGauntletItemInventory(interaction.user.id);
       const hasPlays = Number(mine.plays) > 0;
       const bestText = hasPlays ? mine.best : "—";
       const leastText = hasPlays ? mine.least : "—";
@@ -4694,7 +4682,7 @@ async function handleInteractionCreate(interaction) {
             `🔻 **Lowest Reward:** ${leastText}${hasPlays ? " $CHARM" : ""}`,
             `🧮 **Total Reward:** ${mine.total} $CHARM`,
             `🔥 **Highest Greed:** ${maxGreed} (${getGreedLabel(maxGreed)})`,
-            `🧿 **Charms:** ${formatCharmInventory(inventory)}`,
+            `🧿 **Items:** ${formatItemInventory(inventory)}`,
           ].join("\n")
         )
         .setColor(0x00ccff);

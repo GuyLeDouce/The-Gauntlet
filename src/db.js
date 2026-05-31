@@ -156,6 +156,8 @@ class PgStore {
         DROP TABLE IF EXISTS gauntlet_daily;
         DROP TABLE IF EXISTS gauntlet_charm_daily_grants;
         DROP TABLE IF EXISTS gauntlet_charm_inventory;
+        DROP TABLE IF EXISTS gauntlet_item_daily_grants;
+        DROP TABLE IF EXISTS gauntlet_item_inventory;
         DROP TABLE IF EXISTS gauntlet_runs;
         DROP TABLE IF EXISTS gauntlet_lb_messages;
         DROP TABLE IF EXISTS gauntlet_survival_settings;
@@ -203,24 +205,50 @@ class PgStore {
     `);
 
     await this.pool.query(`
-      CREATE TABLE IF NOT EXISTS gauntlet_charm_inventory (
+      CREATE TABLE IF NOT EXISTS gauntlet_item_inventory (
         user_id TEXT NOT NULL,
-        charm_key TEXT NOT NULL,
+        item_key TEXT NOT NULL,
         quantity INTEGER NOT NULL DEFAULT 0,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-        PRIMARY KEY (user_id, charm_key),
-        CONSTRAINT gauntlet_charm_inventory_quantity_check CHECK (quantity >= 0)
+        PRIMARY KEY (user_id, item_key),
+        CONSTRAINT gauntlet_item_inventory_quantity_check CHECK (quantity >= 0)
       );
     `);
 
     await this.pool.query(`
-      CREATE TABLE IF NOT EXISTS gauntlet_charm_daily_grants (
+      CREATE TABLE IF NOT EXISTS gauntlet_item_daily_grants (
         user_id TEXT NOT NULL,
         grant_date DATE NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         PRIMARY KEY (user_id, grant_date)
       );
     `);
+    const oldCharmInventory = await this.pool
+      .query("SELECT to_regclass('public.gauntlet_charm_inventory') AS table_name")
+      .catch(() => null);
+    if (oldCharmInventory?.rows?.[0]?.table_name) {
+      await this.pool.query(`
+        INSERT INTO gauntlet_item_inventory (user_id, item_key, quantity, updated_at)
+        SELECT user_id, charm_key, quantity, updated_at
+        FROM gauntlet_charm_inventory
+        ON CONFLICT (user_id, item_key)
+        DO UPDATE SET
+          quantity = GREATEST(gauntlet_item_inventory.quantity, EXCLUDED.quantity),
+          updated_at = GREATEST(gauntlet_item_inventory.updated_at, EXCLUDED.updated_at);
+      `);
+    }
+
+    const oldCharmDailyGrants = await this.pool
+      .query("SELECT to_regclass('public.gauntlet_charm_daily_grants') AS table_name")
+      .catch(() => null);
+    if (oldCharmDailyGrants?.rows?.[0]?.table_name) {
+      await this.pool.query(`
+        INSERT INTO gauntlet_item_daily_grants (user_id, grant_date, created_at)
+        SELECT user_id, grant_date, created_at
+        FROM gauntlet_charm_daily_grants
+        ON CONFLICT DO NOTHING;
+      `);
+    }
 
     // LB messages table: one per (guild, channel, month)
     await this.pool.query(`
@@ -395,11 +423,11 @@ class PgStore {
     );
   }
 
-  async getGauntletCharmInventory(userId) {
+  async getGauntletItemInventory(userId) {
     const r = await this.pool.query(
       `
-      SELECT charm_key, quantity
-      FROM gauntlet_charm_inventory
+      SELECT item_key, quantity
+      FROM gauntlet_item_inventory
       WHERE user_id = $1
       `,
       [userId]
@@ -407,53 +435,53 @@ class PgStore {
 
     return Object.fromEntries(
       (r.rows || []).map((row) => [
-        row.charm_key,
+        row.item_key,
         Math.max(0, Number(row.quantity || 0) || 0),
       ])
     );
   }
 
-  async addGauntletCharms(userId, grants = {}) {
+  async addGauntletItems(userId, grants = {}) {
     const entries = Object.entries(grants)
-      .map(([charmKey, quantity]) => [charmKey, Math.max(0, Number(quantity || 0) || 0)])
+      .map(([itemKey, quantity]) => [itemKey, Math.max(0, Number(quantity || 0) || 0)])
       .filter(([, quantity]) => quantity > 0);
 
-    for (const [charmKey, quantity] of entries) {
+    for (const [itemKey, quantity] of entries) {
       await this.pool.query(
         `
-        INSERT INTO gauntlet_charm_inventory (user_id, charm_key, quantity, updated_at)
+        INSERT INTO gauntlet_item_inventory (user_id, item_key, quantity, updated_at)
         VALUES ($1, $2, $3, now())
-        ON CONFLICT (user_id, charm_key)
+        ON CONFLICT (user_id, item_key)
         DO UPDATE SET
-          quantity = gauntlet_charm_inventory.quantity + EXCLUDED.quantity,
+          quantity = gauntlet_item_inventory.quantity + EXCLUDED.quantity,
           updated_at = now()
         `,
-        [userId, charmKey, quantity]
+        [userId, itemKey, quantity]
       );
     }
   }
 
-  async consumeGauntletCharm(userId, charmKey) {
+  async consumeGauntletItem(userId, itemKey) {
     const r = await this.pool.query(
       `
-      UPDATE gauntlet_charm_inventory
+      UPDATE gauntlet_item_inventory
       SET
         quantity = quantity - 1,
         updated_at = now()
       WHERE user_id = $1
-        AND charm_key = $2
+        AND item_key = $2
         AND quantity > 0
       RETURNING quantity
       `,
-      [userId, charmKey]
+      [userId, itemKey]
     );
     return r.rowCount > 0;
   }
 
-  async grantDailyGauntletCharmKit(userId, dateStr, grants = {}) {
+  async grantDailyGauntletItemKit(userId, dateStr, grants = {}) {
     const r = await this.pool.query(
       `
-      INSERT INTO gauntlet_charm_daily_grants (user_id, grant_date)
+      INSERT INTO gauntlet_item_daily_grants (user_id, grant_date)
       VALUES ($1, $2)
       ON CONFLICT DO NOTHING
       RETURNING user_id
@@ -465,7 +493,7 @@ class PgStore {
       return false;
     }
 
-    await this.addGauntletCharms(userId, grants);
+    await this.addGauntletItems(userId, grants);
     return true;
   }
 
