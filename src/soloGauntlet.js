@@ -1167,6 +1167,18 @@ async function startSurvivalFromLobby(interaction, lobby) {
           )
           .setImage("https://i.imgur.com/TZupWKD.png")
           .setColor(0x27ae60)
+      : settings.era_key === "reloaded"
+      ? new EmbedBuilder()
+          .setTitle("Squig Survival - RELOADED")
+          .setDescription(
+            [
+              "Ugly Labs has reloaded the portal. This was not approved by anyone qualified.",
+              `All **${players.length} Squigs** are loose among unstable traits, sentient brooms, and dangerously literal floor liquidity.`,
+              "Stay weird. Looking normal is now an elimination risk.",
+            ].join("\n")
+          )
+          .setImage("http://gifs.squigs.io/gifs/v-bullish-fly.gif")
+          .setColor(0x9b59b6)
       : new EmbedBuilder()
           .setTitle("Squig Survival - Game Starting!")
           .setDescription(

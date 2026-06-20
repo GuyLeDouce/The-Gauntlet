@@ -989,7 +989,19 @@ async function runSurvival(channel, playerIds, settings = {}) {
     );
 
     let imageUrl = null;
-    if (milestone === 1 && !useEraLockedImagesOnly) {
+    const milestoneImage = eraDefinition.milestoneImage;
+    if (
+      milestoneImage?.urlPrefix &&
+      Number.isInteger(milestoneImage.minTokenId) &&
+      Number.isInteger(milestoneImage.maxTokenId) &&
+      milestoneImage.maxTokenId >= milestoneImage.minTokenId
+    ) {
+      const tokenId = cryptoRandomInt(
+        milestoneImage.minTokenId,
+        milestoneImage.maxTokenId + 1
+      );
+      imageUrl = `${milestoneImage.urlPrefix}${tokenId}${milestoneImage.urlSuffix || ""}`;
+    } else if (milestone === 1 && !useEraLockedImagesOnly) {
       imageUrl = SHARED_LOCKED_FIRST_IMAGE;
     } else if (activeRunState.stageImagePool.length) {
       imageUrl = takeRunImage(activeRunState, "stageImagePool", "stageImageBag");

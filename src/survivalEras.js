@@ -1566,8 +1566,279 @@ appendMilestones(AIRPORT_ERA_MILESTONE_STAGES, [
   ["Departure Board Endgame", "The screens glow, the last announcements crackle, and one final survivor tries to beat the terminal before it rewrites them too."],
 ]);
 
+const RELOADED_LORE_LINES = [
+"🌀 {player} asked the portal for directions. It responded with 47 pages of updated terms and conditions.",
+"🧹 {player} has swept the same patch of floor for an hour. The dirt apparently has respawn enabled.",
+"🧬 {player}'s rare trait started giving financial advice. Its entire strategy is 'acquire more brooms.'",
+"📢 {player} typed 'gm' in six Discord channels and immediately requested the rest of the day off.",
+"🧪 {player} drank the control sample because the label seemed overly confident.",
+"🌍 {player} discovered Earth has taxes and began searching for the emergency return portal.",
+"🪩 {player} mistook a disco ball for a shattered moon and has already negotiated a peace treaty.",
+"🧻 {player} discovered toilet paper and listed three rolls as limited-edition ancient Earth scrolls.",
+"📉 {player} bought the floor and received eight square feet of laminate covered in mop water.",
+"🧠 {player} attempted to think outside the box while refusing to physically leave the box.",
+"🛒 {player} named a shopping cart the Terrestrial Liquidity Vehicle and is now seeking investors.",
+"👁️ {player}'s eye trait keeps winking at the moderators in a pattern that violates several server rules.",
+"🧤 {player} placed oven mitts over their ears and declared themselves fully protected from human cuisine.",
+"🗑️ {player} found a bin labelled 'metadata' and began searching for a less embarrassing personality.",
+"🚪 {player} opened a supply closet, saw an unnatural purple glow, and responsibly waited four seconds before entering.",
+"🪙 {player} tried tipping a Roomba and accidentally became the majority shareholder of its cleaning route.",
+"🎨 {player} changed backgrounds twice and updated their bio to 'focused on personal growth.'",
+"🛜 {player} blamed portal latency for a decision made nowhere near a functioning portal.",
+"🧃 {player} called juice 'fruit alpha' and had their laboratory speaking privileges permanently revoked.",
+"🫡 {player} saluted the Ugly Labs broom closet after learning senior management holds meetings inside."
+];
+
+
+const RELOADED_MILESTONE_STAGES = [
+["Reload Sequence — Mint Condition*",
+"The new Squigs arrive polished, unstable, and immediately begin pressing controls labelled DO NOT TOUCH."],
+
+["Trait Calibration — Results May Vary",
+"Eyes blink sideways, hats develop opinions, and one background quietly spreads into the staff kitchen."],
+
+["Portal Test 01 — Earth Adjacent",
+"The portal reaches Earth, technically, but unloads everyone into a hardware store twelve minutes after closing."],
+
+["Discord Onboarding — Ping Responsibly",
+"Roles multiply, notifications detonate, and the Squigs discover that nobody reads the announcements until something goes wrong."],
+
+["Floor Discovery — Literal Alpha",
+"Several Squigs begin sweeping beneath the charts after concluding that liquidity must be trapped under the tiles."],
+
+["Broom Protocol — Privileges Escalated",
+"The cleaning equipment receives cosmic firmware and immediately gains more authority than half of Ugly Labs."],
+
+["Metadata Refresh — Identity Pending",
+"Traits rearrange themselves in public while the team confidently insists everything is displaying exactly as intended."],
+
+["Earth Week One — Degen Contamination",
+"The Squigs learn charts, slang, and the dangerous confidence created by three consecutive green candles."],
+
+["Trait Rebellion — Accessories Assemble",
+"Hats, mouths, eyes, and backgrounds form rival factions, each promising utility and none providing a roadmap."],
+
+["Portal Spill — Mop the Fabric of Reality",
+"Purple energy floods the laboratory and the newly sentient brooms begin charging fees to cross it."],
+
+["Ugly Labs Stand-up — Situation Remains Ugly",
+"Every experiment is metaphorically on fire, except the one currently under administrative review for being actually on fire."],
+
+["Community Call — Unmuted by Nature",
+"Six Squigs speak simultaneously, one shares the wrong screen, and the host has apparently left the dimension."],
+
+["Rare Trait Panic — Source: Trust Me",
+"Rumours outperform evidence as ordinary accessories receive valuations normally reserved for small islands."],
+
+["Sweep Cycle Two — Floor Resistance",
+"The tiles reject cleaning, liquidity, and every Squig unable to demonstrate sufficiently strong conviction."],
+
+["Cosmic Patch Notes — New Bugs Added",
+"Reality receives an emergency hotfix that repairs one portal and gives gravity three experimental settings."],
+
+["Earth Culture Exam — Open Discord",
+"The remaining Squigs copy one another's answers and collectively conclude that sandwiches are a form of governance."],
+
+["Portal Merge Conflict — Choose Neither",
+"Two exits attempt to occupy the same doorway while version control labels the entire laboratory emotionally incompatible."],
+
+["Trait Support — Ticket Storm",
+"Every mouth files complaints against every eye while the backgrounds demand recognition as independent ecosystems."],
+
+["Degen Night Shift — Sleep Deprecated",
+"Charts glow, judgement fades, and the survivors begin mistaking exhaustion for advanced market intuition."],
+
+["BroomDAO Vote — Governance Swept Aside",
+"A proposal to sweep clockwise passes, fails, and passes again before anyone confirms the location of the floor."],
+
+["Metadata Basement — Attributes Unfiltered",
+"The Squigs descend beneath the collection into raw data, where names are temporary and cached mistakes live forever."],
+
+["Portal Weather — Sideways with a Chance of Chaos",
+"Cosmic winds tear through the lab, rearranging furniture, traits, and several opinions previously described as permanent."],
+
+["Normality Audit — Anomaly Detected",
+"Inspectors searching for sensible behaviour discover one suspiciously average Squig hiding behind the accounting department."],
+
+["Collection Sync — Heavy Token Traffic",
+"Thousands of portraits queue for one unstable portal while the server fan begins whispering forgotten seed phrases."],
+
+["Ugly Labs Cleanup — Mess Is Structural",
+"Every available broom is deployed at once, revealing that several major disasters are currently load-bearing."],
+
+["Discord Slowmode — Consequences Unrestricted",
+"Messages arrive one at a time while the resulting disasters continue operating without rate limits."],
+
+["Trait Singularity — Cosmetic Event Horizon",
+"Every accessory collapses into one impossible trait that immediately creates its own Discord server."],
+
+["Liquidity Sweep — Wet Floor Market",
+"A mop bucket becomes the laboratory's largest market maker and begins demanding favourable trading conditions."],
+
+["Final Portal Window — Destination Unclear",
+"The remaining exits flicker between home, Earth, and a suspiciously furnished broom closet labelled EXECUTIVE."],
+
+["Reloaded Endgame — Too Ugly to Fail",
+"Only the least explainable Squigs remain, which Ugly Labs officially records as successful quality control."],
+
+["Last Trait Standing — Improperly Documented",
+"The metadata settles, Discord falls briefly silent, and one completely unverified Squig remains undeniably present."]
+];
+
+
+const RELOADED_STORIES = {
+hidingSpots: [
+"Inside a forgotten metadata field, {victim} waited quietly until the entire sentence was marked deprecated.",
+"What appeared to be floor liquidity survived unnoticed until the industrial mop discovered it was actually {victim}.",
+"Behind the portal stabilizer, {victim} found perfect cover and an automatic export route to an unsupported chain.",
+"A rare background agreed to hide {victim}, then delisted them for negatively affecting the composition.",
+"The broom closet protected {victim} until its residents held an emergency vote to remove unauthorized debris.",
+"Forty thousand unread messages buried {victim} safely inside a muted Discord channel until the moderators clicked 'Mark All as Read.'",
+"By posing as an ordinary Earth object, {victim} became the first thing removed for violating Ugly Labs design standards.",
+"Routine collection maintenance unchecked the trait filter containing {victim}, removing them from all known search results.",
+"An error log provided shelter for {victim} right up until someone solved the issue by clicking 'Clear All.'",
+"Beneath the laboratory rug, {victim} discovered that the decorative pattern was actually a tightly rolled wormhole.",
+"A suspicious green candle concealed {victim} perfectly until the market corrected and took both of them down.",
+"For maximum stealth, {victim} compressed into a thumbnail and never successfully loaded again.",
+"Holder verification protected {victim} for almost seven minutes before their role expired halfway through a plea for help.",
+"The unclaimed mop bucket seemed safe until it bridged {victim} into a janitorial ecosystem with no return route.",
+"A stack of failed experiments hid {victim} until management relabelled the entire pile 'Production Ready.'",
+"After entering a cardboard portal marked BETA, {victim} became a broken image icon with excellent uptime.",
+"Nobody noticed {victim} hiding inside the pinned announcement, including the moderator who eventually deleted it unread.",
+"Beneath the estimated gas fee, {victim} remained unseen until network congestion flattened everything nearby.",
+"An oversized hoodie trait swallowed {victim} completely before being sent through the laboratory wash cycle.",
+"Dark mode kept {victim} concealed behind the artificial moon until someone changed the server theme.",
+"The unreleased roadmap draft sheltered {victim} until Ugly Labs accidentally published and deleted it within the same minute.",
+"Inside the wallet connection window, {victim} stayed perfectly still while every available account selected 'Reject.'",
+"Six hundred impatient refreshes finally crushed the hiding place {victim} had chosen beneath the reload button.",
+"An offline Discord bot stored {victim} safely in memory until an unexpected factory reset restored everything except them.",
+"Behind a Legendary 1/1, {victim} passed unnoticed until the owner zoomed in and reported an unexplained common trait.",
+"Cached metadata kept {victim} alive until someone performed the collection's first genuinely successful hard refresh.",
+"Management never checked the folder marked COMING SOON, making it ideal for {victim} until the feature unexpectedly launched.",
+"Accounting opened the TAX DOCUMENTS closet for the first time in recorded history and found a deeply disappointed {victim}.",
+"Disguised as part of a QR code, {victim} survived until the camera refused to focus and the poster entered recycling.",
+"The terms and conditions contained {victim} for months before a legal update replaced the section without anyone reading either version."
+],
+
+clumsiness: [
+"A second click on 'Reveal Traits' launched {victim} through a ceiling portal the first click had not displayed.",
+"While attempting to sweep the floor price upward, {victim} rode the broom directly beyond the collection boundary.",
+"The emergency metadata button looked load-bearing, so {victim} leaned against it and was immediately renamed null.",
+"Mistaking portal residue for an energy drink left {victim} buffering indefinitely somewhere above Cleveland.",
+"Without warning, the hat trait belonging to {victim} expanded into a deeply unfashionable weather system.",
+"The cosmic anomaly looked photographable until the image preview closed around {victim}.",
+"One fake collaboration link later, {victim} was trapped in a universe where every surface required selecting all the traffic lights.",
+"While checking beneath a wet-floor sign for liquidity, {victim} slipped on the only warning available.",
+"Setting the background to transparent worked perfectly, which is why Ugly Labs immediately lost {victim}.",
+"The portal was plugged into itself by {victim}, producing one extremely compact loading spinner.",
+"A formal duel with the Roomba ended when it calmly pushed {victim} beyond render distance.",
+"Earth's gravity slider reached maximum moments before {victim} became permanent basement inventory.",
+"After equipping every available trait at once, {victim} was rejected by the metadata for showing off.",
+"An urgent notification ping led {victim} through three channels and directly into an archived portal thread.",
+"For a better view, {victim} stood on the mint button and was permanently issued as laboratory furniture.",
+"The phrase 'What could go wrong?' activated every nearby experiment except the one containing {victim}'s common sense.",
+"Using a token ID as a boarding pass sent {victim} directly to oversized baggage.",
+"Portal reception improved briefly when {victim} raised a cosmic broom overhead and became its antenna.",
+"While trying to remove a suspicious message, {victim} selected themselves and confidently clicked 'Hide Spam.'",
+"Slippage was set to one hundred percent moments before {victim} disappeared through the laboratory floor.",
+"A celebratory reveal-day backflip placed {victim} permanently inside the unrevealed placeholder image.",
+"The glowing button explicitly said DO NOT LICK, which {victim} interpreted as incomplete testing instructions.",
+"Among forty-seven open browser tabs, one was a portal; session recovery restored every tab except {victim}.",
+"Synchronizing traits with a disco ball transformed {victim} into reflected light with no physical roadmap.",
+"To improve liquidity, {victim} poured juice into the portal and was processed as a beverage.",
+"The elevator marked L2 carried {victim} to a Layer 2 network unsupported by everyone currently employed.",
+"A complimentary towel convinced {victim} that the burn address was probably some kind of spa.",
+"Despite being clearly marked DECORATIVE, the rare hat was used by {victim} as an emergency parachute.",
+"Crouching during the collection photo caused {victim} to be cropped out of reality at full resolution.",
+"Holder verification failed because {victim} was holding a door, and the bot assigned every available role to the door."
+],
+
+sabotage: [
+"The glowing broom was a rideable whitelist spot, {killer} promised. Deep-clean mode introduced itself to {victim} shortly afterward.",
+"Moments before cleanup began, {killer} changed the rarity of {victim} to 'common household dust.'",
+"A portal giveaway shared by {killer} awarded {victim} the grand prize of permanent dimensional exile.",
+"According to {killer}, the floor chart was completely safe to use as a trampoline. {victim} landed exactly when the candle closed red.",
+"Ugly Labs received a report from {killer} classifying {victim} as a failed experiment and approved it without requesting evidence.",
+"The background behind {victim} became an active wormhole after {killer} quietly swapped the trait and requested complete stillness.",
+"A mop labelled LIQUIDITY TOOL was handed to {victim} by {killer}, along with directions toward the largest cosmic spill.",
+"After muting every warning from {victim}, {killer} invited the self-aware eye traits into the channel.",
+"The metadata freezer preserved rarity, or so {killer} explained while locking {victim} inside it.",
+"Five minutes before laboratory cleanup, {killer} added {victim} to the inventory under 'Miscellaneous Floor Items.'",
+"The RANDOM CHAIN button looked harmless once {killer} removed the travel warnings and dared {victim} to press it.",
+"A replacement roadmap supplied by {killer} guided {victim} directly into the industrial broom testing lane.",
+"Moderators responded immediately after {killer} reported {victim} for displaying an unacceptable level of normality.",
+"The mouth trait belonging to {victim} could definitely negotiate with the garbage disposal portal, according to {killer}.",
+"A cursed accessory arrived in the wallet of {victim}, courtesy of {killer}, and immediately assumed full control.",
+"Exclusive alpha waited behind the laboratory door, {killer} claimed, before activating the ceiling-mounted leaf blower on {victim}.",
+"Fake patch notes from {killer} informed {victim} that gravity had become optional and could safely be disabled.",
+"While {victim} was distracted, {killer} replaced their connected wallet with a library card and initiated portal verification.",
+"The burn address was described by {killer} as a private wellness retreat, complete with a towel reserved for {victim}.",
+"Spoiler tags concealed the name of {victim} moments before {killer} convinced moderators to purge every spoiler in the channel.",
+"Opacity dropped to one percent after {killer} edited the settings of {victim} and notified the cleaners about a faint stain.",
+"Every route on the premium exit map sold by {killer} delivered {victim} to the same broom testing chamber.",
+"The emergency ejection switch became CLAIM ALPHA after {killer} changed the label and invited {victim} to move quickly.",
+"Portal output was connected directly to the headphones of {victim} while {killer} promised an unforgettable bass drop.",
+"A LEGENDARY sticker placed by {killer} convinced {victim} to inspect the cosmic disposal hatch from inside.",
+"Confidence was all anyone needed to defeat a Roomba, explained {killer} while handing fabricated duel instructions to {victim}.",
+"Every notification belonging to {victim} was rerouted by {killer} through an industrial portal ventilation fan.",
+"The chair beneath {victim} became an open cross-chain bridge after a last-second furniture adjustment by {killer}.",
+"A high-yield staking opportunity offered by {killer} placed {victim} inside a supply locker with an undisclosed lockup period.",
+"Support received a ticket from {killer} requesting removal of the duplicate {victim} and completed the request without identifying the original."
+],
+
+resurrections: [
+"During a routine metadata rollback, one deprecated trait, two spelling errors, and {victim} returned unexpectedly.",
+"The return receipt presented by {victim} was rejected so forcefully that the portal threw them back into the game.",
+"Moving backward through time, a confused broom deposited {victim} beside the wet-floor sign.",
+"A Discord cache refresh restored 9,000 notifications, three deleted memes, and {victim} with absolutely no context.",
+"By reclassifying the experiment as 'unexpectedly successful,' Ugly Labs revived {victim} through administrative policy.",
+"Two incompatible traits collided and respawned {victim} wearing both hats involved in the accident.",
+"Restoring the previous collection metadata brought {victim} back at twelve percent opacity.",
+"After blinking twice, the self-aware eye trait ejected a living and deeply offended {victim} from its pupil.",
+"One degen purchased the wrong floor and accidentally lifted {victim} out of the mop bucket.",
+"From the portal recycle bin emerged a functional copy of {victim} named 'final_FINAL_2.png.'",
+"The wrong Discord thread was unarchived, allowing {victim} to walk out and immediately continue an old argument.",
+"For the first recorded time, the laboratory undo button worked and returned {victim} to everyone else's disappointment.",
+"A delayed transaction finally confirmed, placing {victim} back into the competition several disasters behind schedule.",
+"Unable to reach quorum without another member, the remaining traits voted unanimously to restore {victim}.",
+"A sudden rise in the floor price lifted {victim} out of basement inventory and back into active circulation.",
+"Someone kicked the laboratory router, causing the broken image icon representing {victim} to load normally.",
+"Reversing the latest broom firmware update also reversed the sweep that had removed {victim}.",
+"After six to eight business dimensions, portal support finally reviewed and approved the appeal submitted by {victim}.",
+"An abandoned browser session reopened with one tab still running and {victim} standing patiently inside it.",
+"The cursed accessory controlling {victim} became bored, disconnected itself, and released its host back into the game.",
+"A typo discovered in the elimination command gave Ugly Labs no choice but to quietly restore {victim}.",
+"Once the wet floor dried, {victim} peeled away from the tile and resumed competing as though nothing had happened.",
+"An off-by-one error in the leaderboard audit revealed that {victim} had been eliminated from the wrong position.",
+"Scanning the cosmic receipt for a refund caused the universe to return {victim} in mostly original condition.",
+"When the unclaimed inventory automatically restocked, one confused but functional {victim} appeared among the supplies.",
+"Resetting the trait filter to 'Show All' revealed that {victim} had technically never left.",
+"A chain reorganization reversed several questionable transactions, including the elimination of {victim}.",
+"The Roomba emptied its dust compartment and released {victim}, who immediately demanded another duel.",
+"Legacy support restored a deprecated metadata field along with everything still stored inside it, including {victim}.",
+"A passenger-manifest glitch duplicated the final portal entry and printed one replacement {victim}."
+]
+};
+
+
+const RELOADED_ERA = {
+  key: "reloaded",
+  label: "RELOADED",
+  loreLines: RELOADED_LORE_LINES,
+  milestoneStages: RELOADED_MILESTONE_STAGES.map(([title, flavor]) => ({ title, flavor })),
+  stories: RELOADED_STORIES,
+  milestoneImage: {
+    urlPrefix: "http://viewer.squigs.io/images/",
+    urlSuffix: ".png",
+    minTokenId: 1,
+    maxTokenId: 4444,
+  },
+  useEraLockedImagesOnly: true,
+};
+
 const SURVIVAL_ERAS = {
   day_one: DAY_ONE_ERA,
+  reloaded: RELOADED_ERA,
   office_squigs: OFFICE_SQUIGS_ERA,
   jobsite_squigs: JOBSITE_SQUIGS_ERA,
   movie_theater: MOVIE_THEATER_ERA,
@@ -1684,6 +1955,24 @@ const SURVIVAL_REVIVE_FAIL_LORE = {
     "🗺️ {player} stared at the city map searching for another clinic before the fever burned through the plan.",
     "😬 {player} kept saying they were fine while the infection crawled higher and the room stopped believing it."
   ],
+reloaded: [
+"🧹 {player} begged the broom to sweep them back into the game. It swept them directly into the hidden folder.",
+"🌀 {player} jumped into the Reloaded portal, but their token ID was flagged as oversized baggage.",
+"🧬 {player} rerolled every trait looking for a second life. The best they got was a slightly rarer corpse.",
+"📢 {player} pinged the entire Discord for help. They survived only as a pinned warning.",
+"🧪 {player} drank the experimental respawn fluid. The bottle has since been renamed after them.",
+"📉 {player} tried sweeping their way back into the game and ended up holding one damp floor tile.",
+"🗑️ {player} searched the metadata recycle bin for a spare life. They found three ugly hats and someone else's mouth.",
+"👁️ {player} asked their eye trait to find a way back. It saw the odds and immediately looked away.",
+"🛜 {player} blamed portal lag. Diagnostics confirmed the connection was fine—they were just extremely eliminated.",
+"🪙 {player} paid gas to respawn. The transaction failed, the gas vanished, and the universe marked it as funny.",
+"🚪 {player} opened the broom closet expecting a revival chamber. Inside was a chair and a very serious performance review.",
+"🎨 {player} changed their background trait to 'Still Alive.' Metadata moderation removed it for misinformation.",
+"🧻 {player} wrapped themselves in an ancient Earth scroll and waited for the sacred power of two-ply. Nothing happened, but they were comfortable.",
+"🛒 {player} rode the liquidity cart toward resurrection. One wheel jammed and they were returned to the floor.",
+"🫡 {player} gave the portal a flawless salute. The portal respected their courage and kept them dead anyway."
+],
+
 };
 
 const SURVIVAL_ALIVE_TAUNTS = [
