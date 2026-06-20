@@ -48,6 +48,8 @@ const {
   runSurvival,
   buildPodiumImage,
   getSurvivalRunLifeStatus,
+  hasActiveSurvivalRun,
+  clearActiveSurvivalRun,
   getSurvivalShareData,
   postSurvivalFinalSummaryTest,
   SURVIVAL_SHARE_DISCORD_CHANNEL_ID,
@@ -2958,6 +2960,21 @@ async function registerCommands() {
       .setName("survivestart")
       .setDescription("Start the active Squig Survival lobby."),
     new SlashCommandBuilder()
+      .setName("survivaltest")
+      .setDescription("Run a payout-free Squig Survival test with six bots (admins only).")
+      .addStringOption((o) =>
+        o
+          .setName("era")
+          .setDescription("Era to test (defaults to RELOADED)")
+          .addChoices(
+            ...Object.values(SURVIVAL_ERAS).map((era) => ({
+              name: era.label,
+              value: era.key,
+            }))
+          )
+          .setRequired(false)
+      ),
+    new SlashCommandBuilder()
       .setName("podiumtest")
       .setDescription("Test the Squig Survival podium art (uses your avatar)."),
     new SlashCommandBuilder()
@@ -3466,6 +3483,13 @@ async function handleInteractionCreate(interaction) {
           });
         }
 
+        if (hasActiveSurvivalRun(interaction.channelId)) {
+          return interaction.reply({
+            content: "❌ A Squig Survival game is already running in this channel.",
+            flags: 64,
+          });
+        }
+
         const standardSettings = await getSurvivalStandardSettings();
         const settings = cloneSurvivalSettings(standardSettings);
         const type = interaction.options.getString("type");
@@ -3616,7 +3640,63 @@ async function handleInteractionCreate(interaction) {
             flags: 64,
           });
         }
+        if (hasActiveSurvivalRun(survivalLobby.channel_id)) {
+          return interaction.reply({
+            content: "❌ A Squig Survival game is already running in this channel.",
+            flags: 64,
+          });
+        }
         await startSurvivalFromLobby(interaction, survivalLobby);
+        return;
+      }
+
+      // /survivaltest
+      if (interaction.commandName === "survivaltest") {
+        if (!isAdminUserLocal(interaction)) {
+          return interaction.reply({
+            content: "⛔ Only admins can use /survivaltest.",
+            flags: 64,
+          });
+        }
+
+        if (
+          hasActiveSurvivalRun(interaction.channelId) ||
+          survivalLobby?.channel_id === interaction.channelId
+        ) {
+          return interaction.reply({
+            content: "❌ A Squig Survival game or lobby is already active in this channel.",
+            flags: 64,
+          });
+        }
+
+        const eraKey = interaction.options.getString("era") || "reloaded";
+        const era = getSurvivalEraDefinition(eraKey);
+        const testPlayers = Array.from(
+          { length: 6 },
+          (_, index) => `survival-test-bot-${index + 1}`
+        );
+        const testPlayerNames = Object.fromEntries(
+          testPlayers.map((id, index) => [id, `Test Squig ${index + 1}`])
+        );
+
+        await interaction.reply({
+          content: `🧪 Starting a six-bot **${era.label}** Squig Survival test. No stats or rewards will be recorded.`,
+        });
+
+        try {
+          await runSurvival(interaction.channel, testPlayers, {
+            era_key: era.key,
+            era: era.label,
+            pool_increment: 50,
+            creator_chaos: false,
+            bonus_active: false,
+            revives_enabled: false,
+            test_mode: true,
+            test_player_names: testPlayerNames,
+          });
+        } finally {
+          clearActiveSurvivalRun(interaction.channelId);
+        }
         return;
       }
 

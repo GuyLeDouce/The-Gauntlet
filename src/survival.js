@@ -109,6 +109,10 @@ function clearActiveSurvivalRun(channelId) {
   activeSurvivalRuns.delete(channelId);
 }
 
+function hasActiveSurvivalRun(channelId) {
+  return Boolean(channelId && activeSurvivalRuns.has(channelId));
+}
+
 function trimSurvivalShareSessions() {
   if (survivalShareSessions.size <= MAX_SURVIVAL_SHARE_SESSIONS) return;
   const oldest = [...survivalShareSessions.entries()]
@@ -491,6 +495,8 @@ async function awardSurvivalImageUse(channel, run, imageUrl) {
   }
   run.usedImageUrls.push(imageUrl);
 
+  if (run.testMode) return;
+
   const artReward =
     run.dbRewardMap?.get(imageUrl) || SURVIVAL_ART_REWARDS[imageUrl] || null;
   if (!artReward?.userId) return;
@@ -703,6 +709,11 @@ async function runSurvival(channel, playerIds, settings = {}) {
       1,
       Number(settings?.bonus_multiplier || 1) || 1
     ),
+    test_mode: Boolean(settings?.test_mode),
+    test_player_names:
+      settings?.test_player_names && typeof settings.test_player_names === "object"
+        ? settings.test_player_names
+        : null,
   };
   const defaultEraDefinition = getSurvivalEraDefinition("day_one");
   const eraDefinition = getSurvivalEraDefinition(normalizedSettings.era_key);
@@ -764,7 +775,9 @@ async function runSurvival(channel, playerIds, settings = {}) {
   const usedImageUrls = [];
 
   const uniquePlayers = Array.from(new Set(playerIds));
-  const gameId = await survivalStore.createGame(new Date());
+  const gameId = normalizedSettings.test_mode
+    ? null
+    : await survivalStore.createGame(new Date());
   const runKey = gameId
     ? `game-${gameId}`
     : `run-${Date.now()}-${cryptoRandomInt(1_000_000)}`;
@@ -773,11 +786,9 @@ async function runSurvival(channel, playerIds, settings = {}) {
       uniquePlayers.map((id) => survivalStore.recordJoin(gameId, id, new Date()))
     );
   }
-  const nameMap = await buildDisplayNameMap(
-    channel.client,
-    channel.guildId,
-    uniquePlayers
-  );
+  const nameMap = normalizedSettings.test_mode
+    ? new Map(Object.entries(normalizedSettings.test_player_names || {}))
+    : await buildDisplayNameMap(channel.client, channel.guildId, uniquePlayers);
   const nameOf = (id) => nameMap.get(id) || `User-${id}`;
 
   let alive = [...uniquePlayers];
@@ -800,6 +811,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
     creatorRewardTotals,
     usedImageUrls,
     dbRewardMap,
+    testMode: normalizedSettings.test_mode,
     stageImagePool: mergedStageImages,
     stageImageBag: shuffle(mergedStageImages),
     reviveSuccessImagePool: reviveSuccessImages,
@@ -1101,11 +1113,9 @@ async function runSurvival(channel, playerIds, settings = {}) {
     .setColor(0xf1c40f)
     .setFooter({ text: "Only one Squig ever really makes it..." });
 
-  const podiumBuffer = await buildPodiumImage(
-    channel.client,
-    placements,
-    channel.guildId
-  );
+  const podiumBuffer = normalizedSettings.test_mode
+    ? null
+    : await buildPodiumImage(channel.client, placements, channel.guildId);
   if (podiumBuffer) {
     const podiumAttachment = new AttachmentBuilder(podiumBuffer, {
       name: "podium.png",
@@ -1121,11 +1131,22 @@ async function runSurvival(channel, playerIds, settings = {}) {
     });
   }
 
-  const payouts = calculateSurvivalPayouts(
-    uniquePlayers,
-    placements,
-    normalizedSettings
-  );
+  if (normalizedSettings.test_mode) {
+    await channel.send({
+      embeds: [
+        new EmbedBuilder()
+          .setTitle("Squig Survival - Admin Test Complete")
+          .setDescription(
+            `**${nameOf(winnerId)}** won the six-bot simulation.\nNo stats, payouts, creator rewards, or share results were recorded.`
+          )
+          .setColor(0x95a5a6),
+      ],
+    });
+    clearActiveSurvivalRun(channel.id);
+    return;
+  }
+
+  const payouts = calculateSurvivalPayouts(uniquePlayers, placements, normalizedSettings);
   const awardedPayouts = await sendSurvivalPayouts(
     channel,
     payouts,
@@ -1413,6 +1434,8 @@ module.exports = {
   calculateSurvivalPayouts,
   buildPodiumImage,
   getSurvivalRunLifeStatus,
+  hasActiveSurvivalRun,
+  clearActiveSurvivalRun,
   getSurvivalShareData,
   postSurvivalFinalSummaryTest,
   SURVIVAL_SHARE_DISCORD_CHANNEL_ID,
