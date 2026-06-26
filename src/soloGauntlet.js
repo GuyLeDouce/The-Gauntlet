@@ -707,15 +707,38 @@ function buildSurvivalSetupParagraph(cfg, countdownMs, options = {}) {
     typeof countdownMs === "number"
       ? `${countdownLabel} is **${formatCountdown(countdownMs)}**`
       : noCountdownLabel;
-  const creatorChaosText = cfg.creator_chaos
-    ? "Creator Chaos is **ON**, which means there is only **1 elimination per image**"
-    : "Creator Chaos is **OFF**";
+  const creatorChaosText =
+    cfg.era_key === "ugly_city"
+      ? "This era removes **2 Squigs per chapter** as Ugly City grows. Creator Chaos does not affect the Ugly City removal count"
+      : cfg.creator_chaos
+      ? "Creator Chaos is **ON**, which means there is only **1 elimination per image**"
+      : "Creator Chaos is **OFF**";
 
   return `${countdownText}. This lobby is set to the **${cfg.era}** era, with **+${cfg.pool_increment} $CHARM per Squig** added to the prize pool.${timingText} ${creatorChaosText}, and **!revive** is **${cfg.revives_enabled ? "ON" : "OFF"}**. ${bonusText}${bonusPrizeText}.`;
 }
 
 function buildSurvivalLobbyEmbed(settings, count, countdownMs) {
   const cfg = normalizeSurvivalSettings(settings);
+  if (cfg.era_key === "ugly_city") {
+    const lines = [
+      "An empty patch of dirt has been claimed, the permits are definitely fake, and the Squigs are ready to build the world's worst city one disaster at a time.",
+      "",
+      buildSurvivalSetupParagraph(cfg, countdownMs, {
+        countdownLabel: "Construction begins in",
+        noCountdownLabel: "Construction begins when staff hand over the clipboard",
+      }),
+      "",
+      `Right now there ${count === 1 ? "is" : "are"} **${count}** Squig${
+        count === 1 ? "" : "s"
+      } on the build crew. Click **Join** before the first permit gets laminated incorrectly.`,
+    ];
+
+    return new EmbedBuilder()
+      .setTitle("Squig Survival - Ugly City Build Crew")
+      .setDescription(lines.join("\n"))
+      .setColor(0x9b59b6);
+  }
+
   if (cfg.era_key === "movie_theater") {
     const lines = [
       "The Ugly Theater is open. Grab a seat, keep your head down, and try to survive the screening long enough to get paid.",
@@ -1135,7 +1158,17 @@ async function startSurvivalFromLobby(interaction, lobby) {
   await channel.send("Game starting now.");
 
   const startEmbed =
-    settings.era_key === "movie_theater"
+    settings.era_key === "ugly_city"
+      ? new EmbedBuilder()
+          .setTitle("Squig Survival - The Rise of Ugly City")
+          .setDescription(
+            [
+              "The crew has arrived with scrap, bad ideas, and absolutely no qualified contractors.",
+              `All **${players.length}** Squigs are about to build Ugly City district by district, but not everyone is staying on the crew.`,
+            ].join("\n")
+          )
+          .setColor(0x9b59b6)
+    : settings.era_key === "movie_theater"
       ? new EmbedBuilder()
           .setTitle("Squig Survival - The Movie is starting")
           .setDescription(
@@ -2961,7 +2994,7 @@ async function registerCommands() {
       .setDescription("Start the active Squig Survival lobby."),
     new SlashCommandBuilder()
       .setName("survivaltest")
-      .setDescription("Run a payout-free Squig Survival test with six bots (admins only).")
+      .setDescription("Run a payout-free Squig Survival test with bots (admins only).")
       .addStringOption((o) =>
         o
           .setName("era")
@@ -2972,6 +3005,14 @@ async function registerCommands() {
               value: era.key,
             }))
           )
+          .setRequired(false)
+      )
+      .addIntegerOption((o) =>
+        o
+          .setName("players")
+          .setDescription("Number of test bots (default 6)")
+          .setMinValue(1)
+          .setMaxValue(500)
           .setRequired(false)
       ),
     new SlashCommandBuilder()
@@ -3671,8 +3712,12 @@ async function handleInteractionCreate(interaction) {
 
         const eraKey = interaction.options.getString("era") || "reloaded";
         const era = getSurvivalEraDefinition(eraKey);
+        const playerCount = Math.max(
+          1,
+          Math.min(500, interaction.options.getInteger("players") || 6)
+        );
         const testPlayers = Array.from(
-          { length: 6 },
+          { length: playerCount },
           (_, index) => `survival-test-bot-${index + 1}`
         );
         const testPlayerNames = Object.fromEntries(
@@ -3680,7 +3725,7 @@ async function handleInteractionCreate(interaction) {
         );
 
         await interaction.reply({
-          content: `🧪 Starting a six-bot **${era.label}** Squig Survival test. No stats or rewards will be recorded.`,
+          content: `🧪 Starting a ${playerCount}-bot **${era.label}** Squig Survival test. No stats or rewards will be recorded.`,
         });
 
         try {
@@ -4705,7 +4750,7 @@ async function handleInteractionCreate(interaction) {
           "",
           "**How to add images:**",
           `Use **SUBMIT IMAGES**: ${SURVIVAL_IMAGE_SUBMISSION_URL}`,
-          "Era-locked modes like Movie Theater and Airport only pull images tagged to that era through /addimage.",
+          "Era-locked modes only pull images tagged to that era through /addimage.",
           "",
           "**Pro tips:**",
           "- More players = bigger prize pool.",

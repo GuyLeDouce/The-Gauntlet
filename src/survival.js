@@ -18,6 +18,7 @@ const {
   getSurvivalEraDefinition,
   getSurvivalReviveFailLore,
   getSurvivalAliveTauntLore,
+  getUglyCityChapter,
 } = require("./survivalEras");
 
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
@@ -266,17 +267,22 @@ async function handlePublicReviveCommand(message) {
 
   const userId = message.author.id;
   const mention = `<@${userId}>`;
+  const isUglyCity = run.eraKey === "ugly_city";
 
   if (!run.revivesEnabled) {
     await message.channel.send(
-      `${mention} tried to file a resurrection request, but revives are turned **off** for this game. The afterlife put your ticket straight into the shredder. You are still dead.`
+      isUglyCity
+        ? `${mention} tried to file a return request, but revives are turned **off** for this game. The Permit Office stamped it sideways.`
+        : `${mention} tried to file a resurrection request, but revives are turned **off** for this game. The afterlife put your ticket straight into the shredder. You are still dead.`
     );
     return true;
   }
 
   if ((run.aliveIds?.length || 0) <= 3) {
     await message.channel.send(
-      `${mention} revive is locked once Squig Survival is down to the final **3**. The grave stays closed. You are still dead.`
+      isUglyCity
+        ? `${mention} revive is locked once Ugly City is down to the final **3**. The crew list is already being laminated.`
+        : `${mention} revive is locked once Squig Survival is down to the final **3**. The grave stays closed. You are still dead.`
     );
     return true;
   }
@@ -285,7 +291,9 @@ async function handlePublicReviveCommand(message) {
 
   if (reviveAttempts >= 2) {
     await message.channel.send(
-      `${mention} you've used both revive attempts for milestone **${run.currentMilestone || 1}**. The resurrection department is closed for lunch, emotionally unavailable, and ignoring your paperwork. You are still dead.`
+      isUglyCity
+        ? `${mention} you've used both revive attempts for chapter **${run.currentMilestone || 1}**. The Building Inspector says your clipboard privileges are suspended.`
+        : `${mention} you've used both revive attempts for milestone **${run.currentMilestone || 1}**. The resurrection department is closed for lunch, emotionally unavailable, and ignoring your paperwork. You are still dead.`
     );
     return true;
   }
@@ -327,10 +335,16 @@ async function handlePublicReviveCommand(message) {
     const resurrections = eraDefinition.stories?.resurrections?.length
       ? eraDefinition.stories.resurrections
       : defaultEraDefinition.stories?.resurrections || [];
-    const text = formatReviveLore(
-      pick(resurrections.length ? resurrections : ["{victim} stumbles back into existence."]),
-      mention
-    );
+    const text = isUglyCity
+      ? pick([
+          `${mention} returned to the crew through an unlocked service door and immediately pretended they had been helping the whole time.`,
+          `${mention} found the right permit desk, got stamped Approved-ish, and wandered back onto the crew list.`,
+          `${mention} escaped the Department of Bad Decisions with a fake badge and was Returned To The Crew.`,
+        ])
+      : formatReviveLore(
+          pick(resurrections.length ? resurrections : ["{victim} stumbles back into existence."]),
+          mention
+        );
     const imageUrl = takeRunImage(
       run,
       "reviveSuccessImagePool",
@@ -338,11 +352,15 @@ async function handlePublicReviveCommand(message) {
     );
     const payload = imageUrl
       ? {
-          content: `🌟 **RESURRECTION!** ${text}`,
+          content: isUglyCity
+            ? `❤️ **Returned To The Crew!** ${text}`
+            : `🌟 **RESURRECTION!** ${text}`,
           embeds: [new EmbedBuilder().setColor(0x2ecc71).setImage(imageUrl)],
         }
       : {
-          content: `🌟 **RESURRECTION!** ${text}`,
+          content: isUglyCity
+            ? `❤️ **Returned To The Crew!** ${text}`
+            : `🌟 **RESURRECTION!** ${text}`,
         };
     await message.channel.send(payload);
     await awardSurvivalImageUse(message.channel, run, imageUrl);
@@ -350,7 +368,9 @@ async function handlePublicReviveCommand(message) {
   }
 
   const failLore = getSurvivalReviveFailLore(run.eraKey);
-  const failText = `${formatPlayerLore(pick(failLore), mention)}\n💀 ${mention} is still dead.`;
+  const failText = isUglyCity
+    ? `${formatPlayerLore(pick(failLore), mention)}\n${mention} is still Missing from the crew list.`
+    : `${formatPlayerLore(pick(failLore), mention)}\n💀 ${mention} is still dead.`;
   const imageUrl = takeRunImage(
     run,
     "reviveFailedImagePool",
@@ -682,6 +702,54 @@ function format(template, victimId, killerId, nameOf) {
     .replace(/{killer}/g, killerName);
 }
 
+function isChapterStoryEra(eraDefinition) {
+  return eraDefinition?.mode === "chapter_story";
+}
+
+function getChapterStoryRemovalCount(aliveCount, eraDefinition) {
+  const requested = Number(eraDefinition?.eliminationsPerMilestone || 2);
+  if (aliveCount <= 1) return 0;
+  if (aliveCount === 2) return 1;
+  return Math.min(Math.max(1, requested), aliveCount - 1);
+}
+
+function shouldAutoReviveChapterStory({
+  chapterNumber,
+  aliveCount,
+  removedCount,
+  revivesEnabled,
+  eraDefinition,
+}) {
+  if (!revivesEnabled) return false;
+  if (removedCount <= 0) return false;
+  if (aliveCount <= 6) return false;
+  if (chapterNumber < 7) return false;
+
+  const min = Number(eraDefinition?.revivalEveryMin || 5);
+  const max = Number(eraDefinition?.revivalEveryMax || 10);
+  const interval = Math.max(min, Math.min(max, 7));
+
+  return chapterNumber % interval === 0;
+}
+
+function replaceUglyCityPlaceholders(template, values) {
+  return String(template || "")
+    .replace(/{removed1}/g, values.removed1 || "a confused permit")
+    .replace(/{removed2}/g, values.removed2 || "the remaining paperwork")
+    .replace(/{revived}/g, values.revived || "the returned crew member");
+}
+
+function updateActiveSurvivalRunState(channelId, runKey, joinedIds, alive, eliminated, ended = false) {
+  upsertSurvivalRunStatus(runKey, joinedIds, alive, ended);
+  const activeRun = activeSurvivalRuns.get(channelId);
+  if (activeRun) {
+    activeRun.aliveIds = alive;
+    activeRun.aliveSet = new Set(alive);
+    activeRun.eliminatedIds = eliminated;
+    activeRun.ended = ended;
+  }
+}
+
 /**
  * Run the Squig Survival story.
  * @param {import('discord.js').TextChannel} channel
@@ -877,17 +945,120 @@ async function runSurvival(channel, playerIds, settings = {}) {
     clearActiveSurvivalRun(channel.id);
     await channel.send({
       embeds: [
-        new EmbedBuilder()
-          .setTitle("Squig Survival - Default Victory")
-          .setDescription(
-            `${nameOf(alive[0])} is the only Squig who dared the portal.\nThey survive by technicality... the portal is unimpressed.`
-          )
-          .setColor(0x2ecc71),
+        isChapterStoryEra(eraDefinition)
+          ? new EmbedBuilder()
+              .setTitle("Founder of Ugly City")
+              .setDescription(
+                `Ugly City may only have three buildings, one road, and a suspicious smell coming from the Storage Yard, but somehow **${nameOf(alive[0])}** survived long enough to claim the title of Founder.`
+              )
+              .setColor(0x9b59b6)
+              .setFooter({ text: "Ugly City is complete. Unfortunately." })
+          : new EmbedBuilder()
+              .setTitle("Squig Survival - Default Victory")
+              .setDescription(
+                `${nameOf(alive[0])} is the only Squig who dared the portal.\nThey survive by technicality... the portal is unimpressed.`
+              )
+              .setColor(0x2ecc71),
       ],
     });
     return;
   }
 
+  if (isChapterStoryEra(eraDefinition)) {
+    let chapterNumber = 1;
+
+    while (alive.length > 1) {
+      const activeRunAtStart = activeSurvivalRuns.get(channel.id);
+      if (activeRunAtStart) {
+        activeRunAtStart.currentMilestone = chapterNumber;
+        activeRunAtStart.reviveAttemptsByMilestone = new Map();
+      }
+
+      const removalCount = getChapterStoryRemovalCount(alive.length, eraDefinition);
+      const shouldRevive = shouldAutoReviveChapterStory({
+        chapterNumber,
+        aliveCount: alive.length,
+        removedCount: eliminated.length,
+        revivesEnabled: normalizedSettings.revives_enabled,
+        eraDefinition,
+      });
+      const revivedId = shouldRevive
+        ? eliminated.splice(cryptoRandomInt(eliminated.length), 1)[0]
+        : null;
+      if (revivedId) {
+        alive.push(revivedId);
+      }
+
+      const removedThisChapter = [];
+      for (let i = 0; i < removalCount && alive.length > 1; i += 1) {
+        const removalPool =
+          revivedId && alive.length > 2
+            ? alive.filter((id) => id !== revivedId)
+            : alive;
+        const victimId = removalPool[cryptoRandomInt(removalPool.length)];
+        const victimIndex = alive.indexOf(victimId);
+        if (victimIndex === -1) continue;
+        alive.splice(victimIndex, 1);
+        if (!victimId) continue;
+        removedThisChapter.push(victimId);
+        eliminated.push(victimId);
+        if (gameId) {
+          await survivalStore.addDeath(gameId, victimId, 1);
+        }
+      }
+
+      const chapter = getUglyCityChapter(eraDefinition, chapterNumber) || {};
+      const removedNames = removedThisChapter.map((id) => nameOf(id));
+      const storyTemplate =
+        revivedId && chapter.revivalStory ? chapter.revivalStory : chapter.story;
+      const story = replaceUglyCityPlaceholders(storyTemplate, {
+        removed1: removedNames[0],
+        removed2: removedNames[1],
+        revived: revivedId ? nameOf(revivedId) : null,
+      });
+      const district = chapter.district || `Ugly City Chapter ${chapterNumber}`;
+      const next = chapter.next || "The city council has already approved another terrible idea.";
+      const descriptionParts = [story];
+
+      if (revivedId) {
+        descriptionParts.push("", "❤️ **Revived:**", `* ${nameOf(revivedId)}`);
+      }
+
+      descriptionParts.push("", "**Removed From The Crew:**");
+      for (const removedId of removedThisChapter) {
+        descriptionParts.push(`* ${nameOf(removedId)}`);
+      }
+      descriptionParts.push("", "**Next:**", next);
+
+      const embed = new EmbedBuilder()
+        .setTitle(`Chapter ${chapterNumber} — ${district}`)
+        .setDescription(descriptionParts.join("\n"))
+        .setColor(eraDefinition.start?.color || 0x9b59b6)
+        .setFooter({
+          text: `${eraLabel} - ${alive.length} Squig${alive.length === 1 ? "" : "s"} Remain`,
+        });
+
+      const imageUrl = activeRunState.stageImagePool.length
+        ? takeRunImage(activeRunState, "stageImagePool", "stageImageBag")
+        : null;
+      if (imageUrl) {
+        embed.setImage(imageUrl);
+        await awardSurvivalImageUse(channel, activeRunState, imageUrl);
+      }
+
+      const statusRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`survive:alive-check:${runKey}`)
+          .setLabel("Am I still alive?")
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+      await channel.send({ embeds: [embed], components: [statusRow] });
+      updateActiveSurvivalRunState(channel.id, runKey, uniquePlayers, alive, eliminated);
+      chapterNumber += 1;
+      await sleep(MILESTONE_PAUSE_MS);
+    }
+  } else {
   let milestone = 1;
 
   while (alive.length > 1) {
@@ -1074,6 +1245,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
     // Short breather between milestones
     await sleep(MILESTONE_PAUSE_MS);
   }
+  }
 
   // Winner + standings
   const winnerId = alive[0];
@@ -1081,7 +1253,9 @@ async function runSurvival(channel, playerIds, settings = {}) {
   const activeRun = activeSurvivalRuns.get(channel.id);
   if (activeRun) {
     activeRun.ended = true;
+    activeRun.aliveIds = alive;
     activeRun.aliveSet = new Set(alive);
+    activeRun.eliminatedIds = eliminated;
   }
   const placements = [winnerId, ...eliminated.reverse()];
   if (gameId) {
@@ -1095,6 +1269,23 @@ async function runSurvival(channel, playerIds, settings = {}) {
         survivalStore.setPlacement(gameId, id, idx + 1)
       )
     );
+  }
+
+  if (isChapterStoryEra(eraDefinition)) {
+    const smallGame = uniquePlayers.length <= 3;
+    await channel.send({
+      embeds: [
+        new EmbedBuilder()
+          .setTitle("Founder of Ugly City")
+          .setDescription(
+            smallGame
+              ? `Ugly City may only have three buildings, one road, and a suspicious smell coming from the Storage Yard, but somehow **${nameOf(winnerId)}** survived long enough to claim the title of Founder.`
+              : `After every crooked road, collapsing district, suspicious permit, and deeply ugly construction decision, only **${nameOf(winnerId)}** remained. They climbed the steps of City Hall, slapped a hand-painted sign above the doors, and became the official **Founder of Ugly City**.`
+          )
+          .setColor(0x9b59b6)
+          .setFooter({ text: "Ugly City is complete. Unfortunately." }),
+      ],
+    });
   }
 
   const lbLines = placements.map((id, index) => {
@@ -1137,7 +1328,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
         new EmbedBuilder()
           .setTitle("Squig Survival - Admin Test Complete")
           .setDescription(
-            `**${nameOf(winnerId)}** won the six-bot simulation.\nNo stats, payouts, creator rewards, or share results were recorded.`
+            `**${nameOf(winnerId)}** won the ${uniquePlayers.length}-bot simulation.\nNo stats, payouts, creator rewards, or share results were recorded.`
           )
           .setColor(0x95a5a6),
       ],

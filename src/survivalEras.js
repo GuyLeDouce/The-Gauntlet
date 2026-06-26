@@ -1836,9 +1836,155 @@ const RELOADED_ERA = {
   useEraLockedImagesOnly: true,
 };
 
+const UGLY_CITY_CHAPTER_NAMES = [
+  "Empty Lot", "First Camp", "Dirt Road", "Storage Yard", "Workshop", "Junkyard",
+  "Water Tower", "Sewer", "Trailer Park", "Bridge", "Hospital", "Police Station",
+  "Fire Hall", "Town Hall", "School", "Post Office", "Power Plant", "Bank",
+  "Apartment Block", "Warehouse", "Market", "Gas Station", "Restaurant",
+  "Shopping Mall", "Arcade", "Hotel", "Factory", "Harbor", "Casino",
+  "Office Building", "Zoo", "Aquarium", "Theme Park", "Movie Theater",
+  "Bowling Alley", "Museum", "Beach", "Concert Hall", "Sports Stadium",
+  "Nightclub", "Train Station", "Subway", "Airport", "University",
+  "Research Lab", "TV Station", "Observatory", "Skyscrapers", "Luxury District",
+  "Old Town", "Mayor's Office", "Founders Plaza", "City Monument", "The Vault",
+  "The Underground", "Grand Gate", "Ugly Castle", "Hall of Survivors",
+  "The Crown", "Founder's Statue",
+];
+
+const UGLY_CITY_EXPANSION_DISTRICTS = [
+  "Junkyard", "Hospital", "Police Station", "Sewer", "Shopping Mall", "Casino",
+  "Airport", "Subway", "Zoo", "Theme Park", "Harbor", "Power Plant", "Hotel",
+  "Factory", "Old Town", "The Underground", "Ugly DMV",
+  "Department of Bad Decisions", "Permit Office", "Food Court", "Parking Garage",
+  "Bus Depot", "City Dump", "Rooftop District", "Records Office",
+  "Emergency Bunker", "Courthouse", "Recycling Center", "Library", "Laundromat",
+  "City Park", "Pawn Shop", "Radio Tower", "Weather Station", "Toll Booth",
+  "Boardwalk", "Motel", "Convention Center", "Clock Tower", "Water Park",
+  "Community Center", "Security Office", "Monorail", "Botanical Garden",
+  "Statue Factory", "Final Permit Desk", "Founder's Office",
+];
+
+const UGLY_CITY_EXPANSION_MODIFIERS = [
+  "Expansion", "Grand Reopening", "Safety Inspection", "Emergency Renovation",
+  "Budget Cut Edition", "Permit Crisis", "Second Location", "Rooftop Addition",
+  "Underground Extension", "Public Works Disaster", "Annex", "Rebuild",
+  "Lost Department", "Founder-Approved Disaster", "After-Hours Inspection",
+];
+
+const UGLY_CITY_EXPANSION_STORY_TEMPLATES = [
+  "The crew returned to the {district} for what was supposed to be a simple {modifierLower}, which immediately became the most complicated project in Ugly City history. Before anyone could pretend they knew what they were doing, {removed1} got sealed behind a suspicious new wall while {removed2} was reassigned to a department nobody could find.",
+  "Ugly City approved the {district} {modifierLower} with three stamps, two coupon bribes, and one map drawn upside down. The ribbon cutting went sideways when {removed1} was hauled off by a runaway cart and {removed2} got sent to the wrong district by a sign that was also upside down.",
+  "The {district} {modifierLower} opened to thunderous applause from people who had not read the safety notes. Within minutes, {removed1} was trapped behind a door labeled Push/Pull/Maybe while {removed2} was claimed by a committee that only meets in elevators.",
+];
+
+const UGLY_CITY_EXPANSION_REVIVAL_STORY_TEMPLATES = [
+  "The crew returned to the {district} for what was supposed to be a simple {modifierLower}, only to find {revived} already there wearing a fake staff badge and acting like nothing happened. The reunion lasted until {removed1} got sealed behind a suspicious new wall and {removed2} was reassigned to a department nobody could find.",
+  "Ugly City approved the {district} {modifierLower} and immediately discovered {revived} living in the supply closet with a clipboard and terrible authority. Everyone cheered for almost four seconds before {removed1} was hauled off by a runaway cart and {removed2} got sent to the wrong district by an upside-down sign.",
+  "The {district} {modifierLower} began with a surprise inspection from {revived}, who had apparently been Missing inside the vents and promoted themselves. The celebration ended when {removed1} was trapped behind a door labeled Push/Pull/Maybe and {removed2} was claimed by an elevator committee.",
+];
+
+function buildUglyCityCuratedChapters() {
+  return UGLY_CITY_CHAPTER_NAMES.map((district, index) => {
+    const nextDistrict =
+      UGLY_CITY_CHAPTER_NAMES[index + 1] ||
+      "whatever terrible idea the city council approves next";
+    const lowerDistrict = district.toLowerCase();
+    const mishap =
+      index % 2 === 0
+        ? "launched away by a ceremonial lever"
+        : "hauled off by a committee with matching clipboards";
+    return {
+      district,
+      story:
+        `The crew officially added the ${district} to Ugly City, proudly pretending this was always part of the master plan. ` +
+        `The opening ceremony got ugly fast when {removed1} was ${mishap} while {removed2} got trapped in the ${lowerDistrict} after following a sign that definitely lied.`,
+      revivalStory:
+        `The crew officially added the ${district} to Ugly City and found {revived} already inside, dusty, annoyed, and somehow holding a valid-looking permit. ` +
+        `The welcome-back cheer got ugly fast when {removed1} was ${mishap} while {removed2} got trapped in the ${lowerDistrict} after following a sign that definitely lied.`,
+      next: `Next, the crew heads toward the ${nextDistrict}, because learning from mistakes is not in the city charter.`,
+    };
+  });
+}
+
+function fillUglyCityExpansionTemplate(template, values) {
+  return String(template || "")
+    .replace(/{district}/g, values.district || "Ugly City")
+    .replace(/{modifierLower}/g, values.modifierLower || "expansion");
+}
+
+function generateUglyCityExpansionChapter(chapterNumber, eraDefinition = {}) {
+  const districts = eraDefinition.expansionDistricts?.length
+    ? eraDefinition.expansionDistricts
+    : UGLY_CITY_EXPANSION_DISTRICTS;
+  const modifiers = eraDefinition.expansionModifiers?.length
+    ? eraDefinition.expansionModifiers
+    : UGLY_CITY_EXPANSION_MODIFIERS;
+  const storyTemplates = eraDefinition.expansionStoryTemplates?.length
+    ? eraDefinition.expansionStoryTemplates
+    : UGLY_CITY_EXPANSION_STORY_TEMPLATES;
+  const revivalTemplates = eraDefinition.expansionRevivalStoryTemplates?.length
+    ? eraDefinition.expansionRevivalStoryTemplates
+    : UGLY_CITY_EXPANSION_REVIVAL_STORY_TEMPLATES;
+  const baseDistrict = districts[(chapterNumber - 1) % districts.length] || "Ugly City";
+  const modifier =
+    modifiers[
+      Math.floor((chapterNumber - 1) / Math.max(1, districts.length)) %
+        Math.max(1, modifiers.length)
+    ] || "Expansion";
+  const values = {
+    district: baseDistrict,
+    modifierLower: modifier.toLowerCase(),
+  };
+
+  return {
+    district: `${baseDistrict} ${modifier}`,
+    story: fillUglyCityExpansionTemplate(
+      storyTemplates[(chapterNumber - 1) % storyTemplates.length],
+      values
+    ),
+    revivalStory: fillUglyCityExpansionTemplate(
+      revivalTemplates[(chapterNumber - 1) % revivalTemplates.length],
+      values
+    ),
+    next: "The city council has already approved another terrible idea.",
+  };
+}
+
+function getUglyCityChapter(eraDefinition, chapterNumber) {
+  const curated = eraDefinition?.chapterMilestones || [];
+  if (chapterNumber <= curated.length) {
+    return curated[chapterNumber - 1];
+  }
+  return generateUglyCityExpansionChapter(chapterNumber, eraDefinition);
+}
+
+const UGLY_CITY_ERA = {
+  key: "ugly_city",
+  label: "The Rise of Ugly City",
+  mode: "chapter_story",
+  eliminationsPerMilestone: 2,
+  revivalEveryMin: 5,
+  revivalEveryMax: 10,
+  useEraLockedImagesOnly: true,
+  lobby: {
+    title: "Squig Survival - Ugly City Build Crew",
+    color: 0x9b59b6,
+  },
+  start: {
+    title: "Squig Survival - The Rise of Ugly City",
+    color: 0x9b59b6,
+  },
+  chapterMilestones: buildUglyCityCuratedChapters(),
+  expansionDistricts: UGLY_CITY_EXPANSION_DISTRICTS,
+  expansionModifiers: UGLY_CITY_EXPANSION_MODIFIERS,
+  expansionStoryTemplates: UGLY_CITY_EXPANSION_STORY_TEMPLATES,
+  expansionRevivalStoryTemplates: UGLY_CITY_EXPANSION_REVIVAL_STORY_TEMPLATES,
+};
+
 const SURVIVAL_ERAS = {
   day_one: DAY_ONE_ERA,
   reloaded: RELOADED_ERA,
+  ugly_city: UGLY_CITY_ERA,
   office_squigs: OFFICE_SQUIGS_ERA,
   jobsite_squigs: JOBSITE_SQUIGS_ERA,
   movie_theater: MOVIE_THEATER_ERA,
@@ -1972,6 +2118,13 @@ reloaded: [
 "🛒 {player} rode the liquidity cart toward resurrection. One wheel jammed and they were returned to the floor.",
 "🫡 {player} gave the portal a flawless salute. The portal respected their courage and kept them dead anyway."
 ],
+ugly_city: [
+  "{player} filed the wrong permit and their return request was denied.",
+  "{player} tried to rejoin the crew, but the Building Inspector said the form was upside down.",
+  "{player} almost made it back, but got redirected to the Department of Bad Decisions.",
+  "{player} found the right office, then lost their place in line behind a vending machine.",
+  "{player} brought three signatures and somehow still failed the clipboard vibe check."
+],
 
 };
 
@@ -2020,4 +2173,5 @@ module.exports = {
   getSurvivalEraDefinition,
   getSurvivalReviveFailLore,
   getSurvivalAliveTauntLore,
+  getUglyCityChapter,
 };
