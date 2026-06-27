@@ -737,6 +737,7 @@ function buildSurvivalLobbyEmbed(settings, count, countdownMs) {
     return new EmbedBuilder()
       .setTitle("Squig Survival - Ugly City Build Crew")
       .setDescription(lines.join("\n"))
+      .setImage("https://i.imgur.com/iZBKYcw.png")
       .setColor(0x9b59b6);
   }
 

@@ -69,6 +69,7 @@ const MAX_SURVIVAL_SHARE_SESSIONS = 20;
 const SURVIVAL_SHARE_DISCORD_CHANNEL_ID = "1334345680461762671";
 const SURVIVAL_IMAGE_PROMPT_CUSTOM_ID_PREFIX = "survive:image-prompt:";
 const SURVIVAL_IMAGE_PROMPT_MESSAGE_LIMIT = 1900;
+const UGLY_CITY_FOUNDER_IMAGE_URL = "https://i.imgur.com/CiETPBi.png";
 
 function upsertSurvivalRunStatus(runKey, joinedIds, aliveIds, ended = false, metadata = {}) {
   if (!runKey) return;
@@ -1073,6 +1074,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
                 `Ugly City may only have three buildings, one road, and a suspicious smell coming from the Storage Yard, but somehow **${nameOf(alive[0])}** survived long enough to claim the title of Founder.`
               )
               .setColor(0x9b59b6)
+              .setImage(UGLY_CITY_FOUNDER_IMAGE_URL)
               .setFooter({ text: "Ugly City is complete. Unfortunately." })
           : new EmbedBuilder()
               .setTitle("Squig Survival - Default Victory")
@@ -1441,6 +1443,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
               : `After every crooked road, collapsing district, suspicious permit, and deeply ugly construction decision, only **${nameOf(winnerId)}** remained. They climbed the steps of City Hall, slapped a hand-painted sign above the doors, and became the official **Founder of Ugly City**.`
           )
           .setColor(0x9b59b6)
+          .setImage(UGLY_CITY_FOUNDER_IMAGE_URL)
           .setFooter({ text: "Ugly City is complete. Unfortunately." }),
       ],
     });
