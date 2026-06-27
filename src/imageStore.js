@@ -71,6 +71,34 @@ class ImageStore {
       ADD COLUMN IF NOT EXISTS reward_points INTEGER NOT NULL DEFAULT 100
     `);
     await this.pool.query(`
+      ALTER TABLE squig_survival_images
+      ADD COLUMN IF NOT EXISTS milestone_key TEXT NULL
+    `);
+    await this.pool.query(`
+      ALTER TABLE squig_survival_images
+      ADD COLUMN IF NOT EXISTS milestone_number INTEGER NULL
+    `);
+    await this.pool.query(`
+      ALTER TABLE squig_survival_images
+      ADD COLUMN IF NOT EXISTS milestone_label TEXT NULL
+    `);
+    await this.pool.query(`
+      ALTER TABLE squig_survival_images
+      ADD COLUMN IF NOT EXISTS milestone_district TEXT NULL
+    `);
+    await this.pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_squig_survival_images_era_keys
+      ON squig_survival_images (era_keys)
+    `);
+    await this.pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_squig_survival_images_milestone_number
+      ON squig_survival_images (milestone_number)
+    `);
+    await this.pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_squig_survival_images_milestone_key
+      ON squig_survival_images (milestone_key)
+    `);
+    await this.pool.query(`
       CREATE TABLE IF NOT EXISTS squig_survival_image_approval_notifications (
         id BIGSERIAL PRIMARY KEY,
         submission_id BIGINT,
@@ -111,6 +139,10 @@ class ImageStore {
     eraKeys = null,
     rewardPoints = 100,
     addedBy = null,
+    milestoneKey = null,
+    milestoneNumber = null,
+    milestoneLabel = null,
+    milestoneDistrict = null,
   }) {
     await this.init();
 
@@ -120,17 +152,41 @@ class ImageStore {
 
     const r = await this.pool.query(
       `
-      INSERT INTO squig_survival_images (image_url, user_id, era_keys, reward_points, added_by)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO squig_survival_images (
+        image_url,
+        user_id,
+        era_keys,
+        reward_points,
+        added_by,
+        milestone_key,
+        milestone_number,
+        milestone_label,
+        milestone_district
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       ON CONFLICT (image_url)
       DO UPDATE SET
         user_id = EXCLUDED.user_id,
         era_keys = EXCLUDED.era_keys,
         reward_points = EXCLUDED.reward_points,
-        added_by = EXCLUDED.added_by
+        added_by = EXCLUDED.added_by,
+        milestone_key = COALESCE(EXCLUDED.milestone_key, squig_survival_images.milestone_key),
+        milestone_number = COALESCE(EXCLUDED.milestone_number, squig_survival_images.milestone_number),
+        milestone_label = COALESCE(EXCLUDED.milestone_label, squig_survival_images.milestone_label),
+        milestone_district = COALESCE(EXCLUDED.milestone_district, squig_survival_images.milestone_district)
       RETURNING id
       `,
-      [imageUrl, userId, eraKeys, rewardPoints, addedBy]
+      [
+        imageUrl,
+        userId,
+        eraKeys,
+        rewardPoints,
+        addedBy,
+        milestoneKey,
+        milestoneNumber,
+        milestoneLabel,
+        milestoneDistrict,
+      ]
     );
 
     return { ok: true, id: r.rows[0]?.id || null };
@@ -142,7 +198,15 @@ class ImageStore {
     if (!process.env.DATABASE_URL_IMAGE || !this.pool) return [];
 
     const r = await this.pool.query(`
-      SELECT image_url, user_id, era_keys, reward_points
+      SELECT
+        image_url,
+        user_id,
+        era_keys,
+        reward_points,
+        milestone_key,
+        milestone_number,
+        milestone_label,
+        milestone_district
       FROM squig_survival_images
       ORDER BY id ASC
     `);

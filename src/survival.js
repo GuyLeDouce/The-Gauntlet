@@ -537,6 +537,51 @@ function parseEraKeys(raw) {
   return keys.length ? Array.from(new Set(keys)) : null;
 }
 
+function normalizeMilestoneKey(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[’']/g, "")
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function getChapterImageRowsForUglyCity(rows, chapterNumber, chapter) {
+  const expectedNumber = Number(chapterNumber);
+  const expectedKey = normalizeMilestoneKey(chapter?.key || chapter?.district);
+  const expectedDistrict = normalizeMilestoneKey(chapter?.district);
+  const numberMatches = [];
+  const keyMatches = [];
+  const districtMatches = [];
+
+  for (const row of rows || []) {
+    if (!row?.image_url) continue;
+
+    const rowNumber = Number(row.milestone_number);
+    if (Number.isInteger(expectedNumber) && rowNumber === expectedNumber) {
+      numberMatches.push(row);
+      continue;
+    }
+
+    const rowKey = normalizeMilestoneKey(row.milestone_key);
+    if (expectedKey && rowKey === expectedKey) {
+      keyMatches.push(row);
+      continue;
+    }
+
+    const rowDistrict = normalizeMilestoneKey(row.milestone_district || row.milestone_label);
+    if (expectedDistrict && rowDistrict === expectedDistrict) {
+      districtMatches.push(row);
+    }
+  }
+
+  if (numberMatches.length) return numberMatches;
+  if (keyMatches.length) return keyMatches;
+  if (districtMatches.length) return districtMatches;
+  return [];
+}
+
 function normalizeSurvivalImageTag(raw) {
   if (typeof raw !== "string" || !raw.trim()) return null;
   const normalized = raw.trim();
@@ -1118,9 +1163,29 @@ async function runSurvival(channel, playerIds, settings = {}) {
           text: `${eraLabel} - ${alive.length} Squig${alive.length === 1 ? "" : "s"} Remain`,
         });
 
-      const imageUrl = activeRunState.stageImagePool.length
-        ? takeRunImage(activeRunState, "stageImagePool", "stageImageBag")
-        : null;
+      let imageUrl = null;
+      if (normalizedSettings.era_key === "ugly_city") {
+        const isCuratedUglyCityChapter =
+          chapterNumber <= (eraDefinition.chapterMilestones?.length || 0);
+        const chapterImageRows = isCuratedUglyCityChapter
+          ? getChapterImageRowsForUglyCity(eligibleDbImageRows, chapterNumber, chapter)
+          : [];
+        const pickedRow = chapterImageRows.length
+          ? chapterImageRows[cryptoRandomInt(chapterImageRows.length)]
+          : null;
+        imageUrl = pickedRow?.image_url || null;
+        console.log("[SURVIVAL:UGLY_CITY_IMAGE]", {
+          chapterNumber,
+          chapterKey: chapter?.key || null,
+          district: chapter?.district || null,
+          matchedImages: chapterImageRows.length,
+          selected: imageUrl || null,
+        });
+      } else {
+        imageUrl = activeRunState.stageImagePool.length
+          ? takeRunImage(activeRunState, "stageImagePool", "stageImageBag")
+          : null;
+      }
       if (imageUrl) {
         embed.setImage(imageUrl);
         await awardSurvivalImageUse(channel, activeRunState, imageUrl);

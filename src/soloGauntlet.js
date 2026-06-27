@@ -3939,6 +3939,13 @@ async function handleInteractionCreate(interaction) {
             flags: 64,
           });
         }
+        if (parsedEra.eraKeys?.includes("ugly_city")) {
+          return interaction.reply({
+            content:
+              "❌ Please submit Ugly City milestone images through the Image Factory so they are tagged to the right chapter.",
+            flags: 64,
+          });
+        }
 
         try {
           const result = await imageStore.addSurvivalImage({
