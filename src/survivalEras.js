@@ -1836,19 +1836,707 @@ const RELOADED_ERA = {
   useEraLockedImagesOnly: true,
 };
 
-const UGLY_CITY_CHAPTER_NAMES = [
-  "Empty Lot", "First Camp", "Dirt Road", "Storage Yard", "Workshop", "Junkyard",
-  "Water Tower", "Sewer", "Trailer Park", "Bridge", "Hospital", "Police Station",
-  "Fire Hall", "Town Hall", "School", "Post Office", "Power Plant", "Bank",
-  "Apartment Block", "Warehouse", "Market", "Gas Station", "Restaurant",
-  "Shopping Mall", "Arcade", "Hotel", "Factory", "Harbor", "Casino",
-  "Office Building", "Zoo", "Aquarium", "Theme Park", "Movie Theater",
-  "Bowling Alley", "Museum", "Beach", "Concert Hall", "Sports Stadium",
-  "Nightclub", "Train Station", "Subway", "Airport", "University",
-  "Research Lab", "TV Station", "Observatory", "Skyscrapers", "Luxury District",
-  "Old Town", "Mayor's Office", "Founders Plaza", "City Monument", "The Vault",
-  "The Underground", "Grand Gate", "Ugly Castle", "Hall of Survivors",
-  "The Crown", "Founder's Statue",
+const UGLY_CITY_CURATED_CHAPTERS = [
+  {
+    district: "Empty Lot",
+    story: "The crew claimed a dusty patch of nothing and proudly declared it the future home of Ugly City, even though the welcome sign was already leaning the wrong way. Before the first shovel hit the dirt, {removed1} got trapped under the crooked sign while {removed2} wandered off chasing a fake permit across the lot.",
+    singleRemovalStory: "The crew claimed a dusty patch of nothing and proudly declared it the future home of Ugly City, even though the welcome sign was already leaning the wrong way. Before the first shovel hit the dirt, {removed1} got trapped under the crooked sign and was officially removed from active construction.",
+    revivalStory: "The crew claimed a dusty patch of nothing and proudly declared it the future home of Ugly City, only to find {revived} already sleeping under the crooked welcome sign like they owned the place. The reunion lasted until {removed1} got pinned beneath the sign and {removed2} wandered off chasing a fake permit across the lot.",
+    next: "The crew needs shelter, so the First Camp is already a bad idea waiting to happen."
+  },
+  {
+    district: "First Camp",
+    story: "The Squigs built the First Camp from scrap wood, ripped tarps, and the kind of confidence only Uglies should be allowed to have. By nightfall, {removed1} had been zipped inside the wrong tent for structural support while {removed2} got dragged away by a runaway sleeping bag.",
+    singleRemovalStory: "The Squigs built the First Camp from scrap wood, ripped tarps, and the kind of confidence only Uglies should be allowed to have. By nightfall, {removed1} had been zipped inside the wrong tent for structural support and nobody could figure out which flap opened.",
+    revivalStory: "The Squigs built the First Camp from scrap wood, ripped tarps, and suspiciously sticky rope, then discovered {revived} hiding in a supply crate labeled “Definitely Not A Squig.” By nightfall, {removed1} had been zipped inside the wrong tent while {removed2} got dragged away by a runaway sleeping bag.",
+    next: "The camp needs a road, which is unfortunate because nobody brought a level."
+  },
+  {
+    district: "Dirt Road",
+    story: "Ugly City’s first Dirt Road was supposed to connect the camp to the rest of absolutely nothing. Instead, {removed1} followed the road in a perfect circle until they gave up, while {removed2} was accidentally paved into the soft shoulder by an overexcited roller.",
+    singleRemovalStory: "Ugly City’s first Dirt Road was supposed to connect the camp to the rest of absolutely nothing. Instead, {removed1} followed the road in a perfect circle until they gave up and became the city’s first official traffic concern.",
+    revivalStory: "Ugly City’s first Dirt Road somehow led directly to {revived}, who had been walking in circles since the Empty Lot and insisted they were “almost there.” The celebration ended when {removed1} got lost on the loop and {removed2} was accidentally paved into the soft shoulder by an overexcited roller.",
+    next: "With supplies scattered everywhere, the crew decides to build a Storage Yard."
+  },
+  {
+    district: "Storage Yard",
+    story: "The Storage Yard opened with every crate carefully labeled, then immediately became impossible to navigate because every label said “important ugly stuff.” {removed1} climbed into a box to check inventory and got shipped to the wrong pile, while {removed2} disappeared behind a stack of mystery barrels marked “probably fine.”",
+    singleRemovalStory: "The Storage Yard opened with every crate carefully labeled, then immediately became impossible to navigate because every label said “important ugly stuff.” {removed1} climbed into a box to check inventory and got shipped to the wrong pile before anyone noticed.",
+    revivalStory: "The Storage Yard opened with every crate labeled “important ugly stuff,” including one that started yelling until the crew pried it open and found {revived} inside. Unfortunately, {removed1} got shipped to the wrong pile and {removed2} disappeared behind mystery barrels marked “probably fine.”",
+    next: "The crew needs tools, so construction begins on the Workshop."
+  },
+  {
+    district: "Workshop",
+    story: "The Workshop was built so the Squigs could finally make proper tools, but every machine seemed to have been designed by someone who hated fingers and common sense. {removed1} got stuck inside the automatic hammer tester while {removed2} was carried away by a drill press that apparently had places to be.",
+    singleRemovalStory: "The Workshop was built so the Squigs could finally make proper tools, but every machine seemed to have been designed by someone who hated fingers and common sense. {removed1} got stuck inside the automatic hammer tester and was declared unavailable for future measuring.",
+    revivalStory: "The Workshop opened with a loud clang, a bad smell, and {revived} crawling out from behind the tool wall wearing safety goggles upside down. Then {removed1} got stuck inside the automatic hammer tester while {removed2} was carried away by a drill press that apparently had places to be.",
+    next: "The broken tools need somewhere to go, so the Junkyard becomes inevitable."
+  },
+  {
+    district: "Junkyard",
+    story: "The survivors finally finished stacking enough scrap to create Ugly City’s official Junkyard, proudly insisting every twisted piece of metal would come in handy someday. Moments after celebrating, the tallest pile gave way without warning, burying {removed1} beneath a mountain of junk while {removed2} disappeared trying to pull them free before the dust settled.",
+    singleRemovalStory: "The survivors finally finished stacking enough scrap to create Ugly City’s official Junkyard, proudly insisting every twisted piece of metal would come in handy someday. Moments after celebrating, the tallest pile gave way without warning and buried {removed1} beneath a mountain of highly questionable materials.",
+    revivalStory: "The Junkyard opened with a ceremonial toss of a broken toaster, which immediately bounced off a pile and revealed {revived} living inside an old fridge like it was a condo. The celebration ended when the tallest scrap mountain collapsed, swallowing {removed1} and {removed2} into the junk.",
+    next: "With dust everywhere and no clean water, the crew turns its attention to the Water Tower."
+  },
+  {
+    district: "Water Tower",
+    story: "The Water Tower rose above Ugly City like a proud metal mushroom, leaking from only seven places at once. During the first pressure test, {removed1} was blasted into a pile of wet sand while {removed2} climbed inside to investigate and floated out through a pipe nobody remembered installing.",
+    singleRemovalStory: "The Water Tower rose above Ugly City like a proud metal mushroom, leaking from only seven places at once. During the first pressure test, {removed1} was blasted into a pile of wet sand and removed from the crew until they stopped dripping.",
+    revivalStory: "The Water Tower’s first leak produced more than water when {revived} shot out of a pipe and landed in the mud claiming they had “been plumbing.” Then the pressure test launched {removed1} into wet sand while {removed2} floated away through a pipe nobody remembered installing.",
+    next: "All that water has to drain somewhere, so the Sewer plan gets approved against everyone’s judgment."
+  },
+  {
+    district: "Sewer",
+    story: "The Sewer was supposed to carry water away from Ugly City, but it mostly carried rumors, weird echoes, and one smell nobody could name. {removed1} followed a glowing puddle around the wrong corner while {removed2} got sucked into a maintenance tunnel labeled “shortcut maybe.”",
+    singleRemovalStory: "The Sewer was supposed to carry water away from Ugly City, but it mostly carried rumors, weird echoes, and one smell nobody could name. {removed1} followed a glowing puddle around the wrong corner and became part of the underground problem.",
+    revivalStory: "Deep in the Sewer, the crew heard banging from inside a traffic cone fortress and found {revived} living comfortably with a throne made of pipe fittings. The reunion ended when {removed1} followed a glowing puddle around the wrong corner and {removed2} got sucked into a tunnel labeled “shortcut maybe.”",
+    next: "The crew climbs back above ground and decides permanent housing is somehow the next priority."
+  },
+  {
+    district: "Trailer Park",
+    story: "The Trailer Park became Ugly City’s first residential district, mostly because the trailers were already halfway falling into place. {removed1} tried leveling one with a crowbar and got locked inside forever storage, while {removed2} accidentally hitched themselves to a moving trailer headed toward the horizon.",
+    singleRemovalStory: "The Trailer Park became Ugly City’s first residential district, mostly because the trailers were already halfway falling into place. {removed1} tried leveling one with a crowbar and got locked inside forever storage before the keys were even invented.",
+    revivalStory: "The Trailer Park grand opening was interrupted when {revived} stepped out of a trailer bathroom they had apparently been renting since Chapter One. Then {removed1} got locked inside forever storage while {removed2} accidentally hitched themselves to a moving trailer headed toward the horizon.",
+    next: "To connect the growing mess, the crew decides Ugly City needs a Bridge."
+  },
+  {
+    district: "Bridge",
+    story: "The Bridge was designed to cross a tiny ditch, but the crew built it like they were challenging physics personally. Halfway through the ribbon cutting, {removed1} slid between two loose planks while {removed2} chased the ribbon over the side and landed in the municipal shrub pile.",
+    singleRemovalStory: "The Bridge was designed to cross a tiny ditch, but the crew built it like they were challenging physics personally. Halfway through the ribbon cutting, {removed1} slid between two loose planks and became a caution sign with legs.",
+    revivalStory: "The Bridge ceremony paused when {revived} crawled out from under the planks and claimed they had been “checking the underside for vibes.” Then {removed1} slipped through two loose boards and {removed2} chased the ribbon over the side into the shrub pile.",
+    next: "With everyone somehow injured, the Hospital finally becomes impossible to ignore."
+  },
+  {
+    district: "Hospital",
+    story: "After borrowing parts from the Junkyard, the crew built a Hospital that looked only slightly more dangerous than the injuries it was treating. The opening exam ended when {removed1} and {removed2} tested an experimental machine that launched them straight through the roof.",
+    singleRemovalStory: "After borrowing parts from the Junkyard, the crew built a Hospital that looked only slightly more dangerous than the injuries it was treating. The opening exam ended when {removed1} tested an experimental machine and was launched straight through the roof.",
+    revivalStory: "After borrowing parts from the Junkyard, the crew built a Hospital that looked only slightly more dangerous than the injuries it was treating. While searching a forgotten supply room, they found {revived} wrapped in bandages and eating pudding, but the celebration ended when {removed1} and {removed2} tested an experimental machine that launched them through the roof.",
+    next: "Someone should probably build a Police Station before things get worse."
+  },
+  {
+    district: "Police Station",
+    story: "The Police Station opened with exactly one rule: nobody was allowed to look suspiciously organized. {removed1} was hauled into the evidence locker for carrying a clipboard, while {removed2} got arrested after confessing to crimes nobody had reported yet.",
+    singleRemovalStory: "The Police Station opened with exactly one rule: nobody was allowed to look suspiciously organized. {removed1} was hauled into the evidence locker for carrying a clipboard and the key was immediately misplaced.",
+    revivalStory: "The Police Station opened with a dramatic siren test and accidentally released {revived} from a holding cell they had been using as a nap room. Minutes later, {removed1} was hauled into evidence for carrying a clipboard while {removed2} confessed to crimes nobody had reported yet.",
+    next: "The crew decides a Fire Hall is needed, mostly because the Police Station is smoking."
+  },
+  {
+    district: "Fire Hall",
+    story: "The Fire Hall was built with a shiny pole, a crooked garage door, and a truck that only turned left. During the first drill, {removed1} got launched down the pole into a laundry basket while {removed2} drove the truck in circles until nobody could catch them.",
+    singleRemovalStory: "The Fire Hall was built with a shiny pole, a crooked garage door, and a truck that only turned left. During the first drill, {removed1} got launched down the pole into a laundry basket and was declared too folded to continue.",
+    revivalStory: "The Fire Hall’s siren accidentally called {revived} back from wherever they had been hiding, and they arrived wearing a helmet made of soup cans. Then {removed1} got launched down the pole into a laundry basket while {removed2} drove the truck in circles until nobody could catch them.",
+    next: "The city needs leadership, which is how Town Hall becomes everyone’s next mistake."
+  },
+  {
+    district: "Town Hall",
+    story: "Town Hall opened with a serious meeting about rules, taxes, and whether chewing on blueprints counted as participation. {removed1} was trapped in a committee that refused to adjourn, while {removed2} got sealed behind a wall of paperwork taller than the mayor’s chair.",
+    singleRemovalStory: "Town Hall opened with a serious meeting about rules, taxes, and whether chewing on blueprints counted as participation. {removed1} was trapped in a committee that refused to adjourn and slowly became part of the agenda.",
+    revivalStory: "Town Hall’s first roll call accidentally included {revived}, who popped out from behind the mayor’s chair and demanded back pay. Then {removed1} got trapped in a committee that refused to adjourn while {removed2} disappeared behind a wall of paperwork.",
+    next: "The crew decides education might fix things, so the School is doomed from the start."
+  },
+  {
+    district: "School",
+    story: "The School opened to teach basic construction, public safety, and how not to lick wet paint. {removed1} failed recess and got locked in the supply closet, while {removed2} followed a hallway pass so far they transferred to a different district.",
+    singleRemovalStory: "The School opened to teach basic construction, public safety, and how not to lick wet paint. {removed1} failed recess and got locked in the supply closet by a door labeled “advanced learning.”",
+    revivalStory: "The School’s first lesson was interrupted when {revived} crawled out of a locker covered in gold stars and claimed they had perfect attendance. Then {removed1} failed recess and {removed2} followed a hallway pass all the way to another district.",
+    next: "The city needs mail, even though nobody knows their address."
+  },
+  {
+    district: "Post Office",
+    story: "The Post Office opened with one mailbox, twelve stamps, and no agreement on where Ugly City actually was. {removed1} climbed into a sorting bin and got labeled “fragile,” while {removed2} chased a delivery cart through a back door marked “out for delivery forever.”",
+    singleRemovalStory: "The Post Office opened with one mailbox, twelve stamps, and no agreement on where Ugly City actually was. {removed1} climbed into a sorting bin and got labeled “fragile” before being routed to an unknown counter.",
+    revivalStory: "The Post Office found its first undeliverable package, and inside was {revived} with a note that simply read “return to ugly.” Then {removed1} got labeled fragile in a sorting bin while {removed2} chased a delivery cart into forever delivery.",
+    next: "With mail barely functioning, the crew somehow decides to build a Power Plant."
+  },
+  {
+    district: "Power Plant",
+    story: "The Power Plant promised to bring electricity to Ugly City, assuming anyone could figure out which lever was decorative. When the lights flickered on, {removed1} got stuck in a rotating warning sign while {removed2} was assigned to watch a gauge in a room nobody could reopen.",
+    singleRemovalStory: "The Power Plant promised to bring electricity to Ugly City, assuming anyone could figure out which lever was decorative. When the lights flickered on, {removed1} got stuck in a rotating warning sign and became part of the display.",
+    revivalStory: "The Power Plant came online with a loud buzz and spat {revived} out of a cable tunnel holding a wrench they definitely did not earn. Then {removed1} got stuck in a rotating warning sign while {removed2} was assigned to watch a gauge in a room nobody could reopen.",
+    next: "Now that the lights work, the crew makes the terrible decision to open a Bank."
+  },
+  {
+    district: "Bank",
+    story: "The Bank opened to store the city’s wealth, which currently consisted of bottle caps, casino coupons, and one suspiciously valuable wrench. {removed1} got locked in the vault during a practice deposit, while {removed2} was carried away by a pneumatic tube after trying to withdraw dignity.",
+    singleRemovalStory: "The Bank opened to store the city’s wealth, which currently consisted of bottle caps, casino coupons, and one suspiciously valuable wrench. {removed1} got locked in the vault during a practice deposit and the combination was immediately voted private.",
+    revivalStory: "The Bank vault opened for the first time and revealed {revived} counting bottle caps like they had been appointed treasurer. The audit went poorly when {removed1} got locked in the vault and {removed2} was carried away by a pneumatic tube after trying to withdraw dignity.",
+    next: "With money now technically existing, the crew starts stacking the first Apartment Block."
+  },
+  {
+    district: "Apartment Block",
+    story: "The Apartment Block rose five crooked floors above Ugly City and somehow had six basements. {removed1} entered the elevator on floor two and arrived nowhere, while {removed2} got stuck in a model unit that the leasing office refused to admit existed.",
+    singleRemovalStory: "The Apartment Block rose five crooked floors above Ugly City and somehow had six basements. {removed1} entered the elevator on floor two and arrived nowhere, making them the building’s first unresolved maintenance request.",
+    revivalStory: "The Apartment Block’s first tenant meeting revealed {revived} living in the walls and complaining about noise like a true resident. Then {removed1} entered an elevator to nowhere while {removed2} got stuck inside a model unit the leasing office denied building.",
+    next: "The city needs bulk storage, so a Warehouse is about to become everyone’s problem."
+  },
+  {
+    district: "Warehouse",
+    story: "The Warehouse was built to organize Ugly City’s supplies, but it immediately filled with crates nobody remembered ordering. {removed1} followed a forklift into aisle thirteen and vanished from the inventory, while {removed2} was shrink-wrapped to a pallet labeled “later.”",
+    singleRemovalStory: "The Warehouse was built to organize Ugly City’s supplies, but it immediately filled with crates nobody remembered ordering. {removed1} followed a forklift into aisle thirteen and vanished from the inventory.",
+    revivalStory: "The Warehouse crew opened a crate marked “miscellaneous regret” and found {revived} inside, surrounded by packing peanuts and confidence. Then {removed1} disappeared into aisle thirteen while {removed2} was shrink-wrapped to a pallet labeled “later.”",
+    next: "With supplies everywhere, the Market opens before anyone can stop it."
+  },
+  {
+    district: "Market",
+    story: "The Market opened with stalls selling bent nails, mystery fruit, and advice nobody asked for. {removed1} got traded for three buckets and a coupon, while {removed2} followed a vendor into a tent that packed itself up and left.",
+    singleRemovalStory: "The Market opened with stalls selling bent nails, mystery fruit, and advice nobody asked for. {removed1} got traded for three buckets and a coupon, which everyone agreed was a surprisingly fair price.",
+    revivalStory: "At the back of the Market, {revived} was found running a booth called “Definitely Not Missing,” selling maps to places they had never been. Moments later, {removed1} was traded for three buckets and {removed2} vanished with a self-packing vendor tent.",
+    next: "The crew needs fuel, snacks, and worse decisions, so the Gas Station is next."
+  },
+  {
+    district: "Gas Station",
+    story: "The Gas Station opened with two pumps, one squeaky door, and hot dogs that were already under investigation. {removed1} got trapped inside the automatic car wash without a car, while {removed2} inflated themselves at the air pump and drifted into traffic control.",
+    singleRemovalStory: "The Gas Station opened with two pumps, one squeaky door, and hot dogs that were already under investigation. {removed1} got trapped inside the automatic car wash without a car and came out looking legally different.",
+    revivalStory: "The Gas Station freezer made a loud thunk and {revived} fell out holding a frozen burrito like it was survival gear. The reunion ended when {removed1} got trapped in the car wash and {removed2} inflated themselves at the air pump.",
+    next: "The city is hungry, which means the Restaurant is about to lower every standard."
+  },
+  {
+    district: "Restaurant",
+    story: "The Restaurant opened under the name “Probably Edible,” which was somehow the safest part of the business plan. {removed1} disappeared into the kitchen after asking about ingredients, while {removed2} got seated at a table so wobbly it migrated out the back door.",
+    singleRemovalStory: "The Restaurant opened under the name “Probably Edible,” which was somehow the safest part of the business plan. {removed1} disappeared into the kitchen after asking about ingredients and was added to the waitlist instead.",
+    revivalStory: "During the first lunch rush, {revived} crawled out of the walk-in cooler claiming they had been “marinating emotionally.” Then {removed1} vanished into the kitchen and {removed2} rode a wobbly table straight out the back door.",
+    next: "With commerce booming terribly, the crew builds a Shopping Mall."
+  },
+  {
+    district: "Shopping Mall",
+    story: "The Shopping Mall opened with every store marked “Coming Soon” and a fountain that seemed personally offended by coins. {removed1} got trapped in an escalator that only went sideways, while {removed2} followed a sale sign into a store that vanished after closing.",
+    singleRemovalStory: "The Shopping Mall opened with every store marked “Coming Soon” and a fountain that seemed personally offended by coins. {removed1} got trapped in an escalator that only went sideways and became part of mall security’s problem.",
+    revivalStory: "The Shopping Mall information desk finally answered the phone and revealed {revived} had been working there under a fake name. Then {removed1} got trapped in a sideways escalator while {removed2} followed a sale sign into a store that vanished after closing.",
+    next: "The crew finds a pile of old machines and declares the Arcade open."
+  },
+  {
+    district: "Arcade",
+    story: "The Arcade opened with buzzing machines, sticky floors, and prizes that looked like they had seen too much. {removed1} got pulled into a claw machine after reaching for a plush, while {removed2} challenged the high score cabinet and was absorbed into the leaderboard.",
+    singleRemovalStory: "The Arcade opened with buzzing machines, sticky floors, and prizes that looked like they had seen too much. {removed1} got pulled into a claw machine after reaching for a plush and was listed as a medium prize.",
+    revivalStory: "The Arcade’s oldest cabinet flashed “CONTINUE?” and released {revived} from the coin slot covered in tickets. Before anyone could celebrate, {removed1} got caught in the claw machine and {removed2} was absorbed into the high score board.",
+    next: "Visitors need somewhere questionable to sleep, so the Hotel checks in."
+  },
+  {
+    district: "Hotel",
+    story: "The Hotel opened with one working bell, infinite tiny soaps, and a lobby carpet that whispered complaints. {removed1} took the elevator to the mezzanine and never found the lobby again, while {removed2} was locked out on the balcony of a room nobody rented.",
+    singleRemovalStory: "The Hotel opened with one working bell, infinite tiny soaps, and a lobby carpet that whispered complaints. {removed1} took the elevator to the mezzanine and never found the lobby again.",
+    revivalStory: "Housekeeping knocked on room 404 and found {revived} inside wearing a robe and claiming late checkout. Then {removed1} got lost in the mezzanine elevator and {removed2} was locked out on the balcony of a room nobody rented.",
+    next: "The city wants production, so the Factory starts making things nobody ordered."
+  },
+  {
+    district: "Factory",
+    story: "The Factory opened to mass-produce useful supplies, but the first assembly line only made left shoes and emotional damage. {removed1} got boxed as a limited edition part, while {removed2} rode the conveyor belt into quality control and failed twice.",
+    singleRemovalStory: "The Factory opened to mass-produce useful supplies, but the first assembly line only made left shoes and emotional damage. {removed1} got boxed as a limited edition part and nobody wanted to break the seal.",
+    revivalStory: "The Factory whistle blew and {revived} rolled out of the assembly line with a sticker that said “inspected eventually.” Then {removed1} got boxed as a limited edition part while {removed2} rode the conveyor into quality control and failed twice.",
+    next: "With goods piling up, the Harbor becomes Ugly City’s next terrible expansion."
+  },
+  {
+    district: "Harbor",
+    story: "The Harbor opened on a body of water nobody remembered naming, with docks that bobbed like they were laughing. {removed1} got tangled in a net meant for shipping crates, while {removed2} boarded a cargo boat that immediately backed away from responsibility.",
+    singleRemovalStory: "The Harbor opened on a body of water nobody remembered naming, with docks that bobbed like they were laughing. {removed1} got tangled in a net meant for shipping crates and was accidentally scheduled for export.",
+    revivalStory: "The first cargo container washed ashore and inside was {revived}, eating crackers and insisting the trip was “mostly scenic.” Then {removed1} got tangled in a shipping net while {removed2} boarded a boat that backed away from responsibility.",
+    next: "With shipping handled badly, the Casino opens for even worse math."
+  },
+  {
+    district: "Casino",
+    story: "The Casino opened to overwhelming excitement, mostly because nobody understood the rules. {removed1} bet the city’s entire concrete supply on one spin while {removed2} claimed to have a guaranteed system, and both vanished into the High Rollers Lounge after losing to a machine shaped like a raccoon.",
+    singleRemovalStory: "The Casino opened to overwhelming excitement, mostly because nobody understood the rules. {removed1} bet the city’s entire concrete supply on one spin and vanished into the High Rollers Lounge after losing to a machine shaped like a raccoon.",
+    revivalStory: "The Casino buffet line suddenly produced {revived}, who claimed they had been comped a room after getting lost weeks ago. Then {removed1} bet the city’s concrete supply on one spin while {removed2} followed a guaranteed system into the High Rollers Lounge.",
+    next: "The city needs paperwork and bad coffee, so the Office Building goes up."
+  },
+  {
+    district: "Office Building",
+    story: "The Office Building opened with cubicles, flickering lights, and meetings about meetings nobody attended. {removed1} got promoted into a department with no exit, while {removed2} disappeared after being asked to circle back on something urgent.",
+    singleRemovalStory: "The Office Building opened with cubicles, flickering lights, and meetings about meetings nobody attended. {removed1} got promoted into a department with no exit and was last seen updating a spreadsheet nobody needed.",
+    revivalStory: "The Office Building printer jammed, screamed, and released {revived} holding a stack of reports titled “Where I Have Been.” Then {removed1} got promoted into a department with no exit while {removed2} vanished after being asked to circle back.",
+    next: "The crew decides the city needs animals, which means the Zoo is already a liability."
+  },
+  {
+    district: "Zoo",
+    story: "The Zoo opened with empty cages, confusing signs, and a suspicious feeling that the exhibits were judging everyone. {removed1} accidentally became part of the rare Ugly habitat, while {removed2} was adopted by the penguins and refused to explain why.",
+    singleRemovalStory: "The Zoo opened with empty cages, confusing signs, and a suspicious feeling that the exhibits were judging everyone. {removed1} accidentally became part of the rare Ugly habitat and the plaque was already printed.",
+    revivalStory: "The Zoo’s lost-and-found enclosure opened and revealed {revived} calmly feeding snacks to creatures nobody could identify. Then {removed1} became part of the rare Ugly habitat while {removed2} was adopted by the penguins.",
+    next: "The crew adds water, glass, and more bad ideas with the Aquarium."
+  },
+  {
+    district: "Aquarium",
+    story: "The Aquarium opened with cloudy tanks, dramatic bubbles, and one fish that looked like it knew secrets. {removed1} leaned too close to the touch tank and got classified as marine life, while {removed2} followed a maintenance ladder into the filter room and never resurfaced in the tour route.",
+    singleRemovalStory: "The Aquarium opened with cloudy tanks, dramatic bubbles, and one fish that looked like it knew secrets. {removed1} leaned too close to the touch tank and got classified as marine life before anyone could appeal.",
+    revivalStory: "The biggest tank bubbled twice and {revived} floated up in a diving helmet, acting like this was a normal commute. Then {removed1} got classified as marine life and {removed2} disappeared into the filter room tour route.",
+    next: "The crew decides fun should be louder, taller, and less inspected, so the Theme Park begins."
+  },
+  {
+    district: "Theme Park",
+    story: "The Theme Park opened with rides built from spare bridge parts and signs promising “mostly safe fun.” {removed1} got stuck on a roller coaster that refused to stop at the station, while {removed2} entered the mascot tunnel and came out on the wrong side of the map.",
+    singleRemovalStory: "The Theme Park opened with rides built from spare bridge parts and signs promising “mostly safe fun.” {removed1} got stuck on a roller coaster that refused to stop at the station and kept waving every lap.",
+    revivalStory: "The mascot tunnel burst open and {revived} stumbled out wearing giant foam shoes and no clear explanation. Then {removed1} got stuck on an endless roller coaster while {removed2} exited the mascot tunnel on the wrong side of the map.",
+    next: "For quieter entertainment, the crew builds a Movie Theater that is definitely haunted by bad reviews."
+  },
+  {
+    district: "Movie Theater",
+    story: "The Movie Theater opened with sticky floors, one giant screen, and previews that seemed to last all afternoon. {removed1} got folded into a recliner that would not release them, while {removed2} followed the popcorn smell behind the screen and entered a staff hallway with no credits.",
+    singleRemovalStory: "The Movie Theater opened with sticky floors, one giant screen, and previews that seemed to last all afternoon. {removed1} got folded into a recliner that would not release them and was listed under reserved seating.",
+    revivalStory: "Halfway through the previews, the screen flickered and {revived} walked out of the movie like they had been cast without permission. Then {removed1} got folded into a recliner while {removed2} followed the popcorn smell behind the screen.",
+    next: "The crew rolls directly into the Bowling Alley."
+  },
+  {
+    district: "Bowling Alley",
+    story: "The Bowling Alley opened with crooked lanes, rented shoes, and balls that seemed personally motivated. {removed1} slipped past the foul line and got swept into the pin machine, while {removed2} tried to retrieve a ball and returned only as a scoreboard error.",
+    singleRemovalStory: "The Bowling Alley opened with crooked lanes, rented shoes, and balls that seemed personally motivated. {removed1} slipped past the foul line and got swept into the pin machine as a spare problem.",
+    revivalStory: "The pin machine clattered loudly and spit {revived} back onto lane five with a perfect score nobody believed. Then {removed1} slipped into the pin sweeper while {removed2} vanished trying to retrieve a ball.",
+    next: "The crew decides Ugly City deserves culture, so the Museum opens with immediate regrets."
+  },
+  {
+    district: "Museum",
+    story: "The Museum opened to preserve Ugly City’s history, even though most of that history had happened by accident last week. {removed1} got mistaken for an ancient artifact, while {removed2} stepped into a wax display and was roped off before they could object.",
+    singleRemovalStory: "The Museum opened to preserve Ugly City’s history, even though most of that history had happened by accident last week. {removed1} got mistaken for an ancient artifact and the tour guides refused to give them back.",
+    revivalStory: "The Museum unveiled a new exhibit called “Stuff We Found,” and {revived} was standing in the middle of it pretending to be priceless. Then {removed1} got labeled as an artifact while {removed2} was roped into a wax display.",
+    next: "The city wants a vacation, so the Beach is somehow approved."
+  },
+  {
+    district: "Beach",
+    story: "The Beach opened beside water that was almost certainly connected to the Harbor, but nobody wanted to check. {removed1} got buried during a sandcastle competition, while {removed2} drifted away on an inflatable chair shaped like poor judgment.",
+    singleRemovalStory: "The Beach opened beside water that was almost certainly connected to the Harbor, but nobody wanted to check. {removed1} got buried during a sandcastle competition and the judges called it architecture.",
+    revivalStory: "A wave rolled in, dropped {revived} onto the sand wearing sunglasses, and immediately rolled back out like it had completed delivery. Then {removed1} got buried in a sandcastle competition while {removed2} drifted away on an inflatable chair.",
+    next: "The crew follows the noise inland and starts building a Concert Hall."
+  },
+  {
+    district: "Concert Hall",
+    story: "The Concert Hall opened with perfect acoustics, which was unfortunate because nobody in the crew could sing responsibly. During the first sound check, {removed1} was blasted into the balcony curtains while {removed2} got sealed inside a giant speaker labeled “bass storage.”",
+    singleRemovalStory: "The Concert Hall opened with perfect acoustics, which was unfortunate because nobody in the crew could sing responsibly. During the first sound check, {removed1} was blasted into the balcony curtains and remained there as decoration.",
+    revivalStory: "The first drum hit shook {revived} loose from the ceiling rig, where they had apparently been living with the stage lights. Then {removed1} got blasted into the balcony curtains while {removed2} was sealed inside a giant speaker.",
+    next: "The city needs sports, cheering, and medical waivers, so the Stadium begins."
+  },
+  {
+    district: "Sports Stadium",
+    story: "The Sports Stadium opened before anyone chose a sport, so the first match became a confusing mix of running, yelling, and arguing with cones. {removed1} got tackled by the marching band, while {removed2} chased the mascot cart into the tunnel and missed the rest of the season.",
+    singleRemovalStory: "The Sports Stadium opened before anyone chose a sport, so the first match became a confusing mix of running, yelling, and arguing with cones. {removed1} got tackled by the marching band and was ruled out by a referee nobody hired.",
+    revivalStory: "The scoreboard flickered, the crowd gasped, and {revived} climbed out from behind the home team bench pretending they had been coaching. Then {removed1} got tackled by the marching band while {removed2} chased the mascot cart into the tunnel.",
+    next: "After the game, everyone makes the questionable decision to open a Nightclub."
+  },
+  {
+    district: "Nightclub",
+    story: "The Nightclub opened with fog machines, flashing lights, and a dance floor that pulsed like it had a grudge. {removed1} vanished into the VIP section after failing the vibe check, while {removed2} got carried away by a speaker stack during the bass drop.",
+    singleRemovalStory: "The Nightclub opened with fog machines, flashing lights, and a dance floor that pulsed like it had a grudge. {removed1} vanished into the VIP section after failing the vibe check and the rope went back up.",
+    revivalStory: "The DJ booth opened like a trapdoor and {revived} climbed out wearing headphones and pretending they had always been on the lineup. Then {removed1} failed the vibe check into the VIP section while {removed2} got carried away by the bass drop.",
+    next: "The city is ready to expand beyond walking distance, so the Train Station is next."
+  },
+  {
+    district: "Train Station",
+    story: "The Train Station opened with twelve platforms and no agreement on where any tracks went. {removed1} boarded the express to an unknown stop, while {removed2} got trapped inside the announcement booth repeating “delayed” forever.",
+    singleRemovalStory: "The Train Station opened with twelve platforms and no agreement on where any tracks went. {removed1} boarded the express to an unknown stop and the schedule immediately denied responsibility.",
+    revivalStory: "The first arriving train screeched to a halt and {revived} stepped off holding a ticket stamped “eventually.” Then {removed1} boarded the express to an unknown stop while {removed2} got trapped in the announcement booth.",
+    next: "The crew decides above-ground confusion is not enough, so the Subway begins."
+  },
+  {
+    district: "Subway",
+    story: "The Subway opened beneath Ugly City with tunnels that seemed to rearrange when nobody was looking. {removed1} took the wrong line to Platform Nope, while {removed2} got stuck behind a turnstile that demanded exact change and emotional maturity.",
+    singleRemovalStory: "The Subway opened beneath Ugly City with tunnels that seemed to rearrange when nobody was looking. {removed1} took the wrong line to Platform Nope and was removed from the active map.",
+    revivalStory: "The Subway doors opened with a tired beep and {revived} stepped out covered in route maps, insisting they had only missed one stop. Then {removed1} rode to Platform Nope while {removed2} got stuck behind a turnstile demanding exact change.",
+    next: "With rails already suspicious, the crew somehow aims higher and builds an Airport."
+  },
+  {
+    district: "Airport",
+    story: "The Airport opened with one runway, six luggage carts, and departure boards that only displayed question marks. {removed1} boarded the wrong flight to Terminal Mystery, while {removed2} got sent through baggage claim and came out labeled oversized.",
+    singleRemovalStory: "The Airport opened with one runway, six luggage carts, and departure boards that only displayed question marks. {removed1} boarded the wrong flight to Terminal Mystery and their gate changed behind them.",
+    revivalStory: "Baggage claim coughed up a suitcase, then {revived} climbed out wearing a neck pillow and acting annoyed about delays. The celebration ended when {removed1} boarded the wrong flight and {removed2} came out labeled oversized baggage.",
+    next: "The city gets ambitious and opens a University before anyone graduates from anything."
+  },
+  {
+    district: "University",
+    story: "The University opened to teach advanced ugliness, unstable engineering, and the history of bad municipal choices. {removed1} enrolled in a class with no syllabus, while {removed2} got lost trying to find the registrar and accidentally declared a major in confusion.",
+    singleRemovalStory: "The University opened to teach advanced ugliness, unstable engineering, and the history of bad municipal choices. {removed1} enrolled in a class with no syllabus and was assigned homework forever.",
+    revivalStory: "The University’s first lecture was interrupted when {revived} walked in late holding a diploma they printed themselves. Then {removed1} joined a class with no syllabus while {removed2} got lost and declared a major in confusion.",
+    next: "The professors demand science, so the Research Lab opens under heavy suspicion."
+  },
+  {
+    district: "Research Lab",
+    story: "The Research Lab opened with glowing beakers, locked cabinets, and scientists who kept saying “probably stable.” {removed1} stepped into a testing chamber labeled “personality rinse,” while {removed2} pressed a red button and was reassigned to another dimension of paperwork.",
+    singleRemovalStory: "The Research Lab opened with glowing beakers, locked cabinets, and scientists who kept saying “probably stable.” {removed1} stepped into a testing chamber labeled “personality rinse” and came out as a pending report.",
+    revivalStory: "A lab freezer beeped three times and revealed {revived} inside, fully awake and somehow holding a clipboard. Then {removed1} entered the personality rinse chamber while {removed2} pressed a red button and was reassigned to another dimension of paperwork.",
+    next: "The crew decides the city needs media coverage, so the TV Station goes live."
+  },
+  {
+    district: "TV Station",
+    story: "The TV Station went live with breaking news about itself, which felt important because nothing else was prepared. {removed1} got stuck in the weather map pointing at fake storms, while {removed2} walked onto a live set and was hired as background forever.",
+    singleRemovalStory: "The TV Station went live with breaking news about itself, which felt important because nothing else was prepared. {removed1} got stuck in the weather map pointing at fake storms and could not return until the forecast improved.",
+    revivalStory: "The first broadcast glitched and {revived} appeared on screen from a storage closet, calmly reading the news like nothing happened. Then {removed1} got stuck in the weather map while {removed2} was hired as live background forever.",
+    next: "With cameras pointed upward, the Observatory is approved."
+  },
+  {
+    district: "Observatory",
+    story: "The Observatory opened on the highest hill in Ugly City, where the telescope immediately focused on something it refused to explain. {removed1} climbed inside to clean the lens, while {removed2} followed a star chart into a broom closet labeled “deep space.”",
+    singleRemovalStory: "The Observatory opened on the highest hill in Ugly City, where the telescope immediately focused on something it refused to explain. {removed1} climbed inside to clean the lens and became part of the view.",
+    revivalStory: "The telescope rotated by itself and pointed directly at {revived}, who was sitting on the roof eating snacks like a moon goblin. Then {removed1} climbed inside the lens while {removed2} followed a star chart into a broom closet labeled “deep space.”",
+    next: "The city begins building upward with Skyscrapers."
+  },
+  {
+    district: "Skyscrapers",
+    story: "The first Skyscrapers rose above Ugly City in uneven towers that looked proud, nervous, and possibly inflatable. {removed1} got stuck in a window-washing basket between floors, while {removed2} entered a revolving door and completed too many revolutions to be trusted.",
+    singleRemovalStory: "The first Skyscrapers rose above Ugly City in uneven towers that looked proud, nervous, and possibly inflatable. {removed1} got stuck in a window-washing basket between floors and became the skyline’s newest feature.",
+    revivalStory: "During the ribbon cutting, an elevator opened from the top floor and {revived} stepped out claiming they had been “waiting for lobby service.” Then {removed1} got stuck in a window-washing basket while {removed2} spun through a revolving door one too many times.",
+    next: "The rich Uglies demand luxury, and somehow the Luxury District gets approved."
+  },
+  {
+    district: "Luxury District",
+    story: "The Luxury District opened with velvet ropes, gold paint, and fountains that sprayed sparkling tap water with confidence. {removed1} was escorted away for not being ugly-rich enough, while {removed2} got trapped in a rotating closet full of tiny robes.",
+    singleRemovalStory: "The Luxury District opened with velvet ropes, gold paint, and fountains that sprayed sparkling tap water with confidence. {removed1} was escorted away for not being ugly-rich enough and placed on the wrong side of the rope.",
+    revivalStory: "A private elevator dinged and {revived} walked out in a bathrobe, claiming they had been upgraded by mistake. Then {removed1} was escorted away for not being ugly-rich enough while {removed2} got trapped in a rotating closet of tiny robes.",
+    next: "The crew searches the oldest part of the city and finds Old Town."
+  },
+  {
+    district: "Old Town",
+    story: "Old Town appeared under a layer of dust, suggesting Ugly City may have been ugly long before anyone officially started building it. {removed1} opened an ancient door that locked politely behind them, while {removed2} followed a cobblestone path that insisted on going backward.",
+    singleRemovalStory: "Old Town appeared under a layer of dust, suggesting Ugly City may have been ugly long before anyone officially started building it. {removed1} opened an ancient door that locked politely behind them and refused all appeals.",
+    revivalStory: "Old Town’s oldest mailbox creaked open and {revived} climbed out with a postcard stamped from three chapters ago. Then {removed1} got locked behind an ancient door while {removed2} followed a backward cobblestone path.",
+    next: "The mystery points toward leadership, so the Mayor’s Office finally opens."
+  },
+  {
+    district: "Mayor’s Office",
+    story: "The Mayor’s Office opened with an empty chair, a cold cup of coffee, and a desk full of unsigned disaster approvals. {removed1} sat in the chair and was immediately buried in complaints, while {removed2} got lost behind the filing cabinets looking for the mayor.",
+    singleRemovalStory: "The Mayor’s Office opened with an empty chair, a cold cup of coffee, and a desk full of unsigned disaster approvals. {removed1} sat in the chair and was immediately buried in complaints from districts that should not exist yet.",
+    revivalStory: "The Mayor’s Office closet rattled open and {revived} stepped out holding the spare keys, which raised more questions than it answered. Then {removed1} got buried in complaints while {removed2} vanished behind filing cabinets looking for the mayor.",
+    next: "The crew decides the city deserves a public square, so Founders Plaza begins."
+  },
+  {
+    district: "Founders Plaza",
+    story: "Founders Plaza opened with crooked benches, uneven bricks, and plaques honoring everyone who claimed they helped. {removed1} got cemented into the dedication walkway by accident, while {removed2} followed a parade float that was supposed to be parked.",
+    singleRemovalStory: "Founders Plaza opened with crooked benches, uneven bricks, and plaques honoring everyone who claimed they helped. {removed1} got cemented into the dedication walkway by accident and was described as “interactive history.”",
+    revivalStory: "The dedication curtain dropped to reveal {revived} standing on the platform and waving like they had been invited. Then {removed1} got cemented into the walkway while {removed2} followed a runaway parade float out of the plaza.",
+    next: "The city gets sentimental and starts building a City Monument."
+  },
+  {
+    district: "City Monument",
+    story: "The City Monument was meant to represent courage, teamwork, and extremely poor planning. As it tilted into place, {removed1} got stuck inside the base while {removed2} climbed the statue to fix its face and was carried upward by the crane.",
+    singleRemovalStory: "The City Monument was meant to represent courage, teamwork, and extremely poor planning. As it tilted into place, {removed1} got stuck inside the base and became part of the inspirational message.",
+    revivalStory: "When the Monument’s base cracked open, {revived} stepped out covered in dust and applause they absolutely did not earn. Then {removed1} got stuck inside the base while {removed2} was carried upward by the crane.",
+    next: "Rumors spread about a hidden Vault beneath the monument."
+  },
+  {
+    district: "The Vault",
+    story: "The Vault opened under the City Monument after three wrong keys and one very persuasive kick. {removed1} stepped inside to inspect the treasure and triggered the slowest closing door in city history, while {removed2} got distracted counting bottle caps and missed the exit.",
+    singleRemovalStory: "The Vault opened under the City Monument after three wrong keys and one very persuasive kick. {removed1} stepped inside to inspect the treasure and triggered the slowest closing door in city history.",
+    revivalStory: "The Vault door groaned open and {revived} was already inside, sitting on a pile of bottle caps like a tiny dragon. The reunion ended when {removed1} triggered the slow closing door and {removed2} got distracted counting treasure.",
+    next: "Beneath the Vault, the crew finds signs pointing toward The Underground."
+  },
+  {
+    district: "The Underground",
+    story: "The Underground stretched below Ugly City like a second city nobody wanted responsibility for. {removed1} followed a glowing arrow into a service tunnel, while {removed2} got recruited by a mysterious maintenance crew that only worked at weird hours.",
+    singleRemovalStory: "The Underground stretched below Ugly City like a second city nobody wanted responsibility for. {removed1} followed a glowing arrow into a service tunnel and became part of the lower-level rumor network.",
+    revivalStory: "The Underground’s secret tram arrived and {revived} stepped off wearing a reflective vest and acting like staff. Then {removed1} followed a glowing arrow into a tunnel while {removed2} got recruited by the weird-hours maintenance crew.",
+    next: "The city prepares a proper entrance with the Grand Gate."
+  },
+  {
+    district: "Grand Gate",
+    story: "The Grand Gate was built to impress visitors before they realized what they had entered. During the opening ceremony, {removed1} got trapped in the giant turnstile while {removed2} was lifted away by the banner because nobody tied it down.",
+    singleRemovalStory: "The Grand Gate was built to impress visitors before they realized what they had entered. During the opening ceremony, {removed1} got trapped in the giant turnstile and became the first admission problem.",
+    revivalStory: "As the Grand Gate opened, {revived} wandered through holding a ticket from the original Empty Lot and demanded re-entry. Then {removed1} got trapped in the turnstile while {removed2} was lifted away by the ceremonial banner.",
+    next: "The crew gets dramatic and begins work on Ugly Castle."
+  },
+  {
+    district: "Ugly Castle",
+    story: "Ugly Castle rose with crooked towers, squeaky drawbridges, and a moat that seemed mostly decorative until it moved. {removed1} got assigned to guard duty in a tower with no stairs, while {removed2} crossed the drawbridge at exactly the wrong dramatic moment.",
+    singleRemovalStory: "Ugly Castle rose with crooked towers, squeaky drawbridges, and a moat that seemed mostly decorative until it moved. {removed1} got assigned to guard duty in a tower with no stairs and immediately became unreachable.",
+    revivalStory: "The drawbridge lowered with a groan and {revived} walked across wearing a cardboard crown they clearly made themselves. Then {removed1} got stuck guarding a stairless tower while {removed2} crossed the drawbridge at the wrong dramatic moment.",
+    next: "The city honors everyone who lasted this long with the Hall of Survivors."
+  },
+  {
+    district: "Hall of Survivors",
+    story: "The Hall of Survivors opened with portraits, plaques, and at least three names spelled wrong on purpose. {removed1} got stuck posing for a painting that refused to finish, while {removed2} stepped behind a curtain and became part of the memorial exhibit too early.",
+    singleRemovalStory: "The Hall of Survivors opened with portraits, plaques, and at least three names spelled wrong on purpose. {removed1} got stuck posing for a painting that refused to finish and was declared historically busy.",
+    revivalStory: "One portrait blinked, sneezed, and revealed {revived} had been hiding behind the canvas the whole time. Then {removed1} got trapped posing for an endless painting while {removed2} stepped behind the memorial curtain too early.",
+    next: "The final symbol of authority is waiting: The Crown."
+  },
+  {
+    district: "The Crown",
+    story: "The Crown was placed on a velvet pillow in the center of Ugly City, glowing with the power of extremely questionable leadership. {removed1} tried it on and sank into the ceremonial chair, while {removed2} became trapped in the applause machine that would not stop celebrating.",
+    singleRemovalStory: "The Crown was placed on a velvet pillow in the center of Ugly City, glowing with the power of extremely questionable leadership. {removed1} tried it on and sank into the ceremonial chair, officially becoming too fancy to continue.",
+    revivalStory: "The Crown ceremony paused when {revived} emerged from beneath the velvet pillow and asked if the buffet was still open. Then {removed1} sank into the ceremonial chair while {removed2} got trapped in the applause machine.",
+    next: "Only one thing remains: the Founder’s Statue."
+  },
+  {
+    district: "Founder’s Statue",
+    story: "The Founder’s Statue was carved to honor whoever survived Ugly City’s impossible rise, though nobody agreed what the face should look like. {removed1} got sealed inside the pedestal during final adjustments, while {removed2} climbed the statue to fix the nose and was claimed by the scaffolding.",
+    singleRemovalStory: "The Founder’s Statue was carved to honor whoever survived Ugly City’s impossible rise, though nobody agreed what the face should look like. {removed1} got sealed inside the pedestal during final adjustments and was labeled “structural contribution.”",
+    revivalStory: "The Founder’s Statue cracked at the base and {revived} stepped out claiming they had been doing “legacy research.” Then {removed1} got sealed into the pedestal while {removed2} climbed the statue and was claimed by the scaffolding.",
+    next: "The city keeps growing, because apparently nobody learned anything."
+  },
+  {
+    district: "Courthouse",
+    story: "The Courthouse opened to settle disputes, but the first case was about whether the building itself had committed fraud. {removed1} was found guilty of leaning on evidence, while {removed2} got trapped in jury duty with no lunch break and no end date.",
+    singleRemovalStory: "The Courthouse opened to settle disputes, but the first case was about whether the building itself had committed fraud. {removed1} was found guilty of leaning on evidence and escorted into legal uncertainty.",
+    revivalStory: "The judge slammed the gavel and accidentally released {revived} from a witness booth they had been using as a studio apartment. Then {removed1} was found guilty of leaning on evidence while {removed2} got trapped in endless jury duty.",
+    next: "After court, everyone is sent to the Permit Office."
+  },
+  {
+    district: "Permit Office",
+    story: "The Permit Office opened with fourteen windows and only one employee, who was somehow a filing cabinet. {removed1} took a number that never came up, while {removed2} submitted themselves as paperwork and got stamped pending.",
+    singleRemovalStory: "The Permit Office opened with fourteen windows and only one employee, who was somehow a filing cabinet. {removed1} took a number that never came up and sat down with tragic patience.",
+    revivalStory: "A drawer labeled “lost applications” popped open and {revived} crawled out holding a permit approved by nobody. Then {removed1} took a number that never came up while {removed2} got stamped pending.",
+    next: "The city tries pretending it cares about cleanup with a Recycling Center."
+  },
+  {
+    district: "Recycling Center",
+    story: "The Recycling Center opened to turn old junk into new junk with slightly better labels. {removed1} got sorted into the wrong bin, while {removed2} rode the conveyor into a compactor that only flattened their schedule.",
+    singleRemovalStory: "The Recycling Center opened to turn old junk into new junk with slightly better labels. {removed1} got sorted into the wrong bin and nobody could agree if they were paper, plastic, or emotionally reusable.",
+    revivalStory: "The glass bin rattled loudly and {revived} popped out wearing a vest made of warning labels. Then {removed1} got sorted into the wrong bin while {removed2} rode the conveyor into schedule-flattening machinery.",
+    next: "Public transit expands with a Bus Depot nobody trusts."
+  },
+  {
+    district: "Bus Depot",
+    story: "The Bus Depot opened with buses that all said “Out of Service” but kept moving anyway. {removed1} boarded Route 0 and looped forever, while {removed2} tried to inspect the engine and was accepted as luggage.",
+    singleRemovalStory: "The Bus Depot opened with buses that all said “Out of Service” but kept moving anyway. {removed1} boarded Route 0 and looped forever past the same confused bench.",
+    revivalStory: "Bus 404 pulled in late and dropped off {revived}, who insisted they had only missed their stop by eight districts. Then {removed1} boarded Route 0 forever while {removed2} was accepted as luggage during an engine inspection.",
+    next: "The crew builds a Library to store books nobody will return."
+  },
+  {
+    district: "Library",
+    story: "The Library opened with crooked shelves, whispering signs, and books that seemed to rearrange themselves by insult level. {removed1} got trapped in the overdue section, while {removed2} opened a pop-up book and stepped directly into it.",
+    singleRemovalStory: "The Library opened with crooked shelves, whispering signs, and books that seemed to rearrange themselves by insult level. {removed1} got trapped in the overdue section and the librarian refused to blink.",
+    revivalStory: "A book titled “How To Return Dramatically” opened by itself and {revived} climbed out between chapters. Then {removed1} got trapped in the overdue section while {removed2} stepped into a pop-up book.",
+    next: "The city smells worse than usual, so the Laundromat finally matters."
+  },
+  {
+    district: "Laundromat",
+    story: "The Laundromat opened with washers that shook like they had unfinished business. {removed1} got spun into the permanent press cycle, while {removed2} crawled into a dryer to check for socks and came out as static electricity with opinions.",
+    singleRemovalStory: "The Laundromat opened with washers that shook like they had unfinished business. {removed1} got spun into the permanent press cycle and was declared too wrinkled for active duty.",
+    revivalStory: "Dryer number six popped open and {revived} tumbled out folded, warm, and deeply confused. Then {removed1} got stuck in permanent press while {removed2} crawled into a dryer and came out as static electricity with opinions.",
+    next: "Clean-ish and hungry, the crew opens the Food Court."
+  },
+  {
+    district: "Food Court",
+    story: "The Food Court opened with twelve restaurants, one menu, and no ingredients anyone could identify. {removed1} got stuck in the sample line forever, while {removed2} followed the smell of fries into a kitchen that belonged to another mall entirely.",
+    singleRemovalStory: "The Food Court opened with twelve restaurants, one menu, and no ingredients anyone could identify. {removed1} got stuck in the sample line forever and kept accepting tiny spoons.",
+    revivalStory: "A tray return rattled open and {revived} slid out holding three sauces and no shame. Then {removed1} got trapped in the sample line while {removed2} followed the fry smell into another mall’s kitchen.",
+    next: "The city needs fresh air, so City Park gets planted sideways."
+  },
+  {
+    district: "City Park",
+    story: "City Park opened with three trees, five benches, and a pond that reflected everyone slightly uglier than reality. {removed1} got tangled in ceremonial ribbon around a sapling, while {removed2} followed a squirrel into a maintenance shed with park authority.",
+    singleRemovalStory: "City Park opened with three trees, five benches, and a pond that reflected everyone slightly uglier than reality. {removed1} got tangled in ceremonial ribbon around a sapling and became protected greenery.",
+    revivalStory: "The pond bubbled, sneezed, and returned {revived} to shore holding a wet map of the city. Then {removed1} got tangled around a sapling while {removed2} followed a squirrel into park authority.",
+    next: "Someone starts selling questionable treasures, so the Pawn Shop opens."
+  },
+  {
+    district: "Pawn Shop",
+    story: "The Pawn Shop opened with shelves full of things the crew had lost earlier and prices based purely on confidence. {removed1} got appraised as rare and placed behind glass, while {removed2} traded themselves for a lamp and immediately regretted the paperwork.",
+    singleRemovalStory: "The Pawn Shop opened with shelves full of things the crew had lost earlier and prices based purely on confidence. {removed1} got appraised as rare and placed behind glass with a tiny price tag.",
+    revivalStory: "The owner opened a locked cabinet and found {revived} sitting between cursed trophies and expired coupons. Then {removed1} got appraised as rare while {removed2} traded themselves for a lamp.",
+    next: "The crew heads upward into the Rooftop District."
+  },
+  {
+    district: "Rooftop District",
+    story: "The Rooftop District connected the tops of buildings with bridges, ladders, and the bad idea of trusting height. {removed1} got stranded on a chimney after a ladder unionized, while {removed2} followed a rooftop pigeon into restricted airspace.",
+    singleRemovalStory: "The Rooftop District connected the tops of buildings with bridges, ladders, and the bad idea of trusting height. {removed1} got stranded on a chimney after a ladder unionized and refused to come back down.",
+    revivalStory: "A rooftop hatch swung open and {revived} climbed out with a pigeon escort and a suspiciously official badge. Then {removed1} got stranded on a chimney while {removed2} followed another pigeon into restricted airspace.",
+    next: "The city wants louder announcements, so the Radio Tower rises."
+  },
+  {
+    district: "Radio Tower",
+    story: "The Radio Tower began broadcasting Ugly City updates, most of which were apologies for earlier updates. {removed1} climbed up to fix the antenna and got stuck on air, while {removed2} was accidentally converted into a traffic report.",
+    singleRemovalStory: "The Radio Tower began broadcasting Ugly City updates, most of which were apologies for earlier updates. {removed1} climbed up to fix the antenna and got stuck on air as background static.",
+    revivalStory: "The first clear signal was just {revived} yelling from inside the transmitter room for someone to open the door. Then {removed1} got stuck on the antenna while {removed2} was accidentally converted into a traffic report.",
+    next: "Forecasts become necessary, so the Weather Station opens."
+  },
+  {
+    district: "Weather Station",
+    story: "The Weather Station opened to predict rain, wind, and falling construction materials with disappointing accuracy. {removed1} got carried away by a test wind tunnel, while {removed2} was assigned to measure fog and simply became part of it.",
+    singleRemovalStory: "The Weather Station opened to predict rain, wind, and falling construction materials with disappointing accuracy. {removed1} got carried away by a test wind tunnel and became tomorrow’s forecast.",
+    revivalStory: "The fog machine cleared for one second and revealed {revived} standing there with a clipboard full of made-up temperatures. Then {removed1} got carried away by the wind tunnel while {removed2} was assigned to measure fog and became part of it.",
+    next: "The city starts charging for bad roads at the Toll Booth."
+  },
+  {
+    district: "Toll Booth",
+    story: "The Toll Booth opened on a road that was still free yesterday and somehow worse today. {removed1} got trapped arguing over exact change, while {removed2} crawled into the coin return slot and entered municipal finance.",
+    singleRemovalStory: "The Toll Booth opened on a road that was still free yesterday and somehow worse today. {removed1} got trapped arguing over exact change and held up traffic that did not exist.",
+    revivalStory: "The coin return clanked loudly and {revived} slid out holding three tokens and a grudge. Then {removed1} got trapped arguing over exact change while {removed2} crawled into municipal finance.",
+    next: "With vehicles piling up, the Parking Garage becomes unavoidable."
+  },
+  {
+    district: "Parking Garage",
+    story: "The Parking Garage opened with seven levels, no exits, and arrows that clearly worked for another building. {removed1} parked themselves in a compact space, while {removed2} followed the spiral ramp upward until they became a distant honk.",
+    singleRemovalStory: "The Parking Garage opened with seven levels, no exits, and arrows that clearly worked for another building. {removed1} parked themselves in a compact space and was ticketed for existing poorly.",
+    revivalStory: "Level B7 finally lit up and {revived} walked out holding a parking ticket longer than their patience. Then {removed1} parked themselves in a compact space while {removed2} followed the spiral ramp into distant honking.",
+    next: "The council creates the Department of Bad Decisions, which explains a lot."
+  },
+  {
+    district: "Department of Bad Decisions",
+    story: "The Department of Bad Decisions opened and immediately approved everything that had already gone wrong. {removed1} was promoted to Assistant Mistake Manager, while {removed2} got assigned to a committee responsible for inventing new problems.",
+    singleRemovalStory: "The Department of Bad Decisions opened and immediately approved everything that had already gone wrong. {removed1} was promoted to Assistant Mistake Manager and lost access to the outside world.",
+    revivalStory: "The department’s suggestion box rattled open and {revived} climbed out holding a proposal titled “Let Me Back In.” Then {removed1} was promoted to Assistant Mistake Manager while {removed2} got assigned to the new-problems committee.",
+    next: "The city proves it can get worse by opening the Ugly DMV."
+  },
+  {
+    district: "Ugly DMV",
+    story: "The Ugly DMV opened with endless chairs, one blinking number sign, and a form asking applicants to describe their face in three disasters or less. {removed1} got sent to window twelve, which did not exist, while {removed2} failed the photo test for looking too prepared.",
+    singleRemovalStory: "The Ugly DMV opened with endless chairs, one blinking number sign, and a form asking applicants to describe their face in three disasters or less. {removed1} got sent to window twelve, which did not exist, and has been waiting there emotionally.",
+    revivalStory: "The number sign flashed 000 and {revived} stood up from the waiting area like they had been there the whole season. Then {removed1} got sent to a nonexistent window while {removed2} failed the photo test for looking too prepared.",
+    next: "The city needs somewhere for everything unwanted, so the City Dump opens."
+  },
+  {
+    district: "City Dump",
+    story: "The City Dump opened beyond the Junkyard for things even the Junkyard called embarrassing. {removed1} followed a rolling tire over the hill, while {removed2} was mistaken for a rejected appliance and hauled into the wrong pile.",
+    singleRemovalStory: "The City Dump opened beyond the Junkyard for things even the Junkyard called embarrassing. {removed1} followed a rolling tire over the hill and became part of the scenery nobody wanted to inventory.",
+    revivalStory: "A mattress pile shifted and {revived} popped out holding a raccoon passport and a confident smile. Then {removed1} followed a tire over the hill while {removed2} was mistaken for a rejected appliance.",
+    next: "The crew digs a Canal because apparently roads were not confusing enough."
+  },
+  {
+    district: "Canal",
+    story: "The Canal sliced through Ugly City with water that moved only when embarrassed. {removed1} got carried off in a tiny maintenance boat, while {removed2} tried to operate the lock gates and became trapped between two levels of regret.",
+    singleRemovalStory: "The Canal sliced through Ugly City with water that moved only when embarrassed. {removed1} got carried off in a tiny maintenance boat and waved like it was intentional.",
+    revivalStory: "A canal boat drifted in carrying {revived}, who had somehow become captain using only a traffic cone and confidence. Then {removed1} floated away in a maintenance boat while {removed2} got trapped between two lock gates.",
+    next: "Water travel gets official with the Ferry Terminal."
+  },
+  {
+    district: "Ferry Terminal",
+    story: "The Ferry Terminal opened with departures every hour and arrivals whenever the ferry felt emotionally ready. {removed1} boarded with a one-way ticket to Somewhere Damp, while {removed2} got trapped inside the life jacket demonstration.",
+    singleRemovalStory: "The Ferry Terminal opened with departures every hour and arrivals whenever the ferry felt emotionally ready. {removed1} boarded with a one-way ticket to Somewhere Damp and the dock applauded too soon.",
+    revivalStory: "The ferry returned late and {revived} stepped off carrying a souvenir mug from a place nobody believed existed. Then {removed1} sailed to Somewhere Damp while {removed2} got trapped in the life jacket demonstration.",
+    next: "The shoreline turns commercial with the Boardwalk."
+  },
+  {
+    district: "Boardwalk",
+    story: "The Boardwalk opened with crooked planks, greasy snacks, and games that absolutely were not fair. {removed1} fell through a loose board into the prize storage, while {removed2} chased a runaway cotton candy cart down the pier.",
+    singleRemovalStory: "The Boardwalk opened with crooked planks, greasy snacks, and games that absolutely were not fair. {removed1} fell through a loose board into the prize storage and got counted as inventory.",
+    revivalStory: "A prize booth curtain opened and {revived} stepped out holding a giant stuffed thing that looked concerned. Then {removed1} fell into prize storage while {removed2} chased a runaway cotton candy cart down the pier.",
+    next: "Tourists need somewhere worse than the Hotel, so the Motel opens."
+  },
+  {
+    district: "Motel",
+    story: "The Motel opened with flickering signs, tiny rooms, and keys attached to bricks for security. {removed1} checked into room 13 and found it was actually a closet, while {removed2} followed the ice machine noise into another decade.",
+    singleRemovalStory: "The Motel opened with flickering signs, tiny rooms, and keys attached to bricks for security. {removed1} checked into room 13 and found it was actually a closet with a complimentary towel.",
+    revivalStory: "The vacancy sign buzzed twice and {revived} walked out of room 0 claiming the continental breakfast was underrated. Then {removed1} got stuck in room 13 while {removed2} followed the ice machine noise into another decade.",
+    next: "The city hosts its first disaster professionally at the Convention Center."
+  },
+  {
+    district: "Convention Center",
+    story: "The Convention Center opened for expos, rallies, and panels about why nothing in Ugly City worked. {removed1} got trapped behind a booth selling emergency whistles, while {removed2} followed a keynote speaker into a breakout session with no doors.",
+    singleRemovalStory: "The Convention Center opened for expos, rallies, and panels about why nothing in Ugly City worked. {removed1} got trapped behind a booth selling emergency whistles and used all of them incorrectly.",
+    revivalStory: "The main stage curtain rose and {revived} was standing at the podium giving a presentation called “Where I Was.” Then {removed1} got trapped behind a whistle booth while {removed2} entered a breakout session with no doors.",
+    next: "Someone wants dessert, so the Ice Cream Stand becomes municipal infrastructure."
+  },
+  {
+    district: "Ice Cream Stand",
+    story: "The Ice Cream Stand opened with thirty flavors and only one that could be explained legally. {removed1} got stuck in the soft-serve machine, while {removed2} chased the freezer truck until it joined traffic on its own.",
+    singleRemovalStory: "The Ice Cream Stand opened with thirty flavors and only one that could be explained legally. {removed1} got stuck in the soft-serve machine and was served as a cautionary swirl.",
+    revivalStory: "The freezer door opened and {revived} stepped out holding a cone that had clearly been through a lot. Then {removed1} got stuck in the soft-serve machine while {removed2} chased the freezer truck into traffic.",
+    next: "The city digs downward again and discovers the Underground Mall."
+  },
+  {
+    district: "Underground Mall",
+    story: "The Underground Mall opened beneath the Subway with stores that sold things no surface resident would admit buying. {removed1} got lost between two identical candle shops, while {removed2} rode an escalator down so far the map gave up.",
+    singleRemovalStory: "The Underground Mall opened beneath the Subway with stores that sold things no surface resident would admit buying. {removed1} got lost between two identical candle shops and became a directory listing.",
+    revivalStory: "A closed kiosk rolled open and {revived} emerged selling sunglasses to nobody. Then {removed1} got lost between identical candle shops while {removed2} rode an escalator below the map.",
+    next: "Time becomes a problem, so the Clock Tower is built badly."
+  },
+  {
+    district: "Clock Tower",
+    story: "The Clock Tower rose over Ugly City and immediately displayed four different times with total confidence. {removed1} climbed inside to fix the hands and got stuck at quarter past nope, while {removed2} followed the bell rope upward and refused to come down quietly.",
+    singleRemovalStory: "The Clock Tower rose over Ugly City and immediately displayed four different times with total confidence. {removed1} climbed inside to fix the hands and got stuck at quarter past nope.",
+    revivalStory: "At exactly not-the-right-time, the Clock Tower bell rang and {revived} dropped out holding a tiny alarm clock. Then {removed1} got stuck at quarter past nope while {removed2} followed the bell rope upward.",
+    next: "The crew cools off with a Water Park that should never have passed inspection."
+  },
+  {
+    district: "Water Park",
+    story: "The Water Park opened with slides, splash zones, and lifeguards who were clearly just signs with sunglasses. {removed1} entered the longest slide and never reached the exit, while {removed2} got trapped in the lazy river because it became aggressively lazy.",
+    singleRemovalStory: "The Water Park opened with slides, splash zones, and lifeguards who were clearly just signs with sunglasses. {removed1} entered the longest slide and never reached the exit, though everyone heard occasional squeaking.",
+    revivalStory: "The wave pool burped and returned {revived} on an inflatable tube, looking refreshed and suspiciously proud. Then {removed1} vanished into the longest slide while {removed2} got trapped in the aggressively lazy river.",
+    next: "The city pretends to care about togetherness with a Community Center."
+  },
+  {
+    district: "Community Center",
+    story: "The Community Center opened with folding chairs, activity posters, and a sign-up sheet nobody could read. {removed1} got stuck teaching a class called Advanced Standing Around, while {removed2} entered a support group that immediately locked the circle.",
+    singleRemovalStory: "The Community Center opened with folding chairs, activity posters, and a sign-up sheet nobody could read. {removed1} got stuck teaching a class called Advanced Standing Around and the students would not leave.",
+    revivalStory: "The lost-and-found bin at the Community Center coughed up {revived}, a whistle, and seven nametags. Then {removed1} got stuck teaching Advanced Standing Around while {removed2} entered a support group that locked the circle.",
+    next: "The crew gets expressive at the Tattoo Shop."
+  },
+  {
+    district: "Tattoo Shop",
+    story: "The Tattoo Shop opened with flash sheets, buzzing machines, and designs that all looked like municipal warnings. {removed1} sat for a tiny tattoo and got trapped in a full-body waiver, while {removed2} followed a stencil into the back room and came out as “aftercare pending.”",
+    singleRemovalStory: "The Tattoo Shop opened with flash sheets, buzzing machines, and designs that all looked like municipal warnings. {removed1} sat for a tiny tattoo and got trapped in a full-body waiver.",
+    revivalStory: "A tattoo chair spun around and revealed {revived} halfway through getting “I Was Never Gone” misspelled on purpose. Then {removed1} got trapped in a waiver while {removed2} followed a stencil into aftercare pending.",
+    next: "The city needs gossip, so the Newsstand appears overnight."
+  },
+  {
+    district: "Newsstand",
+    story: "The Newsstand opened with papers reporting events before they happened and headlines that personally insulted the crew. {removed1} got folded into the Sunday edition, while {removed2} chased a flying newspaper into the opinion section and never recovered socially.",
+    singleRemovalStory: "The Newsstand opened with papers reporting events before they happened and headlines that personally insulted the crew. {removed1} got folded into the Sunday edition and sold as a special insert.",
+    revivalStory: "The front page suddenly changed to “LOCAL UGLY RETURNS” and {revived} climbed out from behind the crossword. Then {removed1} got folded into the Sunday edition while {removed2} chased a flying paper into the opinion section.",
+    next: "After all that drama, the Soup Kitchen opens to feed the chaos."
+  },
+  {
+    district: "Soup Kitchen",
+    story: "The Soup Kitchen opened with a giant pot, generous intentions, and a recipe that changed every time someone blinked. {removed1} got assigned to stir forever, while {removed2} leaned too close to smell the soup and was ladled into community service.",
+    singleRemovalStory: "The Soup Kitchen opened with a giant pot, generous intentions, and a recipe that changed every time someone blinked. {removed1} got assigned to stir forever and developed ladle authority.",
+    revivalStory: "The soup pot bubbled dramatically and {revived} climbed out holding a bowl, insisting the flavor had improved. Then {removed1} got assigned to stir forever while {removed2} was ladled into community service.",
+    next: "Security becomes necessary, or at least someone says it does."
+  },
+  {
+    district: "Security Office",
+    story: "The Security Office opened with camera monitors showing every district except the one they needed. {removed1} got stuck watching footage from tomorrow, while {removed2} followed a suspicious shadow into the supply closet and became a case file.",
+    singleRemovalStory: "The Security Office opened with camera monitors showing every district except the one they needed. {removed1} got stuck watching footage from tomorrow and missed today completely.",
+    revivalStory: "Monitor nine flickered and revealed {revived} waving from inside the Security Office before anyone opened the door. Then {removed1} got trapped watching tomorrow’s footage while {removed2} followed a shadow into the case file closet.",
+    next: "The city decides one rail system was not enough, so the Monorail launches."
+  },
+  {
+    district: "Monorail",
+    story: "The Monorail opened above Ugly City with one sleek train and several deeply unsleek supports. {removed1} boarded for the first loop and got stuck at the scenic overlook, while {removed2} tried to wave from the platform and was mistaken for maintenance equipment.",
+    singleRemovalStory: "The Monorail opened above Ugly City with one sleek train and several deeply unsleek supports. {removed1} boarded for the first loop and got stuck at the scenic overlook indefinitely.",
+    revivalStory: "The Monorail doors opened mid-ceremony and {revived} stepped out holding a tourist brochure from nowhere. Then {removed1} got stuck at the scenic overlook while {removed2} was mistaken for maintenance equipment.",
+    next: "The crew adds plants, because even Ugly City deserves questionable greenery."
+  },
+  {
+    district: "Botanical Garden",
+    story: "The Botanical Garden opened with plants labeled by warning level instead of species. {removed1} got hugged by a vine that had boundary issues, while {removed2} followed a glowing flower into the restricted greenhouse.",
+    singleRemovalStory: "The Botanical Garden opened with plants labeled by warning level instead of species. {removed1} got hugged by a vine that had boundary issues and was added to the plant family.",
+    revivalStory: "A suspiciously large flower bloomed and {revived} stepped out covered in pollen and confidence. Then {removed1} got hugged by a boundary-free vine while {removed2} followed a glowing flower into the restricted greenhouse.",
+    next: "The city starts manufacturing monuments at the Statue Factory."
+  },
+  {
+    district: "Statue Factory",
+    story: "The Statue Factory opened to produce heroic monuments that all somehow looked confused. {removed1} got cast as a temporary mold, while {removed2} entered the polishing room and came out too shiny for the crew to recognize.",
+    singleRemovalStory: "The Statue Factory opened to produce heroic monuments that all somehow looked confused. {removed1} got cast as a temporary mold and the foreman refused to waste good plaster.",
+    revivalStory: "A freshly carved statue sneezed, cracked open, and revealed {revived} inside pretending it was performance art. Then {removed1} got cast as a temporary mold while {removed2} became too shiny to recognize.",
+    next: "Emergency planning arrives late with the Emergency Bunker."
+  },
+  {
+    district: "Emergency Bunker",
+    story: "The Emergency Bunker opened after every emergency had already happened twice. {removed1} got locked inside during a drill nobody announced, while {removed2} followed the evacuation map to a snack closet marked “safe enough.”",
+    singleRemovalStory: "The Emergency Bunker opened after every emergency had already happened twice. {removed1} got locked inside during a drill nobody announced and became officially prepared.",
+    revivalStory: "The bunker hatch opened and {revived} emerged holding canned beans and a whistle they had definitely overused. Then {removed1} got locked inside during a drill while {removed2} followed the evacuation map into a snack closet.",
+    next: "The city tries to organize its history at the Records Office."
+  },
+  {
+    district: "Records Office",
+    story: "The Records Office opened to track every permit, complaint, disappearance, and soup incident in Ugly City. {removed1} got misfiled under “miscellaneous structures,” while {removed2} entered the archive stacks and became overdue data.",
+    singleRemovalStory: "The Records Office opened to track every permit, complaint, disappearance, and soup incident in Ugly City. {removed1} got misfiled under “miscellaneous structures” and nobody wanted to correct the label.",
+    revivalStory: "A cabinet labeled “definitely gone” slid open and {revived} climbed out with a complete personal file and several corrections. Then {removed1} got misfiled under miscellaneous structures while {removed2} disappeared into the archive stacks.",
+    next: "The crew follows the oldest map to The Last Alley."
+  },
+  {
+    district: "The Last Alley",
+    story: "The Last Alley was so narrow, crooked, and suspicious that even Ugly City seemed embarrassed by it. {removed1} followed a flickering sign to the dead end, while {removed2} got caught in a trash can traffic jam and was slowly pushed out of the crew’s route.",
+    singleRemovalStory: "The Last Alley was so narrow, crooked, and suspicious that even Ugly City seemed embarrassed by it. {removed1} followed a flickering sign to the dead end and the bricks quietly rearranged behind them.",
+    revivalStory: "A dumpster in The Last Alley lifted its lid and {revived} popped out asking if the meeting had started. Then {removed1} followed a flickering sign to the dead end while {removed2} got caught in a trash can traffic jam.",
+    next: "Only one thing blocks the path to City Hall: the Final Permit Desk."
+  },
+  {
+    district: "Final Permit Desk",
+    story: "The Final Permit Desk appeared in the middle of the road with a bell, a stack of forms, and the energy of a final boss with office hours. {removed1} was sent back for missing initials nobody mentioned, while {removed2} got trapped waiting for approval from a stamp that had gone to lunch.",
+    singleRemovalStory: "The Final Permit Desk appeared in the middle of the road with a bell, a stack of forms, and the energy of a final boss with office hours. {removed1} was sent back for missing initials nobody mentioned and the line moved on without them.",
+    revivalStory: "The clerk opened a drawer and {revived} climbed out holding a fully approved return form, which nobody understood but everyone respected. Then {removed1} was sent back for missing initials while {removed2} got trapped waiting for a stamp that had gone to lunch.",
+    next: "The path is clear at last: the crew climbs the City Hall Steps."
+  },
+  {
+    district: "City Hall Steps",
+    story: "The City Hall Steps stretched upward through banners, dust, and the quiet panic of almost being finished. {removed1} tripped over the ceremonial carpet and rolled into committee review, while {removed2} stopped to wave at the crowd and got redirected into guest seating.",
+    singleRemovalStory: "The City Hall Steps stretched upward through banners, dust, and the quiet panic of almost being finished. {removed1} tripped over the ceremonial carpet and rolled into committee review just before the final doors opened.",
+    revivalStory: "Halfway up the steps, {revived} emerged from behind a banner and claimed they had been saving seats. The moment ended when {removed1} tripped into committee review and {removed2} got redirected into guest seating.",
+    next: "The final door opens into the Founder’s Office."
+  },
+  {
+    district: "Founder’s Office",
+    story: "The Founder’s Office waited at the heart of Ugly City with a crooked desk, one cracked nameplate, and a chair that looked far too important. {removed1} sat down too early and was swallowed by administrative responsibility, while {removed2} opened the wrong drawer and got filed under “almost made it.”",
+    singleRemovalStory: "The Founder’s Office waited at the heart of Ugly City with a crooked desk, one cracked nameplate, and a chair that looked far too important. {removed1} sat down too early and was swallowed by administrative responsibility, leaving the final claim to someone else.",
+    revivalStory: "The Founder’s Office door creaked open and {revived} stepped out from behind the desk like they had been interviewing candidates all along. Then {removed1} sat down too early and {removed2} opened the wrong drawer into the “almost made it” file.",
+    next: "If the city still has Uglies standing, it keeps expanding into even worse ideas."
+  }
 ];
 
 const UGLY_CITY_EXPANSION_DISTRICTS = [
@@ -1884,26 +2572,7 @@ const UGLY_CITY_EXPANSION_REVIVAL_STORY_TEMPLATES = [
 ];
 
 function buildUglyCityCuratedChapters() {
-  return UGLY_CITY_CHAPTER_NAMES.map((district, index) => {
-    const nextDistrict =
-      UGLY_CITY_CHAPTER_NAMES[index + 1] ||
-      "whatever terrible idea the city council approves next";
-    const lowerDistrict = district.toLowerCase();
-    const mishap =
-      index % 2 === 0
-        ? "launched away by a ceremonial lever"
-        : "hauled off by a committee with matching clipboards";
-    return {
-      district,
-      story:
-        `The crew officially added the ${district} to Ugly City, proudly pretending this was always part of the master plan. ` +
-        `The opening ceremony got ugly fast when {removed1} was ${mishap} while {removed2} got trapped in the ${lowerDistrict} after following a sign that definitely lied.`,
-      revivalStory:
-        `The crew officially added the ${district} to Ugly City and found {revived} already inside, dusty, annoyed, and somehow holding a valid-looking permit. ` +
-        `The welcome-back cheer got ugly fast when {removed1} was ${mishap} while {removed2} got trapped in the ${lowerDistrict} after following a sign that definitely lied.`,
-      next: `Next, the crew heads toward the ${nextDistrict}, because learning from mistakes is not in the city charter.`,
-    };
-  });
+  return UGLY_CITY_CURATED_CHAPTERS.map((chapter) => ({ ...chapter }));
 }
 
 function fillUglyCityExpansionTemplate(template, values) {
@@ -1942,6 +2611,9 @@ function generateUglyCityExpansionChapter(chapterNumber, eraDefinition = {}) {
       storyTemplates[(chapterNumber - 1) % storyTemplates.length],
       values
     ),
+    singleRemovalStory:
+      `The ${baseDistrict} ${modifier.toLowerCase()} opened to thunderous applause from people who had not read the safety notes. ` +
+      `{removed1} was trapped behind a door labeled Push/Pull/Maybe and became the only item on the incident report.`,
     revivalStory: fillUglyCityExpansionTemplate(
       revivalTemplates[(chapterNumber - 1) % revivalTemplates.length],
       values

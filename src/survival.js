@@ -1009,8 +1009,12 @@ async function runSurvival(channel, playerIds, settings = {}) {
 
       const chapter = getUglyCityChapter(eraDefinition, chapterNumber) || {};
       const removedNames = removedThisChapter.map((id) => nameOf(id));
-      const storyTemplate =
-        revivedId && chapter.revivalStory ? chapter.revivalStory : chapter.story;
+      let storyTemplate = chapter.story;
+      if (revivedId && chapter.revivalStory) {
+        storyTemplate = chapter.revivalStory;
+      } else if (removedThisChapter.length === 1 && chapter.singleRemovalStory) {
+        storyTemplate = chapter.singleRemovalStory;
+      }
       const story = replaceUglyCityPlaceholders(storyTemplate, {
         removed1: removedNames[0],
         removed2: removedNames[1],
