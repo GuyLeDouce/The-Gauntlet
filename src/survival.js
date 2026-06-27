@@ -19,6 +19,7 @@ const {
   getSurvivalReviveFailLore,
   getSurvivalAliveTauntLore,
   getUglyCityChapter,
+  getUglyCityImagePromptForChapter,
 } = require("./survivalEras");
 
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
@@ -66,13 +67,17 @@ const activeSurvivalRuns = new Map();
 const survivalShareSessions = new Map();
 const MAX_SURVIVAL_SHARE_SESSIONS = 20;
 const SURVIVAL_SHARE_DISCORD_CHANNEL_ID = "1334345680461762671";
+const SURVIVAL_IMAGE_PROMPT_CUSTOM_ID_PREFIX = "survive:image-prompt:";
+const SURVIVAL_IMAGE_PROMPT_MESSAGE_LIMIT = 1900;
 
-function upsertSurvivalRunStatus(runKey, joinedIds, aliveIds, ended = false) {
+function upsertSurvivalRunStatus(runKey, joinedIds, aliveIds, ended = false, metadata = {}) {
   if (!runKey) return;
+  const existing = survivalRunStatuses.get(runKey) || {};
   survivalRunStatuses.set(runKey, {
     joined: new Set(joinedIds || []),
     alive: new Set(aliveIds || []),
     ended,
+    eraKey: metadata.eraKey || existing.eraKey || null,
     updatedAt: Date.now(),
   });
 
@@ -98,6 +103,71 @@ function getSurvivalRunLifeStatus(runKey, userId) {
     alive: status.alive.has(userId),
     ended: Boolean(status.ended),
   };
+}
+
+function getSurvivalRunPromptStatus(runKey) {
+  const status = survivalRunStatuses.get(runKey);
+  if (!status) {
+    return { ok: false };
+  }
+  return {
+    ok: true,
+    eraKey: status.eraKey || null,
+    ended: Boolean(status.ended),
+  };
+}
+
+async function handleSurvivalImagePromptButton(interaction) {
+  if (
+    !interaction?.isButton?.() ||
+    !interaction.customId.startsWith(SURVIVAL_IMAGE_PROMPT_CUSTOM_ID_PREFIX)
+  ) {
+    return false;
+  }
+
+  const payload = interaction.customId.slice(SURVIVAL_IMAGE_PROMPT_CUSTOM_ID_PREFIX.length);
+  const lastColonIndex = payload.lastIndexOf(":");
+  const runKey = lastColonIndex === -1 ? "" : payload.slice(0, lastColonIndex);
+  const chapterNumber = Number(lastColonIndex === -1 ? "" : payload.slice(lastColonIndex + 1));
+  const status = getSurvivalRunPromptStatus(runKey);
+
+  if (!Number.isInteger(chapterNumber) || chapterNumber < 1) {
+    await interaction.reply({
+      content: "This image prompt is no longer available for that chapter.",
+      flags: 64,
+    });
+    return true;
+  }
+
+  if (!status.ok || status.eraKey !== "ugly_city") {
+    await interaction.reply({
+      content: "This image prompt is no longer available for that chapter.",
+      flags: 64,
+    });
+    return true;
+  }
+
+  const { district, prompt } = getUglyCityImagePromptForChapter(
+    SURVIVAL_ERAS.ugly_city,
+    chapterNumber
+  );
+  const intro = `Here is the full image prompt for Chapter ${chapterNumber} — ${district}. Attach your Squig image/images with this prompt:`;
+  const content = `${intro}\n\n\`\`\`text\n${prompt}\n\`\`\``;
+
+  if (content.length <= SURVIVAL_IMAGE_PROMPT_MESSAGE_LIMIT) {
+    await interaction.reply({ content, flags: 64 });
+    return true;
+  }
+
+  const attachment = new AttachmentBuilder(Buffer.from(prompt, "utf8"), {
+    name: `ugly-city-chapter-${chapterNumber}-image-prompt.txt`,
+  });
+  await interaction.reply({
+    content: `${intro}\n\nThe prompt is attached as a text file because it is too long for a clean Discord message.`,
+    files: [attachment],
+    flags: 64,
+  });
+  return true;
 }
 
 function registerActiveSurvivalRun(run) {
@@ -328,7 +398,9 @@ async function handlePublicReviveCommand(message) {
     }
     run.aliveIds.push(userId);
     run.aliveSet = new Set(run.aliveIds);
-    upsertSurvivalRunStatus(run.runKey, run.joinedIds, run.aliveIds, false);
+    upsertSurvivalRunStatus(run.runKey, run.joinedIds, run.aliveIds, false, {
+      eraKey: run.eraKey,
+    });
 
     const eraDefinition = getSurvivalEraDefinition(run.eraKey);
     const defaultEraDefinition = getSurvivalEraDefinition("day_one");
@@ -740,8 +812,10 @@ function replaceUglyCityPlaceholders(template, values) {
 }
 
 function updateActiveSurvivalRunState(channelId, runKey, joinedIds, alive, eliminated, ended = false) {
-  upsertSurvivalRunStatus(runKey, joinedIds, alive, ended);
   const activeRun = activeSurvivalRuns.get(channelId);
+  upsertSurvivalRunStatus(runKey, joinedIds, alive, ended, {
+    eraKey: activeRun?.eraKey,
+  });
   if (activeRun) {
     activeRun.aliveIds = alive;
     activeRun.aliveSet = new Set(alive);
@@ -861,7 +935,9 @@ async function runSurvival(channel, playerIds, settings = {}) {
 
   let alive = [...uniquePlayers];
   const eliminated = [];
-  upsertSurvivalRunStatus(runKey, uniquePlayers, alive);
+  upsertSurvivalRunStatus(runKey, uniquePlayers, alive, false, {
+    eraKey: normalizedSettings.era_key,
+  });
   const activeRunState = {
     runKey,
     channelId: channel.id,
@@ -1050,12 +1126,21 @@ async function runSurvival(channel, playerIds, settings = {}) {
         await awardSurvivalImageUse(channel, activeRunState, imageUrl);
       }
 
-      const statusRow = new ActionRowBuilder().addComponents(
+      const statusButtons = [
         new ButtonBuilder()
           .setCustomId(`survive:alive-check:${runKey}`)
           .setLabel("Am I still alive?")
-          .setStyle(ButtonStyle.Secondary)
-      );
+          .setStyle(ButtonStyle.Secondary),
+      ];
+      if (normalizedSettings.era_key === "ugly_city") {
+        statusButtons.push(
+          new ButtonBuilder()
+            .setCustomId(`${SURVIVAL_IMAGE_PROMPT_CUSTOM_ID_PREFIX}${runKey}:${chapterNumber}`)
+            .setLabel(" Image Prompt")
+            .setStyle(ButtonStyle.Secondary)
+        );
+      }
+      const statusRow = new ActionRowBuilder().addComponents(...statusButtons);
 
       await channel.send({ embeds: [embed], components: [statusRow] });
       updateActiveSurvivalRunState(channel.id, runKey, uniquePlayers, alive, eliminated);
@@ -1236,7 +1321,9 @@ async function runSurvival(channel, playerIds, settings = {}) {
         }
       }
     }
-    upsertSurvivalRunStatus(runKey, uniquePlayers, alive);
+    upsertSurvivalRunStatus(runKey, uniquePlayers, alive, false, {
+      eraKey: normalizedSettings.era_key,
+    });
     const activeRun = activeSurvivalRuns.get(channel.id);
     if (activeRun) {
       activeRun.aliveSet = new Set(alive);
@@ -1253,7 +1340,9 @@ async function runSurvival(channel, playerIds, settings = {}) {
 
   // Winner + standings
   const winnerId = alive[0];
-  upsertSurvivalRunStatus(runKey, uniquePlayers, alive, true);
+  upsertSurvivalRunStatus(runKey, uniquePlayers, alive, true, {
+    eraKey: normalizedSettings.era_key,
+  });
   const activeRun = activeSurvivalRuns.get(channel.id);
   if (activeRun) {
     activeRun.ended = true;
@@ -1635,4 +1724,5 @@ module.exports = {
   postSurvivalFinalSummaryTest,
   SURVIVAL_SHARE_DISCORD_CHANNEL_ID,
   handlePublicReviveCommand,
+  handleSurvivalImagePromptButton,
 };

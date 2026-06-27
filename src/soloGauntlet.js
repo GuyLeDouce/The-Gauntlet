@@ -54,6 +54,7 @@ const {
   postSurvivalFinalSummaryTest,
   SURVIVAL_SHARE_DISCORD_CHANNEL_ID,
   handlePublicReviveCommand,
+  handleSurvivalImagePromptButton,
 } = require("./survival");
 const { SURVIVAL_ERAS, getSurvivalEraDefinition } = require("./survivalEras");
 const { rewardCharmAmount, logCharmReward, DRIP_LOG_CHANNEL_ID } = require("./drip");
@@ -4764,6 +4765,13 @@ async function handleInteractionCreate(interaction) {
 
         return interaction.reply({ embeds: [embed], flags: 64 });
       }
+    }
+
+    if (
+      interaction.isButton() &&
+      interaction.customId.startsWith("survive:image-prompt:")
+    ) {
+      return handleSurvivalImagePromptButton(interaction);
     }
 
     if (

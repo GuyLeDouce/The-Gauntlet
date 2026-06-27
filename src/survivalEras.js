@@ -1836,6 +1836,115 @@ const RELOADED_ERA = {
   useEraLockedImagesOnly: true,
 };
 
+const UGLY_CITY_BASE_IMAGE_PROMPT = [
+  "Use the attached Squig image or images as exact character references. Preserve each Squig’s exact face, body shape, skin color, eyes, ears, hair, hat, clothing, accessories, markings, proportions, personality, and intentionally ugly charm. Do not redesign, merge, simplify, humanize, or replace the Squigs. If multiple Squigs are attached, include them as separate individual characters and keep each one recognizable.",
+  "Create the entire scene in the same visual style as the attached Squigs: clean flat vector cartoon art, thick black outlines, simple bold shapes, bright pastel colors, playful ugly energy, minimal shading, expressive faces, and a slightly chaotic meme-ready composition. The setting should look like part of Ugly City, a ridiculous half-built cartoon city made from bad decisions, scrap materials, crooked signs, duct tape, mismatched buildings, and community chaos.",
+  "Make the Squigs the focus of the image. The scene should clearly show the milestone event in progress, with the Squigs actively building, exploring, getting into trouble, or being removed from the active crew in a funny non-violent cartoon way. No gore, no death, no horror, no realistic violence. Keep it funny, chaotic, colorful, and readable as a square 1:1 image.",
+].join("\n\n");
+
+const UGLY_CITY_CURATED_IMAGE_PROMPTS = [
+  "Show the attached Squig or Squigs claiming a dusty empty lot as the beginning of Ugly City. Include a crooked “WELCOME TO UGLY CITY” sign falling over, fake permits blowing through the dirt, scattered shovels, and the Squigs looking way too proud of absolutely nothing.",
+  "Show the Squigs building the first camp from ripped tarps, scrap wood, bent poles, and badly tied ropes. Include tents leaning in every direction, one sleeping bag dragging someone away, and the whole scene feeling like a terrible but enthusiastic community campsite.",
+  "Show the Squigs building Ugly City’s first dirt road, which loops in a useless circle around the empty lot. Include crooked road signs, a tiny steamroller, dust clouds, one Squig confused by the circular road, and construction chaos everywhere.",
+  "Show the Squigs opening a chaotic storage yard filled with crates, barrels, pallets, and labels that all say “IMPORTANT UGLY STUFF.” Include boxes stacked too high, one crate tipping open, and the Squigs trying to organize supplies very badly.",
+  "Show the Squigs inside a ridiculous workshop full of unsafe cartoon tools, oversized hammers, drills, saws, clamps, and unfinished inventions. Make it look like the city’s first attempt at productivity went immediately wrong.",
+  "Show the Squigs celebrating the opening of Ugly City’s junkyard, surrounded by towering piles of scrap metal, broken appliances, rusty shopping carts, old signs, bent pipes, and weird treasures. Include one huge scrap pile starting to collapse in a funny cartoon way.",
+  "Show the Squigs raising a crooked water tower above Ugly City, with leaks spraying everywhere and loose pipes shaking under pressure. Include a giant tank, ladders, puddles, panicked but funny expressions, and a Squig getting blasted by cartoon water pressure.",
+  "Show the Squigs exploring the first sewer tunnels beneath Ugly City, with glowing puddles, dripping pipes, traffic cones, weird tunnel signs, and suspicious slime. Make the scene funny and gross, not scary, with one Squig peeking into a “shortcut maybe” tunnel.",
+  "Show the Squigs setting up Ugly City’s first trailer park with crooked trailers, mismatched lawn chairs, tiny fences, loose wheels, and ugly decorations. Include one trailer being accidentally towed away while the others proudly admire their new luxury district.",
+  "Show the Squigs cutting the ribbon on a ridiculous bridge crossing a tiny ditch. The bridge should look overbuilt, crooked, and unstable, with loose planks, a sagging rope rail, and Squigs acting like it is a major engineering achievement.",
+  "Show the Squigs inside Ugly City’s newly built hospital made from junkyard parts, duct tape, crooked medical signs, and questionable machines. Include an experimental medical machine launching someone upward in a harmless cartoon way, with confused Squigs in fake doctor gear.",
+  "Show the Squigs opening a tiny Ugly City police station with crooked bars, flashing lights, evidence boxes, and a sign that says “NO LOOKING TOO ORGANIZED.” Include one Squig being hauled into the evidence locker for looking suspiciously prepared.",
+  "Show the Squigs at Ugly City’s fire hall, with a tiny fire truck that only turns left, a shiny fire pole, tangled hoses, helmets, and dramatic sirens. Include one Squig spinning down the pole into a laundry basket while others panic badly.",
+  "Show the Squigs holding Ugly City’s first town hall meeting inside a crooked civic building. Include stacks of paperwork, a tiny mayor chair, complaint forms, bad charts, and Squigs arguing over useless rules and fake taxes.",
+  "Show the Squigs opening the first Ugly City school, with crooked desks, a chalkboard full of terrible construction lessons, hallway passes, lockers, and safety posters nobody follows. Make it feel like chaos disguised as education.",
+  "Show the Squigs running Ugly City’s post office with one mailbox, too many packages, stamps everywhere, sorting bins, and carts going the wrong direction. Include one Squig being accidentally labeled “FRAGILE” or “RETURN TO UGLY.”",
+  "Show the Squigs turning on Ugly City’s power plant, filled with giant levers, glowing gauges, warning signs, sparks, and pipes. Make the plant look powered by bad decisions, with lights flickering on across the city in the background.",
+  "Show the Squigs opening Ugly City’s bank, with a tiny vault, bottle caps, fake money, casino coupons, pneumatic tubes, and a nervous teller window. Include one Squig being sucked into a tube or locked near the vault in a funny way.",
+  "Show the Squigs standing outside a tall crooked apartment block with too many windows, uneven balconies, strange pipes, and an elevator door that opens to nowhere. Include tenants peeking from windows and one Squig stuck in a model unit.",
+  "Show the Squigs inside a huge messy warehouse full of crates, forklifts, pallets, shrink wrap, and mystery orders. Include signs for impossible aisles, one Squig wrapped to a pallet, and the others trying to keep inventory with no success.",
+  "Show the Squigs opening a crowded Ugly City market with stalls selling bent nails, mystery fruit, weird tools, and bad advice. Include bargain signs, chaotic vendors, and one Squig being traded for buckets and a coupon.",
+  "Show the Squigs at a strange Ugly City gas station with two pumps, a tiny convenience store, suspicious hot dogs, air pumps, and a car wash. Include one Squig trapped in the car wash or floating after using the air pump.",
+  "Show the Squigs opening a restaurant called “Probably Edible,” with crooked tables, mystery food, wobbly chairs, and a kitchen full of steam. Include one Squig disappearing through swinging kitchen doors while others inspect the menu with concern.",
+  "Show the Squigs inside Ugly City’s shopping mall, where every store says “COMING SOON.” Include a sideways escalator, a dramatic fountain, sale signs, empty storefronts, and Squigs looking both excited and deeply confused.",
+  "Show the Squigs in a buzzing arcade with glowing cabinets, sticky floors, prize counters, claw machines, tickets, and old game screens. Include one Squig trapped inside a claw machine as a prize and another becoming part of a high score board.",
+  "Show the Squigs checking into Ugly City’s hotel, with a crooked front desk, tiny soaps, luggage carts, weird carpets, and an elevator that opens to the wrong place. Make the lobby feel fancy but deeply questionable.",
+  "Show the Squigs running Ugly City’s factory with assembly lines, conveyor belts, boxes, warning signs, and machines producing useless items like left shoes. Include one Squig accidentally boxed as a limited edition factory product.",
+  "Show the Squigs opening the harbor with crooked docks, cargo containers, nets, tiny boats, and water nobody wants to test. Include one Squig tangled in a shipping net while another cargo boat drifts away.",
+  "Show the Squigs at the grand opening of Ugly City’s casino, with slot machines, rubber chicken jackpots, poker chips, cheap carpets, and a mysterious High Rollers Lounge. Make everyone look like they have no idea how gambling works.",
+  "Show the Squigs trapped in an Ugly City office building full of cubicles, bad lighting, meetings, coffee cups, whiteboards, and endless paperwork. Include one Squig getting promoted into a doorless department while another gets buried in sticky notes.",
+  "Show the Squigs opening a ridiculous zoo with empty cages, fake animal signs, penguins claiming one Squig, and an exhibit labeled “RARE UGLY.” Make it look like the Squigs accidentally became the main attraction.",
+  "Show the Squigs inside a cloudy aquarium with tanks, bubbles, strange fish, touch pools, and leaking glass. Include one Squig being classified as marine life and another peeking from a filter room.",
+  "Show the Squigs at a dangerous-looking but fun Ugly City theme park with a crooked roller coaster, mascot tunnel, bright signs, and rides built from spare bridge parts. Include one Squig stuck on an endless coaster loop.",
+  "Show the Squigs inside a sticky-floored movie theater with a giant screen, popcorn buckets, recliner seats, and dramatic previews. Include one Squig folded into a recliner while another peeks behind the screen.",
+  "Show the Squigs at a bowling alley with crooked lanes, weird rental shoes, glowing scoreboards, and bowling balls that look too motivated. Include one Squig being swept toward the pin machine in a harmless cartoon way.",
+  "Show the Squigs opening a museum of Ugly City history, with artifacts from earlier districts, misspelled plaques, wax displays, and dramatic velvet ropes. Include one Squig mistaken for an ancient artifact behind glass.",
+  "Show the Squigs enjoying Ugly City’s beach with questionable water, crooked umbrellas, sandcastles, snack stands, and inflatable chairs. Include one Squig buried inside an overbuilt sandcastle while another drifts away on a float.",
+  "Show the Squigs inside a concert hall with a huge stage, curtains, speakers, lights, and instruments nobody can play responsibly. Include a sound check blasting one Squig into the balcony curtains in a funny cartoon way.",
+  "Show the Squigs in a stadium where nobody agreed on the sport, with goalposts, cones, marching band gear, mascot carts, and confused referees. Make it look like every game is happening at once.",
+  "Show the Squigs at an Ugly City nightclub with fog machines, flashing lights, a pulsing dance floor, velvet ropes, and a dramatic DJ booth. Include one Squig failing the vibe check at the VIP section.",
+  "Show the Squigs at a train station with too many platforms, confusing signs, delayed boards, suitcases, and a train arriving from nowhere. Include one Squig boarding the wrong express while another gets stuck in the announcement booth.",
+  "Show the Squigs underground in a subway station with tunnels that twist strangely, turnstiles, route maps, flickering lights, and a train labeled “PLATFORM NOPE.” Include one Squig trapped at a turnstile demanding exact change.",
+  "Show the Squigs at Ugly City airport with one runway, luggage carts, check-in counters, mystery gates, and departure boards full of question marks. Include one Squig coming through baggage claim with an oversized tag.",
+  "Show the Squigs at Ugly City University with crooked lecture halls, campus signs, diplomas, lockers, and a class called “Advanced Ugliness.” Make it feel like nobody is qualified to teach or learn there.",
+  "Show the Squigs in a research lab with glowing beakers, warning labels, testing chambers, big red buttons, and questionable science machines. Include one Squig stepping into a “personality rinse” chamber while others take notes badly.",
+  "Show the Squigs broadcasting live from Ugly City’s TV station with cameras, stage lights, weather maps, microphones, and breaking news graphics. Include one Squig stuck in the weather map pointing at fake storms.",
+  "Show the Squigs at a hilltop observatory with a giant telescope, star charts, glowing sky, and suspicious space objects. Include one Squig climbing into the telescope lens while others stare at a confusing star map.",
+  "Show the Squigs building crooked skyscrapers high above Ugly City, with cranes, window-washing baskets, revolving doors, and tiny clouds. Include one Squig stuck between floors while the skyline looks proud and unstable.",
+  "Show the Squigs in Ugly City’s luxury district with gold-painted fountains, velvet ropes, tiny robes, fancy signs, and fake elegance. Make everything look expensive but still deeply ugly and poorly built.",
+  "Show the Squigs discovering Old Town, an older dusty part of Ugly City with cobblestone paths, ancient crooked doors, old signs, and mysterious mailboxes. Make it feel like the city was ugly long before anyone admitted it.",
+  "Show the Squigs inside the Mayor’s Office with an empty chair, cold coffee, complaint papers, unsigned disaster approvals, filing cabinets, and a too-important desk. Include one Squig buried in complaints.",
+  "Show the Squigs opening Founders Plaza with crooked benches, uneven bricks, dedication plaques, a tiny parade float, and ceremonial ribbon. Include one Squig accidentally cemented into the walkway as “interactive history.”",
+  "Show the Squigs building a giant crooked city monument that is supposed to look heroic but mostly looks confused. Include scaffolding, cranes, dust, and one Squig stuck inside the base as the statue tilts into place.",
+  "Show the Squigs opening a hidden vault beneath the city monument, filled with bottle caps, fake treasure, glowing locks, and strange old city plans. Include a huge slow-closing vault door and Squigs scrambling comically.",
+  "Show the Squigs exploring The Underground, a secret second city beneath Ugly City with glowing arrows, maintenance tunnels, weird trams, and pipes everywhere. Include a mysterious crew of signs, tools, and strange underground doors.",
+  "Show the Squigs opening the Grand Gate of Ugly City, a huge crooked entrance with banners, turnstiles, flags, and bad decorations. Include one giant turnstile causing chaos while the Squigs celebrate too early.",
+  "Show the Squigs building Ugly Castle with crooked towers, squeaky drawbridge, a tiny moat, cardboard crowns, and dramatic flags. Include one Squig stuck in a tower with no stairs and another crossing the drawbridge at the worst possible moment.",
+  "Show the Squigs inside the Hall of Survivors with portraits, plaques, trophies, curtains, and names spelled wrong on purpose. Include one Squig posing forever for an unfinished painting while another hides behind a portrait.",
+  "Show the Squigs gathered around The Crown on a velvet pillow in the center of Ugly City. Include a ceremonial chair, applause machine, banners, dramatic lighting, and the Squigs acting like leadership is both exciting and dangerous.",
+  "Show the Squigs making final adjustments to the Founder’s Statue, a huge heroic but ugly statue with scaffolding, cracked stone, tools, and dramatic city skyline behind it. Include one Squig sealed comically into the pedestal as a “structural contribution.”",
+  "Show the Squigs inside Ugly City’s courthouse with a crooked judge bench, jury box, legal papers, evidence boxes, and a dramatic gavel. Include one Squig trapped in jury duty while another is found guilty of leaning on evidence.",
+  "Show the Squigs waiting inside the Permit Office with endless chairs, numbered tickets, windows that are closed, and stacks of forms. Include one Squig stamped “PENDING” while another waits at a window that does not exist.",
+  "Show the Squigs at a recycling center turning old junk into new junk, with conveyor belts, sorting bins, warning labels, and piles of questionable materials. Include one Squig sorted into the wrong bin with a confused label.",
+  "Show the Squigs at a bus depot full of buses marked “OUT OF SERVICE” that are somehow still moving. Include route signs, benches, tickets, and one Squig looping forever on Route 0.",
+  "Show the Squigs inside a crooked library with whispering signs, tall shelves, overdue notices, and books rearranging themselves. Include one Squig trapped in the overdue section and another stepping into a pop-up book.",
+  "Show the Squigs inside a laundromat with shaking washers, spinning dryers, soap bubbles, lost socks, and static electricity. Include one Squig tumbling out folded and confused while another is stuck in the permanent press cycle.",
+  "Show the Squigs at a chaotic food court with too many restaurants, one unreadable menu, trays, sauces, sample spoons, and fry smells. Include one Squig trapped in the sample line forever.",
+  "Show the Squigs in Ugly City park with three crooked trees, benches, a pond that reflects everyone uglier, and ceremonial ribbon around a sapling. Include one Squig tangled in ribbon like protected greenery.",
+  "Show the Squigs inside a pawn shop packed with lost city items, cursed trophies, lamps, coupons, tools, and price tags based on confidence. Include one Squig displayed behind glass as a rare collectible.",
+  "Show the Squigs high above Ugly City in the rooftop district, with ladders, chimneys, rooftop bridges, pigeons, antennas, and city skyline below. Include one Squig stranded on a chimney while a ladder refuses to help.",
+  "Show the Squigs broadcasting from a tall radio tower with antennas, wires, microphones, speakers, and static bolts. Include one Squig stuck on the antenna while another becomes part of a traffic report.",
+  "Show the Squigs at a weather station with wind tunnels, radar screens, fake storm maps, fog machines, rain gauges, and warning flags. Include one Squig being blown across the scene by a test wind tunnel.",
+  "Show the Squigs at an absurd toll booth on a bad road, with exact change signs, coin baskets, traffic cones, and a line of confused vehicles. Include one Squig stuck arguing with the booth over a missing coin.",
+  "Show the Squigs lost inside a huge parking garage with spiral ramps, arrows pointing nowhere, ticket machines, compact spaces, and echoing honks. Include one Squig parked in a tiny compact spot with a parking ticket.",
+  "Show the Squigs inside the Department of Bad Decisions, a government office approving terrible plans with stamps, charts, forms, and warning signs. Include one Squig being promoted to Assistant Mistake Manager.",
+  "Show the Squigs waiting at the Ugly DMV with endless chairs, number signs, bad photo booths, forms, and windows that never open. Include one Squig failing the photo test for looking too prepared.",
+  "Show the Squigs at the City Dump, an even worse version of the Junkyard with trash hills, rejected appliances, old mattresses, raccoon-like chaos, and rolling tires. Include one Squig mistaken for a rejected appliance.",
+  "Show the Squigs building or riding along a strange canal through Ugly City, with lock gates, tiny boats, murky water, and crooked bridges. Include one Squig drifting away in a maintenance boat while others operate gates badly.",
+  "Show the Squigs at a ferry terminal with a late ferry, damp tickets, life jackets, dock ropes, signs for “SOMEWHERE DAMP,” and water travel confusion. Include one Squig trapped inside a life jacket demonstration.",
+  "Show the Squigs on a crooked boardwalk with carnival games, greasy snacks, prize booths, loose planks, cotton candy, and pier lights. Include one Squig falling through a loose board into prize storage.",
+  "Show the Squigs at a flickering Ugly City motel with tiny rooms, brick keychains, suspicious ice machine, peeling signs, and weird doors. Include one Squig checking into room 13, which is actually a closet.",
+  "Show the Squigs hosting a chaotic convention center event with booths, banners, folding tables, keynote stage, lanyards, and panels about city disasters. Include one Squig stuck behind a booth selling emergency whistles.",
+  "Show the Squigs at a bright but suspicious ice cream stand with strange flavors, freezer truck, cones, sprinkles, and a soft-serve machine. Include one Squig stuck in the soft-serve swirl in a harmless cartoon way.",
+  "Show the Squigs inside the Underground Mall beneath the subway, with closed kiosks, identical candle shops, escalators going too deep, and strange neon signs. Include one Squig lost between two identical stores.",
+  "Show the Squigs building a giant crooked clock tower displaying four different times. Include gears, bells, ropes, ladders, and one Squig stuck inside the clock hands at “quarter past nope.”",
+  "Show the Squigs at a questionable water park with crooked slides, wave pool, lazy river, inflatable tubes, and lifeguard signs wearing sunglasses. Include one Squig stuck in the longest slide while another floats in the aggressively lazy river.",
+  "Show the Squigs inside a community center with folding chairs, activity posters, sign-up sheets, lost-and-found bins, nametags, and awkward classes. Include one Squig teaching “Advanced Standing Around.”",
+  "Show the Squigs inside a tattoo shop with buzzing machines, flash sheets, waiver forms, mirrors, and designs that look like city warning signs. Include one Squig trapped in an oversized tattoo waiver.",
+  "Show the Squigs at a newsstand with flying newspapers, insulting headlines, crossword puzzles, and papers reporting events before they happen. Include one Squig folded into the Sunday edition as a special insert.",
+  "Show the Squigs running a soup kitchen with a giant bubbling pot, bowls, ladles, folding tables, and recipes that change on the wall. Include one Squig assigned to stir forever like they have ladle authority.",
+  "Show the Squigs inside a security office with camera monitors, case files, flickering screens, walkie-talkies, and suspicious shadows. Include monitors showing every district except the one they need.",
+  "Show the Squigs at an elevated monorail station above Ugly City with one sleek train, unstable supports, tourist brochures, and scenic overlook signs. Include one Squig stuck at the scenic overlook while the train keeps looping.",
+  "Show the Squigs in a botanical garden with warning-labeled plants, glowing flowers, greenhouse glass, vines, and weird pollen. Include one Squig hugged by a vine with boundary issues.",
+  "Show the Squigs inside a statue factory making confused heroic monuments, with plaster molds, chisels, cranes, half-finished statues, and polishing machines. Include one Squig accidentally cast as a temporary mold.",
+  "Show the Squigs at an emergency bunker with a heavy hatch, canned beans, whistles, warning posters, drills, and maps. Include one Squig locked inside during a drill while others argue over whether that means it worked.",
+  "Show the Squigs inside the Records Office with filing cabinets, archive stacks, personal files, complaint records, and folders labeled with every city disaster. Include one Squig misfiled under “miscellaneous structures.”",
+  "Show the Squigs in The Last Alley, a narrow crooked alley full of dumpsters, flickering signs, trash cans, brick walls, and suspicious dead ends. Include one dumpster lid opening like someone might return from inside.",
+  "Show the Squigs facing the Final Permit Desk in the middle of the road, like a cartoon final boss made of paperwork. Include a tiny clerk window, approval stamps, endless forms, and one Squig sent back for missing initials.",
+  "Show the Squigs climbing the grand City Hall steps with banners, dust, a ceremonial carpet, guest seating, and the final doors ahead. Include one Squig tripping over the carpet into committee review while the others keep climbing.",
+  "Show the final surviving Squig or remaining Squigs inside the Founder’s Office, with a crooked desk, cracked nameplate, important chair, city plans, and a window overlooking all of Ugly City. Make it feel like the end of a ridiculous journey, with the Founder’s title about to be claimed.",
+];
+
 const UGLY_CITY_CURATED_CHAPTERS = [
   {
     district: "Empty Lot",
@@ -2572,7 +2681,12 @@ const UGLY_CITY_EXPANSION_REVIVAL_STORY_TEMPLATES = [
 ];
 
 function buildUglyCityCuratedChapters() {
-  return UGLY_CITY_CURATED_CHAPTERS.map((chapter) => ({ ...chapter }));
+  return UGLY_CITY_CURATED_CHAPTERS.map((chapter, index) => ({
+    ...chapter,
+    imagePrompt:
+      UGLY_CITY_CURATED_IMAGE_PROMPTS[index] ||
+      "Create a square cinematic cartoon scene of the Squigs building, exploring, and surviving another chaotic district of Ugly City.",
+  }));
 }
 
 function fillUglyCityExpansionTemplate(template, values) {
@@ -2619,6 +2733,10 @@ function generateUglyCityExpansionChapter(chapterNumber, eraDefinition = {}) {
       values
     ),
     next: "The city council has already approved another terrible idea.",
+    imagePrompt:
+      `Show the Squigs working through the ${baseDistrict} ${modifier.toLowerCase()} in Ugly City, ` +
+      "with crooked construction, mismatched signs, duct tape repairs, public works chaos, and one funny non-violent removal moment happening in the background. " +
+      `Make the district clearly recognizable as ${baseDistrict} and keep the scene in the same clean flat Squigs cartoon style.`,
   };
 }
 
@@ -2628,6 +2746,26 @@ function getUglyCityChapter(eraDefinition, chapterNumber) {
     return curated[chapterNumber - 1];
   }
   return generateUglyCityExpansionChapter(chapterNumber, eraDefinition);
+}
+
+function getUglyCityBaseImagePrompt() {
+  return UGLY_CITY_BASE_IMAGE_PROMPT;
+}
+
+function buildUglyCityImagePrompt(chapter) {
+  const scenePrompt =
+    chapter?.imagePrompt ||
+    "Create a square cinematic cartoon scene of the Squigs building, exploring, and surviving another chaotic district of Ugly City.";
+  return `${UGLY_CITY_BASE_IMAGE_PROMPT}\n\nScene prompt:\n${scenePrompt}`;
+}
+
+function getUglyCityImagePromptForChapter(eraDefinition, chapterNumber) {
+  const safeChapterNumber = Math.max(1, Number(chapterNumber) || 1);
+  const chapter = getUglyCityChapter(eraDefinition, safeChapterNumber);
+  return {
+    district: chapter?.district || `Chapter ${safeChapterNumber}`,
+    prompt: buildUglyCityImagePrompt(chapter),
+  };
 }
 
 const UGLY_CITY_ERA = {
@@ -2846,4 +2984,7 @@ module.exports = {
   getSurvivalReviveFailLore,
   getSurvivalAliveTauntLore,
   getUglyCityChapter,
+  getUglyCityBaseImagePrompt,
+  buildUglyCityImagePrompt,
+  getUglyCityImagePromptForChapter,
 };
