@@ -1836,314 +1836,317 @@ const RELOADED_ERA = {
   useEraLockedImagesOnly: true,
 };
 
+const DISCORD_IMAGE_PROMPT_MAX_CHARS = 1850;
+
 const UGLY_CITY_BASE_IMAGE_PROMPT = [
-  "Use the attached Squig image or images as exact character references. Preserve each attached Squig’s exact face, body shape, skin color, eyes, ears, hair, hat, clothing, accessories, markings, proportions, personality, and intentionally ugly charm. Do not redesign, merge, simplify, humanize, clean up, beautify, or replace the Squigs. If multiple Squigs are attached, include them as separate individual characters and keep each one recognizable.",
-  "Use only the attached Squig or Squigs as the living character focus. Do not add extra random Squigs, replicas, humans, mascots, monsters, realistic animals, background crowds, or unrelated characters. If a scene needs a crowd or activity, show it through props, signs, empty seats, silhouettes on posters, or environmental details instead of adding new characters.",
-  "Create the full scene in the same visual style as the attached Squigs: clean flat vector cartoon art, thick black outlines, simple bold shapes, bright pastel colors, expressive faces, playful ugly energy, minimal shading, crisp readable composition, and meme-ready visual humor.",
-  "The setting is Ugly City: a ridiculous half-built cartoon city made from bad decisions, scrap materials, crooked signs, duct tape, mismatched buildings, bad permits, improvised tools, and community chaos. The scene must clearly show the current milestone event in progress.",
-  "Make the attached Squig or Squigs the main focus. Show them actively building, exploring, celebrating, causing trouble, or being removed from the active crew in a funny non-violent cartoon way. No gore, no death, no horror, no realistic violence, and no disturbing injuries. Keep it funny, colorful, chaotic, and readable as a square 1:1 image.",
-].join("\n\n");
+  "Use attached Squig(s) as exact refs; preserve ugly charm.",
+  "Only attached Squig(s) may be living characters—no extras, humans, crowds, mascots, or animals.",
+  "If activity needs others, use signs, props, empty seats, or posters.",
+  "Ugly City era: space freaks building a crooked city from junk, duct tape, bad permits, and nonviolent chaos.",
+  "Flat vector cartoon, thick black lines, bright colors, readable scene.",
+  "No gore, death, horror, or realistic violence.",
+].join(" ");
 
 const UGLY_CITY_CURATED_IMAGE_PROMPTS = [
   // 01 - Empty Lot
-  "Chapter 01 - Empty Lot: Stage the attached Squig or Squigs claiming a dusty empty lot as the future site of Ugly City. Show a crooked WELCOME TO UGLY CITY sign falling over, fake permits blowing across the dirt, scattered shovels, survey flags, one tiny traffic cone, and the Squigs looking far too proud of building absolutely nothing.",
+  `Empty Lot: Squig(s) claim dusty land for Ugly City; crooked welcome sign, fake permits, survey flags, one shovel, big pride over nothing.`,
 
   // 02 - First Camp
-  "Chapter 02 - First Camp: Show the Squigs building Ugly City’s first camp from ripped tarps, scrap wood, bent poles, duct tape, and badly tied ropes. Include leaning tents, a smoky little trash-can fire, a sleeping bag sliding away like it has plans, and the Squigs trying to look organized while the camp visibly fails around them.",
+  `First Camp: Build a tarp-and-scrap camp with bent poles, duct tape, trash-can fire, sliding sleeping bag, and total false confidence.`,
 
   // 03 - Dirt Road
-  "Chapter 03 - Dirt Road: Show the Squigs constructing the first dirt road, but the road loops uselessly around the empty lot and returns to the same crooked sign. Include dust clouds, a tiny steamroller, wrong-way arrows, half-buried cones, and one Squig studying the circular road like it might be genius.",
+  `Dirt Road: Build the first road, but it loops back to the same sign; add cones, dust, arrows, tiny roller, and confused pride.`,
 
   // 04 - Storage Yard
-  "Chapter 04 - Storage Yard: Show the Squigs opening a chaotic storage yard packed with crates, barrels, pallets, bent fencing, and labels that say IMPORTANT UGLY STUFF. Stack the boxes too high, make one crate tip open with harmless junk spilling out, and show the Squigs failing at inventory management with total confidence.",
+  `Storage Yard: Open a messy yard of crates, barrels, pallets, bad labels, and one Squig counted as inventory by mistake.`,
 
   // 05 - Workshop
-  "Chapter 05 - Workshop: Show the Squigs inside Ugly City’s first workshop, surrounded by oversized cartoon tools, clamps, drills, hammers, saws, blueprints, half-built inventions, and warning signs nobody reads. The scene should feel like productivity started for six seconds before becoming a supervised disaster.",
+  `Workshop: Build the first workshop with huge tools, bad blueprints, clamps, warning signs, and one invention already going wrong.`,
 
   // 06 - Junkyard
-  "Chapter 06 - Junkyard: Show the Squigs celebrating the grand opening of the Junkyard with huge scrap piles, broken appliances, rusty carts, bent pipes, old signs, wheels, and weird treasures. Add one giant pile starting to collapse in a harmless cartoon way while the Squigs proudly treat the trash mountain like city infrastructure.",
+  `Junkyard: Open the junkyard as civic treasure; scrap piles, old appliances, wheels, pipes, and one harmless junk-slide gag.`,
 
   // 07 - Water Tower
-  "Chapter 07 - Water Tower: Show the Squigs raising a crooked water tower above Ugly City, with loose pipes, ladders, ropes, leaks, spray arcs, puddles, and a tank patched with duct tape. Include one Squig blasted sideways by cartoon water pressure while the others pretend the pressure test is going perfectly.",
+  `Water Tower: Raise a leaky duct-taped tower; ladders, pipes, puddles, pressure gauges, and one Squig blasted by cartoon water.`,
 
   // 08 - Sewer
-  "Chapter 08 - Sewer: Show the Squigs exploring the first sewer tunnels beneath Ugly City. Use dripping pipes, glowing puddles, traffic cones, handmade tunnel signs, slime trails, and a suspicious shortcut-maybe tunnel. Make it funny and gross, not scary, with one Squig peeking into the wrong tunnel while holding a terrible map.",
+  `Sewer: Explore first sewers with dripping pipes, glow puddles, cones, slime trails, bad maps, and a wrong tunnel labeled MAYBE.`,
 
   // 09 - Trailer Park
-  "Chapter 09 - Trailer Park: Show the Squigs setting up the first residential district: a crooked trailer park with mismatched trailers, tiny fences, loose wheels, plastic chairs, ugly lawn decorations, and extension cords everywhere. Include one trailer accidentally rolling away while the remaining Squigs admire it like luxury housing.",
+  `Trailer Park: Build the first homes from mismatched trailers, loose wheels, cords, lawn junk, and one trailer rolling away.`,
 
   // 10 - Bridge
-  "Chapter 10 - Bridge: Show the Squigs cutting the ribbon on an absurd bridge built across a tiny ditch. The bridge should be overbuilt, crooked, unstable, and very proud of itself, with loose planks, rope rails, warning signs, and one Squig slipping safely between boards while the others applaud the engineering achievement.",
+  `Bridge: Cut the ribbon on a giant crooked bridge over a tiny ditch; loose planks, rope rails, warning signs, safe slip gag.`,
 
   // 11 - Hospital
-  "Chapter 11 - Hospital: Show Ugly City’s first hospital made from junkyard parts, duct tape, crooked medical signs, wobbly beds, suspicious machines, and fake doctor gear. Include an experimental cartoon medical device launching one Squig upward harmlessly while the others hold clipboards and look deeply unqualified.",
+  `Hospital: Open a junk-built hospital with wobbly beds, fake doctor gear, crooked signs, weird machines, and clipboard panic.`,
 
   // 12 - Police Station
-  "Chapter 12 - Police Station: Show a tiny crooked police station with bent bars, flashing lights, evidence boxes, traffic cones, and a sign reading NO LOOKING TOO ORGANIZED. Include one Squig being shoved into the evidence locker for carrying a clipboard while the others panic about paperwork law.",
+  `Police Station: Build a tiny crooked station with evidence boxes, bent bars, flashing lights, paperwork, and one Squig stamped SUSPECT.`,
 
   // 13 - Fire Hall
-  "Chapter 13 - Fire Hall: Show the Squigs opening the Fire Hall with a tiny fire truck that only turns left, tangled hoses, oversized helmets, a shiny pole, sirens, and a crooked garage door. Include one Squig spinning down the pole into a laundry basket while the others attempt a drill that clearly needs a drill.",
+  `Fire Hall: Open the fire hall with tiny truck, tangled hoses, helmets, siren, pole, and one Squig landing in a basket.`,
 
   // 14 - Town Hall
-  "Chapter 14 - Town Hall: Show the first Town Hall meeting inside a crooked civic building. Include stacks of paperwork, fake taxes, complaint forms, bad charts, a tiny mayor chair, nameplates, and Squigs arguing over rules nobody understands. Make it look official, chaotic, and completely doomed by committee.",
+  `Town Hall: Hold the first civic meeting; bad charts, fake taxes, complaint forms, tiny mayor chair, and a doomed city plan.`,
 
   // 15 - School
-  "Chapter 15 - School: Show the Squigs opening Ugly City’s first school, with crooked desks, lockers, safety posters, hallway passes, chalkboard lessons about not licking wet paint, and construction diagrams nobody can read. The scene should feel like chaos pretending to be education.",
+  `School: Open a half-built school with crooked desks, lockers, chalkboard rules, construction signs, and lessons about bad decisions.`,
 
   // 16 - Post Office
-  "Chapter 16 - Post Office: Show the Squigs running a post office with one mailbox, too many packages, loose stamps, sorting bins, delivery carts, and no clear address for Ugly City. Include one Squig labeled FRAGILE or RETURN TO UGLY while another cart rolls toward an out-for-delivery-forever door.",
+  `Post Office: Deliver mail in a city with no addresses; packages, stamps, bins, one mailbox, and a Squig labeled FRAGILE.`,
 
   // 17 - Power Plant
-  "Chapter 17 - Power Plant: Show the Squigs switching on the Power Plant with giant levers, glowing gauges, sparks, cables, warning signs, steam pipes, and lights flickering across Ugly City in the background. Make it clear the plant is powered by bad decisions and one Squig is stuck in a rotating warning sign.",
+  `Power Plant: Flip the power switch; big levers, glowing gauges, cables, sparks, steam, and one Squig tangled in a warning sign.`,
 
   // 18 - Bank
-  "Chapter 18 - Bank: Show Ugly City’s first bank, storing bottle caps, casino coupons, fake money, and one suspiciously valuable wrench. Include a tiny vault, nervous teller window, pneumatic tubes, deposit slips, and one Squig getting harmlessly pulled into a tube while the others pretend to audit.",
+  `Bank: Store bottle caps and fake money in a tiny vault; teller window, tubes, slips, and one Squig sucked into finance.`,
 
   // 19 - Apartment Block
-  "Chapter 19 - Apartment Block: Show a tall crooked apartment block with uneven balconies, too many windows, strange pipes, six basement doors, and an elevator opening to nowhere. Include residents represented by curtains, signs, and props only, with one attached Squig trapped in a model unit as the leasing office denies everything.",
+  `Apartment Block: Build crooked apartments with odd balconies, too many doors, pipes nowhere, fake leasing signs, and no residents shown.`,
 
   // 20 - Warehouse
-  "Chapter 20 - Warehouse: Show the Squigs inside a huge messy warehouse filled with crates, forklifts, pallets, shrink wrap, impossible aisle signs, and mystery orders nobody remembers placing. Include one Squig wrapped to a pallet as inventory while the others argue over a clipboard with no useful columns.",
+  `Warehouse: Stack crates in an impossible warehouse; forklifts as props, pallets, shrink wrap, aisle signs, and one wrapped Squig.`,
 
   // 21 - Market
-  "Chapter 21 - Market: Show a crowded Ugly City market with crooked stalls selling bent nails, mystery fruit, weird tools, buckets, coupons, and terrible advice. Keep all vendors as empty booths and signs, with the attached Squigs bargaining badly and one Squig nearly traded for three buckets and a receipt.",
+  `Market: Open stalls selling bent nails, mystery fruit, buckets, and bad advice; Squig(s) bargain like chaos is currency.`,
 
   // 22 - Gas Station
-  "Chapter 22 - Gas Station: Show a strange two-pump gas station with a tiny convenience store, suspicious hot dogs, air pumps, squeegees, warning cones, and a car wash made from scrap. Include one Squig floating after overusing the air pump or trapped in the car wash brushes in a harmless cartoon way.",
+  `Gas Station: Open two pumps and a tiny shop; air hose, hot dog sign, car wash props, and one Squig inflated or washed.`,
 
   // 23 - Restaurant
-  "Chapter 23 - Restaurant: Show the Squigs opening a restaurant called Probably Edible, with crooked tables, wobbly chairs, mystery food, steam clouds, order tickets, and a kitchen full of bad confidence. Include one Squig disappearing through swinging kitchen doors while the others inspect the menu like it is a legal threat.",
+  `Restaurant: Launch PROBABLY EDIBLE; crooked tables, steam, sauce spills, scary menu, kitchen doors, and one lost order Squig.`,
 
   // 24 - Shopping Mall
-  "Chapter 24 - Shopping Mall: Show Ugly City’s shopping mall where every storefront says COMING SOON. Include a sideways escalator, dramatic fountain, sale signs, empty display windows, loose tiles, and the Squigs looking excited and confused as one gets carried away by the escalator.",
+  `Shopping Mall: Build a mall of COMING SOON stores; fountain, sideways escalator, sale signs, directory map, and escalator gag.`,
 
   // 25 - Arcade
-  "Chapter 25 - Arcade: Show the Squigs in a buzzing arcade with glowing cabinets, sticky floors, prize counters, claw machines, tickets, and old screens. Include one Squig trapped inside the claw machine like a prize and another appearing on a broken high-score board, keeping the chaos funny and non-violent.",
+  `Arcade: Open buzzing cabinets, claw machine, ticket piles, prize counter, sticky floor, and one Squig trapped as the prize.`,
 
   // 26 - Hotel
-  "Chapter 26 - Hotel: Show the Squigs checking into Ugly City’s hotel, with a crooked front desk, tiny soaps, luggage carts, weird carpets, room keys, fake luxury plants, and an elevator that opens to the wrong place. Make the lobby feel fancy from far away and deeply questionable up close.",
+  `Hotel: Open fake luxury hotel; crooked desk, luggage cart, tiny soaps, weird carpet, and an elevator to the wrong floor.`,
 
   // 27 - Factory
-  "Chapter 27 - Factory: Show the Squigs running a factory with assembly lines, conveyor belts, warning signs, boxes, rollers, and machines producing useless items like only-left shoes. Make the conveyor path clear and logical, with one Squig safely boxed as a limited-edition product while the others chase paperwork.",
+  `Factory: Run a useless factory; conveyor belts, stamps, boxes, warning signs, and one Squig packed as limited-edition product.`,
 
   // 28 - Harbor
-  "Chapter 28 - Harbor: Show the Squigs opening the Harbor with crooked docks, cargo containers, nets, ropes, tiny boats, warning buoys, and water nobody wants to test. Include one Squig tangled in a shipping net while a little cargo boat drifts away carrying a sign that says probably important.",
+  `Harbor: Open crooked docks with containers, ropes, nets, damp papers, tiny boats, and one Squig tangled in cargo.`,
 
   // 29 - Casino
-  "Chapter 29 - Casino: Show the grand opening of Ugly City’s casino with slot machines, rubber chicken jackpots, poker chips, cheap carpets, crooked card tables, and a mysterious High Rollers Lounge. The Squigs should look like they have no idea how gambling works but are extremely confident anyway.",
+  `Casino: Open a casino with slots, chips, rubber chicken jackpot, bad carpet, and Squig(s) gambling without understanding money.`,
 
   // 30 - Office Building
-  "Chapter 30 - Office Building: Show the Squigs trapped in an office building full of cubicles, bad lighting, coffee cups, sticky notes, whiteboards, meeting rooms, and endless paperwork. Include one Squig being promoted into a doorless department while another gets buried under sticky notes and calendar invites.",
+  `Office Building: Trap Squig(s) in cubicles, coffee cups, sticky notes, meetings, whiteboards, and paperwork that is clearly winning.`,
 
   // 31 - Zoo
-  "Chapter 31 - Zoo: Show a ridiculous Ugly City zoo where the attached Squigs accidentally become the main attraction. Use empty cages, fake animal signs, broken exhibit maps, warning labels, and one clear exhibit labeled RARE UGLY containing the correct attached Squig character. Do not add replica Squigs, real animals, humans, or extra creatures.",
+  `Zoo: Make Squig(s) the exhibit; empty cages, fake animal signs, maps, prop footprints, and a RARE UGLY habitat.`,
 
   // 32 - Aquarium
-  "Chapter 32 - Aquarium: Show the Squigs inside a cloudy leaking aquarium with tanks, bubbles, strange silhouettes painted on signs, touch pools, filters, pipes, and cracked labels. Include one Squig being politely classified as marine life while another peeks from a filter room, with no extra living sea creatures added.",
+  `Aquarium: Tour a cloudy aquarium; tanks, bubbles, fake fish signs, filters, pipes, and one Squig classified as marine life.`,
 
   // 33 - Theme Park
-  "Chapter 33 - Theme Park: Show a dangerous-looking but fun Ugly City theme park with a crooked roller coaster, mascot tunnel, bright pastel signs, spare bridge parts, ticket booths, and rides held together with duct tape. Include one Squig stuck on an endless coaster loop while the others celebrate opening day too early.",
+  `Theme Park: Open unsafe fun; crooked coaster, ticket booth, duct-taped rides, bright signs, and one endless-loop Squig gag.`,
 
   // 34 - Movie Theater
-  "Chapter 34 - Movie Theater: Show the Squigs inside a sticky-floored movie theater with a giant screen, popcorn buckets, recliner seats, aisle lights, dramatic previews, and old posters. Include one Squig folded into a recliner while another peeks from behind the screen, keeping the scene funny and readable.",
+  `Movie Theater: Sticky cinema with popcorn, big screen, old posters, recliners, previews, and one Squig folded in a seat.`,
 
   // 35 - Bowling Alley
-  "Chapter 35 - Bowling Alley: Show the Squigs at a bowling alley with crooked lanes, weird rental shoes, glowing scoreboards, pin machines, snack trays, and bowling balls that look too motivated. Include one Squig being harmlessly swept toward the pin reset machine while the others argue over the score.",
+  `Bowling Alley: Crooked lanes, rental shoes, glowing scoreboard, pins, snacks, and one Squig swept toward the pin machine.`,
 
   // 36 - Museum
-  "Chapter 36 - Museum: Show the Squigs opening a museum of Ugly City history with artifacts from earlier districts, misspelled plaques, velvet ropes, wax displays, display cases, and dramatic lighting. Include one Squig mistaken for an ancient artifact behind glass while the others proudly present total nonsense as history.",
+  `Museum: Preserve last week’s mistakes; plaques, velvet ropes, artifacts, display cases, and one Squig mistaken for history.`,
 
   // 37 - Beach
-  "Chapter 37 - Beach: Show Ugly City’s beach with questionable water, crooked umbrellas, snack stands, overbuilt sandcastles, inflatable chairs, beach signs, and a lifeguard chair that is only a sign with sunglasses. Include one Squig buried inside a sandcastle while another drifts away on a float.",
+  `Beach: Open a weird beach with umbrellas, snack stand, overbuilt sandcastle, floaties, and one Squig buried as architecture.`,
 
   // 38 - Concert Hall
-  "Chapter 38 - Concert Hall: Show the Squigs inside a concert hall with a huge stage, curtains, balcony, speakers, lights, instruments nobody can play responsibly, and a soundboard covered in warning labels. Include a sound check blasting one Squig harmlessly into the balcony curtains.",
+  `Concert Hall: Soundcheck chaos; stage, curtains, lights, speakers, instruments, and one Squig blasted into balcony curtains.`,
 
   // 39 - Sports Stadium
-  "Chapter 39 - Sports Stadium: Show the Squigs in a stadium where nobody agreed on the sport. Include goalposts, cones, marching-band props, mascot cart, confused referee signs, scoreboards, and field markings going in every direction. Make it look like every game is happening at once, with one Squig tackled by props, not people.",
+  `Sports Stadium: No one picked a sport; mixed field lines, props, scoreboard, empty seats, cones, and one safe mascot-style gag.`,
 
   // 40 - Nightclub
-  "Chapter 40 - Nightclub: Show the Squigs at an Ugly City nightclub with fog machines, flashing lights, a pulsing dance floor, velvet ropes, speaker stacks, and a dramatic DJ booth. Include one Squig failing the vibe check at the VIP rope while another is nearly carried away by the bass drop.",
+  `Nightclub: Fog, lights, DJ booth, velvet rope, huge speakers, and one Squig rejected by the VIP vibe check.`,
 
   // 41 - Train Station
-  "Chapter 41 - Train Station: Show the Squigs at a train station with too many platforms, confusing signs, delayed boards, suitcases, a train arriving from nowhere, and tracks that do not agree. Include one Squig boarding the wrong express while another is stuck inside the announcement booth.",
+  `Train Station: Too many platforms, wrong signs, luggage, delay board, odd tracks, and one Squig boarding the wrong train.`,
 
   // 42 - Subway
-  "Chapter 42 - Subway: Show the Squigs underground in a subway station with twisting tunnels, turnstiles, route maps, flickering lights, and a train labeled PLATFORM NOPE. Include one Squig blocked by a turnstile demanding exact change and emotional maturity.",
+  `Subway: Underground chaos with turnstiles, route maps, broken tiles, flicker lights, and one Squig stopped for exact change.`,
 
   // 43 - Airport
-  "Chapter 43 - Airport: Show Ugly City’s airport with one runway, luggage carts, check-in counters, mystery gates, neck pillows, departure boards full of question marks, and baggage claim chaos. Include one Squig coming through baggage claim with an oversized tag while another studies a useless boarding pass.",
+  `Airport: One runway, mystery gates, check-in counters, baggage carts, departure board, and one Squig on the luggage belt.`,
 
   // 44 - University
-  "Chapter 44 - University: Show Ugly City University with crooked lecture halls, campus signs, diplomas, lockers, books, bad maps, and a class called Advanced Ugliness. Make the scene feel like nobody is qualified to teach or learn, with one Squig lost at the registrar of confusion.",
+  `University: Open UGLY U with lecture hall, diplomas, books, bad maps, and a Squig lost at Registrar of Confusion.`,
 
   // 45 - Research Lab
-  "Chapter 45 - Research Lab: Show the Squigs in a research lab with glowing beakers, warning labels, locked cabinets, testing chambers, a big red button, and science machines labeled probably stable. Include one Squig entering a personality rinse chamber while the others take notes badly.",
+  `Research Lab: Test weird science; glowing beakers, big red button, chamber, warning labels, and one Squig in the rinse pod.`,
 
   // 46 - TV Station
-  "Chapter 46 - TV Station: Show the Squigs broadcasting live from Ugly City’s TV station with cameras, stage lights, microphones, weather maps, cue cards, breaking-news graphics, and cables everywhere. Include one Squig stuck in the weather map pointing at fake storms while another reads the news like this is normal.",
+  `TV Station: Broadcast live; cameras, lights, mic, weather map, cue cards, cables, and one Squig stuck in the forecast.`,
 
   // 47 - Observatory
-  "Chapter 47 - Observatory: Show the Squigs at a hilltop observatory with a giant telescope, star charts, glowing sky, suspicious space-object signs, snack wrappers, and observation notes. Include one Squig climbing into the telescope lens while the others stare at a confusing star map.",
+  `Observatory: Telescope points at trouble; star charts, night sky, space notes, snacks, and one Squig climbing into the lens.`,
 
   // 48 - Skyscrapers
-  "Chapter 48 - Skyscrapers: Show the Squigs building crooked skyscrapers above Ugly City with cranes, window-washing baskets, revolving doors, tiny clouds, uneven floors, and nervous-looking towers. Include one Squig stuck between floors while the skyline looks proud, unstable, and possibly inflatable.",
+  `Skyscrapers: Raise crooked towers; cranes, glass, revolving doors, tiny clouds, uneven floors, and one Squig stuck between levels.`,
 
   // 49 - Luxury District
-  "Chapter 49 - Luxury District: Show Ugly City’s Luxury District with velvet ropes, gold-painted fountains, fake marble, tiny robes, fancy signs, private elevators, and elegant lighting that cannot hide the duct tape. Make everything look expensive but still ugly, with one Squig escorted to the wrong side of the rope.",
+  `Luxury District: Fake marble, gold paint, velvet ropes, fountain, private elevator, visible duct tape, and a Squig denied VIP.`,
 
   // 50 - Old Town
-  "Chapter 50 - Old Town: Show the Squigs discovering Old Town, a dusty ancient corner of Ugly City with cobblestone paths, crooked doors, faded signs, mysterious mailboxes, and old brick walls. Make it feel like the city was ugly long before anyone admitted it, with one door locking politely behind a Squig.",
+  `Old Town: Discover ancient ugly streets; cobbles, old signs, crooked doors, mailboxes, faded bricks, and one door locking behind.`,
 
   // 51 - Mayor’s Office
-  "Chapter 51 - Mayor’s Office: Show the Squigs inside the Mayor’s Office with an empty chair, cold coffee, complaint papers, unsigned disaster approvals, filing cabinets, disaster maps, and a desk that looks far too important. Include one Squig buried in complaints while another searches behind cabinets for the mayor.",
+  `Mayor’s Office: Empty chair, cold coffee, complaint stacks, disaster maps, filing cabinets, and Squig(s) hunting the missing mayor.`,
 
   // 52 - Founders Plaza
-  "Chapter 52 - Founders Plaza: Show the Squigs opening Founders Plaza with crooked benches, uneven bricks, dedication plaques, ceremonial ribbon, a tiny parade float, and a sign that already needs repairs. Include one Squig accidentally cemented into the walkway as interactive history.",
+  `Founders Plaza: Open plaza with uneven bricks, benches, plaques, ribbon, tiny float, and one Squig cemented as history.`,
 
   // 53 - City Monument
-  "Chapter 53 - City Monument: Show the Squigs building a giant crooked city monument that is supposed to look heroic but mostly looks confused. Include scaffolding, cranes, chisels, dust clouds, a tilting stone base, and one Squig stuck inside the base while the others call it symbolism.",
+  `City Monument: Build a heroic crooked monument; scaffolds, chisels, dust, tilted base, and one Squig stuck as symbolism.`,
 
   // 54 - The Vault
-  "Chapter 54 - The Vault: Show the Squigs opening a hidden vault beneath the city monument. Fill it with bottle caps, fake treasure, glowing locks, old city plans, warning labels, and a huge slow-closing vault door. Include the Squigs scrambling comically while trying to look like professional treasure inspectors.",
+  `The Vault: Secret vault opens under the monument; locks, caps, fake treasure, old plans, warning labels, and panic inspection.`,
 
   // 55 - The Underground
-  "Chapter 55 - The Underground: Show the Squigs exploring a secret second city beneath Ugly City with glowing arrows, maintenance tunnels, pipes, weird trams, service doors, and suspicious lower-level signs. Include one Squig following a glowing arrow into the wrong tunnel while another pretends to be staff.",
+  `The Underground: Reveal tunnels below the city; glowing arrows, pipes, service doors, weird tram, and one Squig lost in staff-only.`,
 
   // 56 - Grand Gate
-  "Chapter 56 - Grand Gate: Show the Squigs opening the Grand Gate of Ugly City, a huge crooked entrance with banners, flags, turnstiles, bad decorations, ticket windows, and ceremonial confetti. Include one giant turnstile causing harmless chaos while the Squigs celebrate before anyone knows if it works.",
+  `Grand Gate: Open giant crooked entrance; banners, flags, ticket windows, confetti, turnstiles, and one turnstile chaos gag.`,
 
   // 57 - Ugly Castle
-  "Chapter 57 - Ugly Castle: Show the Squigs building Ugly Castle with crooked towers, squeaky drawbridge, tiny moat, cardboard crowns, flags, stone blocks, and dramatic banners. Include one Squig stuck in a tower with no stairs and another crossing the drawbridge at exactly the worst ceremonial moment.",
+  `Ugly Castle: Build towers, drawbridge, tiny moat, cardboard crowns, flags, stone blocks, and one Squig stuck in tower.`,
 
   // 58 - Hall of Survivors
-  "Chapter 58 - Hall of Survivors: Show the Squigs inside the Hall of Survivors with portraits, plaques, trophies, curtains, misspelled names, velvet ropes, and dramatic museum lighting. Include one Squig posing forever for an unfinished painting while another hides behind a portrait that definitely blinked.",
+  `Hall of Survivors: Portraits, plaques, trophies, curtains, wrong names, velvet ropes, and one Squig trapped posing forever.`,
 
   // 59 - The Crown
-  "Chapter 59 - The Crown: Show the Squigs gathered around The Crown on a velvet pillow in the center of Ugly City. Include banners, a ceremonial chair, applause machine, dramatic lighting, fake security ropes, and the Squigs acting like leadership is both exciting and a terrible idea.",
+  `The Crown: Squig(s) gather around crown on velvet pillow; banners, fake security, ceremony chair, and terrible leadership energy.`,
 
   // 60 - Founder’s Statue
-  "Chapter 60 - Founder’s Statue: Show the Squigs making final adjustments to the Founder’s Statue, a huge heroic-but-ugly monument with scaffolding, cracked stone, chisels, dust, and the Ugly City skyline behind it. Include one Squig sealed comically into the pedestal as a structural contribution.",
+  `Founder’s Statue: Finish huge ugly statue; scaffolds, cracked stone, dust, skyline, and one Squig sealed into the pedestal.`,
 
   // 61 - Courthouse
-  "Chapter 61 - Courthouse: Show Ugly City’s courthouse with a crooked judge bench, jury box, legal papers, evidence boxes, witness stand, gavel, and dramatic banners. Include one Squig trapped in endless jury duty while another is found guilty of leaning on evidence.",
+  `Courthouse: Crooked court with bench, gavel, evidence boxes, jury seats, papers, and one Squig trapped in jury duty.`,
 
   // 62 - Permit Office
-  "Chapter 62 - Permit Office: Show the Squigs waiting inside the Permit Office with endless chairs, numbered tickets, closed windows, stacks of forms, approval stamps, and a filing cabinet acting like the only employee. Include one Squig stamped PENDING while another waits at a window that does not exist.",
+  `Permit Office: Endless chairs, numbered tickets, stamps, service windows, form stacks, and one Squig marked PENDING.`,
 
   // 63 - Recycling Center
-  "Chapter 63 - Recycling Center: Show the Squigs at a recycling center turning old junk into new junk with conveyor belts, sorting bins, warning labels, compactors, glass piles, cardboard stacks, and questionable materials. Include one Squig sorted into the wrong bin with a confused label.",
+  `Recycling Center: Turn old junk into new junk; belts, bins, compactors, labels, and one Squig sorted into the wrong bin.`,
 
   // 64 - Bus Depot
-  "Chapter 64 - Bus Depot: Show a bus depot full of buses marked OUT OF SERVICE that are somehow still moving. Include route signs, benches, damp tickets, crooked schedules, engine panels, and one Squig looping forever on Route 0 while another is accepted as luggage.",
+  `Bus Depot: Buses marked OUT OF SERVICE still move; route signs, benches, schedules, tickets, and one Squig on Route 0.`,
 
   // 65 - Library
-  "Chapter 65 - Library: Show the Squigs inside a crooked library with whispering signs, tall shelves, overdue notices, rearranging books, rolling ladders, and a pop-up book that looks too active. Include one Squig trapped in the overdue section while another steps into the pop-up book.",
+  `Library: Tall shelves, overdue notices, whisper signs, rolling ladder, cursed pop-up book, and one Squig trapped in overdue.`,
 
   // 66 - Laundromat
-  "Chapter 66 - Laundromat: Show the Squigs inside a laundromat with shaking washers, spinning dryers, soap bubbles, lost socks, static electricity, coin machines, and wet-floor signs. Include one Squig tumbling out folded and confused while another is stuck in the permanent press cycle.",
+  `Laundromat: Shaking washers, dryers, bubbles, lost socks, coin machines, wet signs, and one Squig folded and confused.`,
 
   // 67 - Food Court
-  "Chapter 67 - Food Court: Show a chaotic food court with too many restaurants, one unreadable menu, trays, sauces, sample spoons, fry smells, and tables that wobble with civic pride. Include one Squig trapped in the sample line forever while another tries to identify mystery ingredients.",
+  `Food Court: Too many menus, trays, sauces, wobble tables, mystery food, and one Squig stuck in the sample line.`,
 
   // 68 - City Park
-  "Chapter 68 - City Park: Show Ugly City Park with three crooked trees, benches, a pond reflecting everyone uglier, ceremonial ribbon around a sapling, bad landscaping, and park rules nobody follows. Include one Squig tangled in ribbon like protected greenery.",
+  `City Park: Three crooked trees, benches, pond, ribboned sapling, bad landscaping, and one Squig tangled as protected greenery.`,
 
   // 69 - Pawn Shop
-  "Chapter 69 - Pawn Shop: Show the Squigs inside a pawn shop packed with lost city items, cursed trophies, lamps, tools, coupons, price tags based on confidence, and glass display cases. Include one Squig displayed behind glass as a rare collectible while the others negotiate with a tag.",
+  `Pawn Shop: Lost city items, tools, trophies, lamps, price tags, glass case, and one Squig appraised as rare.`,
 
   // 70 - Rooftop District
-  "Chapter 70 - Rooftop District: Show the Squigs high above Ugly City in the rooftop district with ladders, chimneys, rooftop bridges, pigeons represented only by signs or silhouettes, antennas, laundry lines, and skyline below. Include one Squig stranded on a chimney while a ladder refuses to help.",
+  `Rooftop District: Ladders, chimneys, rooftop bridges, antennas, laundry lines, skyline below, and one Squig stranded on chimney.`,
 
   // 71 - Radio Tower
-  "Chapter 71 - Radio Tower: Show the Squigs broadcasting from a tall radio tower with antennas, wires, microphones, speakers, static bolts, transmitter boxes, and warning signs. Include one Squig stuck safely on the antenna while another becomes part of a traffic report on a taped microphone.",
+  `Radio Tower: Antennas, wires, mics, speakers, static bolts, transmitter boxes, and one Squig stuck on the antenna.`,
 
   // 72 - Weather Station
-  "Chapter 72 - Weather Station: Show the Squigs at a weather station with wind tunnels, radar screens, fake storm maps, fog machines, rain gauges, warning flags, and emergency ponchos. Include one Squig being blown across the scene by a test wind tunnel in a harmless cartoon way.",
+  `Weather Station: Radar, storm map, fog machine, rain gauges, flags, ponchos, and one Squig blown by test wind.`,
 
   // 73 - Toll Booth
-  "Chapter 73 - Toll Booth: Show an absurd toll booth on a bad road with exact-change signs, coin baskets, traffic cones, crooked lanes, tiny barriers, and confused vehicle props. Include one Squig arguing with the booth over a missing coin while the barrier arm points the wrong way.",
+  `Toll Booth: Exact-change booth on a bad road; cones, barrier arm, coin basket, traffic props, and one Squig arguing.`,
 
   // 74 - Parking Garage
-  "Chapter 74 - Parking Garage: Show the Squigs lost inside a huge parking garage with spiral ramps, arrows pointing nowhere, ticket machines, compact spaces, echoing honk signs, and flickering lights. Include one Squig parked in a tiny compact spot with a parking ticket.",
+  `Parking Garage: Seven levels, no exits, spiral ramps, arrows nowhere, ticket machine, compact spaces, and one Squig parked.`,
 
   // 75 - Department of Bad Decisions
-  "Chapter 75 - Department of Bad Decisions: Show a government office approving terrible plans with stamps, charts, forms, warning signs, crooked cubicles, and a wall labeled APPROVED ANYWAY. Include one Squig being promoted to Assistant Mistake Manager while another gets redirected into a wrong-department door.",
+  `Department of Bad Decisions: Office approves disasters; stamps, charts, forms, APPROVED ANYWAY wall, and Squig promoted to mistake manager.`,
 
   // 76 - Ugly DMV
-  "Chapter 76 - Ugly DMV: Show the Squigs waiting at the Ugly DMV with endless chairs, number signs, terrible photo booths, forms, closed windows, and a line that bends back on itself. Include one Squig failing the photo test for looking too prepared.",
+  `Ugly DMV: Endless chairs, number sign, photo booth, closed windows, forms, and one Squig sent to window 12.`,
 
   // 77 - City Dump
-  "Chapter 77 - City Dump: Show the City Dump as an even worse Junkyard with trash hills, rejected appliances, old mattresses, rolling tires, broken signs, and raccoon energy represented by paw-print signs only. Include one Squig mistaken for a rejected appliance while the others inspect garbage like city treasure.",
+  `City Dump: Trash hills, rejected appliances, mattresses, tires, broken signs, and one Squig mistaken for a broken appliance.`,
 
   // 78 - Canal
-  "Chapter 78 - Canal: Show the Squigs building or riding along a strange canal through Ugly City with lock gates, tiny boats, murky water, crooked bridges, ropes, and maintenance signs. Include one Squig drifting away in a maintenance boat while the others operate the gates badly.",
+  `Canal: Murky canal with locks, ropes, small boat, crooked bridge, warning signs, and one Squig drifting away.`,
 
   // 79 - Ferry Terminal
-  "Chapter 79 - Ferry Terminal: Show the Squigs at a ferry terminal with a late ferry, damp tickets, life jackets, dock ropes, signs for SOMEWHERE DAMP, and water-travel confusion. Include one Squig trapped inside a life-jacket demonstration while the ferry schedule gives up.",
+  `Ferry Terminal: Damp tickets, late ferry, dock ropes, life jackets, SOMEWHERE DAMP sign, and one Squig trapped in demo.`,
 
   // 80 - Boardwalk
-  "Chapter 80 - Boardwalk: Show the Squigs on a crooked boardwalk with carnival games, greasy snacks, prize booths, loose planks, cotton candy, pier lights, and signs promising fun against legal advice. Include one Squig falling safely through a loose board into prize storage.",
+  `Boardwalk: Crooked boards, unfair games, greasy snacks, prize booths, pier lights, and one Squig in prize storage.`,
 
   // 81 - Motel
-  "Chapter 81 - Motel: Show the Squigs at a flickering Ugly City motel with tiny rooms, brick keychains, suspicious ice machine, peeling signs, weird doors, and a check-in window. Include one Squig checking into Room 13, which is actually a closet.",
+  `Motel: Flickering motel, tiny rooms, brick keys, weird doors, ice machine, peeling sign, and Squig in Room 13 closet.`,
 
   // 82 - Convention Center
-  "Chapter 82 - Convention Center: Show the Squigs hosting a chaotic convention center event with booths, banners, folding tables, lanyards, keynote stage, panel signs, and displays about city disasters. Include one Squig stuck behind a booth selling emergency whistles to nobody.",
+  `Convention Center: Booths, banners, lanyards, folding tables, keynote stage, broken demo screens, and one Squig stuck as vendor.`,
 
   // 83 - Ice Cream Stand
-  "Chapter 83 - Ice Cream Stand: Show the Squigs at a bright but suspicious ice cream stand with strange flavors, freezer truck, cones, sprinkles, menu boards, sticky counters, and a soft-serve machine. Include one Squig stuck in the soft-serve swirl in a harmless cartoon way.",
+  `Ice Cream Stand: Weird flavors, cones, sprinkles, menu board, freezer cart, soft-serve machine, and one Squig in swirl.`,
 
   // 84 - Underground Mall
-  "Chapter 84 - Underground Mall: Show the Underground Mall beneath the subway with closed kiosks, identical candle shops, escalators going too deep, strange neon signs, directory maps, and cracked tile. Include one Squig lost between two identical stores while another rides below the map.",
+  `Underground Mall: Closed kiosks, neon signs, deep escalator, bad directory, cracked tile, and one Squig lost below the map.`,
 
   // 85 - Clock Tower
-  "Chapter 85 - Clock Tower: Show the Squigs building a giant crooked clock tower displaying four different times. Include gears, bells, ropes, ladders, cracked clock faces, and one Squig stuck safely inside the clock hands at quarter past nope.",
+  `Clock Tower: Four wrong times, gears, bells, ropes, ladders, cracked faces, and one Squig stuck at quarter-past nope.`,
 
   // 86 - Water Park
-  "Chapter 86 - Water Park: Show a questionable water park with crooked slides, wave pool, lazy river, inflatable tubes, splash signs, and lifeguard signs wearing sunglasses. Include one Squig stuck in the longest slide while another floats in the aggressively lazy river.",
+  `Water Park: Crooked slides, wave pool, lazy river, tubes, splash signs, and one Squig stuck in the long slide.`,
 
   // 87 - Community Center
-  "Chapter 87 - Community Center: Show the Squigs inside a community center with folding chairs, activity posters, sign-up sheets, lost-and-found bins, nametags, awkward classes, and a support circle that looks trapped. Include one Squig teaching Advanced Standing Around with far too much authority.",
+  `Community Center: Folding chairs, posters, signup sheets, lost-and-found, nametags, and Squig teaching Advanced Standing Around.`,
 
   // 88 - Tattoo Shop
-  "Chapter 88 - Tattoo Shop: Show the Squigs inside a tattoo shop with buzzing machines, flash sheets, mirrors, waiver forms, aftercare posters, and designs that look like city warning signs. Include one Squig trapped in an oversized tattoo waiver while another proudly points at a misspelled design.",
+  `Tattoo Shop: Flash sheets, buzzing tools, mirrors, waiver forms, warning-sign designs, and one Squig trapped in paperwork.`,
 
   // 89 - Newsstand
-  "Chapter 89 - Newsstand: Show a newsstand with flying newspapers, insulting headlines, crossword puzzles, future-dated editions, paper bundles, and headline boards reporting events before they happen. Include one Squig folded into the Sunday edition as a special insert.",
+  `Newsstand: Flying papers, future headlines, crossword, bundles, headline boards, and one Squig folded into the Sunday edition.`,
 
   // 90 - Soup Kitchen
-  "Chapter 90 - Soup Kitchen: Show the Squigs running a soup kitchen with a giant bubbling pot, bowls, ladles, folding tables, recipe cards that keep changing, steam clouds, and community signs. Include one Squig assigned to stir forever with serious ladle authority.",
+  `Soup Kitchen: Giant pot, bowls, ladles, folding tables, steam, community signs, and one Squig given eternal stir duty.`,
 
   // 91 - Security Office
-  "Chapter 91 - Security Office: Show the Squigs inside a security office with camera monitors, case files, flickering screens, walkie-talkies, suspicious shadow cutouts, and footage from every district except the one they need. Include one Squig trapped watching tomorrow’s footage.",
+  `Security Office: Monitor wall, cameras, case files, radios, wrong footage, and one Squig watching tomorrow by accident.`,
 
   // 92 - Monorail
-  "Chapter 92 - Monorail: Show the Squigs at an elevated monorail station above Ugly City with one sleek train, unstable supports, scenic-overlook signs, tourist brochures, and looping tracks. Include one Squig stuck at the scenic overlook while the monorail keeps circling proudly.",
+  `Monorail: Elevated station, looping track, sleek train, ugly supports, brochures, and one Squig stuck at scenic overlook.`,
 
   // 93 - Botanical Garden
-  "Chapter 93 - Botanical Garden: Show the Squigs in a botanical garden with warning-labeled plants, glowing flowers, greenhouse glass, vines, weird pollen, plant-family signs, and suspicious watering cans. Include one Squig hugged by a vine with boundary issues, keeping it silly and non-threatening.",
+  `Botanical Garden: Greenhouse, vines, warning labels, glowing flowers, weird pollen, and one Squig hugged by a needy vine.`,
 
   // 94 - Statue Factory
-  "Chapter 94 - Statue Factory: Show the Squigs inside a statue factory producing confused heroic monuments. Include plaster molds, chisels, cranes, half-finished statues, polishing machines, dust, and one Squig accidentally cast as a temporary mold while the others critique the statue’s face.",
+  `Statue Factory: Molds, chisels, cranes, half-statues, dust, polish machine, and one Squig cast as temporary mold.`,
 
   // 95 - Emergency Bunker
-  "Chapter 95 - Emergency Bunker: Show the Squigs at an emergency bunker with a heavy hatch, canned beans, whistles, warning posters, drill maps, flashlights, and preparedness charts. Include one Squig locked inside during a drill while the others argue whether that means the bunker works.",
+  `Emergency Bunker: Heavy hatch, canned beans, flashlights, drill maps, warning posters, and one Squig locked in during practice.`,
 
   // 96 - Records Office
-  "Chapter 96 - Records Office: Show the Squigs inside the Records Office with filing cabinets, archive stacks, complaint records, personal files, folders labeled with every city disaster, and stamps everywhere. Include one Squig misfiled under miscellaneous structures while another finds a drawer labeled definitely gone.",
+  `Records Office: Filing cabinets, archives, stamps, folders, disaster labels, DEFINITELY GONE drawer, and one Squig misfiled.`,
 
   // 97 - The Last Alley
-  "Chapter 97 - The Last Alley: Show The Last Alley as a narrow crooked alley full of dumpsters, flickering signs, trash cans, brick walls, suspicious dead ends, and a path that seems to rearrange itself. Include one dumpster lid opening like someone might return from inside.",
+  `The Last Alley: Narrow alley with dumpsters, flicker signs, brick walls, painted shadows, dead-end signs, and a suspicious lid.`,
 
   // 98 - Final Permit Desk
-  "Chapter 98 - Final Permit Desk: Show the Final Permit Desk in the middle of the road like a cartoon final boss made of paperwork. Include a tiny clerk window, approval stamps, endless forms, a bell, missing-initials signs, and one Squig sent back to the line for a form nobody mentioned.",
+  `Final Permit Desk: Desk in the road; stamps, bell, endless forms, missing-initials signs, and Squig sent back to line.`,
 
   // 99 - City Hall Steps
-  "Chapter 99 - City Hall Steps: Show the Squigs climbing the grand City Hall steps with banners, dust, ceremonial carpet, guest seating signs, velvet ropes, and the final doors ahead. Include one Squig tripping safely over the carpet into committee review while the others keep climbing.",
+  `City Hall Steps: Grand steps, banners, carpet, velvet ropes, dusty doors, and one Squig tripped into committee review.`,
 
   // 100 - Founder’s Office
-  "Chapter 100 - Founder’s Office: Show the final surviving Squig or remaining Squigs inside the Founder’s Office with a crooked desk, cracked nameplate, oversized important chair, city plans, approval stamps, and a window overlooking all of Ugly City. Make it feel like the end of a ridiculous journey, with the Founder title about to be claimed.",
+  `Founder’s Office: Final office with crooked desk, nameplate, city plans, stamps, big chair, and window over built Ugly City.`,
 ];
 
 const UGLY_CITY_CURATED_CHAPTER_KEYS = [
@@ -3040,9 +3043,7 @@ function generateUglyCityExpansionChapter(chapterNumber, eraDefinition = {}) {
     ),
     next: "The city council has already approved another terrible idea.",
     imagePrompt:
-      `Expansion Chapter - ${baseDistrict} ${modifier}: Show the attached Squig or Squigs working through a new ${baseDistrict} ${modifier.toLowerCase()} in Ugly City. ` +
-      "Make the district immediately recognizable, with crooked construction, mismatched signs, duct tape repairs, public-works chaos, scattered permits, and one funny non-violent crew-removal moment happening clearly in the scene. " +
-      "Do not add extra Squigs, humans, monsters, mascots, crowds, or unrelated characters. Keep the composition clean, colorful, square, and readable in the same flat Squigs cartoon style.",
+      `Expansion Chapter - ${baseDistrict} ${modifier}: Show attached Squig(s) expanding Ugly City with crooked construction, duct tape signs, bad permits, and one clear funny nonviolent removal gag. No extra living characters.`,
   };
 }
 
@@ -3061,8 +3062,15 @@ function getUglyCityBaseImagePrompt() {
 function buildUglyCityImagePrompt(chapter) {
   const scenePrompt =
     chapter?.imagePrompt ||
-    "Create a square cinematic cartoon scene of the Squigs building, exploring, and surviving another chaotic district of Ugly City.";
-  return `${UGLY_CITY_BASE_IMAGE_PROMPT}\n\nScene prompt:\n${scenePrompt}`;
+    "Build/explore another crooked Ugly City district with attached Squig(s), junk, duct tape, bad permits, and one funny nonviolent chaos gag.";
+
+  const prompt = `${UGLY_CITY_BASE_IMAGE_PROMPT}\n\nScene: ${scenePrompt}`;
+
+  if (prompt.length <= DISCORD_IMAGE_PROMPT_MAX_CHARS) {
+    return prompt;
+  }
+
+  return `${prompt.slice(0, DISCORD_IMAGE_PROMPT_MAX_CHARS - 1).trimEnd()}…`;
 }
 
 function getUglyCityImagePromptForChapter(eraDefinition, chapterNumber) {
