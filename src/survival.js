@@ -71,6 +71,15 @@ const SURVIVAL_IMAGE_PROMPT_CUSTOM_ID_PREFIX = "survive:image-prompt:";
 const SURVIVAL_IMAGE_PROMPT_MESSAGE_LIMIT = 1900;
 const UGLY_CITY_FOUNDER_IMAGE_URL = "https://i.imgur.com/CiETPBi.png";
 
+function buildSurvivalImageSubmissionRow() {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setStyle(ButtonStyle.Link)
+      .setLabel("Submit Image")
+      .setURL(SURVIVAL_IMAGE_SUBMISSION_URL)
+  );
+}
+
 function upsertSurvivalRunStatus(runKey, joinedIds, aliveIds, ended = false, metadata = {}) {
   if (!runKey) return;
   const existing = survivalRunStatuses.get(runKey) || {};
@@ -152,11 +161,12 @@ async function handleSurvivalImagePromptButton(interaction) {
     SURVIVAL_ERAS.ugly_city,
     chapterNumber
   );
-  const intro = `Here is the full image prompt for Chapter ${chapterNumber} — ${district}. Attach your Squig image/images with this prompt:`;
+  const intro = `Here is the example AI prompt for Chapter ${chapterNumber} — ${district}. Attach your Squig image/images with this prompt, then submit the finished art:`;
   const content = `${intro}\n\n\`\`\`text\n${prompt}\n\`\`\``;
+  const components = [buildSurvivalImageSubmissionRow()];
 
   if (content.length <= SURVIVAL_IMAGE_PROMPT_MESSAGE_LIMIT) {
-    await interaction.reply({ content, flags: 64 });
+    await interaction.reply({ content, components, flags: 64 });
     return true;
   }
 
@@ -166,6 +176,7 @@ async function handleSurvivalImagePromptButton(interaction) {
   await interaction.reply({
     content: `${intro}\n\nThe prompt is attached as a text file because it is too long for a clean Discord message.`,
     files: [attachment],
+    components,
     flags: 64,
   });
   return true;
@@ -1203,7 +1214,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
         statusButtons.push(
           new ButtonBuilder()
             .setCustomId(`${SURVIVAL_IMAGE_PROMPT_CUSTOM_ID_PREFIX}${runKey}:${chapterNumber}`)
-            .setLabel(" Image Prompt")
+            .setLabel("Example AI Prompt")
             .setStyle(ButtonStyle.Secondary)
         );
       }
