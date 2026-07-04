@@ -14,6 +14,7 @@ const { initStore } = require("./src/db");
 const { initImageStore } = require("./src/imageStore");
 const { initSurvivalStore } = require("./src/survivalStore");
 const { startApprovalNotificationLoop } = require("./src/approvalNotifier");
+const { startOnlineRewardWebhook } = require("./src/onlineRewardWebhook");
 
 // Unified Gauntlet (solo + group commands & routing)
 const {
@@ -52,6 +53,7 @@ client.once(Events.ClientReady, async () => {
     await initSurvivalStore();
     await initSurvivalLobby(client);
     startApprovalNotificationLoop(client);
+    await startOnlineRewardWebhook(client);
   } catch (err) {
     console.error("? Startup failed:", err?.message || err);
     if (err?.stack) {

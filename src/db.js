@@ -160,6 +160,7 @@ class PgStore {
         DROP TABLE IF EXISTS gauntlet_item_inventory;
         DROP TABLE IF EXISTS gauntlet_runs;
         DROP TABLE IF EXISTS gauntlet_lb_messages;
+        DROP TABLE IF EXISTS gauntlet_online_reward_events;
         DROP TABLE IF EXISTS gauntlet_survival_settings;
         DROP TABLE IF EXISTS gauntlet_survival_lobby;
       `);
@@ -300,6 +301,27 @@ class PgStore {
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         PRIMARY KEY (session_id, user_id)
       );
+    `);
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS gauntlet_online_reward_events (
+        event_id TEXT PRIMARY KEY,
+        payout_id TEXT,
+        run_id TEXT,
+        discord_user_id TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        claim_code TEXT,
+        status TEXT NOT NULL,
+        response JSONB NOT NULL DEFAULT '{}'::jsonb,
+        error_message TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        processed_at TIMESTAMPTZ
+      );
+    `);
+    await this.pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS gauntlet_online_reward_events_payout_id_uidx
+      ON gauntlet_online_reward_events (payout_id)
+      WHERE payout_id IS NOT NULL AND payout_id <> '';
     `);
 
     // Manual DRIP routing override for Discord IDs.
@@ -555,6 +577,219 @@ class PgStore {
       `,
       [sessionId, userId]
     );
+  }
+
+  // ----------------------------------------------------------
+  // GAUNTLET ONLINE REWARD IDEMPOTENCY
+  // ----------------------------------------------------------
+
+  async getOnlineRewardEvent(eventId, payoutId) {
+    const cleanEventId = String(eventId || "").trim();
+    const cleanPayoutId = String(payoutId || "").trim() || null;
+    if (!cleanEventId && !cleanPayoutId) return null;
+
+    const r = await this.pool.query(
+      `
+      SELECT
+        event_id,
+        payout_id,
+        run_id,
+        discord_user_id,
+        amount,
+        claim_code,
+        status,
+        response,
+        error_message,
+        created_at,
+        processed_at
+      FROM gauntlet_online_reward_events
+      WHERE ($1::text IS NOT NULL AND event_id = $1)
+         OR ($2::text IS NOT NULL AND payout_id = $2)
+      ORDER BY
+        CASE WHEN event_id = $1 THEN 0 ELSE 1 END,
+        created_at ASC
+      LIMIT 1
+      `,
+      [cleanEventId || null, cleanPayoutId]
+    );
+    return r.rows[0] || null;
+  }
+
+  async reserveOnlineRewardEvent({
+    eventId,
+    payoutId,
+    runId,
+    discordUserId,
+    amount,
+    claimCode,
+  }) {
+    const cleanEventId = String(eventId || "").trim();
+    const cleanPayoutId = String(payoutId || "").trim() || null;
+    const cleanRunId = String(runId || "").trim() || null;
+    const cleanDiscordUserId = String(discordUserId || "").trim();
+    const cleanClaimCode = String(claimCode || "").trim() || null;
+
+    if (!cleanEventId) {
+      throw new Error("online reward eventId is required");
+    }
+
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      const lockKeys = Array.from(
+        new Set(
+          [
+            `gauntlet-online-reward:event:${cleanEventId}`,
+            cleanPayoutId ? `gauntlet-online-reward:payout:${cleanPayoutId}` : null,
+          ].filter(Boolean)
+        )
+      ).sort();
+
+      for (const lockKey of lockKeys) {
+        await client.query(
+          "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+          [lockKey]
+        );
+      }
+
+      const existing = await client.query(
+        `
+        SELECT
+          event_id,
+          payout_id,
+          run_id,
+          discord_user_id,
+          amount,
+          claim_code,
+          status,
+          response,
+          error_message,
+          created_at,
+          processed_at
+        FROM gauntlet_online_reward_events
+        WHERE event_id = $1
+           OR ($2::text IS NOT NULL AND payout_id = $2)
+        ORDER BY
+          CASE WHEN event_id = $1 THEN 0 ELSE 1 END,
+          created_at ASC
+        LIMIT 1
+        `,
+        [cleanEventId, cleanPayoutId]
+      );
+
+      if (existing.rows[0]) {
+        await client.query("COMMIT");
+        return { reserved: false, event: existing.rows[0] };
+      }
+
+      const inserted = await client.query(
+        `
+        INSERT INTO gauntlet_online_reward_events (
+          event_id,
+          payout_id,
+          run_id,
+          discord_user_id,
+          amount,
+          claim_code,
+          status
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, 'processing')
+        RETURNING
+          event_id,
+          payout_id,
+          run_id,
+          discord_user_id,
+          amount,
+          claim_code,
+          status,
+          response,
+          error_message,
+          created_at,
+          processed_at
+        `,
+        [
+          cleanEventId,
+          cleanPayoutId,
+          cleanRunId,
+          cleanDiscordUserId,
+          amount,
+          cleanClaimCode,
+        ]
+      );
+
+      await client.query("COMMIT");
+      return { reserved: true, event: inserted.rows[0] };
+    } catch (err) {
+      await client.query("ROLLBACK").catch(() => {});
+      if (err?.code === "23505") {
+        const existing = await this.getOnlineRewardEvent(cleanEventId, cleanPayoutId);
+        if (existing) return { reserved: false, event: existing };
+      }
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async markOnlineRewardEventPaid(eventId, response = {}) {
+    const r = await this.pool.query(
+      `
+      UPDATE gauntlet_online_reward_events
+      SET
+        status = 'paid',
+        response = $2::jsonb,
+        error_message = NULL,
+        processed_at = now()
+      WHERE event_id = $1
+      RETURNING
+        event_id,
+        payout_id,
+        run_id,
+        discord_user_id,
+        amount,
+        claim_code,
+        status,
+        response,
+        error_message,
+        created_at,
+        processed_at
+      `,
+      [String(eventId || "").trim(), JSON.stringify(response || {})]
+    );
+    return r.rows[0] || null;
+  }
+
+  async markOnlineRewardEventFailed(eventId, errorMessage, response = {}) {
+    const r = await this.pool.query(
+      `
+      UPDATE gauntlet_online_reward_events
+      SET
+        status = 'failed',
+        response = $3::jsonb,
+        error_message = $2,
+        processed_at = now()
+      WHERE event_id = $1
+      RETURNING
+        event_id,
+        payout_id,
+        run_id,
+        discord_user_id,
+        amount,
+        claim_code,
+        status,
+        response,
+        error_message,
+        created_at,
+        processed_at
+      `,
+      [
+        String(eventId || "").trim(),
+        String(errorMessage || "reward_failed").slice(0, 1000),
+        JSON.stringify(response || {}),
+      ]
+    );
+    return r.rows[0] || null;
   }
 
   /**
