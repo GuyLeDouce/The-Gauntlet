@@ -4,12 +4,13 @@
 const http = require("http");
 const crypto = require("crypto");
 
-const { Store } = require("./db");
-const { rewardCharmAmount, logCharmReward } = require("./drip");
-
 const LOG_PREFIX = "[GAUNTLET:ONLINE-REWARD]";
 const DEFAULT_PATH = "/webhooks/gauntlet-online/reward";
 const MAX_BODY_BYTES = 64 * 1024;
+const SECRET_ENV_KEYS = [
+  "ONLINE_REWARD_WEBHOOK_SECRET",
+  "GAUNTLET_DISCORD_REWARD_WEBHOOK_SECRET",
+];
 
 let activeServer = null;
 
@@ -29,6 +30,14 @@ function isExplicitlyFalse(value) {
   return String(value || "").trim().toLowerCase() === "false";
 }
 
+function getStore() {
+  return require("./db").Store;
+}
+
+function getDripRewards() {
+  return require("./drip");
+}
+
 function configuredPath() {
   const raw = String(process.env.ONLINE_REWARD_WEBHOOK_PATH || DEFAULT_PATH).trim();
   if (!raw) return DEFAULT_PATH;
@@ -43,6 +52,19 @@ function configuredPort() {
     throw new Error(`Invalid ONLINE_REWARD_WEBHOOK_PORT/PORT: ${raw}`);
   }
   return port;
+}
+
+function configuredSecrets() {
+  const seen = new Set();
+  return SECRET_ENV_KEYS.map((key) => ({
+    key,
+    value: String(process.env[key] || "").trim(),
+  }))
+    .filter((entry) => {
+      if (!entry.value || seen.has(entry.value)) return false;
+      seen.add(entry.value);
+      return true;
+    });
 }
 
 function getHeader(req, name) {
@@ -128,13 +150,18 @@ function parseSignature(signatureHeader) {
   return Buffer.from(match[1], "hex");
 }
 
-function verifySignature(secret, timestamp, rawBody, signatureHeader) {
+function verifySignature(secrets, timestamp, rawBody, signatureHeader) {
   const provided = parseSignature(signatureHeader);
-  if (!provided) return false;
+  if (!provided) return { ok: false, reason: "invalid_signature_header" };
 
-  const expected = signatureDigest(secret, timestamp, rawBody);
-  if (provided.length !== expected.length) return false;
-  return crypto.timingSafeEqual(provided, expected);
+  for (const entry of secrets) {
+    const expected = signatureDigest(entry.value, timestamp, rawBody);
+    if (provided.length === expected.length && crypto.timingSafeEqual(provided, expected)) {
+      return { ok: true, key: entry.key };
+    }
+  }
+
+  return { ok: false, reason: "signature_mismatch" };
 }
 
 function cleanString(value) {
@@ -262,6 +289,8 @@ function rewardFailureReason(reward) {
 }
 
 async function processReward(client, rewardEvent) {
+  const { rewardCharmAmount, logCharmReward } = getDripRewards();
+  const Store = getStore();
   const channelId =
     process.env.ONLINE_REWARD_WEBHOOK_LOG_CHANNEL_ID ||
     process.env.DRIP_LOG_CHANNEL_ID ||
@@ -348,7 +377,11 @@ async function handleRewardRequest(req, res, client, config) {
     return;
   }
 
-  if (!verifySignature(config.secret, timestamp, rawBody, signature)) {
+  const signatureResult = verifySignature(config.secrets, timestamp, rawBody, signature);
+  if (!signatureResult.ok) {
+    warn(
+      `Invalid reward webhook signature reason=${signatureResult.reason} bodyBytes=${rawBody.length} secretSources=${config.secrets.map((entry) => entry.key).join(",")}`
+    );
     sendJson(res, 401, { ok: false, paid: false, reason: "invalid_signature" });
     return;
   }
@@ -393,6 +426,7 @@ async function handleRewardRequest(req, res, client, config) {
     return;
   }
 
+  const Store = getStore();
   const reservation = await Store.reserveOnlineRewardEvent({
     eventId: rewardEvent.eventId,
     payoutId: rewardEvent.payoutId,
@@ -456,16 +490,16 @@ async function startOnlineRewardWebhook(client) {
     return null;
   }
 
-  const secret = String(process.env.ONLINE_REWARD_WEBHOOK_SECRET || "").trim();
-  if (!secret) {
+  const secrets = configuredSecrets();
+  if (!secrets.length) {
     warn(
-      "ONLINE_REWARD_WEBHOOK_SECRET is not set; webhook server will not start."
+      "ONLINE_REWARD_WEBHOOK_SECRET is not set; webhook server will not start. GAUNTLET_DISCORD_REWARD_WEBHOOK_SECRET is accepted as a compatibility alias."
     );
     return null;
   }
 
   const config = {
-    secret,
+    secrets,
     path: configuredPath(),
     port: configuredPort(),
     maxSkewSeconds: Math.max(
@@ -489,7 +523,9 @@ async function startOnlineRewardWebhook(client) {
     activeServer.once("error", onError);
     activeServer.listen(config.port, "0.0.0.0", () => {
       activeServer.off("error", onError);
-      log(`Webhook server listening on 0.0.0.0:${config.port} path=${config.path}`);
+      log(
+        `Webhook server listening on 0.0.0.0:${config.port} path=${config.path} secretSources=${config.secrets.map((entry) => entry.key).join(",")}`
+      );
       resolve();
     });
   });
@@ -499,4 +535,7 @@ async function startOnlineRewardWebhook(client) {
 
 module.exports = {
   startOnlineRewardWebhook,
+  configuredSecrets,
+  signatureDigest,
+  verifySignature,
 };
