@@ -3,6 +3,7 @@ const crypto = require("crypto");
 
 const {
   configuredSecrets,
+  secretFingerprint,
   verifySignature,
 } = require("../src/onlineRewardWebhook");
 
@@ -66,6 +67,14 @@ const body = JSON.stringify({
 });
 const timestamp = "1814688000";
 const signature = signLikeOnline(body, "shared-secret", timestamp);
+
+assert.strictEqual(secretFingerprint("shared-secret").length, 12);
+assert.strictEqual(secretFingerprint(" shared-secret "), secretFingerprint("shared-secret"));
+assert.strictEqual(secretFingerprint("different-secret").length, 12);
+assert.notStrictEqual(
+  secretFingerprint("different-secret"),
+  secretFingerprint("shared-secret")
+);
 
 const valid = verifySignature(
   [{ key: "ONLINE_REWARD_WEBHOOK_SECRET", value: "shared-secret" }],

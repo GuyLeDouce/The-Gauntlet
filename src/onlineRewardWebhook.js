@@ -7,6 +7,7 @@ const crypto = require("crypto");
 const LOG_PREFIX = "[GAUNTLET:ONLINE-REWARD]";
 const DEFAULT_PATH = "/webhooks/gauntlet-online/reward";
 const MAX_BODY_BYTES = 64 * 1024;
+const SECRET_FINGERPRINT_PREFIX = "gauntlet-online-reward";
 const SECRET_ENV_KEYS = [
   "ONLINE_REWARD_WEBHOOK_SECRET",
   "GAUNTLET_DISCORD_REWARD_WEBHOOK_SECRET",
@@ -36,6 +37,20 @@ function getStore() {
 
 function getDripRewards() {
   return require("./drip");
+}
+
+function secretFingerprint(secret) {
+  const value = String(secret || "").trim();
+  if (!value) return "";
+  return crypto
+    .createHash("sha256")
+    .update(`${SECRET_FINGERPRINT_PREFIX}:${value}`)
+    .digest("hex")
+    .slice(0, 12);
+}
+
+function configuredSecretFingerprints(secrets) {
+  return secrets.map((entry) => `${entry.key}:${secretFingerprint(entry.value)}`);
 }
 
 function configuredPath() {
@@ -364,6 +379,8 @@ async function handleRewardRequest(req, res, client, config) {
   const timestamp = getHeader(req, "x-gauntlet-timestamp");
   const signature = getHeader(req, "x-gauntlet-signature");
   const idempotencyKey = getHeader(req, "x-gauntlet-idempotency-key");
+  const senderSecretFingerprint =
+    getHeader(req, "x-gauntlet-secret-fingerprint") || "missing";
 
   if (!timestamp || !signature) {
     sendJson(res, 401, { ok: false, paid: false, reason: "missing_signature" });
@@ -380,7 +397,7 @@ async function handleRewardRequest(req, res, client, config) {
   const signatureResult = verifySignature(config.secrets, timestamp, rawBody, signature);
   if (!signatureResult.ok) {
     warn(
-      `Invalid reward webhook signature reason=${signatureResult.reason} bodyBytes=${rawBody.length} secretSources=${config.secrets.map((entry) => entry.key).join(",")}`
+      `Invalid reward webhook signature reason=${signatureResult.reason} bodyBytes=${rawBody.length} senderSecretFingerprint=${senderSecretFingerprint} serverSecretFingerprints=${configuredSecretFingerprints(config.secrets).join(",")}`
     );
     sendJson(res, 401, { ok: false, paid: false, reason: "invalid_signature" });
     return;
@@ -454,8 +471,35 @@ async function handleRewardRequest(req, res, client, config) {
 
 async function handleRequest(req, res, client, config) {
   const requestUrl = new URL(req.url || "/", "http://localhost");
+  if (req.method === "GET" && requestUrl.pathname === "/health") {
+    sendJson(res, 200, {
+      ok: true,
+      service: "the-gauntlet",
+      rewardWebhook: {
+        enabled: true,
+        path: config.path,
+        method: "POST",
+        secretConfigured: config.secrets.length > 0,
+        secretSources: config.secrets.map((entry) => entry.key),
+      },
+    });
+    return;
+  }
+
   if (requestUrl.pathname !== config.path) {
     sendJson(res, 404, { ok: false, reason: "not_found" });
+    return;
+  }
+
+  if (req.method === "GET" || req.method === "HEAD") {
+    sendJson(res, 200, {
+      ok: true,
+      service: "the-gauntlet",
+      webhook: "gauntlet-online-reward",
+      path: config.path,
+      method: "POST",
+      secretConfigured: config.secrets.length > 0,
+    });
     return;
   }
 
@@ -524,7 +568,7 @@ async function startOnlineRewardWebhook(client) {
     activeServer.listen(config.port, "0.0.0.0", () => {
       activeServer.off("error", onError);
       log(
-        `Webhook server listening on 0.0.0.0:${config.port} path=${config.path} secretSources=${config.secrets.map((entry) => entry.key).join(",")}`
+        `Webhook server listening on 0.0.0.0:${config.port} path=${config.path} secretFingerprints=${configuredSecretFingerprints(config.secrets).join(",")}`
       );
       resolve();
     });
@@ -536,6 +580,7 @@ async function startOnlineRewardWebhook(client) {
 module.exports = {
   startOnlineRewardWebhook,
   configuredSecrets,
+  secretFingerprint,
   signatureDigest,
   verifySignature,
 };
