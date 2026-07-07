@@ -386,7 +386,8 @@ function normalizeSurvivalSettings(raw = {}) {
     ? requestedEraKey
     : matchedEraByLabel || "day_one";
   const eraDefinition = getSurvivalEraDefinition(eraKey);
-  const timeMinutes = Math.max(1, Number(raw?.time_minutes || raw?.minutes || 5) || 5);
+  const parsedTime = parseSurvivalDurationInput(raw?.time_minutes ?? raw?.minutes ?? 5);
+  const timeMinutes = parsedTime.ok ? parsedTime.minutes : 5;
   const bonusRequiredPlayers = Math.max(
     1,
     Number(raw?.bonus_required_players || raw?.bonus_required || 10) || 10
@@ -515,7 +516,11 @@ function buildSurvivalSettingsEmbed(mode, settings, note = null, options = {}) {
     `Type: **${SURVIVAL_TYPE_LABELS[cfg.type]}**`,
     `Era: **${cfg.era}**`,
     `Ping Roles: **${formatSurvivalPingRoles(cfg.ping_role_ids)}**`,
-    `Time: **${cfg.type === "timed" ? `${cfg.time_minutes} minute(s)` : "N/A (Team Start)" }**`,
+    `Time: **${
+      cfg.type === "timed"
+        ? formatSurvivalDurationMinutes(cfg.time_minutes)
+        : "N/A (Team Start)"
+    }**`,
     `Creator Chaos: **${cfg.creator_chaos ? "Y" : "N"}**`,
     `Revives: **${cfg.revives_enabled ? "Y" : "N"}**`,
     `Bonus Active: **${cfg.bonus_active ? "Y" : "N"}**`,
@@ -681,10 +686,68 @@ async function persistSurvivalLobby(lobby) {
 
 function formatCountdown(ms) {
   const totalSec = Math.max(0, Math.floor(ms / 1000));
-  const mins = Math.floor(totalSec / 60);
-  const secs = totalSec % 60;
-  if (mins <= 0) return `${secs}s`;
-  return `${mins}m ${secs}s`;
+  const days = Math.floor(totalSec / 86_400);
+  const hours = Math.floor((totalSec % 86_400) / 3_600);
+  const minutes = Math.floor((totalSec % 3_600) / 60);
+  const seconds = totalSec % 60;
+  const parts = [];
+
+  if (days) parts.push(`${days} day${days === 1 ? "" : "s"}`);
+  if (hours) parts.push(`${hours} hour${hours === 1 ? "" : "s"}`);
+  if (minutes) parts.push(`${minutes} minute${minutes === 1 ? "" : "s"}`);
+  if (seconds || !parts.length) {
+    parts.push(`${seconds} second${seconds === 1 ? "" : "s"}`);
+  }
+
+  return parts.join(" ");
+}
+
+function formatSurvivalDurationMinutes(minutes) {
+  const normalizedMinutes = Math.max(1, Math.floor(Number(minutes || 5) || 5));
+  return formatCountdown(normalizedMinutes * 60_000);
+}
+
+function formatSurvivalDurationInput(minutes) {
+  const normalizedMinutes = Math.max(1, Math.floor(Number(minutes || 5) || 5));
+  const hours = Math.floor(normalizedMinutes / 60);
+  const mins = normalizedMinutes % 60;
+
+  if (hours && mins) return `${hours}h${mins}m`;
+  if (hours) return `${hours}h`;
+  return `${mins}m`;
+}
+
+function parseSurvivalDurationInput(raw) {
+  if (raw === null || raw === undefined) {
+    return { ok: false, reason: "Time is required." };
+  }
+
+  const input = String(raw).trim().toLowerCase().replace(/\s+/g, "");
+  if (!input) {
+    return { ok: false, reason: "Time is required." };
+  }
+
+  let totalMinutes = null;
+
+  if (/^\d+$/.test(input)) {
+    totalMinutes = Number(input);
+  } else {
+    const match = input.match(/^(?:(\d+)h)?(?:(\d+)m)?$/);
+    if (match && (match[1] || match[2])) {
+      const hours = match[1] ? Number(match[1]) : 0;
+      const minutes = match[2] ? Number(match[2]) : 0;
+      totalMinutes = hours * 60 + minutes;
+    }
+  }
+
+  if (!Number.isFinite(totalMinutes) || totalMinutes < 1) {
+    return {
+      ok: false,
+      reason: "Time must be at least 1 minute. Use formats like `5m`, `12h`, or `24h10m`.",
+    };
+  }
+
+  return { ok: true, minutes: Math.floor(totalMinutes) };
 }
 
 function buildSurvivalSetupParagraph(cfg, countdownMs, options = {}) {
@@ -693,7 +756,9 @@ function buildSurvivalSetupParagraph(cfg, countdownMs, options = {}) {
     options.noCountdownLabel || "The game starts when staff open it.";
   const timingText =
     cfg.type === "timed"
-      ? ` The timed round lasts **${cfg.time_minutes} minute(s)**.`
+      ? ` The timed round lasts **${formatSurvivalDurationMinutes(
+          cfg.time_minutes
+        )}**.`
       : "";
   const bonusText = cfg.bonus_active
     ? `Bonus mode is active, so hitting **${cfg.bonus_required_players}+** players boosts the total prize pool to **${formatSurvivalMultiplier(
@@ -2919,11 +2984,10 @@ async function registerCommands() {
           .setMinValue(1)
           .setRequired(false)
       )
-      .addIntegerOption((o) =>
+      .addStringOption((o) =>
         o
           .setName("time")
-          .setDescription("Timed mode duration in minutes")
-          .setMinValue(1)
+          .setDescription("Timed mode duration, like 5m, 12h, or 24h10m")
           .setRequired(false)
       )
       .addStringOption((o) =>
@@ -3539,7 +3603,7 @@ async function handleInteractionCreate(interaction) {
         const era = interaction.options.getString("era");
         const pingRoleInput = interaction.options.getString("ping_role");
         const pool = interaction.options.getInteger("pool");
-        const time = interaction.options.getInteger("time");
+        const time = interaction.options.getString("time");
         const creatorChaos = interaction.options.getString("creator_chaos");
         const revives = interaction.options.getString("revives");
         const bonus = interaction.options.getString("bonus");
@@ -3576,7 +3640,14 @@ async function handleInteractionCreate(interaction) {
         }
 
         if (time !== null) {
-          settings.time_minutes = time;
+          const parsedTime = parseSurvivalDurationInput(time);
+          if (!parsedTime.ok) {
+            return interaction.reply({
+              content: `❌ ${parsedTime.reason}`,
+              flags: 64,
+            });
+          }
+          settings.time_minutes = parsedTime.minutes;
         }
 
         if (creatorChaos !== null) {
@@ -3628,7 +3699,11 @@ async function handleInteractionCreate(interaction) {
             `Type: **${SURVIVAL_TYPE_LABELS[cfg.type]}**\n` +
             `Era: **${cfg.era}**\n` +
             `Ping: **${formatSurvivalPingRoles(cfg.ping_role_ids)}**\n` +
-            `Time: **${cfg.type === "timed" ? `${cfg.time_minutes} minute(s)` : "N/A (Staff)"}**\n` +
+            `Time: **${
+              cfg.type === "timed"
+                ? formatSurvivalDurationMinutes(cfg.time_minutes)
+                : "N/A (Staff)"
+            }**\n` +
             `Creator Chaos: **${cfg.creator_chaos ? "On" : "Off"}**\n` +
             `Revives: **${cfg.revives_enabled ? "On" : "Off"}**\n` +
             `Bonus: **${cfg.bonus_active ? "Active" : "Not Active"}**\n` +
@@ -4113,11 +4188,11 @@ async function handleInteractionCreate(interaction) {
       let note = null;
 
       if (interaction.customId === "survive:modal:time") {
-        const minutes = Number(value);
-        if (!Number.isFinite(minutes) || minutes < 1) {
-          note = "Time must be a whole number of at least 1 minute.";
+        const parsedTime = parseSurvivalDurationInput(value);
+        if (!parsedTime.ok) {
+          note = parsedTime.reason;
         } else {
-          session.settings.time_minutes = Math.floor(minutes);
+          session.settings.time_minutes = parsedTime.minutes;
         }
       }
 
@@ -4300,15 +4375,15 @@ async function handleInteractionCreate(interaction) {
       if (interaction.customId === "survive:config:time") {
         const modal = new ModalBuilder()
           .setCustomId("survive:modal:time")
-          .setTitle("Set Timed Minutes");
+          .setTitle("Set Timed Duration");
         modal.addComponents(
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
               .setCustomId("value")
-              .setLabel("Minutes")
+              .setLabel("Duration (5m, 12h, 24h10m)")
               .setStyle(TextInputStyle.Short)
               .setRequired(true)
-              .setValue(String(session.settings.time_minutes || 5))
+              .setValue(formatSurvivalDurationInput(session.settings.time_minutes))
           )
         );
         await interaction.showModal(modal);
