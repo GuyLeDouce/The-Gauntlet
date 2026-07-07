@@ -1865,7 +1865,7 @@ const GAUNTLET_ITEM_DEFS = {
   },
   greed: {
     label: "Greed",
-    description: "Doubles this room's reward, but a wrong choice ends the run.",
+    description: "Doubles this room's reward, but an unblocked wrong choice ends the run.",
   },
   anchor: {
     label: "Anchor",
@@ -2408,7 +2408,7 @@ async function useDecisionItem(state, itemKey) {
   }
   if (itemKey === "greed") {
     state.greedActive = true;
-    return "Greed armed. This room pays double, but a wrong choice ends the run.";
+    return "Greed armed. This room pays double, but an unblocked wrong choice ends the run.";
   }
   if (itemKey === "anchor") {
     state.anchorActive = true;
@@ -2655,7 +2655,7 @@ async function runSoloGauntletEphemeral(interaction) {
     const choiceIndex = Number(pick.customId.split(":").pop());
     let survived = choiceIndex === state.safeIndexForAttempt;
     const rewardEarned = getRoundReward(state, round);
-    const shieldSavedThisRoom = !survived && state.shieldActive && !state.greedActive;
+    const shieldSavedThisRoom = !survived && state.shieldActive;
     if (shieldSavedThisRoom) {
       survived = true;
     }
@@ -3283,7 +3283,7 @@ function buildDecisionGauntletInfoEmbed() {
         "**Consumable items:**",
         "- Peek: reveal the safe choice for the current room",
         "- Shield: block one fatal choice and clear the room",
-        "- Greed: double this room's reward; wrong choice ends the run",
+        "- Greed: double this room's reward; an unblocked wrong choice ends the run",
         "- Anchor: if this room kills you, restart from this room instead of Room 1",
         "",
         "Each player receives one of each item per day. Higher Greed Levels can earn extra items at run end.",
