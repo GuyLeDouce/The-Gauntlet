@@ -144,10 +144,6 @@ function pickUglyFortunePrize() {
   return UGLY_FORTUNE_PRIZES[UGLY_FORTUNE_PRIZES.length - 1];
 }
 
-function pickUglyFortunePreviewPrize() {
-  return UGLY_FORTUNE_PRIZES[randomInt(UGLY_FORTUNE_PRIZES.length)];
-}
-
 module.exports = {
   UGLY_FORTUNE_BONUS_PRIZE_KEY,
   UGLY_FORTUNE_BONUS_PRIZE_LABEL,
@@ -156,6 +152,5 @@ module.exports = {
   formatBonusPrizeValue,
   isUglyFortuneBonusPrize,
   normalizeBonusPrizeValue,
-  pickUglyFortunePreviewPrize,
   pickUglyFortunePrize,
 };
