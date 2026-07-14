@@ -77,9 +77,8 @@ const SURVIVAL_SHARE_DISCORD_CHANNEL_ID = "1334345680461762671";
 const SURVIVAL_IMAGE_PROMPT_CUSTOM_ID_PREFIX = "survive:image-prompt:";
 const SURVIVAL_IMAGE_PROMPT_MESSAGE_LIMIT = 1900;
 const UGLY_CITY_FOUNDER_IMAGE_URL = "https://i.imgur.com/CiETPBi.png";
-const UGLY_FORTUNE_SPIN_DELAY_MS = 1000;
-const UGLY_FORTUNE_SPIN_TICKS = 7;
-const UGLY_FORTUNE_ROTATION_VISIBLE_PRIZES = 5;
+const UGLY_FORTUNE_SPIN_DELAY_MS = 500;
+const UGLY_FORTUNE_SPIN_TICKS = 12;
 
 function buildSurvivalImageSubmissionRow() {
   return new ActionRowBuilder().addComponents(
@@ -90,20 +89,11 @@ function buildSurvivalImageSubmissionRow() {
   );
 }
 
-function buildUglyFortuneRotationLines(spinIndex) {
+function buildUglyFortuneRotationLabel(spinIndex) {
   const prizes = UGLY_FORTUNE_PRIZES;
-  if (!prizes.length) return [];
+  if (!prizes.length) return "Mystery Prize";
 
-  return Array.from(
-    { length: Math.min(UGLY_FORTUNE_ROTATION_VISIBLE_PRIZES, prizes.length) },
-    (_, index) => {
-      const prize = prizes[(spinIndex + index) % prizes.length];
-      const marker = index === Math.floor(UGLY_FORTUNE_ROTATION_VISIBLE_PRIZES / 2)
-        ? "> "
-        : "  ";
-      return `${marker}${prize.label}`;
-    }
-  );
+  return prizes[spinIndex % prizes.length]?.label || "Mystery Prize";
 }
 
 function buildUglyFortuneSpinEmbed(winnerMention, prize = null, options = {}) {
@@ -112,9 +102,7 @@ function buildUglyFortuneSpinEmbed(winnerMention, prize = null, options = {}) {
   if (options.spinning) {
     lines.push(
       "",
-      "```text",
-      ...buildUglyFortuneRotationLines(options.spinIndex || 0),
-      "```"
+      `Spinning: **${buildUglyFortuneRotationLabel(options.spinIndex || 0)}**`
     );
   } else if (prize?.label) {
     lines.push("", `Prize locked: **${prize.label}**`);
