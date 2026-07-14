@@ -3,6 +3,7 @@ const { randomInt } = require("crypto");
 const UGLY_FORTUNE_BONUS_PRIZE_KEY = "ugly_fortune";
 const UGLY_FORTUNE_BONUS_PRIZE_LABEL = "Ugly Fortune";
 const UGLY_FORTUNE_SPIN_TITLE = "Spin of Ugly Fortune";
+const UGLY_FORTUNE_WEIGHT_SCALE = 1000;
 
 const UGLY_FORTUNE_PRIZES = Object.freeze([
   {
@@ -51,41 +52,45 @@ const UGLY_FORTUNE_PRIZES = Object.freeze([
     key: "bogo_24hr_max_3",
     label: "24hr BOGO (max 3 uses)",
     charmAmount: 0,
-    weight: 11,
+    weight: 13,
     imageUrl: "https://i.imgur.com/BltS2WN.png",
   },
   {
     key: "rugdollz_3d",
     label: "RugDollz 3D",
     charmAmount: 0,
-    weight: 1,
+    weight: 0.5,
     imageUrl: "https://i.imgur.com/ZO0oMH8.png",
   },
   {
     key: "ghostlab",
     label: "GhostLab",
     charmAmount: 0,
-    weight: 1,
+    weight: 0.5,
     imageUrl: "https://i.imgur.com/r6d4ewT.png",
   },
   {
     key: "vision_of_the_void",
     label: "Vision of the Void",
     charmAmount: 0,
-    weight: 1,
+    weight: 0.5,
     imageUrl: "https://i.imgur.com/N5luKfS.png",
   },
   {
     key: "longlost",
     label: "LongLost",
     charmAmount: 0,
-    weight: 1,
+    weight: 0.5,
     imageUrl: "https://i.imgur.com/bxZuZUB.png",
   },
 ]);
 
 const UGLY_FORTUNE_TOTAL_WEIGHT = UGLY_FORTUNE_PRIZES.reduce(
   (sum, prize) => sum + prize.weight,
+  0
+);
+const UGLY_FORTUNE_TOTAL_WEIGHT_UNITS = UGLY_FORTUNE_PRIZES.reduce(
+  (sum, prize) => sum + Math.round(prize.weight * UGLY_FORTUNE_WEIGHT_SCALE),
   0
 );
 
@@ -136,10 +141,11 @@ function formatBonusPrizeValue(valueOrSettings) {
 }
 
 function pickUglyFortunePrize() {
-  let roll = randomInt(UGLY_FORTUNE_TOTAL_WEIGHT);
+  let roll = randomInt(UGLY_FORTUNE_TOTAL_WEIGHT_UNITS);
   for (const prize of UGLY_FORTUNE_PRIZES) {
-    if (roll < prize.weight) return prize;
-    roll -= prize.weight;
+    const weightUnits = Math.round(prize.weight * UGLY_FORTUNE_WEIGHT_SCALE);
+    if (roll < weightUnits) return prize;
+    roll -= weightUnits;
   }
   return UGLY_FORTUNE_PRIZES[UGLY_FORTUNE_PRIZES.length - 1];
 }
