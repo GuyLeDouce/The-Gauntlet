@@ -21,6 +21,13 @@ const {
   getUglyCityChapter,
   getUglyCityImagePromptForChapter,
 } = require("./survivalEras");
+const {
+  UGLY_FORTUNE_SPIN_TITLE,
+  isUglyFortuneBonusPrize,
+  normalizeBonusPrizeValue,
+  pickUglyFortunePreviewPrize,
+  pickUglyFortunePrize,
+} = require("./uglyFortune");
 
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 const REVEAL_DELAY_MS = 2000;
@@ -70,6 +77,8 @@ const SURVIVAL_SHARE_DISCORD_CHANNEL_ID = "1334345680461762671";
 const SURVIVAL_IMAGE_PROMPT_CUSTOM_ID_PREFIX = "survive:image-prompt:";
 const SURVIVAL_IMAGE_PROMPT_MESSAGE_LIMIT = 1900;
 const UGLY_CITY_FOUNDER_IMAGE_URL = "https://i.imgur.com/CiETPBi.png";
+const UGLY_FORTUNE_SPIN_DELAY_MS = 900;
+const UGLY_FORTUNE_SPIN_TICKS = 9;
 
 function buildSurvivalImageSubmissionRow() {
   return new ActionRowBuilder().addComponents(
@@ -78,6 +87,114 @@ function buildSurvivalImageSubmissionRow() {
       .setLabel("Submit Image")
       .setURL(SURVIVAL_IMAGE_SUBMISSION_URL)
   );
+}
+
+function buildUglyFortuneSpinEmbed(winnerMention, prize = null) {
+  const lines = [`${winnerMention} is about to find out what their bonus is...`];
+  if (prize?.label) {
+    lines.push("", `Spinning: **${prize.label}**`);
+  }
+
+  const embed = new EmbedBuilder()
+    .setTitle(UGLY_FORTUNE_SPIN_TITLE)
+    .setDescription(lines.join("\n"))
+    .setColor(0xf1c40f);
+
+  if (prize?.imageUrl) {
+    embed.setImage(prize.imageUrl);
+  }
+
+  return embed;
+}
+
+async function sendUglyFortuneCharmPrize(channel, winnerId, winnerName, prize) {
+  const reward = await rewardCharmAmount({
+    userId: winnerId,
+    username: winnerName || `Player-${winnerId}`,
+    amount: prize.charmAmount,
+    source: "ugly-fortune",
+    guildId: channel.guildId,
+    channelId: channel.id,
+    metadata: {
+      mode: "ugly-fortune",
+      prizeKey: prize.key,
+      prizeLabel: prize.label,
+    },
+    logClient: channel.client,
+    logReason: `${UGLY_FORTUNE_SPIN_TITLE} bonus`,
+  });
+
+  if (reward?.ok) {
+    await logCharmReward(channel.client, {
+      userId: winnerId,
+      amount: prize.charmAmount,
+      score: 0,
+      source: "ugly-fortune",
+      channelId: channel.id,
+      reason: `${UGLY_FORTUNE_SPIN_TITLE} bonus (${prize.label})`,
+    });
+  }
+
+  return reward;
+}
+
+async function sendUglyFortuneSpin(channel, winnerId, winnerName, options = {}) {
+  if (!channel?.send || !winnerId) return null;
+
+  const winnerMention = `<@${winnerId}>`;
+  const selectedPrize = pickUglyFortunePrize();
+  const spinMessage = await channel.send({
+    embeds: [buildUglyFortuneSpinEmbed(winnerMention)],
+  });
+
+  for (let i = 0; i < UGLY_FORTUNE_SPIN_TICKS; i += 1) {
+    await sleep(UGLY_FORTUNE_SPIN_DELAY_MS);
+    const previewPrize =
+      i === UGLY_FORTUNE_SPIN_TICKS - 1
+        ? selectedPrize
+        : pickUglyFortunePreviewPrize();
+    try {
+      await spinMessage.edit({
+        embeds: [buildUglyFortuneSpinEmbed(winnerMention, previewPrize)],
+      });
+    } catch {}
+  }
+
+  const isCharmPrize = Number(selectedPrize.charmAmount) > 0;
+  let fulfillmentLine = "The team will fulfill this prize.";
+
+  if (options.testMode) {
+    fulfillmentLine =
+      "Test spin only - no payout or team fulfillment was triggered.";
+  } else if (isCharmPrize) {
+    const reward = await sendUglyFortuneCharmPrize(
+      channel,
+      winnerId,
+      winnerName,
+      selectedPrize
+    );
+    fulfillmentLine = reward?.ok
+      ? `Receipt: **${selectedPrize.label}** sent through DRIP.`
+      : "Automatic $CHARM payout failed; the team should review this bonus.";
+  }
+
+  await channel.send({
+    content: `${winnerMention} gets **${selectedPrize.label}**!! Congratulations.\n${fulfillmentLine}`,
+  });
+
+  return selectedPrize;
+}
+
+async function sendUglyFortuneSpinIfEnabled(
+  channel,
+  winnerId,
+  winnerName,
+  settings
+) {
+  if (!isUglyFortuneBonusPrize(settings)) return null;
+  return sendUglyFortuneSpin(channel, winnerId, winnerName, {
+    testMode: Boolean(settings?.test_mode),
+  });
 }
 
 function upsertSurvivalRunStatus(runKey, joinedIds, aliveIds, ended = false, metadata = {}) {
@@ -908,6 +1025,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
       1,
       Number(settings?.bonus_multiplier || 1) || 1
     ),
+    bonus_prize: normalizeBonusPrizeValue(settings?.bonus_prize),
     test_mode: Boolean(settings?.test_mode),
     test_player_names:
       settings?.test_player_names && typeof settings.test_player_names === "object"
@@ -1074,6 +1192,12 @@ async function runSurvival(channel, playerIds, settings = {}) {
       awardedPayouts,
       creatorRewardTotals,
       shareSessionId
+    );
+    await sendUglyFortuneSpinIfEnabled(
+      channel,
+      alive[0],
+      nameOf(alive[0]),
+      normalizedSettings
     );
     clearActiveSurvivalRun(channel.id);
     await channel.send({
@@ -1535,6 +1659,12 @@ async function runSurvival(channel, playerIds, settings = {}) {
     creatorRewardTotals,
     shareSessionId
   );
+  await sendUglyFortuneSpinIfEnabled(
+    channel,
+    winnerId,
+    nameOf(winnerId),
+    normalizedSettings
+  );
   clearActiveSurvivalRun(channel.id);
 }
 
@@ -1769,6 +1899,14 @@ async function sendSurvivalCreatorPayouts(channel, creatorRewardTotals = new Map
   }
 }
 
+async function postUglyFortuneTest(channel, winnerId) {
+  if (!channel || !winnerId) return false;
+  await sendUglyFortuneSpin(channel, winnerId, `Player-${winnerId}`, {
+    testMode: true,
+  });
+  return true;
+}
+
 async function postSurvivalFinalSummaryTest(channel, userId) {
   if (!channel || !userId) return false;
 
@@ -1801,6 +1939,7 @@ module.exports = {
   clearActiveSurvivalRun,
   getSurvivalShareData,
   postSurvivalFinalSummaryTest,
+  postUglyFortuneTest,
   SURVIVAL_SHARE_DISCORD_CHANNEL_ID,
   handlePublicReviveCommand,
   handleSurvivalImagePromptButton,

@@ -52,11 +52,19 @@ const {
   clearActiveSurvivalRun,
   getSurvivalShareData,
   postSurvivalFinalSummaryTest,
+  postUglyFortuneTest,
   SURVIVAL_SHARE_DISCORD_CHANNEL_ID,
   handlePublicReviveCommand,
   handleSurvivalImagePromptButton,
 } = require("./survival");
 const { SURVIVAL_ERAS, getSurvivalEraDefinition } = require("./survivalEras");
+const {
+  UGLY_FORTUNE_BONUS_PRIZE_KEY,
+  UGLY_FORTUNE_BONUS_PRIZE_LABEL,
+  formatBonusPrizeValue,
+  isUglyFortuneBonusPrize,
+  normalizeBonusPrizeValue,
+} = require("./uglyFortune");
 const { rewardCharmAmount, logCharmReward, DRIP_LOG_CHANNEL_ID } = require("./drip");
 const { imageStore } = require("./imageStore");
 const { survivalStore } = require("./survivalStore");
@@ -418,7 +426,7 @@ function normalizeSurvivalSettings(raw = {}) {
     Number.isFinite(rawBonusMultiplier) && rawBonusMultiplier >= 1
       ? Number(rawBonusMultiplier.toFixed(2))
       : 1.5;
-  const bonusPrize = String(raw?.bonus_prize || "").trim().slice(0, 300);
+  const bonusPrize = normalizeBonusPrizeValue(raw?.bonus_prize);
 
   return {
     type,
@@ -436,7 +444,7 @@ function normalizeSurvivalSettings(raw = {}) {
     bonus_active: Boolean(raw?.bonus_active),
     bonus_required_players: bonusRequiredPlayers,
     bonus_multiplier: bonusMultiplier,
-    bonus_prize: bonusPrize || null,
+    bonus_prize: bonusPrize,
     replay: Boolean(raw?.replay),
     pool_increment:
       Math.max(1, Number(raw?.pool_increment || SURVIVAL_BASE_POOL_INCREMENT) || 1) ||
@@ -449,7 +457,7 @@ function cloneSurvivalSettings(settings) {
 }
 
 function formatSurvivalBonusPrize(settings) {
-  return settings?.bonus_prize || "None";
+  return formatBonusPrizeValue(settings);
 }
 
 function getSurvivalPrizeLabel(settings) {
@@ -656,7 +664,16 @@ function buildSurvivalSettingsComponents(mode, settings, options = {}) {
             ? ButtonStyle.Success
             : ButtonStyle.Secondary
         )
-        .setDisabled(!cfg.bonus_active)
+        .setDisabled(!cfg.bonus_active),
+      new ButtonBuilder()
+        .setCustomId("survive:config:bonus-prize:ugly-fortune")
+        .setLabel(UGLY_FORTUNE_BONUS_PRIZE_LABEL)
+        .setStyle(
+          isUglyFortuneBonusPrize(cfg)
+            ? ButtonStyle.Success
+            : ButtonStyle.Secondary
+        )
+        .setDisabled(!cfg.bonus_active && !isPlayerCountStart)
     ),
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -848,26 +865,38 @@ function buildSurvivalSetupParagraph(cfg, countdownMs, options = {}) {
   return `${countdownText}. This lobby is set to the **${cfg.era}** era, with **+${cfg.pool_increment} $CHARM per Squig** added to the prize pool.${timingText} ${creatorChaosText}, and **!revive** is **${cfg.revives_enabled ? "ON" : "OFF"}**. ${bonusText}${bonusPrizeText}.`;
 }
 
+function buildUglyCityLobbyDescription(cfg, count, countdownMs) {
+  const squigCount = `${count} Squig${count === 1 ? "" : "s"}`;
+  const joinVerb = count === 1 ? "has" : "have";
+  const startText =
+    typeof countdownMs === "number"
+      ? `the game starts in ${formatCountdown(countdownMs)}`
+      : isSurvivalPlayerCountStart(cfg)
+      ? `construction begins after ${cfg.bonus_required_players} Squig${
+          cfg.bonus_required_players === 1 ? "" : "s"
+        } join`
+      : "construction begins when staff start the game";
+  const winnerPrize = isUglyFortuneBonusPrize(cfg)
+    ? "a Spin of Ugly Fortune"
+    : cfg.bonus_prize
+    ? formatSurvivalBonusPrize(cfg)
+    : "the prize pool";
+
+  return [
+    `${squigCount} ${joinVerb} joined the build crew, and ${startText}.`,
+    `Each Squig adds ${cfg.pool_increment} $CHARM to the prize pool. Two Squigs are eliminated every milestone, revives are ${
+      cfg.revives_enabled ? "on" : "off"
+    }, and the winner receives ${winnerPrize}.`,
+    "Click Join before construction begins.",
+  ].join("\n");
+}
+
 function buildSurvivalLobbyEmbed(settings, count, countdownMs) {
   const cfg = normalizeSurvivalSettings(settings);
   if (cfg.era_key === "ugly_city") {
-    const lines = [
-      "An empty patch of dirt has been claimed, the permits are definitely fake, and the Squigs are ready to build the world's worst city one disaster at a time.",
-      "",
-      buildSurvivalSetupParagraph(cfg, countdownMs, {
-        countdownLabel: "Construction begins in",
-        noCountdownLabel: "Construction begins when staff hand over the clipboard",
-      }),
-      "",
-      `Right now there ${count === 1 ? "is" : "are"} **${count}** Squig${
-        count === 1 ? "" : "s"
-      } on the build crew. Click **Join** before the first permit gets laminated incorrectly.`,
-    ];
-
     return new EmbedBuilder()
-      .setTitle("Squig Survival - Ugly City Build Crew")
-      .setDescription(lines.join("\n"))
-      .setImage("https://i.imgur.com/iZBKYcw.png")
+      .setTitle("Squig Survival: The Rise of Ugly City")
+      .setDescription(buildUglyCityLobbyDescription(cfg, count, countdownMs))
       .setColor(0x9b59b6);
   }
 
@@ -3159,8 +3188,9 @@ async function registerCommands() {
       .addStringOption((o) =>
         o
           .setName("bonus_prize")
-          .setDescription("Optional NFT prize name or link")
+          .setDescription("Optional bonus prize; select Ugly Fortune or type a prize/link")
           .setMaxLength(300)
+          .setAutocomplete(true)
           .setRequired(false)
       )
       .addStringOption((o) =>
@@ -3202,6 +3232,15 @@ async function registerCommands() {
     new SlashCommandBuilder()
       .setName("podiumtest")
       .setDescription("Test the Squig Survival podium art (uses your avatar)."),
+    new SlashCommandBuilder()
+      .setName("fortunetest")
+      .setDescription("Test the Spin of Ugly Fortune prize reveal without payout (admins only).")
+      .addUserOption((o) =>
+        o
+          .setName("winner")
+          .setDescription("Winner to display in the test spin (default: you)")
+          .setRequired(false)
+      ),
     new SlashCommandBuilder()
       .setName("adduser")
       .setDescription("Manually map Discord ID to DRIP user ID (admins only).")
@@ -3599,6 +3638,23 @@ function isAdminUserLocal(interaction) {
 // --------------------------------------------
 async function handleInteractionCreate(interaction) {
   try {
+    if (interaction.isAutocomplete()) {
+      if (interaction.commandName === "survive") {
+        const focused = interaction.options.getFocused(true);
+        if (focused?.name === "bonus_prize") {
+          const query = String(focused.value || "").trim().toLowerCase();
+          const choices = [
+            {
+              name: UGLY_FORTUNE_BONUS_PRIZE_LABEL,
+              value: UGLY_FORTUNE_BONUS_PRIZE_KEY,
+            },
+          ].filter((choice) => choice.name.toLowerCase().includes(query));
+          return interaction.respond(choices.slice(0, 25));
+        }
+      }
+      return interaction.respond([]);
+    }
+
     // Slash commands
     if (interaction.isChatInputCommand()) {
       // /groupgauntlet ? group mode
@@ -3789,7 +3845,7 @@ async function handleInteractionCreate(interaction) {
         }
 
         if (bonusPrize !== null) {
-          settings.bonus_prize = bonusPrize;
+          settings.bonus_prize = normalizeBonusPrizeValue(bonusPrize);
         }
 
         if (replay !== null) {
@@ -3986,6 +4042,23 @@ async function handleInteractionCreate(interaction) {
           embeds: [embed],
           files: [attachment],
         });
+      }
+
+      // /fortunetest
+      if (interaction.commandName === "fortunetest") {
+        if (!isAdminUserLocal(interaction)) {
+          return interaction.reply({
+            content: "⛔ Only admins can use /fortunetest.",
+            flags: 64,
+          });
+        }
+
+        const winner = interaction.options.getUser("winner") || interaction.user;
+        await interaction.reply({
+          content: `Testing Spin of Ugly Fortune for <@${winner.id}>. No payout will be sent.`,
+        });
+        await postUglyFortuneTest(interaction.channel, winner.id);
+        return;
       }
 
       // /adduser
@@ -4671,6 +4744,12 @@ async function handleInteractionCreate(interaction) {
 
       if (interaction.customId === "survive:config:replay") {
         session.settings.replay = !session.settings.replay;
+      }
+
+      if (interaction.customId === "survive:config:bonus-prize:ugly-fortune") {
+        session.settings.bonus_prize = isUglyFortuneBonusPrize(session.settings)
+          ? null
+          : UGLY_FORTUNE_BONUS_PRIZE_KEY;
       }
 
       if (interaction.customId.startsWith("survive:config:bonus-mult:")) {
