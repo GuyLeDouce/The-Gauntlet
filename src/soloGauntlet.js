@@ -897,6 +897,7 @@ function buildSurvivalLobbyEmbed(settings, count, countdownMs) {
     return new EmbedBuilder()
       .setTitle("Squig Survival: The Rise of Ugly City")
       .setDescription(buildUglyCityLobbyDescription(cfg, count, countdownMs))
+      .setImage("https://i.imgur.com/iZBKYcw.png")
       .setColor(0x9b59b6);
   }
 
