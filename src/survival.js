@@ -77,10 +77,9 @@ const SURVIVAL_SHARE_DISCORD_CHANNEL_ID = "1334345680461762671";
 const SURVIVAL_IMAGE_PROMPT_CUSTOM_ID_PREFIX = "survive:image-prompt:";
 const SURVIVAL_IMAGE_PROMPT_MESSAGE_LIMIT = 1900;
 const UGLY_CITY_FOUNDER_IMAGE_URL = "https://i.imgur.com/CiETPBi.png";
-const UGLY_FORTUNE_SPIN_DELAY_MS = 500;
-const UGLY_FORTUNE_SPIN_TICKS = 4;
+const UGLY_FORTUNE_SPIN_DELAY_MS = 1000;
+const UGLY_FORTUNE_SPIN_TICKS = 7;
 const UGLY_FORTUNE_ROTATION_VISIBLE_PRIZES = 5;
-const UGLY_FORTUNE_SPIN_IMAGE_ATTACHMENT = "ugly-fortune-spin.png";
 
 function buildSurvivalImageSubmissionRow() {
   return new ActionRowBuilder().addComponents(
@@ -107,88 +106,6 @@ function buildUglyFortuneRotationLines(spinIndex) {
   );
 }
 
-function buildUglyFortuneSpinImageBuffer() {
-  const width = 1200;
-  const height = 675;
-  const canvas = createCanvas(width, height);
-  const ctx = canvas.getContext("2d");
-
-  const gradient = ctx.createLinearGradient(0, 0, width, height);
-  gradient.addColorStop(0, "#140d21");
-  gradient.addColorStop(0.55, "#31223f");
-  gradient.addColorStop(1, "#0e1f2b");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, width, height);
-
-  ctx.strokeStyle = "#f2c14e";
-  ctx.lineWidth = 12;
-  ctx.strokeRect(32, 32, width - 64, height - 64);
-
-  ctx.fillStyle = "#f8e7a1";
-  ctx.font = "bold 58px sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText("SPIN OF UGLY FORTUNE", width / 2, 110);
-
-  ctx.fillStyle = "#d6f5ff";
-  ctx.font = "26px sans-serif";
-  ctx.fillText("Prize reel loading...", width / 2, 154);
-
-  const startX = 95;
-  const startY = 215;
-  const boxWidth = 310;
-  const boxHeight = 62;
-  const gapX = 40;
-  const gapY = 26;
-  const columns = 3;
-
-  UGLY_FORTUNE_PRIZES.forEach((prize, index) => {
-    const col = index % columns;
-    const row = Math.floor(index / columns);
-    const x = startX + col * (boxWidth + gapX);
-    const y = startY + row * (boxHeight + gapY);
-
-    ctx.fillStyle = index % 2 === 0 ? "#201a2d" : "#172635";
-    ctx.strokeStyle = "#7ad7ff";
-    ctx.lineWidth = 3;
-    roundRect(ctx, x, y, boxWidth, boxHeight, 12);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 22px sans-serif";
-    ctx.textAlign = "left";
-    const label = String(prize.label || "").slice(0, 25);
-    ctx.fillText(label, x + 18, y + 38);
-
-    ctx.fillStyle = "#f2c14e";
-    ctx.font = "18px sans-serif";
-    ctx.textAlign = "right";
-    ctx.fillText(`${prize.weight}%`, x + boxWidth - 18, y + 38);
-  });
-
-  ctx.fillStyle = "#f8e7a1";
-  ctx.font = "bold 30px sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText("The final prize image appears when the reel stops.", width / 2, 612);
-
-  return canvas.toBuffer("image/png");
-}
-
-function roundRect(ctx, x, y, width, height, radius) {
-  const safeRadius = Math.min(radius, width / 2, height / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + safeRadius, y);
-  ctx.lineTo(x + width - safeRadius, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + safeRadius);
-  ctx.lineTo(x + width, y + height - safeRadius);
-  ctx.quadraticCurveTo(x + width, y + height, x + width - safeRadius, y + height);
-  ctx.lineTo(x + safeRadius, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - safeRadius);
-  ctx.lineTo(x, y + safeRadius);
-  ctx.quadraticCurveTo(x, y, x + safeRadius, y);
-  ctx.closePath();
-}
-
 function buildUglyFortuneSpinEmbed(winnerMention, prize = null, options = {}) {
   const lines = [`${winnerMention} is about to find out what their bonus is...`];
 
@@ -207,11 +124,6 @@ function buildUglyFortuneSpinEmbed(winnerMention, prize = null, options = {}) {
     .setTitle(UGLY_FORTUNE_SPIN_TITLE)
     .setDescription(lines.join("\n"))
     .setColor(0xf1c40f);
-
-  if (options.spinVisual) {
-    embed.setImage(`attachment://${UGLY_FORTUNE_SPIN_IMAGE_ATTACHMENT}`);
-    return embed;
-  }
 
   if (prize?.imageUrl && options.showImage !== false) {
     embed.setImage(prize.imageUrl);
@@ -256,18 +168,13 @@ async function sendUglyFortuneSpin(channel, winnerId, winnerName, options = {}) 
 
   const winnerMention = `<@${winnerId}>`;
   const selectedPrize = pickUglyFortunePrize();
-  const spinImage = new AttachmentBuilder(buildUglyFortuneSpinImageBuffer(), {
-    name: UGLY_FORTUNE_SPIN_IMAGE_ATTACHMENT,
-  });
   const spinMessage = await channel.send({
     embeds: [
       buildUglyFortuneSpinEmbed(winnerMention, null, {
         spinning: true,
         spinIndex: 0,
-        spinVisual: true,
       }),
     ],
-    files: [spinImage],
   });
 
   for (let i = 1; i <= UGLY_FORTUNE_SPIN_TICKS; i += 1) {
@@ -278,7 +185,6 @@ async function sendUglyFortuneSpin(channel, winnerId, winnerName, options = {}) 
           buildUglyFortuneSpinEmbed(winnerMention, null, {
             spinning: true,
             spinIndex: i,
-            spinVisual: true,
           }),
         ],
       });
@@ -288,7 +194,6 @@ async function sendUglyFortuneSpin(channel, winnerId, winnerName, options = {}) 
   try {
     await spinMessage.edit({
       embeds: [buildUglyFortuneSpinEmbed(winnerMention, selectedPrize)],
-      attachments: [],
     });
   } catch {}
 
