@@ -866,13 +866,13 @@ function buildSurvivalSetupParagraph(cfg, countdownMs, options = {}) {
 }
 
 function buildUglyCityLobbyDescription(cfg, count, countdownMs) {
-  const squigCount = `${count} Squig${count === 1 ? "" : "s"}`;
+  const squigCount = `**${count}** Squig${count === 1 ? "" : "s"}`;
   const joinVerb = count === 1 ? "has" : "have";
   const startText =
     typeof countdownMs === "number"
       ? `the game starts in ${formatCountdown(countdownMs)}`
       : isSurvivalPlayerCountStart(cfg)
-      ? `construction begins after ${cfg.bonus_required_players} Squig${
+      ? `construction begins after **${cfg.bonus_required_players}** Squig${
           cfg.bonus_required_players === 1 ? "" : "s"
         } join`
       : "construction begins when staff start the game";
@@ -884,10 +884,10 @@ function buildUglyCityLobbyDescription(cfg, count, countdownMs) {
 
   return [
     `${squigCount} ${joinVerb} joined the build crew, and ${startText}.`,
-    `Each Squig adds ${cfg.pool_increment} $CHARM to the prize pool. Two Squigs are eliminated every milestone, revives are ${
+    `Each Squig adds **${cfg.pool_increment} $CHARM** to the prize pool. Two Squigs are eliminated every milestone, revives are ${
       cfg.revives_enabled ? "on" : "off"
     }, and the winner receives ${winnerPrize}.`,
-    "Click Join before construction begins.",
+    "Click **Join** before construction begins.",
   ].join("\n");
 }
 
