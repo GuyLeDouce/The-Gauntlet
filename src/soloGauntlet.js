@@ -68,10 +68,15 @@ const {
 const { rewardCharmAmount, logCharmReward, DRIP_LOG_CHANNEL_ID } = require("./drip");
 const { imageStore } = require("./imageStore");
 const { survivalStore } = require("./survivalStore");
+const { snapshotSurvivalSquigTraits } = require("./squigTraitSnapshot");
 const SURVIVAL_SHARE_REWARD_AMOUNT = 150;
 const SURVIVAL_SHARE_LOOKBACK_MS = 15 * 60_000;
 const SURVIVAL_IMAGE_SUBMISSION_URL =
   "https://imagesubmit-production.up.railway.app/";
+const SURVIVAL_PLAYER_COUNT_START_IMAGE_URLS = [
+  "https://i.imgur.com/Y3umEYK.png",
+  "https://i.imgur.com/pyL0HHe.png",
+];
 const URL_PATTERN = /https?:\/\/\S+/i;
 
 // --------------------------------------------
@@ -1212,6 +1217,13 @@ async function triggerSurvivalPlayerCountCountdown(lobby, channel) {
     await channel.send(
       jumpRow ? { content: msg, components: [jumpRow] } : { content: msg }
     );
+    await channel.send({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0xf1c40f)
+          .setImage(rand(SURVIVAL_PLAYER_COUNT_START_IMAGE_URLS)),
+      ],
+    });
   } catch {}
 
   setupSurvivalCountdown(lobby, channel);
@@ -1440,6 +1452,11 @@ async function startSurvivalFromLobby(interaction, lobby) {
           .setColor(0x2ecc71);
 
   await channel.send({ embeds: [startEmbed] });
+
+  settings.squig_trait_snapshot = await snapshotSurvivalSquigTraits({
+    client: channel.client,
+    playerIds: players,
+  });
 
   try {
     await runSurvival(channel, players, settings);

@@ -1056,6 +1056,10 @@ async function runSurvival(channel, playerIds, settings = {}) {
       settings?.test_player_names && typeof settings.test_player_names === "object"
         ? settings.test_player_names
         : null,
+    squig_trait_snapshot:
+      settings?.squig_trait_snapshot && typeof settings.squig_trait_snapshot === "object"
+        ? settings.squig_trait_snapshot
+        : null,
   };
   const defaultEraDefinition = getSurvivalEraDefinition("day_one");
   const eraDefinition = getSurvivalEraDefinition(normalizedSettings.era_key);
@@ -1155,6 +1159,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
     creatorRewardTotals,
     usedImageUrls,
     dbRewardMap,
+    squigTraitSnapshot: normalizedSettings.squig_trait_snapshot,
     testMode: normalizedSettings.test_mode,
     stageImagePool: mergedStageImages,
     stageImageBag: shuffle(mergedStageImages),
