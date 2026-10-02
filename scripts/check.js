@@ -29,4 +29,6 @@ for (const file of jsFiles(root)) {
 
 run(process.execPath, [join(__dirname, "online-reward-webhook-check.js")]);
 
+run(process.execPath, [join(__dirname, "survival-control-check.js")]);
+
 console.log("Gauntlet bot check passed.");
