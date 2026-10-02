@@ -1,4 +1,4 @@
-﻿// src/soloGauntlet.js
+// src/soloGauntlet.js
 // Solo-mode Gauntlet controller: commands, buttons, and ephemeral game flow.
 
 const {
@@ -474,20 +474,16 @@ async function getSurvivalStandardSettings(forceRefresh = false) {
     return cloneSurvivalSettings(survivalStandardSettings);
   }
 
-  try {
-    const saved = await Store.getSurvivalSettings();
-    survivalStandardSettings = normalizeSurvivalSettings(saved || {});
-  } catch {
-    survivalStandardSettings = normalizeSurvivalSettings();
-  }
+  const saved = await Store.getSurvivalSettings();
+  survivalStandardSettings = normalizeSurvivalSettings(saved || {});
 
   return cloneSurvivalSettings(survivalStandardSettings);
 }
 
 async function saveSurvivalStandardSettings(settings) {
   const normalized = normalizeSurvivalSettings(settings);
-  survivalStandardSettings = normalized;
   await Store.upsertSurvivalSettings(normalized);
+  survivalStandardSettings = normalized;
   return cloneSurvivalSettings(normalized);
 }
 
@@ -495,7 +491,7 @@ function buildSurvivalMenuEmbed(standardSettings, note = null) {
   const settings = normalizeSurvivalSettings(standardSettings);
   const isPlayerCountStart = isSurvivalPlayerCountStart(settings);
   const lines = [
-    "Use this hidden panel to start a Survival lobby or change the saved standard setup.",
+    "Start Lobby uses saved defaults. Start Game manually starts the open lobby. Timed games start automatically. Settings apply to the next lobby; active games keep their snapshot.",
     "",
     `Active lobby: **${survivalLobby ? "Yes" : "No"}**`,
     `Standard Type: **${SURVIVAL_TYPE_LABELS[settings.type]}**`,
@@ -523,7 +519,7 @@ function buildSurvivalMenuEmbed(standardSettings, note = null) {
   }
 
   return new EmbedBuilder()
-    .setTitle("Squig Survival - Hidden Menu")
+    .setTitle("Squig Survival — Admin Control Panel")
     .setDescription(lines.join("\n"))
     .setColor(0x9b59b6);
 }
@@ -532,16 +528,16 @@ function buildSurvivalMenuComponents() {
   return [
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId("survive:menu:play-standard")
-        .setLabel("Play Standard")
+        .setCustomId("survive:menu:start-lobby")
+        .setLabel("Start Lobby")
         .setStyle(ButtonStyle.Success),
       new ButtonBuilder()
-        .setCustomId("survive:menu:play-custom")
-        .setLabel("Play Custom")
+        .setCustomId("survive:menu:start-game")
+        .setLabel("Start Game")
         .setStyle(ButtonStyle.Primary),
       new ButtonBuilder()
-        .setCustomId("survive:menu:set-standard")
-        .setLabel("Set Standard")
+        .setCustomId("survive:menu:settings")
+        .setLabel("Settings")
         .setStyle(ButtonStyle.Secondary)
     ),
   ];
@@ -551,33 +547,19 @@ function buildSurvivalSettingsEmbed(mode, settings, note = null, options = {}) {
   const cfg = normalizeSurvivalSettings(settings);
   const isPlayerCountStart = isSurvivalPlayerCountStart(cfg);
   const lines = [
-    `Mode: **${mode === "standard" ? "Set Standard" : "Play Custom"}**`,
+    "Saved defaults for the next lobby. Edit values, then press Save Defaults. Active games keep their original settings.",
     "",
     `Pool Per Player: **+${cfg.pool_increment} $CHARM**`,
     `Type: **${SURVIVAL_TYPE_LABELS[cfg.type]}**`,
     `Era: **${cfg.era}**`,
     `Ping Roles: **${formatSurvivalPingRoles(cfg.ping_role_ids)}**`,
-    `Time: **${
-      cfg.type === "timed"
-        ? formatSurvivalDurationMinutes(cfg.time_minutes)
-        : isPlayerCountStart
-        ? "N/A (Player Count)"
-        : "N/A (Team Start)"
-    }**`,
+    `Time: **${formatSurvivalDurationMinutes(cfg.time_minutes)}**${cfg.type === "timed" ? "" : " (inactive for this type)"}`,
     `Creator Chaos: **${cfg.creator_chaos ? "Y" : "N"}**`,
     `Revives: **${cfg.revives_enabled ? "Y" : "N"}**`,
-    isPlayerCountStart
-      ? `Auto Start At: **${cfg.bonus_required_players} players**`
-      : `Bonus Active: **${cfg.bonus_active ? "Y" : "N"}**`,
-    isPlayerCountStart
-      ? "Start Warning: **2 minutes**"
-      : `Bonus Rq'd: **${cfg.bonus_active ? cfg.bonus_required_players : "N/A"}**`,
-    `${isPlayerCountStart ? "Prize Pool Multiplier" : "Bonus Multiplier"}: **${
-      cfg.bonus_active ? formatSurvivalMultiplier(cfg.bonus_multiplier) : "N/A"
-    }**`,
-    `${getSurvivalPrizeLabel(cfg)}: **${
-      isPlayerCountStart || cfg.bonus_active ? formatSurvivalBonusPrize(cfg) : "N/A"
-    }**`,
+    `Bonus: **${cfg.bonus_active ? "Y" : "N"}**`,
+    `Bonus Req'd: **${cfg.bonus_required_players} players**${isPlayerCountStart ? " (auto-start threshold; 2 minute warning)" : ""}`,
+    `Bonus Multiplier: **${formatSurvivalMultiplier(cfg.bonus_multiplier)}**`,
+    `Bonus Prize: **${formatSurvivalBonusPrize(cfg)}**`,
     `Replay: **${cfg.replay ? "Y" : "N"}**`,
   ];
 
@@ -683,8 +665,12 @@ function buildSurvivalSettingsComponents(mode, settings, options = {}) {
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId("survive:config:save")
-        .setLabel(mode === "standard" ? "Save Standard" : "Start Custom")
+        .setLabel("Save Defaults")
         .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId("survive:config:bonus-prize:custom")
+        .setLabel("Custom Prize")
+        .setStyle(ButtonStyle.Secondary),
       ...(options.selectingPingRoles
         ? [
             new ButtonBuilder()
@@ -1018,8 +1004,10 @@ function buildLobbyJumpButton(guildId, channelId, messageId) {
   );
 }
 
+let survivalLobbyOpening = false;
+
 async function openSurvivalLobby(channel, createdBy, settings, options = {}) {
-  if (survivalLobby) {
+  if (survivalLobby || survivalLobbyOpening) {
     return {
       ok: false,
       reason:
@@ -1031,77 +1019,86 @@ async function openSurvivalLobby(channel, createdBy, settings, options = {}) {
     return { ok: false, reason: "Can't find channel for this command." };
   }
 
-  const cfg = normalizeSurvivalSettings(settings);
-  const countdownEnd =
-    cfg.type === "timed" ? Date.now() + cfg.time_minutes * 60_000 : null;
-  const joinEmbed = buildSurvivalLobbyEmbed(
-    cfg,
-    0,
-    countdownEnd ? countdownEnd - Date.now() : undefined
-  );
+  if (hasActiveSurvivalRun(channel.id)) {
+    return { ok: false, reason: "A Squig Survival game is already running in this channel." };
+  }
 
-  const joinRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("survive:join")
-      .setLabel("Join")
-      .setStyle(ButtonStyle.Success),
-    new ButtonBuilder()
-      .setCustomId("survive:leave")
-      .setLabel("Leave")
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId("survive:list")
-      .setLabel("Players Joined")
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId("survive:stats")
-      .setLabel("My Stats")
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId("survive:info")
-      .setLabel("Info")
-      .setStyle(ButtonStyle.Secondary)
-  );
-  const submitImagesRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setStyle(ButtonStyle.Link)
-      .setLabel("Submit Images")
-      .setURL(SURVIVAL_IMAGE_SUBMISSION_URL)
-  );
-
-  const joinMessage = await channel.send({
-    embeds: [joinEmbed],
-    components: [joinRow, submitImagesRow],
-  });
-
+  survivalLobbyOpening = true;
   try {
-    await channel.send(
-      buildSurvivalLobbyAnnouncement(cfg, Boolean(options?.isReplay))
+    const cfg = cloneSurvivalSettings(settings);
+    const countdownEnd =
+      cfg.type === "timed" ? Date.now() + cfg.time_minutes * 60_000 : null;
+    const joinEmbed = buildSurvivalLobbyEmbed(
+      cfg,
+      0,
+      countdownEnd ? countdownEnd - Date.now() : undefined
     );
-  } catch {}
 
-  survivalLobby = {
-    created_by: createdBy || null,
-    created_at: new Date().toISOString(),
-    joined: new Set(),
-    game_status: "lobby",
-    channel_id: channel.id,
-    guild_id: channel.guildId,
-    join_message_id: joinMessage.id,
-    join_message: joinMessage,
-    era: cfg.era,
-    pool_increment: cfg.pool_increment,
-    countdown_end: countdownEnd,
-    countdownInterval: null,
-    countdownTimers: [],
-    collector: null,
-    settings: cfg,
-  };
+    const joinRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId("survive:join")
+        .setLabel("Join")
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId("survive:leave")
+        .setLabel("Leave")
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId("survive:list")
+        .setLabel("Players Joined")
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId("survive:stats")
+        .setLabel("My Stats")
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId("survive:info")
+        .setLabel("Info")
+        .setStyle(ButtonStyle.Secondary)
+    );
+    const submitImagesRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setStyle(ButtonStyle.Link)
+        .setLabel("Submit Images")
+        .setURL(SURVIVAL_IMAGE_SUBMISSION_URL)
+    );
 
-  await persistSurvivalLobby(survivalLobby);
-  setupSurvivalCountdown(survivalLobby, channel);
+    const joinMessage = await channel.send({
+      embeds: [joinEmbed],
+      components: [joinRow, submitImagesRow],
+    });
 
-  return { ok: true, lobby: survivalLobby };
+    try {
+      await channel.send(
+        buildSurvivalLobbyAnnouncement(cfg, Boolean(options?.isReplay))
+      );
+    } catch {}
+
+    survivalLobby = {
+      created_by: createdBy || null,
+      created_at: new Date().toISOString(),
+      joined: new Set(),
+      game_status: "lobby",
+      channel_id: channel.id,
+      guild_id: channel.guildId,
+      join_message_id: joinMessage.id,
+      join_message: joinMessage,
+      era: cfg.era,
+      pool_increment: cfg.pool_increment,
+      countdown_end: countdownEnd,
+      countdownInterval: null,
+      countdownTimers: [],
+      collector: null,
+      settings: cfg,
+    };
+
+    await persistSurvivalLobby(survivalLobby);
+    setupSurvivalCountdown(survivalLobby, channel);
+
+    return { ok: true, lobby: survivalLobby };
+  } finally {
+    survivalLobbyOpening = false;
+  }
 }
 
 function setupSurvivalCountdown(lobby, channel) {
@@ -3111,116 +3108,8 @@ async function registerCommands() {
     // Squig Survival command
     new SlashCommandBuilder()
       .setName("survive")
-      .setDescription("Open a Squig Survival lobby with slash-command settings.")
-      .addStringOption((o) =>
-        o
-          .setName("type")
-          .setDescription("Lobby start mode")
-          .addChoices(
-            { name: "Timed", value: "timed" },
-            { name: "Staff", value: "team_start" },
-            { name: "Player Count", value: "player_count" }
-          )
-          .setRequired(false)
-      )
-      .addStringOption((o) =>
-        o
-          .setName("era")
-          .setDescription("Which Survival era to use")
-          .addChoices(
-            { name: "Random", value: "random" },
-            ...Object.values(SURVIVAL_ERAS).map((era) => ({
-              name: era.label,
-              value: era.key,
-            }))
-          )
-          .setRequired(false)
-      )
-      .addStringOption((o) =>
-        o
-          .setName("ping_role")
-          .setDescription("Type @everyone, a role mention, a role ID, or an exact role name")
-          .setRequired(false)
-      )
-      .addIntegerOption((o) =>
-        o
-          .setName("pool")
-          .setDescription("$CHARM added to the prize pool per player")
-          .setMinValue(1)
-          .setRequired(false)
-      )
-      .addStringOption((o) =>
-        o
-          .setName("time")
-          .setDescription("Timed mode duration, like 5m, 12h, or 24h10m")
-          .setRequired(false)
-      )
-      .addStringOption((o) =>
-        o
-          .setName("creator_chaos")
-          .setDescription("Whether Creator Chaos is enabled")
-          .addChoices(
-            { name: "On", value: "on" },
-            { name: "Off", value: "off" }
-          )
-          .setRequired(false)
-      )
-      .addStringOption((o) =>
-        o
-          .setName("revives")
-          .setDescription("Whether !revive is enabled for this game")
-          .addChoices(
-            { name: "On", value: "on" },
-            { name: "Off", value: "off" }
-          )
-          .setRequired(false)
-      )
-      .addStringOption((o) =>
-        o
-          .setName("bonus")
-          .setDescription("Whether the bonus prize pool is active")
-          .addChoices(
-            { name: "Active", value: "on" },
-            { name: "Not Active", value: "off" }
-          )
-          .setRequired(false)
-      )
-      .addIntegerOption((o) =>
-        o
-          .setName("bonus_reqd")
-          .setDescription("Players needed for the bonus, or for Player Count auto-start")
-          .setMinValue(1)
-          .setRequired(false)
-      )
-      .addNumberOption((o) =>
-        o
-          .setName("bonus_multiplier")
-          .setDescription("Bonus prize pool multiplier")
-          .addChoices(
-            { name: "1.5x", value: 1.5 },
-            { name: "2x", value: 2 },
-            { name: "2.5x", value: 2.5 }
-          )
-          .setRequired(false)
-      )
-      .addStringOption((o) =>
-        o
-          .setName("bonus_prize")
-          .setDescription("Optional bonus prize; select Ugly Fortune or type a prize/link")
-          .setMaxLength(300)
-          .setAutocomplete(true)
-          .setRequired(false)
-      )
-      .addStringOption((o) =>
-        o
-          .setName("replay")
-          .setDescription("Reopen the lobby after the game ends")
-          .addChoices(
-            { name: "Yes", value: "yes" },
-            { name: "No", value: "no" }
-          )
-          .setRequired(false)
-      ),
+      .setDescription("Open the admin-only Survival control panel.")
+      .setDMPermission(false),
     new SlashCommandBuilder()
       .setName("survivestart")
       .setDescription("Start the active Squig Survival lobby."),
@@ -3657,19 +3546,6 @@ function isAdminUserLocal(interaction) {
 async function handleInteractionCreate(interaction) {
   try {
     if (interaction.isAutocomplete()) {
-      if (interaction.commandName === "survive") {
-        const focused = interaction.options.getFocused(true);
-        if (focused?.name === "bonus_prize") {
-          const query = String(focused.value || "").trim().toLowerCase();
-          const choices = [
-            {
-              name: UGLY_FORTUNE_BONUS_PRIZE_LABEL,
-              value: UGLY_FORTUNE_BONUS_PRIZE_KEY,
-            },
-          ].filter((choice) => choice.name.toLowerCase().includes(query));
-          return interaction.respond(choices.slice(0, 25));
-        }
-      }
       return interaction.respond([]);
     }
 
@@ -3782,139 +3658,11 @@ async function handleInteractionCreate(interaction) {
           });
         }
 
-        if (hasActiveSurvivalRun(interaction.channelId)) {
-          return interaction.reply({
-            content: "❌ A Squig Survival game is already running in this channel.",
-            flags: 64,
-          });
-        }
-
-        const standardSettings = await getSurvivalStandardSettings();
-        const settings = cloneSurvivalSettings(standardSettings);
-        const type = interaction.options.getString("type");
-        const era = interaction.options.getString("era");
-        const pingRoleInput = interaction.options.getString("ping_role");
-        const pool = interaction.options.getInteger("pool");
-        const time = interaction.options.getString("time");
-        const creatorChaos = interaction.options.getString("creator_chaos");
-        const revives = interaction.options.getString("revives");
-        const bonus = interaction.options.getString("bonus");
-        const bonusReqd = interaction.options.getInteger("bonus_reqd");
-        const bonusMultiplier = interaction.options.getNumber("bonus_multiplier");
-        const bonusPrize = interaction.options.getString("bonus_prize");
-        const replay = interaction.options.getString("replay");
-
-        if (type) {
-          settings.type = type;
-        }
-
-        if (era) {
-          settings.era_key =
-            era === "random" ? rand(Object.keys(SURVIVAL_ERAS)) : era;
-        }
-
-        if (pingRoleInput !== null) {
-          const resolvedPingRoles = await resolveSurvivalPingRoleInput(
-            interaction.guild,
-            pingRoleInput
-          );
-          if (!resolvedPingRoles.ok) {
-            return interaction.reply({
-              content: `❌ ${resolvedPingRoles.reason}`,
-              flags: 64,
-            });
-          }
-          settings.ping_role_ids = resolvedPingRoles.roleIds;
-        }
-
-        if (pool !== null) {
-          settings.pool_increment = pool;
-        }
-
-        if (time !== null) {
-          const parsedTime = parseSurvivalDurationInput(time);
-          if (!parsedTime.ok) {
-            return interaction.reply({
-              content: `❌ ${parsedTime.reason}`,
-              flags: 64,
-            });
-          }
-          settings.time_minutes = parsedTime.minutes;
-        }
-
-        if (creatorChaos !== null) {
-          settings.creator_chaos = creatorChaos === "on";
-        }
-
-        if (revives !== null) {
-          settings.revives_enabled = revives === "on";
-        }
-
-        if (bonus !== null) {
-          settings.bonus_active = bonus === "on";
-        }
-
-        if (bonusReqd !== null) {
-          settings.bonus_required_players = bonusReqd;
-        }
-
-        if (bonusMultiplier !== null) {
-          settings.bonus_multiplier = bonusMultiplier;
-        }
-
-        if (bonusPrize !== null) {
-          settings.bonus_prize = normalizeBonusPrizeValue(bonusPrize);
-        }
-
-        if (replay !== null) {
-          settings.replay = replay === "yes";
-        }
-
-        const cfg = normalizeSurvivalSettings(settings);
-        const isPlayerCountStart = isSurvivalPlayerCountStart(cfg);
-        const result = await openSurvivalLobby(
-          interaction.channel,
-          interaction.user.id,
-          cfg
-        );
-
-        if (!result.ok) {
-          return interaction.reply({
-            content: result.reason,
-            flags: 64,
-          });
-        }
-
-        return interaction.reply({
-          content:
-            "Squig Survival lobby opened.\n" +
-            `Pool: **+${cfg.pool_increment} $CHARM per player**\n` +
-            `Type: **${SURVIVAL_TYPE_LABELS[cfg.type]}**\n` +
-            `Era: **${cfg.era}**\n` +
-            `Ping: **${formatSurvivalPingRoles(cfg.ping_role_ids)}**\n` +
-            `Time: **${
-              cfg.type === "timed"
-                ? formatSurvivalDurationMinutes(cfg.time_minutes)
-                : isPlayerCountStart
-                ? "N/A (Player Count)"
-                : "N/A (Staff)"
-            }**\n` +
-            `Creator Chaos: **${cfg.creator_chaos ? "On" : "Off"}**\n` +
-            `Revives: **${cfg.revives_enabled ? "On" : "Off"}**\n` +
-            (isPlayerCountStart
-              ? `Auto Start At: **${cfg.bonus_required_players} players**\n`
-              : `Bonus: **${cfg.bonus_active ? "Active" : "Not Active"}**\n` +
-                `Bonus Req'd: **${cfg.bonus_required_players}**\n`) +
-            `${isPlayerCountStart ? "Prize Pool Multiplier" : "Bonus Multiplier"}: **${
-              cfg.bonus_active ? formatSurvivalMultiplier(cfg.bonus_multiplier) : "N/A"
-            }**\n` +
-            `${getSurvivalPrizeLabel(cfg)}: **${
-              isPlayerCountStart || cfg.bonus_active
-                ? formatSurvivalBonusPrize(cfg)
-                : "N/A"
-            }**\n` +
-            `Replay: **${cfg.replay ? "Yes" : "No"}**`,
-          flags: 64,
+        await interaction.deferReply({ flags: 64 });
+        const standardSettings = await getSurvivalStandardSettings(true);
+        return interaction.editReply({
+          embeds: [buildSurvivalMenuEmbed(standardSettings)],
+          components: buildSurvivalMenuComponents(),
         });
       }
 
@@ -3955,6 +3703,9 @@ async function handleInteractionCreate(interaction) {
 
       // /survivestart
       if (interaction.commandName === "survivestart") {
+        if (!isAdminUserLocal(interaction)) {
+          return interaction.reply({ content: "⛔ Only admins can start Survival.", flags: 64 });
+        }
         if (!survivalLobby || survivalLobby.game_status !== "lobby") {
           return interaction.reply({
             content: "No active /survive lobby. Run /survive first.",
@@ -4447,6 +4198,10 @@ async function handleInteractionCreate(interaction) {
         }
       }
 
+      if (interaction.customId === "survive:modal:bonus-prize") {
+        session.settings.bonus_prize = normalizeBonusPrizeValue(value);
+      }
+
       session.settings = normalizeSurvivalSettings(session.settings);
       survivalConfigSessions.set(interaction.user.id, session);
 
@@ -4474,50 +4229,48 @@ async function handleInteractionCreate(interaction) {
         });
       }
 
-      const standardSettings = await getSurvivalStandardSettings();
+      if (interaction.customId === "survive:menu:start-game") {
+        if (!survivalLobby || survivalLobby.game_status !== "lobby" ||
+            survivalLobby.guild_id !== interaction.guildId) {
+          return interaction.reply({ content: "No open Survival lobby in this server.", flags: 64 });
+        }
+        if (hasActiveSurvivalRun(survivalLobby.channel_id)) {
+          return interaction.reply({ content: "A Survival game is already running.", flags: 64 });
+        }
+        await interaction.deferReply({ flags: 64 });
+        await startSurvivalFromLobby({
+          client: interaction.client,
+          channel: interaction.channel,
+          reply: (payload) => interaction.editReply(payload),
+        }, survivalLobby);
+        return;
+      }
 
-      if (interaction.customId === "survive:menu:play-standard") {
+      await interaction.deferUpdate();
+      const standardSettings = await getSurvivalStandardSettings(true);
+
+      if (interaction.customId === "survive:menu:start-lobby") {
         const result = await openSurvivalLobby(
           interaction.channel,
           interaction.user.id,
-          standardSettings
+          cloneSurvivalSettings(standardSettings)
         );
-        return interaction.update({
-          embeds: [
-            buildSurvivalMenuEmbed(
-              standardSettings,
-              result.ok ? "Standard lobby opened in this channel." : result.reason
-            ),
-          ],
+        return interaction.editReply({
+          embeds: [buildSurvivalMenuEmbed(
+            standardSettings,
+            result.ok ? "Lobby opened with a snapshot of the saved defaults." : result.reason
+          )],
           components: buildSurvivalMenuComponents(),
         });
       }
 
-      if (interaction.customId === "survive:menu:play-custom") {
-        survivalConfigSessions.set(interaction.user.id, {
-          mode: "custom",
-          settings: cloneSurvivalSettings(standardSettings),
-        });
-        const session = survivalConfigSessions.get(interaction.user.id);
-        return interaction.update({
-          embeds: [
-            buildSurvivalSettingsEmbed(session.mode, session.settings, null, {
-              selectingPingRoles: Boolean(session.selectingPingRoles),
-            }),
-          ],
-          components: buildSurvivalSettingsComponents(session.mode, session.settings, {
-            selectingPingRoles: Boolean(session.selectingPingRoles),
-          }),
-        });
-      }
-
-      if (interaction.customId === "survive:menu:set-standard") {
+      if (interaction.customId === "survive:menu:settings") {
         survivalConfigSessions.set(interaction.user.id, {
           mode: "standard",
           settings: cloneSurvivalSettings(standardSettings),
         });
         const session = survivalConfigSessions.get(interaction.user.id);
-        return interaction.update({
+        return interaction.editReply({
           embeds: [
             buildSurvivalSettingsEmbed(session.mode, session.settings, null, {
               selectingPingRoles: Boolean(session.selectingPingRoles),
@@ -4594,6 +4347,20 @@ async function handleInteractionCreate(interaction) {
           ],
           components: buildSurvivalMenuComponents(),
         });
+      }
+
+      if (interaction.customId === "survive:config:bonus-prize:custom") {
+        const input = new TextInputBuilder()
+          .setCustomId("value")
+          .setLabel("Prize or link (blank to clear)")
+          .setStyle(TextInputStyle.Short)
+          .setMaxLength(300)
+          .setRequired(false);
+        if (session.settings.bonus_prize) input.setValue(session.settings.bonus_prize);
+        return interaction.showModal(new ModalBuilder()
+          .setCustomId("survive:modal:bonus-prize")
+          .setTitle("Set Bonus Prize")
+          .addComponents(new ActionRowBuilder().addComponents(input)));
       }
 
       if (interaction.customId === "survive:config:time") {
@@ -4675,39 +4442,12 @@ async function handleInteractionCreate(interaction) {
       }
 
       if (interaction.customId === "survive:config:save") {
-        if (session.mode === "standard") {
-          const saved = await saveSurvivalStandardSettings(session.settings);
-          survivalConfigSessions.delete(interaction.user.id);
-          return interaction.update({
-            embeds: [buildSurvivalMenuEmbed(saved, "Standard settings saved.")],
-            components: buildSurvivalMenuComponents(),
-          });
-        }
-
-        const result = await openSurvivalLobby(
-          interaction.channel,
-          interaction.user.id,
-          session.settings
-        );
-
-        if (result.ok) {
-          survivalConfigSessions.delete(interaction.user.id);
-          const standardSettings = await getSurvivalStandardSettings();
-          return interaction.update({
-            embeds: [buildSurvivalMenuEmbed(standardSettings, "Custom lobby opened in this channel.")],
-            components: buildSurvivalMenuComponents(),
-          });
-        }
-
-        return interaction.update({
-          embeds: [
-            buildSurvivalSettingsEmbed(session.mode, session.settings, result.reason, {
-              selectingPingRoles: Boolean(session.selectingPingRoles),
-            }),
-          ],
-          components: buildSurvivalSettingsComponents(session.mode, session.settings, {
-            selectingPingRoles: Boolean(session.selectingPingRoles),
-          }),
+        await interaction.deferUpdate();
+        const saved = await saveSurvivalStandardSettings(session.settings);
+        survivalConfigSessions.delete(interaction.user.id);
+        return interaction.editReply({
+          embeds: [buildSurvivalMenuEmbed(saved, "Defaults saved. Active games are unchanged.")],
+          components: buildSurvivalMenuComponents(),
         });
       }
 
