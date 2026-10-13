@@ -1290,11 +1290,11 @@ async function runSurvival(channel, playerIds, settings = {}) {
     // reusable story library, never a required lobby size or fixed race length.
     let lap = 1;
 
-    async function announceFinalShowdown() {
+    async function announceFinalShowdown(milestoneNumber) {
       const showdown = SQUIGWRECK_MILESTONES[59];
       await channel.send({
         embeds: [new EmbedBuilder()
-          .setTitle(`Squigwreck — Final Showdown`)
+          .setTitle(`Squigwreck — Milestone ${milestoneNumber}: Final Showdown`)
           .setDescription(`${showdown.story}\n\n**Two racers. One final lap. One survivor.**`)
           .setColor(0x9651ef)
           .setFooter({ text: "2 Squigs Remain" })],
@@ -1302,7 +1302,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
     }
 
     if (alive.length === 2) {
-      await announceFinalShowdown();
+      await announceFinalShowdown(lap);
       await sleep(MILESTONE_PAUSE_MS);
     }
 
@@ -1385,7 +1385,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
       updateActiveSurvivalRunState(channel.id, runKey, uniquePlayers, alive, eliminated);
       if (!finalLap && alive.length === 2) {
         await sleep(MILESTONE_PAUSE_MS);
-        await announceFinalShowdown();
+        await announceFinalShowdown(lap + 1);
       }
       lap += 1;
       if (alive.length > 1) await sleep(MILESTONE_PAUSE_MS);
