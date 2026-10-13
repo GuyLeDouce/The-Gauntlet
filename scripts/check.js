@@ -31,4 +31,10 @@ run(process.execPath, [join(__dirname, "online-reward-webhook-check.js")]);
 
 run(process.execPath, [join(__dirname, "survival-control-check.js")]);
 
+// Verify Squigwreck media delivery without a live Discord channel or web access.
+run(process.execPath, ["--test",
+  join(__dirname, "../tests/squigwreckMedia.test.js"),
+  join(__dirname, "../tests/squigwreckConfig.test.js"),
+]);
+
 console.log("Gauntlet bot check passed.");
