@@ -902,7 +902,7 @@ function buildSurvivalLobbyEmbed(settings, count, countdownMs) {
     ];
     return new EmbedBuilder()
       .setTitle(era.lobby.title)
-      .setDescription(lines.join("\\n"))
+      .setDescription(lines.join("\n"))
       .setImage(era.lobby.imageUrl)
       .setColor(era.lobby.color);
   }
@@ -1419,7 +1419,7 @@ async function startSurvivalFromLobby(interaction, lobby) {
           .setDescription([
             `**${players.length}** Squig${players.length === 1 ? "" : "s"} lined up in armored death traps.`,
             "The lights turn green. Engines scream. The Squigwreck race has begun!",
-          ].join("\\n"))
+          ].join("\n"))
           .setColor(0x9651ef)
     : settings.era_key === "movie_theater"
       ? new EmbedBuilder()
