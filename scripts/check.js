@@ -35,6 +35,7 @@ run(process.execPath, [join(__dirname, "survival-control-check.js")]);
 run(process.execPath, ["--test",
   join(__dirname, "../tests/squigwreckMedia.test.js"),
   join(__dirname, "../tests/squigwreckConfig.test.js"),
+  join(__dirname, "../tests/squigwreckPresentation.test.js"),
 ]);
 
 console.log("Gauntlet bot check passed.");
