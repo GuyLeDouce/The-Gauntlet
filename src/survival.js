@@ -13,6 +13,11 @@ const { createCanvas, loadImage } = require("@napi-rs/canvas");
 const { sendSurvivalMilestone } = require("./milestoneRetention");
 const { normalizeEraKey, renderEliminationStory, renderFinalLapStory, escapeDiscordName, eliminatedName } = require("./deathRace");
 const { MILESTONES: SQUIGWRECK_MILESTONES, FINAL_LAP: SQUIGWRECK_FINAL_LAP, VICTORY: SQUIGWRECK_VICTORY } = require("./deathRaceNarrative");
+const {
+  createSquigwreckPresentationState,
+  chooseSquigwreckBroadcast,
+  squigwreckChampionDescription,
+} = require("./squigwreckPresentation");
 const { rewardCharmAmount, logCharmReward } = require("./drip");
 const { imageStore } = require("./imageStore");
 const { survivalStore } = require("./survivalStore");
@@ -1143,6 +1148,10 @@ async function runSurvival(channel, playerIds, settings = {}) {
 
   let alive = [...uniquePlayers];
   const eliminated = [];
+  // These are in-memory presentation choices only, not a gameplay setting.
+  const squigwreckPresentation = normalizedSettings.era_key === "squigwreck"
+    ? createSquigwreckPresentationState()
+    : null;
   upsertSurvivalRunStatus(runKey, uniquePlayers, alive, false, {
     eraKey: normalizedSettings.era_key,
   });
@@ -1240,7 +1249,12 @@ async function runSurvival(channel, playerIds, settings = {}) {
         normalizedSettings.era_key === "squigwreck"
           ? new EmbedBuilder()
               .setTitle("Squigwreck Champion")
-              .setDescription(SQUIGWRECK_VICTORY.replace(/<winner>/g, escapeDiscordName(nameOf(alive[0]))))
+              .setDescription(squigwreckChampionDescription({
+                story: SQUIGWRECK_VICTORY,
+                winnerName: nameOf(alive[0]),
+                racersEntered: uniquePlayers.length,
+                roundsCompleted: squigwreckPresentation.roundsCompleted,
+              }))
               .setColor(0x9651ef)
               .setImage(eraDefinition.victory.imageUrl)
           : isChapterStoryEra(eraDefinition)
@@ -1328,6 +1342,17 @@ async function runSurvival(channel, playerIds, settings = {}) {
         : renderEliminationStory(stage.story, removedIds.map(nameOf));
       const body = [story];
       if (revivedId) body.push("", `❤️ Back in the race: **${escapeDiscordName(nameOf(revivedId))}**`);
+
+      // Flavor ONLY: selected from Squigs still alive after the eliminations.
+      // One interruption at most, and never during the Final Lap.
+      if (!finalLap) {
+        const broadcast = chooseSquigwreckBroadcast({
+          aliveIds: alive,
+          nameOf,
+          state: squigwreckPresentation,
+        });
+        if (broadcast) body.push("", broadcast.text);
+      }
       body.push("", `**${alive.length} Squig${alive.length === 1 ? "" : "s"} Remain**`);
 
       const embed = new EmbedBuilder()
@@ -1360,6 +1385,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
         );
       }
 
+      squigwreckPresentation.roundsCompleted += 1;
       updateActiveSurvivalRunState(channel.id, runKey, uniquePlayers, alive, eliminated);
       if (!finalLap && alive.length === 2) {
         await sleep(MILESTONE_PAUSE_MS);
@@ -1716,7 +1742,12 @@ async function runSurvival(channel, playerIds, settings = {}) {
     await channel.send({
       embeds: [new EmbedBuilder()
         .setTitle("🏁 SQUIGWRECK CHAMPION")
-        .setDescription(SQUIGWRECK_VICTORY.replace(/<winner>/g, escapeDiscordName(nameOf(winnerId))))
+        .setDescription(squigwreckChampionDescription({
+          story: SQUIGWRECK_VICTORY,
+          winnerName: nameOf(winnerId),
+          racersEntered: uniquePlayers.length,
+          roundsCompleted: squigwreckPresentation.roundsCompleted,
+        }))
         .setColor(0x9651ef)
         .setImage(eraDefinition.victory.imageUrl)
         .setFooter({ text: "Squig Survival — Squigwreck" })],
