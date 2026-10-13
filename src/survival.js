@@ -10,6 +10,8 @@ const {
   ButtonStyle,
 } = require("discord.js");
 const { createCanvas, loadImage } = require("@napi-rs/canvas");
+const { normalizeEraKey, renderEliminationStory, renderFinalLapStory, escapeDiscordName, eliminatedName } = require("./deathRace");
+const { MILESTONES: SQUIGWRECK_MILESTONES, FINAL_LAP: SQUIGWRECK_FINAL_LAP, VICTORY: SQUIGWRECK_VICTORY } = require("./deathRaceNarrative");
 const { rewardCharmAmount, logCharmReward } = require("./drip");
 const { imageStore } = require("./imageStore");
 const { survivalStore } = require("./survivalStore");
@@ -977,6 +979,30 @@ function isChapterStoryEra(eraDefinition) {
   return eraDefinition?.mode === "chapter_story";
 }
 
+// Publish a milestone before removing an older one. Applies to new games in
+// every era; an era can override the default or disable retention entirely.
+async function sendSurvivalMilestone(channel, payload, runState, eraDefinition) {
+  const posted = await channel.send(payload);
+  if (!runState) return posted;
+  const override = eraDefinition?.milestoneMessageRetention;
+  if (override === false) return posted;
+  const keep = Number.isInteger(override) && override >= 1 ? override : 2;
+  const messages = runState.milestoneMessages || (runState.milestoneMessages = []);
+  messages.push(posted);
+  const stale = messages.slice(0, -keep);
+  for (const previous of stale) {
+    if (previous.__survivalDeleted) continue;
+    try {
+      await previous.delete();
+      previous.__survivalDeleted = true;
+    } catch (error) {
+      console.warn("[SURVIVAL:MILESTONE_RETENTION] Discord deletion failed; will retry next milestone:", error?.message || error);
+    }
+  }
+  runState.milestoneMessages = messages.filter((message) => !message.__survivalDeleted);
+  return posted;
+}
+
 function getChapterStoryRemovalCount(aliveCount, eraDefinition) {
   const requested = Number(eraDefinition?.eliminationsPerMilestone || 2);
   if (aliveCount <= 1) return 0;
@@ -1033,7 +1059,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
   if (!playerIds || playerIds.length === 0) return;
 
   const normalizedSettings = {
-    era_key: settings?.era_key || "day_one",
+    era_key: normalizeEraKey(settings?.era_key || "day_one"),
     era: settings?.era || null,
     pool_increment: Number(settings?.pool_increment || 50) || 50,
     creator_chaos: Boolean(settings?.creator_chaos),
@@ -1082,7 +1108,8 @@ async function runSurvival(channel, playerIds, settings = {}) {
     const eraKeys = parseEraKeys(row.era_keys);
     if (!eraKeys?.length) return !useEraLockedImagesOnly;
     if (eraKeys.some((key) => SPECIAL_SURVIVAL_IMAGE_TAGS.has(key))) return false;
-    return eraKeys.includes(normalizedSettings.era_key);
+    return eraKeys.includes(normalizedSettings.era_key) ||
+      (normalizedSettings.era_key === "squigwreck" && eraKeys.includes("death_race"));
   });
   const reviveSuccessImageRows = dbImageRows.filter((row) =>
     parseEraKeys(row?.era_keys)?.includes(REVIVE_SUCCESS_IMAGE_TAG)
@@ -1163,6 +1190,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
     testMode: normalizedSettings.test_mode,
     stageImagePool: mergedStageImages,
     stageImageBag: shuffle(mergedStageImages),
+    milestoneMessages: [],
     reviveSuccessImagePool: reviveSuccessImages,
     reviveSuccessImageBag: shuffle(reviveSuccessImages),
     reviveFailedImagePool: reviveFailedImages,
@@ -1374,7 +1402,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
       }
       const statusRow = new ActionRowBuilder().addComponents(...statusButtons);
 
-      await channel.send({ embeds: [embed], components: [statusRow] });
+      await sendSurvivalMilestone(channel, { embeds: [embed], components: [statusRow] }, activeRunState, eraDefinition);
       updateActiveSurvivalRunState(channel.id, runKey, uniquePlayers, alive, eliminated);
       chapterNumber += 1;
       await sleep(MILESTONE_PAUSE_MS);
@@ -1539,7 +1567,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
       });
     }
 
-    const msg = await channel.send({ embeds: [embed] });
+    const msg = await sendSurvivalMilestone(channel, { embeds: [embed] }, activeRunState, eraDefinition);
 
     if (lines.length > 0) {
       for (let i = 1; i <= lines.length; i++) {
