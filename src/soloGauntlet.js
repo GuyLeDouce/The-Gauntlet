@@ -59,6 +59,7 @@ const {
 } = require("./survival");
 const { SURVIVAL_ERAS, getSurvivalEraDefinition } = require("./survivalEras");
 const { normalizeEraKey } = require("./deathRace");
+const { sendSquigwreckStartVideo } = require("./squigwreckMedia");
 const {
   UGLY_FORTUNE_BONUS_PRIZE_KEY,
   UGLY_FORTUNE_BONUS_PRIZE_LABEL,
@@ -1481,6 +1482,15 @@ async function startSurvivalFromLobby(interaction, lobby) {
           .setColor(0x2ecc71);
 
   await channel.send({ embeds: [startEmbed] });
+
+  // For Squigwreck, add the playable racing intro before the first milestone.
+  // Other eras still post their original start announcements unchanged.
+  if (settings.era_key === "squigwreck") {
+    await sendSquigwreckStartVideo(
+      channel,
+      getSurvivalEraDefinition("squigwreck").start.videoUrl
+    );
+  }
 
   settings.squig_trait_snapshot = await snapshotSurvivalSquigTraits({
     client: channel.client,

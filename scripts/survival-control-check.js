@@ -38,6 +38,7 @@ function loadController() {
     setInterval() { return 1; }, clearTimeout() {}, clearInterval() {},
     require(name) {
       if (["discord.js", "./survivalEras", "./uglyFortune", "./deathRace"].includes(name)) return localRequire(name);
+      if (name === "./squigwreckMedia") return { async sendSquigwreckStartVideo() { return { delivery: "mock" }; } };
       if (name === "./db") return { Store };
       if (name === "./utils") return { AUTHORIZED_ADMINS: [] };
       if (name === "./survival") return {
