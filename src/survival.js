@@ -10,6 +10,7 @@ const {
   ButtonStyle,
 } = require("discord.js");
 const { createCanvas, loadImage } = require("@napi-rs/canvas");
+const { sendSurvivalMilestone } = require("./milestoneRetention");
 const { normalizeEraKey, renderEliminationStory, renderFinalLapStory, escapeDiscordName, eliminatedName } = require("./deathRace");
 const { MILESTONES: SQUIGWRECK_MILESTONES, FINAL_LAP: SQUIGWRECK_FINAL_LAP, VICTORY: SQUIGWRECK_VICTORY } = require("./deathRaceNarrative");
 const { rewardCharmAmount, logCharmReward } = require("./drip");
@@ -977,30 +978,6 @@ function format(template, victimId, killerId, nameOf) {
 
 function isChapterStoryEra(eraDefinition) {
   return eraDefinition?.mode === "chapter_story";
-}
-
-// Publish a milestone before removing an older one. Applies to new games in
-// every era; an era can override the default or disable retention entirely.
-async function sendSurvivalMilestone(channel, payload, runState, eraDefinition) {
-  const posted = await channel.send(payload);
-  if (!runState) return posted;
-  const override = eraDefinition?.milestoneMessageRetention;
-  if (override === false) return posted;
-  const keep = Number.isInteger(override) && override >= 1 ? override : 2;
-  const messages = runState.milestoneMessages || (runState.milestoneMessages = []);
-  messages.push(posted);
-  const stale = messages.slice(0, -keep);
-  for (const previous of stale) {
-    if (previous.__survivalDeleted) continue;
-    try {
-      await previous.delete();
-      previous.__survivalDeleted = true;
-    } catch (error) {
-      console.warn("[SURVIVAL:MILESTONE_RETENTION] Discord deletion failed; will retry next milestone:", error?.message || error);
-    }
-  }
-  runState.milestoneMessages = messages.filter((message) => !message.__survivalDeleted);
-  return posted;
 }
 
 function getChapterStoryRemovalCount(aliveCount, eraDefinition) {
