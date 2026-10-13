@@ -58,6 +58,7 @@ const {
   handleSurvivalImagePromptButton,
 } = require("./survival");
 const { SURVIVAL_ERAS, getSurvivalEraDefinition } = require("./survivalEras");
+const { normalizeEraKey } = require("./deathRace");
 const {
   UGLY_FORTUNE_BONUS_PRIZE_KEY,
   UGLY_FORTUNE_BONUS_PRIZE_LABEL,
@@ -176,6 +177,7 @@ function normalizeSurvivalImageTag(raw) {
   if (typeof raw !== "string" || !raw.trim()) return null;
   const normalized = raw.trim();
   const lowered = normalized.toLowerCase();
+  if (lowered === "death_race" || lowered === "death race") return "squigwreck";
 
   if (
     lowered === "revive_success" ||
@@ -404,7 +406,7 @@ function normalizeSurvivalSettings(raw = {}) {
     Object.prototype.hasOwnProperty.call(raw, "ping_roles"));
   const requestedEraKey =
     typeof raw?.era_key === "string" && raw.era_key.trim()
-      ? raw.era_key.trim()
+      ? normalizeEraKey(raw.era_key.trim())
       : null;
   const requestedEraLabel =
     typeof raw?.era === "string" && raw.era.trim() ? raw.era.trim() : null;
@@ -705,7 +707,9 @@ function buildSurvivalLobbyAnnouncement(settings, isReplay = false) {
   const pingPrefix = formatSurvivalPingRoles(cfg.ping_role_ids);
   const parts = [
     `${pingPrefix !== "None" ? `${pingPrefix} ` : ""}${
-      isReplay ? "Squig Survival replay lobby is open!" : "Squig Survival is open!"
+      cfg.era_key === "squigwreck"
+        ? (isReplay ? "Squigwreck replay lobby is open!" : "Squigwreck lobby is open!")
+        : (isReplay ? "Squig Survival replay lobby is open!" : "Squig Survival is open!")
     }`,
     "Click **Join** on the panel above to hop in.",
   ];
@@ -884,6 +888,24 @@ function buildUglyCityLobbyDescription(cfg, count, countdownMs) {
 
 function buildSurvivalLobbyEmbed(settings, count, countdownMs) {
   const cfg = normalizeSurvivalSettings(settings);
+  if (cfg.era_key === "squigwreck") {
+    const era = getSurvivalEraDefinition("squigwreck");
+    const lines = [
+      "Engines are revving. Armor is rattling. Welcome to Squigwreck — one race, one survivor, absolute carnage.",
+      "",
+      buildSurvivalSetupParagraph(cfg, countdownMs, {
+        countdownLabel: "Race starts in",
+        noCountdownLabel: "The race begins when staff start it",
+      }),
+      "",
+      `**${count}** Squig${count === 1 ? "" : "s"} on the starting grid. Hit **Join** to enter the race.`,
+    ];
+    return new EmbedBuilder()
+      .setTitle(era.lobby.title)
+      .setDescription(lines.join("\\n"))
+      .setImage(era.lobby.imageUrl)
+      .setColor(era.lobby.color);
+  }
   if (cfg.era_key === "ugly_city") {
     return new EmbedBuilder()
       .setTitle("Squig Survival: The Rise of Ugly City")
@@ -1391,6 +1413,14 @@ async function startSurvivalFromLobby(interaction, lobby) {
             ].join("\n")
           )
           .setColor(0x9b59b6)
+    : settings.era_key === "squigwreck"
+      ? new EmbedBuilder()
+          .setTitle("Squig Survival: Squigwreck — Green Light!")
+          .setDescription([
+            `**${players.length}** Squig${players.length === 1 ? "" : "s"} lined up in armored death traps.`,
+            "The lights turn green. Engines scream. The Squigwreck race has begun!",
+          ].join("\\n"))
+          .setColor(0x9651ef)
     : settings.era_key === "movie_theater"
       ? new EmbedBuilder()
           .setTitle("Squig Survival - The Movie is starting")
