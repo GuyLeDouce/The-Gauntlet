@@ -1242,6 +1242,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
               .setTitle("Squigwreck Champion")
               .setDescription(SQUIGWRECK_VICTORY.replace(/<winner>/g, escapeDiscordName(nameOf(alive[0]))))
               .setColor(0x9651ef)
+              .setImage(eraDefinition.victory.imageUrl)
           : isChapterStoryEra(eraDefinition)
           ? new EmbedBuilder()
               .setTitle("Founder of Ugly City")
@@ -1717,6 +1718,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
         .setTitle("🏁 SQUIGWRECK CHAMPION")
         .setDescription(SQUIGWRECK_VICTORY.replace(/<winner>/g, escapeDiscordName(nameOf(winnerId))))
         .setColor(0x9651ef)
+        .setImage(eraDefinition.victory.imageUrl)
         .setFooter({ text: "Squig Survival — Squigwreck" })],
     });
   } else if (isChapterStoryEra(eraDefinition)) {
