@@ -1,5 +1,5 @@
 "use strict";
-// Death Race narrative catalog. Milestones 1-59 eliminate two; 60 is non-eliminating.
+// Squigwreck narrative catalog. Milestones 1-59 eliminate two; 60 is non-eliminating.
 const titles=[
   "False Start",
   "Brakes Are Optional",
@@ -50,16 +50,16 @@ const titles=[
   "The Pursuit",
   "Dead End",
   "The Last Tanker",
-  "Twenty Left Standing",
+  "The Pack Thins",
   "No More Friends",
   "The Final Bridge",
   "Last Drop",
   "Double Trouble",
-  "Ten Little Uglies",
-  "Eight Is Enough",
-  "Six Feet Under",
-  "The Final Four",
-  "Two Left Breathing",
+  "Last Gear",
+  "No Room Left",
+  "The Wreckage Grows",
+  "The Mountain Pass",
+  "One Last Fireball",
   "The Final Showdown"
 ];
 const stories=[
@@ -112,20 +112,20 @@ const stories=[
   "<player1> stole an armed patrol car, drawing drone fire. <player2> got caught in the barrage.",
   "<player1> and <player2> followed a shortcut sign into a sealed parking garage. The entrance collapsed.",
   "<player1> and <player2> tried stealing fuel from opposite sides of a moving tanker. The skyline lit up.",
-  "<player1> sideswiped <player2>. Both spun into a gas station and exploded. Only twenty racers remain.",
+  "<player1> sideswiped <player2>. Both spun into a gas station and exploded. The pack keeps getting smaller.",
   "<player1> offered <player2> an alliance. Both immediately tried ramming each other off the road.",
   "<player1> and <player2> raced across a crumbling suspension bridge. The cables snapped.",
   "<player1> ran out of fuel and coasted downhill. <player2> tried pushing past. Both hit the barricade.",
   "<player1> and <player2> chose the same tunnel shortcut. The roof collapsed onto both.",
-  "<player1> fired the last missile at <player2>. It ricocheted beneath both cars. Ten remain.",
-  "<player1> and <player2> tried charging through a wall of fire. Neither found the safe passage. Eight remain.",
-  "<player1> forced <player2> toward a ditch. Both rolled into an abandoned quarry. Six remain.",
-  "<player1> and <player2> collided on a narrow mountain pass and vanished into the canyon. Four remain.",
-  "<player1> attacked <player2> at full speed. The fireball swallowed both vehicles. Two remain."
+  "<player1> fired the last missile at <player2>. It ricocheted beneath both cars. The finish line is getting closer.",
+  "<player1> and <player2> tried charging through a wall of fire. Neither found the safe passage. The wreckage is piling up.",
+  "<player1> forced <player2> toward a ditch. Both rolled into an abandoned quarry. The rest of the field is thinning fast.",
+  "<player1> and <player2> collided on a narrow mountain pass and vanished into the canyon. Only the toughest racers are still on the road.",
+  "<player1> attacked <player2> at full speed. The fireball swallowed both vehicles. The last stretch is in sight."
 ];
 const MILESTONES=Object.freeze(titles.map((title,index)=>Object.freeze({number:index+1,title,story:stories[index]||"The final two racers approach the last lap. One will survive.",eliminations:index<59?2:0})));
-const LOBBY="120 spots. One finish line. Brakes optional, insurance worthless. Welcome to the Death Race, you ugly fuckers!";
-const START="120 Squigs line up in questionable vehicles. The lights turn green. ALL HELL BREAKS LOOSE!";
+const LOBBY="The Squigwreck starting grid is open. One finish line. Brakes optional, insurance worthless. Join the race, you ugly fuckers!";
+const START="The Squigs line up in questionable vehicles. The lights turn green. SQUIGWRECK IS ON!";
 const FINAL_LAP="<player1> rams <player2> near the finish line, loses control, and explodes against the barrier. <player2> survives!";
-const VICTORY="120 entered. 119 fell. ONE SURVIVED. <winner> is the Death Race champion!";
+const VICTORY="One race. One survivor. Absolute carnage. <winner> is the SQUIGWRECK CHAMPION!";
 module.exports={MILESTONES,LOBBY,START,FINAL_LAP,VICTORY};
