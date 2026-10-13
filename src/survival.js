@@ -11,6 +11,7 @@ const {
 } = require("discord.js");
 const { createCanvas, loadImage } = require("@napi-rs/canvas");
 const { sendSurvivalMilestone } = require("./milestoneRetention");
+const { addSurvivalArtCredit } = require("./survivalArtCredit");
 const { normalizeEraKey, renderEliminationStory, renderFinalLapStory, escapeDiscordName, eliminatedName } = require("./deathRace");
 const { MILESTONES: SQUIGWRECK_MILESTONES, FINAL_LAP: SQUIGWRECK_FINAL_LAP, VICTORY: SQUIGWRECK_VICTORY } = require("./deathRaceNarrative");
 const {
@@ -787,23 +788,25 @@ function takeRunImage(run, poolKey, bagKey) {
 }
 
 async function awardSurvivalImageUse(channel, run, imageUrl) {
-  if (!channel || !run || !imageUrl) return;
+  if (!channel || !run || !imageUrl) return null;
 
   if (!Array.isArray(run.usedImageUrls)) {
     run.usedImageUrls = [];
   }
   run.usedImageUrls.push(imageUrl);
 
-  if (run.testMode) return;
+  // Test games still select artwork but never issue real creator credits.
+  if (run.testMode) return null;
 
   const artReward =
     run.dbRewardMap?.get(imageUrl) || SURVIVAL_ART_REWARDS[imageUrl] || null;
-  if (!artReward?.userId) return;
+  if (!artReward?.userId) return null;
 
   if (!(run.creatorRewardTotals instanceof Map)) {
     run.creatorRewardTotals = new Map();
   }
 
+  // Keep the existing per-image-use database recording and end-of-game tally.
   if (run.gameId) {
     await survivalStore.addImageUse(run.gameId, artReward.userId, imageUrl);
   }
@@ -813,22 +816,15 @@ async function awardSurvivalImageUse(channel, run, imageUrl) {
       artReward.userId,
       (run.creatorRewardTotals.get(artReward.userId) || 0) + artReward.amount
     );
-    await channel.send({
-      content: `-# 🎨 Art drop! Thanks to <@${artReward.userId}> — your Squig Survival art was used and **+${artReward.amount} $CHARM** was added to your end-of-game creator total.`,
-      components: [
-        new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setStyle(ButtonStyle.Link)
-            .setLabel("SUBMIT IMAGES")
-            .setURL(SURVIVAL_IMAGE_SUBMISSION_URL)
-        ),
-      ],
-    });
+    // The caller adds this credit to the SAME milestone embed as the artwork.
+    // No standalone Art drop post or button is left behind in the channel.
+    return { userId: artReward.userId, amount: artReward.amount };
   } catch (err) {
     console.error(
       "[GAUNTLET:DRIP] Survival art tally failed:",
       err?.message || err
     );
+    return null;
   }
 }
 
@@ -1366,7 +1362,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
         : null;
       if (stageImageUrl) {
         embed.setImage(stageImageUrl);
-        await awardSurvivalImageUse(channel, activeRunState, stageImageUrl);
+        addSurvivalArtCredit(embed, await awardSurvivalImageUse(channel, activeRunState, stageImageUrl));
       }
 
       const statusRow = new ActionRowBuilder().addComponents(
@@ -1497,7 +1493,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
       }
       if (imageUrl) {
         embed.setImage(imageUrl);
-        await awardSurvivalImageUse(channel, activeRunState, imageUrl);
+        addSurvivalArtCredit(embed, await awardSurvivalImageUse(channel, activeRunState, imageUrl));
       }
 
       const statusButtons = [
@@ -1654,7 +1650,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
     }
     if (imageUrl) {
       embed.setImage(imageUrl);
-      await awardSurvivalImageUse(channel, activeRunState, imageUrl);
+      addSurvivalArtCredit(embed, await awardSurvivalImageUse(channel, activeRunState, imageUrl));
     }
 
     const baseDesc = stage.flavor ? `_${stage.flavor}_\n` : "";
