@@ -3124,6 +3124,10 @@ const SQUIGWRECK_ERA = {
   start: {
     title: "Squig Survival: Squigwreck",
     color: 0x9651ef,
+    videoUrl: "https://i.imgur.com/4YkyMKX.mp4",
+  },
+  victory: {
+    imageUrl: "https://i.imgur.com/u3M5ZHR.png",
   },
 };
 
