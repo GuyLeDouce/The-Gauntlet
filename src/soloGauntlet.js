@@ -410,7 +410,9 @@ function normalizeSurvivalSettings(raw = {}) {
       : null;
   const requestedEraLabel =
     typeof raw?.era === "string" && raw.era.trim() ? raw.era.trim() : null;
-  const matchedEraByLabel = requestedEraLabel
+  const matchedEraByLabel = requestedEraLabel?.toLowerCase() === "death race"
+    ? "squigwreck"
+    : requestedEraLabel
     ? Object.entries(SURVIVAL_ERA_LABELS).find(
         ([, label]) => label.toLowerCase() === requestedEraLabel.toLowerCase()
       )?.[0]
