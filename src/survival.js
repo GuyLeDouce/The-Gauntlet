@@ -10,6 +10,9 @@ const {
   ButtonStyle,
 } = require("discord.js");
 const { createCanvas, loadImage } = require("@napi-rs/canvas");
+const { sendSurvivalMilestone } = require("./milestoneRetention");
+const { normalizeEraKey, renderEliminationStory, renderFinalLapStory, escapeDiscordName, eliminatedName } = require("./deathRace");
+const { MILESTONES: SQUIGWRECK_MILESTONES, FINAL_LAP: SQUIGWRECK_FINAL_LAP, VICTORY: SQUIGWRECK_VICTORY } = require("./deathRaceNarrative");
 const { rewardCharmAmount, logCharmReward } = require("./drip");
 const { imageStore } = require("./imageStore");
 const { survivalStore } = require("./survivalStore");
@@ -1033,7 +1036,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
   if (!playerIds || playerIds.length === 0) return;
 
   const normalizedSettings = {
-    era_key: settings?.era_key || "day_one",
+    era_key: normalizeEraKey(settings?.era_key || "day_one"),
     era: settings?.era || null,
     pool_increment: Number(settings?.pool_increment || 50) || 50,
     creator_chaos: Boolean(settings?.creator_chaos),
@@ -1082,7 +1085,8 @@ async function runSurvival(channel, playerIds, settings = {}) {
     const eraKeys = parseEraKeys(row.era_keys);
     if (!eraKeys?.length) return !useEraLockedImagesOnly;
     if (eraKeys.some((key) => SPECIAL_SURVIVAL_IMAGE_TAGS.has(key))) return false;
-    return eraKeys.includes(normalizedSettings.era_key);
+    return eraKeys.includes(normalizedSettings.era_key) ||
+      (normalizedSettings.era_key === "squigwreck" && eraKeys.includes("death_race"));
   });
   const reviveSuccessImageRows = dbImageRows.filter((row) =>
     parseEraKeys(row?.era_keys)?.includes(REVIVE_SUCCESS_IMAGE_TAG)
@@ -1163,6 +1167,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
     testMode: normalizedSettings.test_mode,
     stageImagePool: mergedStageImages,
     stageImageBag: shuffle(mergedStageImages),
+    milestoneMessages: [],
     reviveSuccessImagePool: reviveSuccessImages,
     reviveSuccessImageBag: shuffle(reviveSuccessImages),
     reviveFailedImagePool: reviveFailedImages,
@@ -1232,7 +1237,12 @@ async function runSurvival(channel, playerIds, settings = {}) {
     clearActiveSurvivalRun(channel.id);
     await channel.send({
       embeds: [
-        isChapterStoryEra(eraDefinition)
+        normalizedSettings.era_key === "squigwreck"
+          ? new EmbedBuilder()
+              .setTitle("Squigwreck Champion")
+              .setDescription(SQUIGWRECK_VICTORY.replace(/<winner>/g, escapeDiscordName(nameOf(alive[0]))))
+              .setColor(0x9651ef)
+          : isChapterStoryEra(eraDefinition)
           ? new EmbedBuilder()
               .setTitle("Founder of Ugly City")
               .setDescription(
@@ -1252,7 +1262,112 @@ async function runSurvival(channel, playerIds, settings = {}) {
     return;
   }
 
-  if (isChapterStoryEra(eraDefinition)) {
+  if (normalizedSettings.era_key === "squigwreck") {
+    // The normal lobby supplies the actual player count. The 60 scripts are a
+    // reusable story library, never a required lobby size or fixed race length.
+    let lap = 1;
+
+    async function announceFinalShowdown(milestoneNumber) {
+      const showdown = SQUIGWRECK_MILESTONES[59];
+      await channel.send({
+        embeds: [new EmbedBuilder()
+          .setTitle(`Squigwreck — Milestone ${milestoneNumber}: Final Showdown`)
+          .setDescription(`${showdown.story}\n\n**Two racers. One final lap. One survivor.**`)
+          .setColor(0x9651ef)
+          .setFooter({ text: "2 Squigs Remain" })],
+      });
+    }
+
+    if (alive.length === 2) {
+      await announceFinalShowdown(lap);
+      await sleep(MILESTONE_PAUSE_MS);
+    }
+
+    while (alive.length > 1) {
+      const activeRun = activeSurvivalRuns.get(channel.id);
+      if (activeRun) {
+        activeRun.currentMilestone = lap;
+        activeRun.reviveAttemptsByMilestone = new Map();
+      }
+
+      const finalLap = alive.length === 2;
+      const reviveThisLap = !finalLap && shouldAutoReviveChapterStory({
+        chapterNumber: lap,
+        aliveCount: alive.length,
+        removedCount: eliminated.length,
+        revivesEnabled: normalizedSettings.revives_enabled,
+        eraDefinition,
+      });
+      const revivedId = reviveThisLap && eliminated.length
+        ? eliminated.splice(cryptoRandomInt(eliminated.length), 1)[0]
+        : null;
+      if (revivedId) alive.push(revivedId);
+
+      const removedIds = [];
+      const removeCount = Math.min(finalLap ? 1 : 2, alive.length - 1);
+      for (let i = 0; i < removeCount; i++) {
+        const candidates = revivedId && alive.length > 2
+          ? alive.filter((id) => id !== revivedId)
+          : alive;
+        const victim = candidates[cryptoRandomInt(candidates.length)];
+        if (!victim) continue;
+        const index = alive.indexOf(victim);
+        if (index === -1) continue;
+        alive.splice(index, 1);
+        removedIds.push(victim);
+        eliminated.push(victim);
+        if (gameId) await survivalStore.addDeath(gameId, victim, 1);
+      }
+
+      // When only two cars remain, the last elimination belongs to the Final
+      // Lap, and the winner must never be crossed out.
+      const stage = SQUIGWRECK_MILESTONES[(lap - 1) % 59];
+      const story = finalLap
+        ? renderFinalLapStory(SQUIGWRECK_FINAL_LAP, nameOf(removedIds[0]), nameOf(alive[0]))
+        : renderEliminationStory(stage.story, removedIds.map(nameOf));
+      const body = [story];
+      if (revivedId) body.push("", `❤️ Back in the race: **${escapeDiscordName(nameOf(revivedId))}**`);
+      body.push("", `**${alive.length} Squig${alive.length === 1 ? "" : "s"} Remain**`);
+
+      const embed = new EmbedBuilder()
+        .setTitle(finalLap ? "SQUIGWRECK — FINAL LAP" : `Squigwreck — Milestone ${lap}: ${stage.title}`)
+        .setDescription(body.join("\n"))
+        .setColor(0x9651ef)
+        .setFooter({ text: `Squigwreck - ${alive.length} Remaining` });
+
+      const stageImageUrl = activeRunState.stageImagePool.length
+        ? takeRunImage(activeRunState, "stageImagePool", "stageImageBag")
+        : null;
+      if (stageImageUrl) {
+        embed.setImage(stageImageUrl);
+        await awardSurvivalImageUse(channel, activeRunState, stageImageUrl);
+      }
+
+      const statusRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`survive:alive-check:${runKey}`)
+          .setLabel("Am I still alive?")
+          .setStyle(ButtonStyle.Secondary)
+      );
+      if (finalLap) {
+        // Keep the Final Lap in Discord alongside the victory and standings.
+        await channel.send({ embeds: [embed], components: [statusRow] });
+      } else {
+        await sendSurvivalMilestone(
+          channel, { embeds: [embed], components: [statusRow] },
+          activeRunState, eraDefinition
+        );
+      }
+
+      updateActiveSurvivalRunState(channel.id, runKey, uniquePlayers, alive, eliminated);
+      if (!finalLap && alive.length === 2) {
+        await sleep(MILESTONE_PAUSE_MS);
+        await announceFinalShowdown(lap + 1);
+      }
+      lap += 1;
+      if (alive.length > 1) await sleep(MILESTONE_PAUSE_MS);
+    }
+  } else if (isChapterStoryEra(eraDefinition)) {
     let chapterNumber = 1;
 
     while (alive.length > 1) {
@@ -1374,7 +1489,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
       }
       const statusRow = new ActionRowBuilder().addComponents(...statusButtons);
 
-      await channel.send({ embeds: [embed], components: [statusRow] });
+      await sendSurvivalMilestone(channel, { embeds: [embed], components: [statusRow] }, activeRunState, eraDefinition);
       updateActiveSurvivalRunState(channel.id, runKey, uniquePlayers, alive, eliminated);
       chapterNumber += 1;
       await sleep(MILESTONE_PAUSE_MS);
@@ -1539,7 +1654,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
       });
     }
 
-    const msg = await channel.send({ embeds: [embed] });
+    const msg = await sendSurvivalMilestone(channel, { embeds: [embed] }, activeRunState, eraDefinition);
 
     if (lines.length > 0) {
       for (let i = 1; i <= lines.length; i++) {
@@ -1596,7 +1711,15 @@ async function runSurvival(channel, playerIds, settings = {}) {
     );
   }
 
-  if (isChapterStoryEra(eraDefinition)) {
+  if (normalizedSettings.era_key === "squigwreck") {
+    await channel.send({
+      embeds: [new EmbedBuilder()
+        .setTitle("🏁 SQUIGWRECK CHAMPION")
+        .setDescription(SQUIGWRECK_VICTORY.replace(/<winner>/g, escapeDiscordName(nameOf(winnerId))))
+        .setColor(0x9651ef)
+        .setFooter({ text: "Squig Survival — Squigwreck" })],
+    });
+  } else if (isChapterStoryEra(eraDefinition)) {
     const smallGame = uniquePlayers.length <= 3;
     await channel.send({
       embeds: [

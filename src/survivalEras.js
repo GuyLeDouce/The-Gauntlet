@@ -3105,10 +3105,33 @@ const UGLY_CITY_ERA = {
   expansionRevivalStoryTemplates: UGLY_CITY_EXPANSION_REVIVAL_STORY_TEMPLATES,
 };
 
+const { LOBBY_IMAGE_URL, normalizeEraKey } = require("./deathRace");
+
+const SQUIGWRECK_ERA = {
+  key: "squigwreck",
+  label: "Squigwreck",
+  mode: "squigwreck",
+  eliminationsPerMilestone: 2,
+  revivalEveryMin: 5,
+  revivalEveryMax: 10,
+  useEraLockedImagesOnly: true,
+  milestoneMessageRetention: 2,
+  lobby: {
+    title: "Squig Survival: Squigwreck",
+    imageUrl: LOBBY_IMAGE_URL,
+    color: 0x9651ef,
+  },
+  start: {
+    title: "Squig Survival: Squigwreck",
+    color: 0x9651ef,
+  },
+};
+
 const SURVIVAL_ERAS = {
   day_one: DAY_ONE_ERA,
   reloaded: RELOADED_ERA,
   ugly_city: UGLY_CITY_ERA,
+  squigwreck: SQUIGWRECK_ERA,
   office_squigs: OFFICE_SQUIGS_ERA,
   jobsite_squigs: JOBSITE_SQUIGS_ERA,
   movie_theater: MOVIE_THEATER_ERA,
@@ -3281,7 +3304,7 @@ const SURVIVAL_ALIVE_TAUNTS = [
 ];
 
 function getSurvivalEraDefinition(eraKey) {
-  return SURVIVAL_ERAS[eraKey] || SURVIVAL_ERAS.day_one;
+  return SURVIVAL_ERAS[normalizeEraKey(eraKey)] || SURVIVAL_ERAS.day_one;
 }
 
 function getSurvivalReviveFailLore(eraKey) {

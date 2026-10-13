@@ -37,7 +37,7 @@ function loadController() {
     setTimeout(fn, delay) { timers.push({ fn, delay }); return { unref() {} }; },
     setInterval() { return 1; }, clearTimeout() {}, clearInterval() {},
     require(name) {
-      if (["discord.js", "./survivalEras", "./uglyFortune"].includes(name)) return localRequire(name);
+      if (["discord.js", "./survivalEras", "./uglyFortune", "./deathRace"].includes(name)) return localRequire(name);
       if (name === "./db") return { Store };
       if (name === "./utils") return { AUTHORIZED_ADMINS: [] };
       if (name === "./survival") return {
