@@ -1260,7 +1260,12 @@ async function runSurvival(channel, playerIds, settings = {}) {
     clearActiveSurvivalRun(channel.id);
     await channel.send({
       embeds: [
-        isChapterStoryEra(eraDefinition)
+        normalizedSettings.era_key === "squigwreck"
+          ? new EmbedBuilder()
+              .setTitle("Squigwreck Champion")
+              .setDescription(SQUIGWRECK_VICTORY.replace(/<winner>/g, escapeDiscordName(nameOf(alive[0]))))
+              .setColor(0x9651ef)
+          : isChapterStoryEra(eraDefinition)
           ? new EmbedBuilder()
               .setTitle("Founder of Ugly City")
               .setDescription(
@@ -1729,7 +1734,15 @@ async function runSurvival(channel, playerIds, settings = {}) {
     );
   }
 
-  if (isChapterStoryEra(eraDefinition)) {
+  if (normalizedSettings.era_key === "squigwreck") {
+    await channel.send({
+      embeds: [new EmbedBuilder()
+        .setTitle("🏁 SQUIGWRECK CHAMPION")
+        .setDescription(SQUIGWRECK_VICTORY.replace(/<winner>/g, escapeDiscordName(nameOf(winnerId))))
+        .setColor(0x9651ef)
+        .setFooter({ text: "Squig Survival — Squigwreck" })],
+    });
+  } else if (isChapterStoryEra(eraDefinition)) {
     const smallGame = uniquePlayers.length <= 3;
     await channel.send({
       embeds: [
