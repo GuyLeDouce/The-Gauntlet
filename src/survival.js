@@ -12,8 +12,9 @@ const {
 const { createCanvas, loadImage } = require("@napi-rs/canvas");
 const { sendSurvivalMilestone } = require("./milestoneRetention");
 const { addSurvivalArtCredit } = require("./survivalArtCredit");
-const { normalizeEraKey, renderEliminationStory, renderFinalLapStory, escapeDiscordName, eliminatedName } = require("./deathRace");
-const { MILESTONES: SQUIGWRECK_MILESTONES, FINAL_LAP: SQUIGWRECK_FINAL_LAP, VICTORY: SQUIGWRECK_VICTORY } = require("./deathRaceNarrative");
+const { normalizeEraKey, escapeDiscordName, eliminatedName } = require("./deathRace");
+const { MILESTONES: SQUIGWRECK_MILESTONES, VICTORY: SQUIGWRECK_VICTORY } = require("./deathRaceNarrative");
+const { createRaceNarrativeState, buildRaceRoundNarrative } = require("./deathRaceScenarios");
 const {
   createSquigwreckPresentationState,
   chooseSquigwreckBroadcast,
@@ -1277,6 +1278,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
     // The normal lobby supplies the actual player count. The 60 scripts are a
     // reusable story library, never a required lobby size or fixed race length.
     let lap = 1;
+    const narrativeState = createRaceNarrativeState();
 
     async function announceFinalShowdown(milestoneNumber) {
       const showdown = SQUIGWRECK_MILESTONES[59];
@@ -1301,8 +1303,8 @@ async function runSurvival(channel, playerIds, settings = {}) {
         activeRun.reviveAttemptsByMilestone = new Map();
       }
 
-      const finalLap = alive.length === 2;
-      const reviveThisLap = !finalLap && shouldAutoReviveChapterStory({
+      const duelLap = alive.length === 2;
+      const reviveThisLap = !duelLap && shouldAutoReviveChapterStory({
         chapterNumber: lap,
         aliveCount: alive.length,
         removedCount: eliminated.length,
@@ -1315,7 +1317,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
       if (revivedId) alive.push(revivedId);
 
       const removedIds = [];
-      const removeCount = Math.min(finalLap ? 1 : 2, alive.length - 1);
+      const removeCount = Math.min(duelLap ? 1 : 2, alive.length - 1);
       for (let i = 0; i < removeCount; i++) {
         const candidates = revivedId && alive.length > 2
           ? alive.filter((id) => id !== revivedId)
@@ -1330,12 +1332,12 @@ async function runSurvival(channel, playerIds, settings = {}) {
         if (gameId) await survivalStore.addDeath(gameId, victim, 1);
       }
 
-      // When only two cars remain, the last elimination belongs to the Final
-      // Lap, and the winner must never be crossed out.
+      // Describe actual victims and survivors after revives and eliminations.
+      // Three racers can finish with two deaths; never invent a final opponent.
       const stage = SQUIGWRECK_MILESTONES[(lap - 1) % 59];
-      const story = finalLap
-        ? renderFinalLapStory(SQUIGWRECK_FINAL_LAP, nameOf(removedIds[0]), nameOf(alive[0]))
-        : renderEliminationStory(stage.story, removedIds.map(nameOf));
+      const { story, finalLap } = buildRaceRoundNarrative({
+        removedIds, aliveIds: alive, nameOf, stage, state: narrativeState,
+      });
       const body = [story];
       if (revivedId) body.push("", `❤️ Back in the race: **${escapeDiscordName(nameOf(revivedId))}**`);
 
