@@ -14,10 +14,10 @@ test("only eliminated names are struck out",()=>{
  const s=race.renderEliminationStory("<player1> hit <player2> while <survivor> escaped",["First","Second"],["Third"]);
  assert.equal(s,"~~First~~ hit ~~Second~~ while Third escaped");
 });
-test("cleanup keeps last two milestones",()=>{
+test("milestone cleanup is disabled",()=>{
  assert.equal(race.milestoneToDelete(2),null);
- assert.equal(race.milestoneToDelete(3),1);
- assert.equal(race.milestoneToDelete(60),58);
+ assert.equal(race.milestoneToDelete(3),null);
+ assert.equal(race.milestoneToDelete(60),null);
 });
 test("image pool filters by era and avoids reuse",()=>{
  const images=[{id:1,era_keys:"ugly_city"},{id:2,era_keys:"death_race"},{id:3,era_keys:"death_race"}];

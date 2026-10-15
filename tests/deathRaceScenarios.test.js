@@ -102,7 +102,7 @@ async function runRace(count, reviveOnce = false) {
     activeRunState: { stageImagePool: [] }, eraDefinition: {}, gameId: "test", runKey: "test", uniquePlayers: [],
     squigwreckPresentation: { roundsCompleted: 0 },
     SQUIGWRECK_MILESTONES: MILESTONES, createRaceNarrativeState, buildRaceRoundNarrative,
-    nameOf: id => id, cryptoRandomInt: () => 0, sleep: async () => {}, MILESTONE_PAUSE_MS: 0,
+    nameOf: id => id, storyNameOf: id => id, renderedStoryPlayer: value => value, cryptoRandomInt: () => 0, sleep: async () => {}, MILESTONE_PAUSE_MS: 0,
     shouldAutoReviveChapterStory({ removedCount }) {
       if (reviveOnce && removedCount && !revived) { revived = true; return true; }
       return false;

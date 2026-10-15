@@ -13,6 +13,7 @@ const {
   ComponentType,
   ModalBuilder,
   RoleSelectMenuBuilder,
+  StringSelectMenuBuilder,
   TextInputBuilder,
   TextInputStyle,
   PermissionFlagsBits,
@@ -59,6 +60,7 @@ const {
 } = require("./survival");
 const { SURVIVAL_ERAS, getSurvivalEraDefinition } = require("./survivalEras");
 const { normalizeEraKey } = require("./deathRace");
+const { normalizeEraPool, describeEraPool, chooseLobbyEra } = require("./survivalEraSelection");
 const { sendSquigwreckStartVideo } = require("./squigwreckMedia");
 const {
   UGLY_FORTUNE_BONUS_PRIZE_KEY,
@@ -418,9 +420,11 @@ function normalizeSurvivalSettings(raw = {}) {
         ([, label]) => label.toLowerCase() === requestedEraLabel.toLowerCase()
       )?.[0]
     : null;
-  const eraKey = SURVIVAL_ERAS[requestedEraKey]
+  const legacyEraKey = SURVIVAL_ERAS[requestedEraKey]
     ? requestedEraKey
     : matchedEraByLabel || "day_one";
+  const eraKeys = normalizeEraPool(raw?.era_keys, legacyEraKey);
+  const eraKey = eraKeys.includes(legacyEraKey) ? legacyEraKey : eraKeys[0];
   const eraDefinition = getSurvivalEraDefinition(eraKey);
   const parsedTime = parseSurvivalDurationInput(raw?.time_minutes ?? raw?.minutes ?? 5);
   const timeMinutes = parsedTime.ok ? parsedTime.minutes : 5;
@@ -441,6 +445,7 @@ function normalizeSurvivalSettings(raw = {}) {
   return {
     type,
     era_key: eraKey,
+    era_keys: eraKeys,
     era: eraDefinition.label,
     time_minutes: timeMinutes,
     ping_role_ids: normalizeSurvivalPingRoleIds(
@@ -500,7 +505,7 @@ function buildSurvivalMenuEmbed(standardSettings, note = null) {
     "",
     `Active lobby: **${survivalLobby ? "Yes" : "No"}**`,
     `Standard Type: **${SURVIVAL_TYPE_LABELS[settings.type]}**`,
-    `Standard Era: **${settings.era}**`,
+    `Standard Era: **${describeEraPool(settings)}**`,
     `Standard Ping Roles: **${formatSurvivalPingRoles(settings.ping_role_ids)}**`,
     `Standard Creator Chaos: **${settings.creator_chaos ? "On" : "Off"}**`,
     `Standard Revives: **${settings.revives_enabled ? "On" : "Off"}**`,
@@ -556,7 +561,7 @@ function buildSurvivalSettingsEmbed(mode, settings, note = null, options = {}) {
     "",
     `Pool Per Player: **+${cfg.pool_increment} $CHARM**`,
     `Type: **${SURVIVAL_TYPE_LABELS[cfg.type]}**`,
-    `Era: **${cfg.era}**`,
+    `Era: **${describeEraPool(cfg)}**`,
     `Ping Roles: **${formatSurvivalPingRoles(cfg.ping_role_ids)}**`,
     `Time: **${formatSurvivalDurationMinutes(cfg.time_minutes)}**${cfg.type === "timed" ? "" : " (inactive for this type)"}`,
     `Creator Chaos: **${cfg.creator_chaos ? "Y" : "N"}**`,
@@ -567,6 +572,8 @@ function buildSurvivalSettingsEmbed(mode, settings, note = null, options = {}) {
     `Bonus Prize: **${formatSurvivalBonusPrize(cfg)}**`,
     `Replay: **${cfg.replay ? "Y" : "N"}**`,
   ];
+
+  if (options.selectingEras) lines.push("", "Choose one era for every game, or multiple eras for a random choice at each new lobby. Then Save Defaults.");
 
   if (options.selectingPingRoles) {
     lines.push(
@@ -602,7 +609,7 @@ function buildSurvivalSettingsComponents(mode, settings, options = {}) {
         .setStyle(ButtonStyle.Primary),
       new ButtonBuilder()
         .setCustomId("survive:config:era")
-        .setLabel("Era")
+        .setLabel("Era(s)")
         .setStyle(ButtonStyle.Primary),
       new ButtonBuilder()
         .setCustomId("survive:config:ping-roles")
@@ -676,6 +683,10 @@ function buildSurvivalSettingsComponents(mode, settings, options = {}) {
         .setCustomId("survive:config:bonus-prize:custom")
         .setLabel("Custom Prize")
         .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId("survive:config:era:race-city")
+        .setLabel("Squigwreck + Ugly City")
+        .setStyle(ButtonStyle.Primary),
       ...(options.selectingPingRoles
         ? [
             new ButtonBuilder()
@@ -693,7 +704,18 @@ function buildSurvivalSettingsComponents(mode, settings, options = {}) {
     ),
   ];
 
-  if (options.selectingPingRoles) {
+  if (options.selectingEras) {
+    rows.splice(1, 0, new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId("survive:config:eras:select")
+        .setPlaceholder("Choose era(s) for future lobbies")
+        .setMinValues(1)
+        .setMaxValues(Object.keys(SURVIVAL_ERAS).length)
+        .addOptions(Object.entries(SURVIVAL_ERAS).map(([key, era]) => ({
+          label: era.label, value: key, default: cfg.era_keys.includes(key),
+        })))
+    ));
+  } else if (options.selectingPingRoles) {
     rows.splice(
       1,
       0,
@@ -1050,7 +1072,7 @@ async function openSurvivalLobby(channel, createdBy, settings, options = {}) {
 
   survivalLobbyOpening = true;
   try {
-    const cfg = cloneSurvivalSettings(settings);
+    const cfg = chooseLobbyEra(cloneSurvivalSettings(settings));
     const countdownEnd =
       cfg.type === "timed" ? Date.now() + cfg.time_minutes * 60_000 : null;
     const joinEmbed = buildSurvivalLobbyEmbed(
@@ -4253,11 +4275,11 @@ async function handleInteractionCreate(interaction) {
             session.mode,
             session.settings,
             note,
-            { selectingPingRoles: Boolean(session.selectingPingRoles) }
+            { selectingEras: Boolean(session.selectingEras), selectingPingRoles: Boolean(session.selectingPingRoles) }
           ),
         ],
         components: buildSurvivalSettingsComponents(session.mode, session.settings, {
-          selectingPingRoles: Boolean(session.selectingPingRoles),
+          selectingEras: Boolean(session.selectingEras), selectingPingRoles: Boolean(session.selectingPingRoles),
         }),
         flags: 64,
       });
@@ -4315,14 +4337,36 @@ async function handleInteractionCreate(interaction) {
         return interaction.editReply({
           embeds: [
             buildSurvivalSettingsEmbed(session.mode, session.settings, null, {
-              selectingPingRoles: Boolean(session.selectingPingRoles),
+              selectingEras: Boolean(session.selectingEras), selectingPingRoles: Boolean(session.selectingPingRoles),
             }),
           ],
           components: buildSurvivalSettingsComponents(session.mode, session.settings, {
-            selectingPingRoles: Boolean(session.selectingPingRoles),
+            selectingEras: Boolean(session.selectingEras), selectingPingRoles: Boolean(session.selectingPingRoles),
           }),
         });
       }
+    }
+
+    if (interaction.isStringSelectMenu?.() && interaction.customId === "survive:config:eras:select") {
+      if (!isAdminUserLocal(interaction)) {
+        return interaction.reply({ content: "⛔ Only admins can use the Squig Survival menu.", flags: 64 });
+      }
+      const session = survivalConfigSessions.get(interaction.user.id);
+      if (!session) {
+        return interaction.reply({ content: "That settings panel expired. Open /survive again.", flags: 64 });
+      }
+      if (!interaction.values?.length || interaction.values.some(key => !Object.hasOwn(SURVIVAL_ERAS, key))) {
+        return interaction.reply({ content: "Choose at least one valid era.", flags: 64 });
+      }
+      session.settings.era_keys = normalizeEraPool(interaction.values);
+      session.settings.era_key = session.settings.era_keys[0];
+      session.settings = normalizeSurvivalSettings(session.settings);
+      session.selectingEras = true;
+      session.selectingPingRoles = false;
+      return interaction.update({
+        embeds: [buildSurvivalSettingsEmbed(session.mode, session.settings, null, { selectingEras: true })],
+        components: buildSurvivalSettingsComponents(session.mode, session.settings, { selectingEras: true }),
+      });
     }
 
     if (
@@ -4354,6 +4398,7 @@ async function handleInteractionCreate(interaction) {
         interaction.values
       );
       session.selectingPingRoles = true;
+      session.selectingEras = false;
       session.settings = normalizeSurvivalSettings(session.settings);
       survivalConfigSessions.set(interaction.user.id, session);
 
@@ -4512,22 +4557,25 @@ async function handleInteractionCreate(interaction) {
       }
 
       if (interaction.customId === "survive:config:era") {
-        const eraKeys = Object.keys(SURVIVAL_ERAS);
-        const currentIndex = Math.max(
-          0,
-          eraKeys.indexOf(session.settings.era_key)
-        );
-        session.settings.era_key =
-          eraKeys[(currentIndex + 1) % Math.max(1, eraKeys.length)];
+        session.selectingEras = !session.selectingEras;
+        session.selectingPingRoles = false;
+      }
+      if (interaction.customId === "survive:config:era:race-city") {
+        session.settings.era_keys = ["squigwreck", "ugly_city"];
+        session.settings.era_key = "squigwreck";
+        session.selectingEras = true;
+        session.selectingPingRoles = false;
       }
 
       if (interaction.customId === "survive:config:ping-roles") {
         session.selectingPingRoles = !session.selectingPingRoles;
+        session.selectingEras = false;
       }
 
       if (interaction.customId === "survive:config:ping-roles:everyone") {
         session.settings.ping_role_ids = [];
         session.selectingPingRoles = true;
+        session.selectingEras = false;
       }
 
       if (interaction.customId === "survive:config:creator-chaos") {
@@ -4566,11 +4614,11 @@ async function handleInteractionCreate(interaction) {
       return interaction.update({
         embeds: [
           buildSurvivalSettingsEmbed(session.mode, session.settings, null, {
-            selectingPingRoles: Boolean(session.selectingPingRoles),
+            selectingEras: Boolean(session.selectingEras), selectingPingRoles: Boolean(session.selectingPingRoles),
           }),
         ],
         components: buildSurvivalSettingsComponents(session.mode, session.settings, {
-          selectingPingRoles: Boolean(session.selectingPingRoles),
+          selectingEras: Boolean(session.selectingEras), selectingPingRoles: Boolean(session.selectingPingRoles),
         }),
       });
     }

@@ -33,6 +33,9 @@ run(process.execPath, [join(__dirname, "survival-control-check.js")]);
 
 // Verify Squigwreck media delivery without a live Discord channel or web access.
 run(process.execPath, ["--test",
+  join(__dirname, "../tests/survivalExperience.test.js"),
+  join(__dirname, "../tests/milestoneRetention.test.js"),
+  join(__dirname, "../tests/deathRace.test.js"),
   join(__dirname, "../tests/deathRaceScenarios.test.js"),
   join(__dirname, "../tests/squigwreckMedia.test.js"),
   join(__dirname, "../tests/squigwreckConfig.test.js"),
