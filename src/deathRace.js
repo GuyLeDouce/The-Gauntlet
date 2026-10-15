@@ -7,7 +7,7 @@ function normalizeEraKey(key) { return key === LEGACY_ERA_KEY ? ERA_KEY : key; }
 const STARTING_RACERS = 120;
 const DOUBLE_ELIMINATION_ROUNDS = 59;
 const SHOWDOWN_MILESTONE = 60;
-const DEFAULT_VISIBLE_MILESTONES = 2;
+const DEFAULT_VISIBLE_MILESTONES = null;
 function eliminationCount(milestone) {
   if (!Number.isInteger(milestone) || milestone < 1 || milestone > SHOWDOWN_MILESTONE) throw new RangeError("Invalid Death Race milestone");
   return milestone <= DOUBLE_ELIMINATION_ROUNDS ? 2 : 0;
@@ -30,10 +30,8 @@ function renderEliminationStory(template, eliminated, survivors = []) {
     .replace(/<player2>/g, eliminatedName(eliminated[1]))
     .replace(/<survivor>/g, survivors.length ? escapeDiscordName(survivors[0]) : "another racer");
 }
-function milestoneToDelete(publishedMilestone, visible = DEFAULT_VISIBLE_MILESTONES) {
-  if (!Number.isInteger(visible) || visible < 1) throw new RangeError("Invalid retention");
-  return publishedMilestone > visible ? publishedMilestone - visible : null;
-}
+// Compatibility helper: milestone panels are permanent.
+function milestoneToDelete() { return null; }
 function pickEraImage(images, previouslyUsedIds = [], random = Math.random) {
   const eligible = images.filter(image => image && image.approved !== false && (image.era_keys || image.era_key || "").toString().split(",").map(x => x.trim()).some(x => normalizeEraKey(x) === ERA_KEY));
   if (!eligible.length) return null;

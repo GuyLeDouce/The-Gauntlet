@@ -3115,7 +3115,6 @@ const SQUIGWRECK_ERA = {
   revivalEveryMin: 5,
   revivalEveryMax: 10,
   useEraLockedImagesOnly: true,
-  milestoneMessageRetention: 2,
   lobby: {
     title: "Squig Survival: Squigwreck",
     imageUrl: LOBBY_IMAGE_URL,

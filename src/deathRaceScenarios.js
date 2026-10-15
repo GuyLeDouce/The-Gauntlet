@@ -1,7 +1,7 @@
 "use strict";
 // Narration follows the engine's victims; it never chooses deaths or awards kills.
 const { randomInt: cryptoRandomInt } = require("node:crypto");
-const { escapeDiscordName, eliminatedName } = require("./deathRace");
+const { escapeDiscordName } = require("./deathRace");
 
 const SOLO = Object.freeze([
   "The nitrous gauge disappears into the red. <player1> punches the boost anyway, launches over the barrier, and detonates against a bridge support. The radio broadcasts one last 'WATCH THIS.' We watched it.",
@@ -76,18 +76,18 @@ function draw(key, values, state, randomInt) {
   const bag = state.bags[key];
   return values[bag.splice(randomInt(bag.length), 1)[0]];
 }
-function renderScenario(type, template, names) {
+function renderScenario(type, template, names, formatName = escapeDiscordName) {
   const dead = SCENARIOS[type]?.deadSlots;
   if (!dead) throw new Error("Unknown Death Race scenario");
   return template.replace(/<player([123])>/g, (_, slot) => {
     if (names[Number(slot) - 1] == null) throw new Error("Missing scenario racer");
     return dead.includes(Number(slot))
-      ? eliminatedName(names[Number(slot) - 1])
-      : escapeDiscordName(names[Number(slot) - 1]);
+      ? "~~" + formatName(names[Number(slot) - 1]) + "~~"
+      : formatName(names[Number(slot) - 1]);
   });
 }
 
-function buildRaceRoundNarrative({ removedIds, aliveIds, nameOf, stage, state, randomInt = cryptoRandomInt }) {
+function buildRaceRoundNarrative({ removedIds, aliveIds, nameOf, stage, state, formatName = escapeDiscordName, randomInt = cryptoRandomInt }) {
   if (!Array.isArray(removedIds) || ![1, 2].includes(removedIds.length) || !aliveIds?.length ||
       new Set([...removedIds, ...aliveIds]).size !== removedIds.length + aliveIds.length) {
     throw new Error("Narrative requires distinct victims and surviving racers");
@@ -100,17 +100,17 @@ function buildRaceRoundNarrative({ removedIds, aliveIds, nameOf, stage, state, r
   const killerId = type === "kills" || type === "killedBy" || type === "doubleKill"
     ? aliveIds[randomInt(aliveIds.length)] : null;
   if (type === "mutual") {
-    events.push(renderScenario(type, stage.story, removedIds.map(nameOf)));
+    events.push(renderScenario(type, stage.story, removedIds.map(nameOf), formatName));
   } else if (type === "doubleKill") {
-    events.push(renderScenario(type, draw(type, DOUBLE_KILL, state, randomInt), [killerId, ...removedIds].map(nameOf)));
+    events.push(renderScenario(type, draw(type, DOUBLE_KILL, state, randomInt), [killerId, ...removedIds].map(nameOf), formatName));
   } else {
     // Two one-victim scenes share the SAME milestone panel and only use living killers.
     for (const victim of removedIds) {
       const roles = type === "solo" ? [victim] : type === "kills" ? [killerId, victim] : [victim, killerId];
-      events.push(renderScenario(type, draw(type, SCENARIOS[type].stories, state, randomInt), roles.map(nameOf)));
+      events.push(renderScenario(type, draw(type, SCENARIOS[type].stories, state, randomInt), roles.map(nameOf), formatName));
     }
   }
-  if (finalLap) events.push(FINAL_FINISH.replace("<winner>", escapeDiscordName(nameOf(aliveIds[0]))));
+  if (finalLap) events.push(FINAL_FINISH.replace("<winner>", formatName(nameOf(aliveIds[0]))));
   return { type, finalLap, events, story: events.join("\n\n") };
 }
 

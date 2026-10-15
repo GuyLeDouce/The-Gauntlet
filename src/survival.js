@@ -10,9 +10,11 @@ const {
   ButtonStyle,
 } = require("discord.js");
 const { createCanvas, loadImage } = require("@napi-rs/canvas");
+const { buildSurvivalShareText } = require("./survivalShare");
+const { storyPlayer, renderedStoryPlayer } = require("./survivalPlayer");
 const { sendSurvivalMilestone } = require("./milestoneRetention");
 const { addSurvivalArtCredit } = require("./survivalArtCredit");
-const { normalizeEraKey, escapeDiscordName, eliminatedName } = require("./deathRace");
+const { normalizeEraKey } = require("./deathRace");
 const { MILESTONES: SQUIGWRECK_MILESTONES, VICTORY: SQUIGWRECK_VICTORY } = require("./deathRaceNarrative");
 const { createRaceNarrativeState, buildRaceRoundNarrative } = require("./deathRaceScenarios");
 const {
@@ -358,63 +360,13 @@ function trimSurvivalShareSessions() {
   }
 }
 
-function formatPlacementLabel(rank) {
-  const placement = Math.max(1, Number(rank) || 1);
-  if (placement % 100 >= 11 && placement % 100 <= 13) {
-    return `${placement}th`;
-  }
-  if (placement % 10 === 1) return `${placement}st`;
-  if (placement % 10 === 2) return `${placement}nd`;
-  if (placement % 10 === 3) return `${placement}rd`;
-  return `${placement}th`;
-}
-
-function buildSurvivalShareText(result = {}) {
-  const placementLabel = formatPlacementLabel(result.placement);
-  const payout = Math.max(0, Number(result.payout) || 0);
-  const creatorReward = Math.max(0, Number(result.creatorReward) || 0);
-
-  if (payout > 0 && creatorReward > 0) {
-    return [
-      `I just won ${placementLabel} Place in Squig Survival and won ${payout} $CHARM, plus another ${creatorReward} $CHARM for my in-game creations`,
-      "",
-      "Join the fun at https://squigs.io/discord",
-      "@SquigsNFT #SquigsAreWatching",
-    ].join("\n");
-  }
-
-  if (payout > 0) {
-    return [
-      `I just won ${placementLabel} Place in Squig Survival and won ${payout} $CHARM`,
-      "",
-      "Join the fun at https://squigs.io/discord",
-      "@SquigsNFT #SquigsAreWatching",
-    ].join("\n");
-  }
-
-  if (creatorReward > 0) {
-    return [
-      `I just got ${placementLabel} Place in Squig Survival and still earned ${creatorReward} $CHARM for my in-game creations`,
-      "",
-      "Join the fun at https://squigs.io/discord",
-      "@SquigsNFT #SquigsAreWatching",
-    ].join("\n");
-  }
-
-  return [
-    `I just got ${placementLabel} Place in Squig Survival and didn't win anything at all`,
-    "",
-    "Come lose with me in https://squigs.io/discord",
-    "@SquigsNFT #SquigsAreWatching",
-  ].join("\n");
-}
-
 function createSurvivalShareSession({
   gameId,
   placements = [],
   awardedPayouts = {},
   creatorRewardTotals = {},
   imageUrls = [],
+  eraKey = "day_one",
 } = {}) {
   const orderedPlayers = Array.from(new Set(placements || [])).filter(Boolean);
   if (!orderedPlayers.length) return null;
@@ -432,6 +384,7 @@ function createSurvivalShareSession({
     orderedPlayers.map((userId, index) => {
       const result = {
         userId: String(userId),
+        eraKey: normalizeEraKey(eraKey),
         placement: index + 1,
         payout: Math.max(0, Number(awardedPayouts?.[userId] || 0)),
         creatorReward: creatorRewardMap.get(String(userId)) || 0,
@@ -448,6 +401,7 @@ function createSurvivalShareSession({
     sessionId,
     gameId: gameId || null,
     createdAt: Date.now(),
+    eraKey: normalizeEraKey(eraKey),
     imageUrls: Array.from(new Set((imageUrls || []).filter(Boolean))).slice(0, 8),
     results,
   });
@@ -464,6 +418,7 @@ function getSurvivalShareData(sessionId, userId) {
   return {
     sessionId: session.sessionId,
     gameId: session.gameId,
+    eraKey: session.eraKey,
     imageUrls: session.imageUrls,
     result: {
       ...result,
@@ -1142,6 +1097,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
     ? new Map(Object.entries(normalizedSettings.test_player_names || {}))
     : await buildDisplayNameMap(channel.client, channel.guildId, uniquePlayers);
   const nameOf = (id) => nameMap.get(id) || `User-${id}`;
+  const storyNameOf = (id) => storyPlayer(id, nameOf(id), normalizedSettings.test_mode);
 
   let alive = [...uniquePlayers];
   const eliminated = [];
@@ -1173,7 +1129,6 @@ async function runSurvival(channel, playerIds, settings = {}) {
     testMode: normalizedSettings.test_mode,
     stageImagePool: mergedStageImages,
     stageImageBag: shuffle(mergedStageImages),
-    milestoneMessages: [],
     reviveSuccessImagePool: reviveSuccessImages,
     reviveSuccessImageBag: shuffle(reviveSuccessImages),
     reviveFailedImagePool: reviveFailedImages,
@@ -1222,6 +1177,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
       awardedPayouts,
       creatorRewardTotals,
       imageUrls: usedImageUrls,
+      eraKey: normalizedSettings.era_key,
     });
     await sendSurvivalCreatorPayouts(
       channel,
@@ -1248,7 +1204,8 @@ async function runSurvival(channel, playerIds, settings = {}) {
               .setTitle("Squigwreck Champion")
               .setDescription(squigwreckChampionDescription({
                 story: SQUIGWRECK_VICTORY,
-                winnerName: nameOf(alive[0]),
+                formatName: renderedStoryPlayer,
+                winnerName: storyNameOf(alive[0]),
                 racersEntered: uniquePlayers.length,
                 roundsCompleted: squigwreckPresentation.roundsCompleted,
               }))
@@ -1258,7 +1215,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
           ? new EmbedBuilder()
               .setTitle("Founder of Ugly City")
               .setDescription(
-                `Ugly City may only have three buildings, one road, and a suspicious smell coming from the Storage Yard, but somehow **${nameOf(alive[0])}** survived long enough to claim the title of Founder.`
+                `Ugly City may only have three buildings, one road, and a suspicious smell coming from the Storage Yard, but somehow **${storyNameOf(alive[0])}** survived long enough to claim the title of Founder.`
               )
               .setColor(0x9b59b6)
               .setImage(UGLY_CITY_FOUNDER_IMAGE_URL)
@@ -1266,7 +1223,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
           : new EmbedBuilder()
               .setTitle("Squig Survival - Default Victory")
               .setDescription(
-                `${nameOf(alive[0])} is the only Squig who dared the portal.\nThey survive by technicality... the portal is unimpressed.`
+                `${storyNameOf(alive[0])} is the only Squig who dared the portal.\nThey survive by technicality... the portal is unimpressed.`
               )
               .setColor(0x2ecc71),
       ],
@@ -1336,17 +1293,18 @@ async function runSurvival(channel, playerIds, settings = {}) {
       // Three racers can finish with two deaths; never invent a final opponent.
       const stage = SQUIGWRECK_MILESTONES[(lap - 1) % 59];
       const { story, finalLap } = buildRaceRoundNarrative({
-        removedIds, aliveIds: alive, nameOf, stage, state: narrativeState,
+        removedIds, aliveIds: alive, nameOf: storyNameOf, formatName: renderedStoryPlayer, stage, state: narrativeState,
       });
       const body = [story];
-      if (revivedId) body.push("", `❤️ Back in the race: **${escapeDiscordName(nameOf(revivedId))}**`);
+      if (revivedId) body.push("", `❤️ Back in the race: **${storyNameOf(revivedId)}**`);
 
       // Flavor ONLY: selected from Squigs still alive after the eliminations.
       // One interruption at most, and never during the Final Lap.
       if (!finalLap) {
         const broadcast = chooseSquigwreckBroadcast({
           aliveIds: alive,
-          nameOf,
+          nameOf: storyNameOf,
+          formatName: renderedStoryPlayer,
           state: squigwreckPresentation,
         });
         if (broadcast) body.push("", broadcast.text);
@@ -1436,7 +1394,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
       }
 
       const chapter = getUglyCityChapter(eraDefinition, chapterNumber) || {};
-      const removedNames = removedThisChapter.map((id) => nameOf(id));
+      const removedNames = removedThisChapter.map((id) => storyNameOf(id));
       let storyTemplate = chapter.story;
       if (revivedId && chapter.revivalStory) {
         storyTemplate = chapter.revivalStory;
@@ -1446,19 +1404,19 @@ async function runSurvival(channel, playerIds, settings = {}) {
       const story = replaceUglyCityPlaceholders(storyTemplate, {
         removed1: removedNames[0],
         removed2: removedNames[1],
-        revived: revivedId ? nameOf(revivedId) : null,
+        revived: revivedId ? storyNameOf(revivedId) : null,
       });
       const district = chapter.district || `Ugly City Chapter ${chapterNumber}`;
       const next = chapter.next || "The city council has already approved another terrible idea.";
       const descriptionParts = [story];
 
       if (revivedId) {
-        descriptionParts.push("", "❤️ **Revived:**", `* ${nameOf(revivedId)}`);
+        descriptionParts.push("", "❤️ **Revived:**", `* ${storyNameOf(revivedId)}`);
       }
 
       descriptionParts.push("", "**Removed From The Crew:**");
       for (const removedId of removedThisChapter) {
-        descriptionParts.push(`* ${nameOf(removedId)}`);
+        descriptionParts.push(`* ${storyNameOf(removedId)}`);
       }
       descriptionParts.push("", "**Next:**", next);
 
@@ -1559,17 +1517,17 @@ async function runSurvival(channel, playerIds, settings = {}) {
 
       if (category === 0) {
         // Hiding spot
-        text = format(pick(hidingSpots), victimId, null, nameOf);
+        text = format(pick(hidingSpots), victimId, null, storyNameOf);
       } else if (category === 1) {
         // Clumsiness
-        text = format(pick(clumsiness), victimId, null, nameOf);
+        text = format(pick(clumsiness), victimId, null, storyNameOf);
       } else {
         // Sabotage - needs a killer if possible
         if (alive.length === 0) {
-          text = format(pick(clumsiness), victimId, null, nameOf);
+          text = format(pick(clumsiness), victimId, null, storyNameOf);
         } else {
           const killerId = alive[cryptoRandomInt(alive.length)];
-          text = format(pick(sabotage), victimId, killerId, nameOf);
+          text = format(pick(sabotage), victimId, killerId, storyNameOf);
           if (gameId) {
             await survivalStore.addElimination(gameId, killerId, 1);
           }
@@ -1598,7 +1556,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
       // Revived Squig should appear normally (no strikethrough)
       const resurrectionText = resurrectionTemplate.replace(
         /{victim}/g,
-        nameOf(revivedId)
+        storyNameOf(revivedId)
       );
 
       // ✨ Revival line (emphasized)
@@ -1610,7 +1568,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
     const loreCount = creatorChaosActive ? 2 : randInt(2, 3);
     for (let i = 0; i < loreCount; i++) {
       const who = pick(alive.length ? alive : uniquePlayers);
-      const lore = pick(loreLines).replace(/{player}/g, nameOf(who));
+      const lore = pick(loreLines).replace(/{player}/g, storyNameOf(who));
       const insertAt = randInt(0, lines.length);
       lines.splice(insertAt, 0, lore);
     }
@@ -1742,7 +1700,8 @@ async function runSurvival(channel, playerIds, settings = {}) {
         .setTitle("🏁 SQUIGWRECK CHAMPION")
         .setDescription(squigwreckChampionDescription({
           story: SQUIGWRECK_VICTORY,
-          winnerName: nameOf(winnerId),
+          formatName: renderedStoryPlayer,
+          winnerName: storyNameOf(winnerId),
           racersEntered: uniquePlayers.length,
           roundsCompleted: squigwreckPresentation.roundsCompleted,
         }))
@@ -1758,8 +1717,8 @@ async function runSurvival(channel, playerIds, settings = {}) {
           .setTitle("Founder of Ugly City")
           .setDescription(
             smallGame
-              ? `Ugly City may only have three buildings, one road, and a suspicious smell coming from the Storage Yard, but somehow **${nameOf(winnerId)}** survived long enough to claim the title of Founder.`
-              : `After every crooked road, collapsing district, suspicious permit, and deeply ugly construction decision, only **${nameOf(winnerId)}** remained. They climbed the steps of City Hall, slapped a hand-painted sign above the doors, and became the official **Founder of Ugly City**.`
+              ? `Ugly City may only have three buildings, one road, and a suspicious smell coming from the Storage Yard, but somehow **${storyNameOf(winnerId)}** survived long enough to claim the title of Founder.`
+              : `After every crooked road, collapsing district, suspicious permit, and deeply ugly construction decision, only **${storyNameOf(winnerId)}** remained. They climbed the steps of City Hall, slapped a hand-painted sign above the doors, and became the official **Founder of Ugly City**.`
           )
           .setColor(0x9b59b6)
           .setImage(UGLY_CITY_FOUNDER_IMAGE_URL)
@@ -1831,6 +1790,7 @@ async function runSurvival(channel, playerIds, settings = {}) {
     awardedPayouts,
     creatorRewardTotals,
     imageUrls: usedImageUrls,
+    eraKey: normalizedSettings.era_key,
   });
   await sendSurvivalCreatorPayouts(
     channel,

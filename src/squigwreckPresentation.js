@@ -90,7 +90,7 @@ function createSquigwreckPresentationState() {
   return { radioBag: [], cameoBag: [], roundsCompleted: 0 };
 }
 
-function chooseSquigwreckBroadcast({ aliveIds, nameOf, state, randomInt = cryptoRandomInt }) {
+function chooseSquigwreckBroadcast({ aliveIds, nameOf, state, formatName = escapeDiscordName, randomInt = cryptoRandomInt }) {
   // Never interrupt the Final Lap or the final one-racer result.
   if (!state || !Array.isArray(aliveIds) || aliveIds.length <= 2) return null;
   if (typeof nameOf !== "function") return null;
@@ -106,7 +106,7 @@ function chooseSquigwreckBroadcast({ aliveIds, nameOf, state, randomInt = crypto
 
   if (roll < RADIO_CHANCE_PERCENT + CAMEO_CHANCE_PERCENT) {
     const chosenId = aliveIds[randomInt(aliveIds.length)];
-    const safeName = escapeDiscordName(nameOf(chosenId));
+    const safeName = formatName(nameOf(chosenId));
     const line = drawUnseen(CAMEO_LINES, state.cameoBag, randomInt)
       .replace(/\{racer\}/g, safeName);
     return {
@@ -118,8 +118,8 @@ function chooseSquigwreckBroadcast({ aliveIds, nameOf, state, randomInt = crypto
   return null;
 }
 
-function squigwreckChampionDescription({ story, winnerName, racersEntered, roundsCompleted }) {
-  const safeWinner = escapeDiscordName(winnerName);
+function squigwreckChampionDescription({ story, winnerName, racersEntered, roundsCompleted, formatName = escapeDiscordName }) {
+  const safeWinner = formatName(winnerName);
   const total = Math.max(1, Math.trunc(Number(racersEntered) || 1));
   const rounds = Math.max(0, Math.trunc(Number(roundsCompleted) || 0));
   return String(story).replace(/<winner>/g, safeWinner) +
