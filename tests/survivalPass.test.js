@@ -155,7 +155,7 @@ test("DRIP sends one positive 2500 transfer from exact Discord lookup to payout 
   assert.equal(JSON.stringify(payment).includes("Bearer"),false);
 });
 
-test("DRIP timeouts, 5xx, rate limits and mismatched receipts never retry or activate", async () => {
+test("DRIP timeouts, 5xx and rate limits never retry or activate", async () => {
   for (const status of [undefined,429,500,502]) {
     let writes = 0;
     const h = api({ async patch() { writes++; throw { response: status ? { status } : undefined }; } });
@@ -163,7 +163,9 @@ test("DRIP timeouts, 5xx, rate limits and mismatched receipts never retry or act
     assert.equal(writes,1);
   }
   const bad = api({ async patch() { return { status:200,data:{ id:"x",senderId:"wrong" } }; } });
-  assert.equal((await bad.client.transfer(await bad.client.prepare("user"))).status,"unknown");
+  const completed = await bad.client.transfer(await bad.client.prepare("user"));
+  assert.equal(completed.status,"succeeded");
+  assert.deepEqual(completed.receipt.echoDifferences,["senderId"]);
 });
 
 test("DRIP insufficient funds and identity/config errors do not submit transfers", async () => {
@@ -320,4 +322,34 @@ test("Discord verification rechecks admin permissions on both button and modal",
       return {user_id:"buyer",expires_at:new Date()};}},enroll:async()=>{enrolled=true;}});
   assert.equal(enrolled,true);
   assert.match(response.content,/No transfer was sent/);
+});
+
+test("completed transfer with different receipt IDs activates automatically and charges once", async t => {
+  const {store} = await database(t);
+  let writes=0;
+  const h=api({async patch(){writes++;return {status:200,data:{id:"transfer",senderId:"realm-member-buyer",recipientId:"realm-member-recipient",currencyId:"currency-alias"}};}});
+  const service=createSurvivalPassService(store,h.client);
+  assert.equal((await service.buy("auto","guild","buyer")).kind,"succeeded");
+  assert.equal((await store.status("guild","buyer")).active,true);
+  assert.equal((await service.buy("again","guild","buyer")).kind,"active");
+  assert.equal(writes,1);
+});
+
+test("transient DB settlement and lost COMMIT replies retry settlement without a second transfer", async t => {
+  const {store}=await database(t);
+  const finish=store.finish.bind(store);
+  let writes=0,calls=0;
+  const payment=successPayment();
+  payment.transfer=async()=>{writes++;return {status:"succeeded"};};
+  store.finish=async(...args)=>{
+    calls++;
+    if(calls===1) throw new Error("transient DB failure");
+    const result=await finish(...args);
+    if(calls===2) throw new Error("COMMIT reply lost");
+    return result;
+  };
+  const result=await createSurvivalPassService(store,payment).buy("retry","guild","buyer");
+  assert.equal(result.kind,"succeeded");
+  assert.equal(writes,1);
+  assert.equal(calls,3);
 });

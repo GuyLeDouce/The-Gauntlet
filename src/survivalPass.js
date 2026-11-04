@@ -29,16 +29,26 @@ function createSurvivalPassService(store, payment) {
       let outcome;
       try { outcome = await payment.transfer(prepared); }
       catch { outcome = { status: "unknown", code: "transfer_unconfirmed" }; }
-      try {
-        const purchase = await store.finish(id,outcome.status,outcome.receipt || {},outcome.code);
-        return { kind: outcome.status, purchase, id, code: outcome.code };
-      } catch {
-        // Preserve submitted + pending. Recovery requires evidence, never a second charge.
-        console.error("[SURVIVAL PASS] Settlement needs review:", JSON.stringify({
-          id, status: outcome.status, receipt: outcome.receipt || {},
-        }));
-        return { kind: "pending", id };
+      console.info("[SURVIVAL PASS] Transfer outcome:", JSON.stringify({
+        id, status: outcome.status, code: outcome.code || null,
+        httpStatus: outcome.receipt?.httpStatus || null,
+        echoDifferences: outcome.receipt?.echoDifferences || [],
+        transportCode: outcome.receipt?.transportCode || null,
+      }));
+      // finish is transactional and idempotent, including a lost COMMIT response.
+      // Only retry saving the result; NEVER rerun prepare/transfer here.
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const purchase = await store.finish(id,outcome.status,outcome.receipt || {},outcome.code);
+          return { kind: purchase.status, purchase, id, code: purchase.error_code || outcome.code };
+        } catch {
+          if (attempt < 2) await new Promise(resolve => setTimeout(resolve,250 * (attempt + 1)));
+        }
       }
+      console.error("[SURVIVAL PASS] Settlement needs review:", JSON.stringify({
+        id, status: outcome.status, receipt: outcome.receipt || {},
+      }));
+      return { kind: "pending", id };
     },
   };
 }
