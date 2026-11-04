@@ -129,8 +129,15 @@ class SurvivalPassStore {
       [identity.guild_id,identity.user_id])).rows[0];
       const purchase = (await client.query(`SELECT * FROM gauntlet_survival_pass_purchases
         WHERE id=$1 FOR UPDATE`, [id])).rows[0];
+      if (review?.guildId) {
+        if (purchase.guild_id !== review.guildId) throw new Error("Purchase not found in this server");
+        if (purchase.status === "succeeded") return purchase;
+        if (!["submitted","unknown"].includes(purchase.status)) throw new Error("Only submitted or uncertain payments can be verified");
+        if (new Date(purchase.created_at).getTime() > Date.now() - 300000) throw new Error("Wait five minutes after purchase before verifying");
+      }
       if (["succeeded","failed"].includes(purchase.status)) return purchase;
       if (pass.pending_purchase_id !== id) throw new Error("Purchase ownership mismatch");
+      if (review?.guildId) receipt = {...purchase.receipt,...receipt};
       const result = (await client.query(`UPDATE gauntlet_survival_pass_purchases
         SET status=$2, receipt=$3, error_code=$4,
           activated_at=CASE WHEN $2='succeeded' THEN now() ELSE NULL END,
