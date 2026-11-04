@@ -2,6 +2,80 @@
 
 Discord bot for The Gauntlet.
 
+## Survival Pass
+
+The public Survival lobby includes a **Survival Pass** button. Checkout and status
+are private Discord replies; no new slash command is required. A confirmed purchase
+transfers **2,500 $CHARM** from the buyer to the **same resolved account used for
+ordinary Gauntlet payouts**, then activates exactly **seven days**. There is no
+stacking, extension, automatic renewal, extra entry, or gameplay advantage.
+
+Pass holders join normal public lobbies (including replays) automatically. Purchasing
+during an open lobby also enrolls the buyer. A pass qualifies if its validity overlaps
+the lobby's open time; expiry never removes an earned entry. **Leave** skips only
+that lobby and survives restarts. **Join** opts back in without creating a duplicate.
+Automatic entrants must still be server members with access to the lobby channel.
+Admin simulations do not enroll pass holders. Pass entrants count toward the usual
+prize pool and player-count start threshold.
+
+### Existing configuration and storage
+
+No separate receiving-account variable is introduced. Both flows use the existing
+sender resolution: `DRIP_SENDER_ID`, then `DRIP_TRANSFER_SENDER_ID`, then
+`DRIP_TIPPER_ID`, then the existing fallback sender. Pass payments require the
+existing API key, `DRIP_REALM_ID`, and an explicit `DRIP_REALM_POINT_ID` for $CHARM.
+They use the documented modern `/api/v1/realms/{realmId}/members/{dripId}/transfer`
+endpoint with a positive amount. There is no fallback to negative payouts,
+alternate write routes, or username-based charging.
+
+Startup adds two tables in the existing main database:
+`gauntlet_survival_passes` and `gauntlet_survival_pass_purchases`, plus
+`skipped_ids` on `gauntlet_survival_lobby`. These paid-entitlement tables are
+intentionally excluded from `GAUNTLET_RESET`. Discord-to-DRIP overrides are read
+from the existing DRIP mapping database; otherwise an exact Discord-ID search is used.
+Unsupported override types fail closed and need an administrator to correct them.
+
+### Payment recovery
+
+The database reserves the purchase before any transfer, serializes purchases for
+the same account, and stores the intended sender, recipient, currency and amount
+before submitting. Confirm buttons are buyer-bound and expire after 15 minutes.
+Repeated clicks, concurrent panels and restarts cannot retransmit that purchase.
+
+DRIP's documented transfer endpoint does not specify an idempotency key. A timeout,
+5xx, ambiguous response, or post-transfer database failure leaves the purchase
+pending review and blocks new purchases. Do not infer payment from a balance
+difference alone. Inspect the DRIP transaction evidence and the stored payment
+details; application logs retain a confirmed response if settlement persistence fails.
+Never retry a transfer just because its response was lost.
+
+An operator with database access can list unresolved purchases:
+
+```bash
+node scripts/survival-pass-review.js list
+```
+
+After verifying the outcome in DRIP, resolve a purchase at least five minutes old:
+
+```bash
+node scripts/survival-pass-review.js resolve --id PURCHASE_ID --by ADMIN_DISCORD_ID --note "DRIP evidence reference and confirmed outcome" --confirm-transferred
+node scripts/survival-pass-review.js resolve --id PURCHASE_ID --by ADMIN_DISCORD_ID --note "DRIP evidence confirms no transfer occurred" --confirm-not-transferred
+```
+
+Use exactly one outcome, not both commands. The script never calls DRIP or moves
+funds. Confirmed transfers activate a full seven days from recovery; confirmed
+non-transfers release the purchase lock. The operator and evidence note are saved.
+It refuses to run with `GAUNTLET_RESET=true`.
+
+### Validation before launch
+
+Run `npm install` (including dev dependencies) and `npm run check`. Pass tests use
+PGlite to execute the actual PostgreSQL schema and purchase queries, plus mocked
+DRIP responses and Discord interactions. They never access production credentials.
+Before live sales, verify the configured currency/account and API transfer permissions
+with an authorized test account, including insufficient-balance rejection. The public
+API documentation and local tests do not verify the live key's permissions.
+
 ## Gauntlet Online reward webhook
 
 The bot can receive signed server-to-server reward events from TheGauntletOnline and pay `$CHARM` through the existing DRIP reward flow.
@@ -74,3 +148,4 @@ old per-invocation settings options. `npm run check` includes mocked interaction
 checks for authorization, persistence, snapshot isolation, duplicate lobby creation,
 manual start, timed scheduling, and database failures. A live Discord smoke check
 should verify the ephemeral panel and role picker after deployment.
+

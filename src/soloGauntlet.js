@@ -31,6 +31,9 @@ const {
 } = require("./utils");
 
 const { Store } = require("./db");
+const { survivalPass } = require("./survivalPass");
+const { passButton, passPanel, validConfirmation, purchaseText } = require("./survivalPassPanel");
+
 const {
   miniGameLorePool,
   miniGameFateDescriptions,
@@ -1057,6 +1060,104 @@ function buildLobbyJumpButton(guildId, channelId, messageId) {
 
 let survivalLobbyOpening = false;
 
+function withSurvivalEntryLock(lobby, action) {
+  const result = (lobby.entryQueue || Promise.resolve()).then(action);
+  lobby.entryQueue = result.catch(() => {});
+  return result;
+}
+
+async function refreshSurvivalLobby(lobby) {
+  if (lobby.game_status !== "lobby") return;
+  const remaining = lobby.countdown_end ? lobby.countdown_end - Date.now() : undefined;
+  await lobby.join_message.edit({
+    embeds: [buildSurvivalLobbyEmbed(lobby.settings, lobby.joined.size, remaining)],
+  }).catch(() => {});
+}
+
+async function addSurvivalPassEntries(lobby, channel) {
+  if (lobby.settings?.test_mode) return;
+  const ids = await survivalPass.entrants(lobby.guild_id, lobby.created_at);
+  for (const userId of ids) {
+    if (lobby.skipped?.has(userId) || lobby.joined.has(userId)) continue;
+    // A pass doesn't bypass server membership or the lobby channel's visibility.
+    let member;
+    try { member = await channel?.guild?.members?.fetch({ user: userId, force: true }); }
+    catch (error) {
+      if (error.code === 10007 || error.status === 404) continue;
+      throw error; // Do not silently omit paid entrants on a transient Discord failure.
+    }
+    if (!member || member.user?.bot || !channel.permissionsFor(member)?.has(PermissionFlagsBits.ViewChannel)) continue;
+    lobby.joined.add(userId);
+  }
+}
+
+async function syncSurvivalPassEntries(lobby, channel) {
+  return withSurvivalEntryLock(lobby, async () => {
+    if (lobby.game_status !== "lobby") return;
+    await addSurvivalPassEntries(lobby, channel);
+    await Store.upsertSurvivalLobby(lobby);
+    await refreshSurvivalLobby(lobby);
+  });
+}
+
+async function handleSurvivalPassButton(interaction) {
+  if (!interaction.inGuild() || interaction.user.bot) {
+    return interaction.reply({ content: "Use Survival Pass in the server's public Survival lobby.", flags: 64 });
+  }
+  if (interaction.customId === "survive:pass:cancel") {
+    return interaction.update({ content: "Purchase cancelled.", embeds: [], components: [] });
+  }
+  await interaction.deferReply({ flags: 64 });
+  try {
+    if (interaction.customId === "survive:pass") {
+      const status = await survivalPass.status(interaction.guildId, interaction.user.id);
+      return interaction.editReply(passPanel(status, interaction.user.id, interaction.id));
+    }
+    const purchaseId = validConfirmation(interaction.customId, interaction.user.id);
+    if (!purchaseId) {
+      return interaction.editReply({ content: "This confirmation expired. Open Survival Pass again.", components: [] });
+    }
+    const lobby = survivalLobby;
+    let note = "";
+    const buyAndEnroll = async () => {
+      const result = await survivalPass.buy(purchaseId, interaction.guildId, interaction.user.id);
+      if (result.kind === "succeeded" && lobby?.game_status === "lobby" &&
+          lobby.guild_id === interaction.guildId) {
+        try {
+          const channel = lobby.join_message?.channel || interaction.channel;
+          await addSurvivalPassEntries(lobby, channel);
+          await Store.upsertSurvivalLobby(lobby);
+          await refreshSurvivalLobby(lobby);
+          await triggerSurvivalPlayerCountCountdown(lobby, channel);
+          note = lobby.skipped?.has(interaction.user.id) ?
+            "\nYou previously left this lobby. Press Join if you want back in." :
+            lobby.joined.has(interaction.user.id) ? "\nYou are entered in the open lobby." : "";
+        } catch {
+          note = "\nYour pass is active. Lobby enrollment will be checked again before the game starts.";
+        }
+      }
+      return result;
+    };
+    // A lobby cannot close between a successful payment and enrollment.
+    const result = lobby?.guild_id === interaction.guildId && lobby.game_status === "lobby" ?
+      await withSurvivalEntryLock(lobby, buyAndEnroll) : await buyAndEnroll();
+    if (["pending","unknown"].includes(result.kind)) {
+      console.error("[SURVIVAL PASS] Purchase needs review:", result.id);
+      try {
+        const logChannel = await interaction.client.channels.fetch(DRIP_LOG_CHANNEL_ID);
+        await logChannel.send({ content: "Survival Pass purchase needs verification. Reference: " + result.id +
+          ". No automatic transfer retry will be attempted.", allowedMentions: { parse: [] } });
+      } catch {}
+    }
+    return interaction.editReply({ content: purchaseText(result) + note, embeds: [], components: [] });
+  } catch (error) {
+    console.error("[SURVIVAL PASS] Request failed:", error.code || error.name);
+    return interaction.editReply({ content: "Survival Pass is temporarily unavailable. " +
+      "If you confirmed a payment, open the pass panel to check its status before trying again. " +
+      "Free Join remains available.", embeds: [], components: [] });
+  }
+}
+
 async function openSurvivalLobby(channel, createdBy, settings, options = {}) {
   if (survivalLobby || survivalLobbyOpening) {
     return {
@@ -1076,6 +1177,7 @@ async function openSurvivalLobby(channel, createdBy, settings, options = {}) {
 
   survivalLobbyOpening = true;
   try {
+    const openedAt = new Date().toISOString();
     const cfg = chooseLobbyEra(cloneSurvivalSettings(settings));
     const countdownEnd =
       cfg.type === "timed" ? Date.now() + cfg.time_minutes * 60_000 : null;
@@ -1108,6 +1210,7 @@ async function openSurvivalLobby(channel, createdBy, settings, options = {}) {
         .setStyle(ButtonStyle.Secondary)
     );
     const submitImagesRow = new ActionRowBuilder().addComponents(
+      passButton(),
       new ButtonBuilder()
         .setStyle(ButtonStyle.Link)
         .setLabel("Submit Images")
@@ -1127,8 +1230,9 @@ async function openSurvivalLobby(channel, createdBy, settings, options = {}) {
 
     survivalLobby = {
       created_by: createdBy || null,
-      created_at: new Date().toISOString(),
+      created_at: openedAt,
       joined: new Set(),
+      skipped: new Set(),
       game_status: "lobby",
       channel_id: channel.id,
       guild_id: channel.guildId,
@@ -1143,8 +1247,10 @@ async function openSurvivalLobby(channel, createdBy, settings, options = {}) {
       settings: cfg,
     };
 
-    await persistSurvivalLobby(survivalLobby);
+    await Store.upsertSurvivalLobby(survivalLobby);
+    await syncSurvivalPassEntries(survivalLobby, channel);
     setupSurvivalCountdown(survivalLobby, channel);
+    await triggerSurvivalPlayerCountCountdown(survivalLobby, channel);
 
     return { ok: true, lobby: survivalLobby };
   } finally {
@@ -1319,6 +1425,7 @@ async function initSurvivalLobby(client) {
       created_by: saved.created_by,
       created_at: saved.created_at,
       joined: new Set(Array.isArray(joinedIds) ? joinedIds : []),
+      skipped: new Set(Array.isArray(saved.skipped_ids) ? saved.skipped_ids : []),
       game_status: "lobby",
       channel_id: saved.channel_id,
       guild_id: saved.guild_id,
@@ -1339,13 +1446,21 @@ async function initSurvivalLobby(client) {
       ),
     };
 
+    await syncSurvivalPassEntries(survivalLobby, channel);
     const remaining = countdownEnd ? countdownEnd - Date.now() : undefined;
     const updated = buildSurvivalLobbyEmbed(
       survivalLobby.settings,
       survivalLobby.joined.size,
       remaining
     );
-    await joinMessage.edit({ embeds: [updated] });
+    const components = joinMessage.components?.map(row => ActionRowBuilder.from(row));
+    if (components?.length && !components.some(row => row.components.some(button =>
+      button.data?.custom_id === "survive:pass"))) {
+      const row = components.find(row => row.components.length < 5);
+      if (row) row.addComponents(passButton());
+      else if (components.length < 5) components.push(new ActionRowBuilder().addComponents(passButton()));
+    }
+    await joinMessage.edit({ embeds: [updated], ...(components?.length ? { components } : {}) });
 
     setupSurvivalCountdown(survivalLobby, channel);
     await triggerSurvivalPlayerCountCountdown(survivalLobby, channel);
@@ -1354,7 +1469,32 @@ async function initSurvivalLobby(client) {
 
 async function startSurvivalFromLobby(interaction, lobby) {
   if (!lobby || lobby.game_status !== "lobby") return;
-  lobby.game_status = "running";
+  const channel = lobby.join_message?.channel || interaction?.channel;
+  const ready = await withSurvivalEntryLock(lobby, async () => {
+    if (lobby.game_status !== "lobby") return false;
+    try {
+      await addSurvivalPassEntries(lobby, channel);
+      await Store.upsertSurvivalLobby(lobby);
+      lobby.game_status = "running";
+      return true;
+    } catch (error) {
+      console.error("[SURVIVAL PASS] Game start paused:", error.code || error.name);
+      if (lobby.countdownInterval) clearInterval(lobby.countdownInterval);
+      for (const timer of lobby.countdownTimers || []) clearTimeout(timer);
+      lobby.countdownInterval = null;
+      lobby.countdownTimers = [];
+      lobby.countdown_end = null;
+      await persistSurvivalLobby(lobby);
+      const content = "Game start paused because lobby entries could not be verified. Staff can retry Start Game.";
+      if (interaction?.reply) await interaction.reply({ content, flags: 64 }).catch(() => {});
+      else await channel?.send({ content }).catch(() => {});
+      return false;
+    }
+  });
+  if (ready) return runSurvivalFromLobby(interaction, lobby);
+}
+
+async function runSurvivalFromLobby(interaction, lobby) {
   try {
     Store.clearSurvivalLobby().catch(() => {});
   } catch {}
@@ -3617,6 +3757,10 @@ async function handleInteractionCreate(interaction) {
       return interaction.respond([]);
     }
 
+    if (interaction.isButton() && interaction.customId.startsWith("survive:pass")) {
+      return handleSurvivalPassButton(interaction);
+    }
+
     // Slash commands
     if (interaction.isChatInputCommand()) {
       // /groupgauntlet ? group mode
@@ -4797,56 +4941,45 @@ async function handleInteractionCreate(interaction) {
         interaction.customId
       )
     ) {
-      if (!survivalLobby || survivalLobby.game_status !== "lobby") {
+      if (!survivalLobby || survivalLobby.game_status !== "lobby" ||
+          survivalLobby.guild_id !== interaction.guildId ||
+          survivalLobby.channel_id !== interaction.channelId ||
+          (interaction.message?.id && interaction.message.id !== survivalLobby.join_message_id)) {
         return interaction.reply({
-          content: "No active /survive lobby. Run /survive first.",
+          content: "This Survival lobby is no longer open.",
           flags: 64,
         });
       }
 
       const userId = interaction.user.id;
-      if (interaction.customId === "survive:join") {
-        survivalLobby.joined.add(userId);
-        try {
-          const remaining = survivalLobby.countdown_end
-            ? survivalLobby.countdown_end - Date.now()
-            : undefined;
-          const updated = buildSurvivalLobbyEmbed(
-            survivalLobby.settings,
-            survivalLobby.joined.size,
-            remaining
-          );
-          await survivalLobby.join_message.edit({ embeds: [updated] });
-        } catch {}
-        persistSurvivalLobby(survivalLobby);
-        await triggerSurvivalPlayerCountCountdown(
-          survivalLobby,
-          interaction.channel
-        );
-        return interaction.reply({
-          content: "You joined the Squig Survival lobby.",
-          flags: 64,
+      if (["survive:join", "survive:leave"].includes(interaction.customId)) {
+        const lobby = survivalLobby;
+        await interaction.deferReply({ flags: 64 });
+        const joining = interaction.customId === "survive:join";
+        const changed = await withSurvivalEntryLock(lobby, async () => {
+          if (lobby.game_status !== "lobby") return false;
+          const beforeJoined = new Set(lobby.joined);
+          const beforeSkipped = new Set(lobby.skipped || []);
+          lobby.skipped ||= new Set();
+          if (joining) {
+            lobby.skipped.delete(userId);
+            lobby.joined.add(userId);
+          } else {
+            lobby.skipped.add(userId);
+            lobby.joined.delete(userId);
+          }
+          try { await Store.upsertSurvivalLobby(lobby); }
+          catch (error) {
+            lobby.joined = beforeJoined;
+            lobby.skipped = beforeSkipped;
+            throw error;
+          }
+          await refreshSurvivalLobby(lobby);
+          return true;
         });
-      }
-
-      if (interaction.customId === "survive:leave") {
-        survivalLobby.joined.delete(userId);
-        try {
-          const remaining = survivalLobby.countdown_end
-            ? survivalLobby.countdown_end - Date.now()
-            : undefined;
-          const updated = buildSurvivalLobbyEmbed(
-            survivalLobby.settings,
-            survivalLobby.joined.size,
-            remaining
-          );
-          await survivalLobby.join_message.edit({ embeds: [updated] });
-        } catch {}
-        persistSurvivalLobby(survivalLobby);
-        return interaction.reply({
-          content: "You left the Squig Survival lobby.",
-          flags: 64,
-        });
+        if (changed && joining) await triggerSurvivalPlayerCountCountdown(lobby, interaction.channel);
+        return interaction.editReply({ content: !changed ? "This game has already started." : joining ?
+          "You joined the Squig Survival lobby." : "You left this lobby. Any active pass remains valid for future games." });
       }
 
       if (interaction.customId === "survive:list") {
@@ -5076,4 +5209,5 @@ module.exports = {
   handleMessageCreate,
   initSurvivalLobby,
 };
+
 

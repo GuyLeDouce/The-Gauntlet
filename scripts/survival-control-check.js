@@ -13,6 +13,12 @@ let failSave = false;
 let failRead = false;
 let running = false;
 let gameSettings;
+let gamePlayers;
+let passIds = [];
+let failPassRead = false;
+let passStatus = null;
+let passBuy = async () => ({ kind: "failed", id: "test" });
+let failLobbyWrite = false;
 let eraRolls = 0;
 const publicMessages = [];
 const timers = [];
@@ -29,7 +35,11 @@ const Store = {
     if (failSave) throw Error("save failed");
     saved = JSON.parse(JSON.stringify(value));
   },
-  async upsertSurvivalLobby(value) { persistedLobby = JSON.parse(JSON.stringify(value)); },
+  async upsertSurvivalLobby(value) {
+    if (failLobbyWrite) throw Error("lobby write failed");
+    persistedLobby = JSON.parse(JSON.stringify({ ...value,
+      joined_ids: Array.from(value.joined || []), skipped_ids: Array.from(value.skipped || []) }));
+  },
   async clearSurvivalLobby() {},
   async getSurvivalLobby() { return persistedLobby; },
 };
@@ -39,6 +49,11 @@ function loadController() {
     setTimeout(fn, delay) { timers.push({ fn, delay }); return { unref() {} }; },
     setInterval() { return 1; }, clearTimeout() {}, clearInterval() {},
     require(name) {
+      if (name === "./survivalPass") return { survivalPass: {
+        entrants: async () => { if (failPassRead) throw Error("pass DB unavailable"); return [...passIds]; }, status: async () => passStatus,
+        buy: (...args) => passBuy(...args),
+      } };
+      if (name === "./survivalPassPanel") return localRequire(name);
       if (name === "./survivalEraSelection") {
         const helpers = localRequire(name);
         return { ...helpers, chooseLobbyEra: settings => helpers.chooseLobbyEra(settings, max => eraRolls++ % max) };
@@ -49,7 +64,7 @@ function loadController() {
       if (name === "./utils") return { AUTHORIZED_ADMINS: [] };
       if (name === "./survival") return {
         hasActiveSurvivalRun: () => running,
-        async runSurvival(c, players, settings) { gameSettings = settings; },
+        async runSurvival(c, players, settings) { gameSettings = settings; gamePlayers = players; },
       };
       if (name === "./squigTraitSnapshot") return { async snapshotSurvivalSquigTraits() { return {}; } };
       return {};
@@ -65,6 +80,7 @@ function loadController() {
       initSurvivalLobby,
       openSurvivalLobby,
       startSurvivalFromLobby,
+      syncSurvivalPassEntries,
     };`, context, { filename: sourcePath });
   return context.module.exports;
 }
@@ -211,6 +227,87 @@ async function main() {
   assert.notEqual(replayLobby.settings.era_key, playedEra, "controlled next random draw selects the other era");
   assert.deepEqual(Array.from(replayLobby.settings.era_keys), ["squigwreck", "ugly_city"]);
   replayController.test.clearSurvivalLobby();
+
+  // Real public controls: passes, Leave, restart, purchase and start serialization.
+  const p1 = "123456789012345678", p2 = "223456789012345678", p3 = "323456789012345678";
+  channel.guild = { members: { async fetch({ user }) { return { id: user, user: { bot: false } }; } } };
+  channel.permissionsFor = member => ({ has: () => member.id !== "hidden" });
+  passIds = [p1,p2,"hidden"];
+  const passController = loadController();
+  const passLobby = (await passController.test.openSurvivalLobby(channel,"admin",{
+    type:"player_count",bonus_required_players:2,
+  })).lobby;
+  assert.deepEqual(Array.from(passLobby.joined),[p1,p2]);
+  assert.ok(passLobby.countdown_end, "pass entries trigger the existing count-start countdown");
+  const lobbyPayload = publicMessages.findLast(payload => payload.components?.[1]?.toJSON()
+    .components.some(c => c.custom_id === "survive:pass"));
+  assert.ok(lobbyPayload);
+  for (const row of lobbyPayload.components) assert.ok(row.toJSON().components.length <= 5);
+  function playerButton(id, userId = p1) {
+    const i = interaction("button",id,false);
+    i.user.id = userId;
+    i.id = String(BigInt(Date.now()-1420070400000) << 22n);
+    return i;
+  }
+  await passController.handleInteractionCreate(playerButton("survive:join"));
+  assert.equal(passLobby.joined.size,2,"manual Join never duplicates a pass entry");
+  await passController.handleInteractionCreate(playerButton("survive:leave"));
+  assert.equal(passLobby.joined.has(p1),false);
+  assert.ok(persistedLobby.skipped_ids.includes(p1));
+  await passController.test.syncSurvivalPassEntries(passLobby,channel);
+  assert.equal(passLobby.joined.has(p1),false,"sync honors Leave");
+  failLobbyWrite = true;
+  await passController.handleInteractionCreate(playerButton("survive:leave",p2));
+  assert.equal(passLobby.joined.has(p2),true,"failed persistence rolls roster back");
+  failLobbyWrite = false;
+  const restoredPassController = loadController();
+  await restoredPassController.test.initSurvivalLobby({ channels:{async fetch(){return channel;}} });
+  const restoredPassLobby = restoredPassController.test.lobby();
+  assert.equal(restoredPassLobby.joined.has(p1),false,"restart honors Leave");
+  assert.equal(restoredPassLobby.joined.has(p2),true);
+  passIds = []; // No longer active; already earned entries remain.
+  await restoredPassController.test.startSurvivalFromLobby(null,restoredPassLobby);
+  assert.deepEqual(Array.from(gamePlayers),[p2],"expiry never removes an existing entry");
+  passController.test.clearSurvivalLobby();
+
+  const purchaseController = loadController();
+  const purchaseLobby = (await purchaseController.test.openSurvivalLobby(channel,"admin",{type:"team_start"})).lobby;
+  const openPass = playerButton("survive:pass",p3);
+  await purchaseController.handleInteractionCreate(openPass);
+  assert.equal(openPass.responses[0].flags,64,"pass checkout is private");
+  assert.match(openPass.responses[1].embeds[0].toJSON().description,/2,500/);
+  const confirmId = openPass.responses[1].components[0].toJSON().components[0].custom_id;
+  let releasePayment, paymentStarted;
+  const started = new Promise(resolve => { paymentStarted = resolve; });
+  const paymentGate = new Promise(resolve => { releasePayment = resolve; });
+  passBuy = async () => {
+    paymentStarted(); await paymentGate;
+    passIds = [p3];
+    return {kind:"succeeded",purchase:{expires_at:new Date(Date.now()+7*86400000)}};
+  };
+  const buying = purchaseController.handleInteractionCreate(playerButton(confirmId,p3));
+  await started;
+  const starting = purchaseController.test.startSurvivalFromLobby(null,purchaseLobby);
+  releasePayment();
+  await Promise.all([buying,starting]);
+  assert.deepEqual(Array.from(gamePlayers),[p3],"start waits for purchase enrollment");
+  // The next lobby includes a previous skipper again (skip belongs only to one lobby).
+  passIds = [p1];
+  const next = (await purchaseController.test.openSurvivalLobby(channel,"admin",{type:"team_start"})).lobby;
+  assert.equal(next.joined.has(p1),true);
+  const stale = playerButton("survive:leave");
+  stale.message = {id:"old-lobby"};
+  await purchaseController.handleInteractionCreate(stale);
+  assert.equal(next.joined.has(p1),true,"old panel cannot remove a current entry");
+  failPassRead = true;
+  await purchaseController.test.startSurvivalFromLobby(null,next);
+  assert.equal(next.game_status,"lobby","DB failure pauses start rather than excluding pass holders");
+  assert.equal(next.countdown_end,null);
+  failPassRead = false;
+  await purchaseController.test.startSurvivalFromLobby(null,next);
+  assert.deepEqual(Array.from(gamePlayers),[p1]);
+  purchaseController.test.clearSurvivalLobby();
   console.log("Survival control center checks passed.");
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });
+

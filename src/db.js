@@ -7,6 +7,7 @@
 // - Exposes a singleton Store + initStore()
 
 const { Pool } = require("pg");
+const { initSurvivalPassSchema } = require("./survivalPassStore");
 const { GAUNTLET_RESET, getSSL } = require("./utils");
 
 // ------------------------------------------------------------
@@ -323,6 +324,8 @@ class PgStore {
       ON gauntlet_online_reward_events (payout_id)
       WHERE payout_id IS NOT NULL AND payout_id <> '';
     `);
+
+    await initSurvivalPassSchema(this.pool);
 
     // Manual DRIP routing override for Discord IDs.
     await this.dripPool.query(`
@@ -955,6 +958,7 @@ class PgStore {
         pool_increment,
         countdown_end,
         joined_ids,
+        skipped_ids,
         settings
       )
       VALUES (
@@ -969,7 +973,8 @@ class PgStore {
         $8,
         $9,
         $10,
-        $11
+        $11,
+        $12
       )
       ON CONFLICT (id)
       DO UPDATE SET
@@ -983,6 +988,7 @@ class PgStore {
         pool_increment = EXCLUDED.pool_increment,
         countdown_end = EXCLUDED.countdown_end,
         joined_ids = EXCLUDED.joined_ids,
+        skipped_ids = EXCLUDED.skipped_ids,
         settings = EXCLUDED.settings
       `,
       [
@@ -996,6 +1002,7 @@ class PgStore {
         Number(lobby?.pool_increment || 0) || 0,
         countdownEnd,
         JSON.stringify(joinedIds),
+        JSON.stringify(Array.from(lobby?.skipped || [])),
         JSON.stringify(lobby?.settings || {}),
       ]
     );
@@ -1015,6 +1022,7 @@ class PgStore {
         pool_increment,
         countdown_end,
         joined_ids,
+        skipped_ids,
         settings
       FROM gauntlet_survival_lobby
       WHERE id = 'active'
@@ -1151,3 +1159,4 @@ module.exports = {
   Store,
   initStore,
 };
+
