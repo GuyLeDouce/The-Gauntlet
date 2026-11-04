@@ -245,3 +245,35 @@ test("pass recipient and the real reward helper resolve the same configured payo
     assert.equal(writes[0].body.recipientId,buyerId);
   }
 });
+
+test("completed DRIP response activates without optional echoes, including wrapped receipts", async () => {
+  for (const data of [{}, {id:"receipt"}, {data:{id:"receipt",senderId:buyerId}}, null]) {
+    const h = api({async patch() { return {status:200,data}; }});
+    const result = await h.client.transfer(await h.client.prepare("user"));
+    assert.equal(result.status,"succeeded");
+    assert.equal(result.receipt.httpStatus,200);
+  }
+  for (const response of [{status:202,data:{}},{status:200,data:{error:"rejected"}},
+    {status:200,data:{data:{success:false}}}]) {
+    const h = api({async patch() {return response;}});
+    assert.equal((await h.client.transfer(await h.client.prepare("user"))).status,"unknown");
+  }
+});
+
+test("paid test reset unlocks only the selected purchase and preserves its audit history", async t => {
+  const {pool,store} = await database(t);
+  await store.reserve("test","guild","user");
+  await store.submitted("test",{amount:2500});
+  await store.finish("test","unknown",{},"unconfirmed_response");
+  const review = {by:"operator",note:"Buyer confirmed DRIP charged this test"};
+  await assert.rejects(store.resetForTest("test",review),/five minutes/);
+  await pool.query(`UPDATE gauntlet_survival_pass_purchases SET created_at=now()-interval '10 minutes' WHERE id='test'`);
+  const result = await store.resetForTest("test",review);
+  assert.equal(result.status,"succeeded");
+  assert.equal(result.receipt.testReset,true);
+  assert.equal((await store.status("guild","user")).active,false);
+  assert.equal((await store.reserve("new","guild","user")).kind,"reserved");
+  await store.resetForTest("test",review);
+  assert.equal((await store.status("guild","user")).pending_purchase_id,"new");
+  await assert.rejects(store.resetForTest("missing",review),/not found/);
+});

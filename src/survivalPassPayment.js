@@ -57,16 +57,25 @@ function createPassPaymentClient({ http, getConfig, getOverride }) {
         { amount: PASS_PRICE, recipientId: payment.recipientId, currencyId: payment.currencyId },
         { headers: { Authorization: config.auth }, timeout: 15000, maxRedirects: 0 }
       );
-      const receipt = response?.data;
-      if (response.status !== 200 || !receipt || !receipt.id ||
-          receipt.senderId !== payment.senderId || receipt.recipientId !== payment.recipientId ||
-          receipt.currencyId !== payment.currencyId) {
-        return { status: "unknown", code: "unconfirmed_response" };
+      // HTTP 200 is DRIP's completed-transfer response. Receipt fields are
+      // optional in its schema; their absence must not strand a paid customer.
+      const body = response?.data;
+      const receipt = body?.data && typeof body.data === "object" ? body.data : body;
+      const evidence = { httpStatus: response?.status };
+      for (const key of ["id", "senderId", "recipientId", "currencyId", "balance"]) {
+        if (["string", "number"].includes(typeof receipt?.[key])) evidence[key] = receipt[key];
       }
-      return { status: "succeeded", receipt: {
-        id: receipt.id, senderId: receipt.senderId, recipientId: receipt.recipientId,
-        currencyId: receipt.currencyId, balance: receipt.balance,
-      } };
+      if (response?.status !== 200 || body?.error || receipt?.error ||
+          body?.success === false || receipt?.success === false) {
+        return { status: "unknown", code: "unconfirmed_response", receipt: evidence };
+      }
+      // Keep explicit contradictions blocked, but do not require optional echoes.
+      for (const key of ["senderId", "recipientId", "currencyId"]) {
+        if (receipt?.[key] != null && receipt[key] !== payment[key]) {
+          return { status: "unknown", code: "receipt_mismatch", receipt: evidence };
+        }
+      }
+      return { status: "succeeded", receipt: evidence };
     } catch (error) {
       const status = error.response?.status;
       const code = error.response?.data?.error;

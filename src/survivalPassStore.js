@@ -96,6 +96,27 @@ class SurvivalPassStore {
     [id,JSON.stringify(payment)]);
     if (r.rowCount !== 1) throw new Error("Purchase is not reserved");
   }
+  async resetForTest(id, review) {
+    if (!review?.by || (review.note || "").length < 12) throw new Error("Reset requires operator and evidence note");
+    return this.transaction(async client => {
+      const identity = (await client.query(`SELECT guild_id,user_id FROM gauntlet_survival_pass_purchases WHERE id=$1`, [id])).rows[0];
+      if (!identity) throw new Error("Purchase not found");
+      const pass = (await client.query(`SELECT * FROM gauntlet_survival_passes WHERE guild_id=$1 AND user_id=$2 FOR UPDATE`, [identity.guild_id,identity.user_id])).rows[0];
+      const purchase = (await client.query(`SELECT * FROM gauntlet_survival_pass_purchases WHERE id=$1 FOR UPDATE`, [id])).rows[0];
+      if (purchase.receipt?.testReset) return purchase;
+      if (pass.pending_purchase_id && pass.pending_purchase_id !== id) throw new Error("Another purchase is pending");
+      if (pass.purchase_id !== id && pass.pending_purchase_id !== id) throw new Error("Purchase is not the current pass");
+      if (new Date(purchase.created_at).getTime() > Date.now() - 300000) throw new Error("Wait five minutes before resetting");
+      // User-confirmed paid test: preserve success and evidence, expire entitlement.
+      const result = (await client.query(`UPDATE gauntlet_survival_pass_purchases
+        SET status='succeeded', receipt=receipt || $2::jsonb,
+          error_code='paid_test_reset', reviewed_by=$3, review_note=$4
+        WHERE id=$1 RETURNING *`, [id,JSON.stringify({testReset:true}),review.by,review.note])).rows[0];
+      await client.query(`UPDATE gauntlet_survival_passes SET expires_at=now(),
+        pending_purchase_id=NULL WHERE guild_id=$1 AND user_id=$2`, [identity.guild_id,identity.user_id]);
+      return result;
+    });
+  }
   async finish(id, status, receipt = {}, errorCode = null, review = null) {
     if (!["succeeded","failed","unknown"].includes(status)) throw new Error("Invalid purchase outcome");
     return this.transaction(async client => {
