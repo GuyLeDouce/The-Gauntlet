@@ -29,6 +29,18 @@ const DRIP_BASE_URL = process.env.DRIP_BASE_URL || "https://api.drip.re";
 const DRIP_DEBUG = (process.env.DRIP_DEBUG || "false").toLowerCase() === "true";
 const DRIP_REALM_POINT_ID = process.env.DRIP_REALM_POINT_ID;
 
+// Pass payments use exactly the same resolved account as ordinary reward payouts.
+function resolveDripSenderId(metadata = {}) {
+  return String(metadata.dripSenderId || "").trim() ||
+    String(DRIP_SENDER_ID || "").trim() ||
+    String(metadata.dripInitiatorId || DRIP_INITIATOR_ID || DRIP_CLIENT_ID || "").trim() || null;
+}
+function getDripPaymentConfig() {
+  return { auth: buildAuthHeader(DRIP_API_KEY), realmId: DRIP_REALM_ID,
+    currencyId: DRIP_REALM_POINT_ID, senderId: resolveDripSenderId(),
+    baseUrl: buildRealmsBaseUrl() };
+}
+
 let envLogged = false;
 function logEnvOnce() {
   if (envLogged) return;
@@ -269,11 +281,7 @@ async function rewardCharmAmount({
     String(DRIP_INITIATOR_ID || "").trim() ||
     String(DRIP_CLIENT_ID || "").trim() ||
     null;
-  const dripSenderId =
-    String(metadata?.dripSenderId || "").trim() ||
-    String(DRIP_SENDER_ID || "").trim() ||
-    dripInitiatorId ||
-    null;
+  const dripSenderId = resolveDripSenderId(metadata || {});
   logDripAttempt("reward:start", {
     userId: String(userId || ""),
     username: username || null,
@@ -920,9 +928,11 @@ async function logCharmReward(
 }
 
 module.exports = {
+  getDripPaymentConfig,
   getCharmRewardAmount,
   rewardCharmAmount,
   rewardCharm,
   DRIP_LOG_CHANNEL_ID,
   logCharmReward,
 };
+
