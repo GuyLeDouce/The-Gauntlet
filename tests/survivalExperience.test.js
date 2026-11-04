@@ -14,6 +14,96 @@ const { MILESTONES, VICTORY } = require("../src/deathRaceNarrative");
 const ids = ["123456789012345678", "223456789012345678", "323456789012345678"];
 const mention = id => storyPlayer(id, "Display Name");
 
+function reviveHarness(eraKey, enabled = true) {
+  const source = fs.readFileSync(require.resolve("../src/survival"), "utf8");
+  const sent = [];
+  let rolls = 0;
+  const run = {
+    eraKey, revivesEnabled: enabled, ended: false, currentMilestone: 7,
+    joined: new Set([...ids, "dead"]), joinedIds: [...ids, "dead"],
+    aliveIds: ["a", "b", "c", "d", "e", "f", "g"],
+    aliveSet: new Set(["a", "b", "c", "d", "e", "f", "g"]),
+    eliminatedIds: ["dead"], reviveAttemptsByMilestone: new Map(),
+  };
+  const context = {
+    activeSurvivalRuns: new Map([["channel", run]]),
+    chance() { rolls += 1; return true; },
+    upsertSurvivalRunStatus() {},
+    getSurvivalEraDefinition() { return { stories: { resurrections: ["{victim} returns"] } }; },
+    pick: pool => pool[0],
+    takeRunImage: () => null,
+    awardSurvivalImageUse: async () => {},
+  };
+  vm.runInNewContext(source.slice(source.indexOf("function formatReviveLore"),
+    source.indexOf("function shuffle")), context);
+  vm.runInNewContext(source.slice(source.indexOf("function shouldAutoReviveChapterStory"),
+    source.indexOf("function replaceUglyCityPlaceholders")), context);
+  return { run, context, sent, rolls: () => rolls,
+    message: { channelId: "channel", author: { id: "dead" },
+      channel: { async send(payload) { sent.push(payload); } } } };
+}
+
+test("Squigwreck and Ugly City reject manual revives without rolls or state changes", async () => {
+  for (const era of ["squigwreck", "ugly_city"]) {
+    for (const enabled of [true, false]) {
+      const h = reviveHarness(era, enabled);
+      const before = JSON.stringify(h.run);
+      assert.equal(await h.context.handlePublicReviveCommand(h.message), true);
+      assert.equal(h.rolls(), 0);
+      assert.equal(JSON.stringify(h.run), before);
+      assert.equal(h.run.reviveAttemptsByMilestone.size, 0);
+      assert.equal(h.run.aliveSet.has("dead"), false);
+      assert.deepEqual(h.sent, ["Manual !revive is disabled for this era."]);
+    }
+  }
+});
+
+test("other eras retain enabled manual revives and the disabled setting", async () => {
+  const h = reviveHarness("day_one");
+  await h.context.handlePublicReviveCommand(h.message);
+  assert.equal(h.rolls(), 1);
+  assert.ok(h.run.aliveIds.includes("dead"));
+  assert.equal(h.run.eliminatedIds.length, 0);
+  assert.equal(h.run.reviveAttemptsByMilestone.get("dead"), 1);
+  const disabled = reviveHarness("day_one", false);
+  await disabled.context.handlePublicReviveCommand(disabled.message);
+  assert.equal(disabled.rolls(), 0);
+  assert.deepEqual(disabled.run.eliminatedIds, ["dead"]);
+});
+
+test("storyline revival schedule and enabled setting remain intact in both eras", () => {
+  for (const era of ["squigwreck", "ugly_city"]) {
+    const h = reviveHarness(era);
+    const args = { chapterNumber: 7, aliveCount: 7, removedCount: 1,
+      revivesEnabled: true, eraDefinition: SURVIVAL_ERAS[era] };
+    assert.equal(h.context.shouldAutoReviveChapterStory(args), true);
+    assert.equal(h.context.shouldAutoReviveChapterStory({ ...args, chapterNumber: 14 }), true);
+    assert.equal(h.context.shouldAutoReviveChapterStory({ ...args, chapterNumber: 8 }), false);
+    assert.equal(h.context.shouldAutoReviveChapterStory({ ...args, revivesEnabled: false }), false);
+    assert.equal(h.context.shouldAutoReviveChapterStory({ ...args, aliveCount: 6 }), false);
+    assert.equal(h.context.shouldAutoReviveChapterStory({ ...args, removedCount: 0 }), false);
+  }
+});
+
+test("lobby copy distinguishes storyline revives from manual commands", () => {
+  const source = fs.readFileSync(require.resolve("../src/soloGauntlet"), "utf8");
+  const context = { isSurvivalPlayerCountStart: () => false,
+    isUglyFortuneBonusPrize: () => false };
+  vm.runInNewContext(source.slice(source.indexOf("function buildSurvivalSetupParagraph"),
+    source.indexOf("function buildSurvivalLobbyEmbed")), context);
+  for (const enabled of [true, false]) {
+    const cfg = { era_key: "squigwreck", era: "Squigwreck", revives_enabled: enabled };
+    const copy = context.buildSurvivalSetupParagraph(cfg, null);
+    assert.ok(copy.includes("storyline revives are **" + (enabled ? "ON" : "OFF") + "**"));
+    assert.ok(copy.includes("manual **!revive** is **OFF**"));
+    const city = context.buildUglyCityLobbyDescription({ ...cfg, era_key: "ugly_city" }, 10, null);
+    assert.ok(city.includes("storyline revives are " + (enabled ? "on" : "off")));
+    assert.ok(city.includes("manual !revive is off"));
+    assert.ok(context.buildSurvivalSetupParagraph({ ...cfg, era_key: "day_one" }, null)
+      .includes("**!revive** is **" + (enabled ? "ON" : "OFF") + "**"));
+  }
+});
+
 test("all race scenario roles, cameos and champion use intact mentions", () => {
   for (const [type, def] of Object.entries(SCENARIOS)) {
     for (const story of def.stories || MILESTONES.slice(0, 59).map(m => m.story)) {
@@ -102,3 +192,4 @@ test("era pools normalize legacy settings, clone arrays, and choose only selecte
   assert.equal(settings.era_keys.length, 2);
   assert.equal(chooseLobbyEra({ era_key: "ugly_city" }, () => { throw Error("must not roll"); }).era_key, "ugly_city");
 });
+

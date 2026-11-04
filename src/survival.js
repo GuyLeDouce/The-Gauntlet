@@ -454,6 +454,12 @@ async function handlePublicReviveCommand(message) {
   const run = activeSurvivalRuns.get(channelId);
   if (!run || run.ended) return false;
 
+  // These eras only allow storyline revives; keep their automatic revive rules intact.
+  if (run.eraKey === "squigwreck" || run.eraKey === "ugly_city") {
+    await message.channel.send("Manual !revive is disabled for this era.");
+    return true;
+  }
+
   const userId = message.author.id;
   const mention = `<@${userId}>`;
   const isUglyCity = run.eraKey === "ugly_city";
@@ -2088,3 +2094,4 @@ module.exports = {
   handlePublicReviveCommand,
   handleSurvivalImagePromptButton,
 };
+

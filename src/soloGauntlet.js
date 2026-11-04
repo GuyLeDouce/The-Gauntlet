@@ -882,7 +882,11 @@ function buildSurvivalSetupParagraph(cfg, countdownMs, options = {}) {
       ? "Creator Chaos is **ON**, which means there is only **1 elimination per image**"
       : "Creator Chaos is **OFF**";
 
-  return `${countdownText}. This lobby is set to the **${cfg.era}** era, with **+${cfg.pool_increment} $CHARM per Squig** added to the prize pool.${timingText} ${creatorChaosText}, and **!revive** is **${cfg.revives_enabled ? "ON" : "OFF"}**. ${bonusText}${bonusPrizeText}.`;
+  const reviveText = cfg.era_key === "squigwreck" || cfg.era_key === "ugly_city"
+    ? `storyline revives are **${cfg.revives_enabled ? "ON" : "OFF"}** (manual **!revive** is **OFF**)`
+    : `**!revive** is **${cfg.revives_enabled ? "ON" : "OFF"}**`;
+
+  return `${countdownText}. This lobby is set to the **${cfg.era}** era, with **+${cfg.pool_increment} $CHARM per Squig** added to the prize pool.${timingText} ${creatorChaosText}, and ${reviveText}. ${bonusText}${bonusPrizeText}.`;
 }
 
 function buildUglyCityLobbyDescription(cfg, count, countdownMs) {
@@ -904,9 +908,9 @@ function buildUglyCityLobbyDescription(cfg, count, countdownMs) {
 
   return [
     `${squigCount} ${joinVerb} joined the build crew, and ${startText}.`,
-    `Each Squig adds **${cfg.pool_increment} $CHARM** to the prize pool. Two Squigs are eliminated every milestone, revives are ${
+    `Each Squig adds **${cfg.pool_increment} $CHARM** to the prize pool. Two Squigs are eliminated every milestone, storyline revives are ${
       cfg.revives_enabled ? "on" : "off"
-    }, and the winner receives ${winnerPrize}.`,
+    } (manual !revive is off), and the winner receives ${winnerPrize}.`,
     "Click **Join** before construction begins.",
   ].join("\n");
 }
@@ -5072,3 +5076,4 @@ module.exports = {
   handleMessageCreate,
   initSurvivalLobby,
 };
+
