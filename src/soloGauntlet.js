@@ -32,6 +32,7 @@ const {
 
 const { Store } = require("./db");
 const { survivalPass } = require("./survivalPass");
+const { adminPassButton, handlePassVerification } = require("./survivalPassAdmin");
 const { passButton, passPanel, validConfirmation, purchaseText } = require("./survivalPassPanel");
 
 const {
@@ -1111,7 +1112,9 @@ async function handleSurvivalPassButton(interaction) {
   try {
     if (interaction.customId === "survive:pass") {
       const status = await survivalPass.status(interaction.guildId, interaction.user.id);
-      return interaction.editReply(passPanel(status, interaction.user.id, interaction.id));
+      const panel = passPanel(status, interaction.user.id, interaction.id);
+      if (isAdminUserLocal(interaction)) panel.components.push(adminPassButton());
+      return interaction.editReply(panel);
     }
     const purchaseId = validConfirmation(interaction.customId, interaction.user.id);
     if (!purchaseId) {
@@ -3755,6 +3758,21 @@ async function handleInteractionCreate(interaction) {
   try {
     if (interaction.isAutocomplete()) {
       return interaction.respond([]);
+    }
+
+    if ((interaction.isButton() || interaction.isModalSubmit()) &&
+        interaction.customId?.startsWith("survive:pass:admin")) {
+      return handlePassVerification(interaction, {
+        isAdmin: isAdminUserLocal, service: survivalPass,
+        enroll: async () => {
+          const lobby = survivalLobby;
+          if (lobby?.guild_id === interaction.guildId && lobby.game_status === "lobby") {
+            const channel = lobby.join_message?.channel || interaction.channel;
+            await syncSurvivalPassEntries(lobby, channel);
+            await triggerSurvivalPlayerCountCountdown(lobby, channel);
+          }
+        },
+      });
     }
 
     if (interaction.isButton() && interaction.customId.startsWith("survive:pass")) {

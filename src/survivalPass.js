@@ -8,6 +8,13 @@ function createSurvivalPassService(store, payment) {
   return {
     status: (guildId,userId) => store.status(guildId,userId),
     entrants: (guildId,openedAt) => store.entrants(guildId,openedAt),
+    async approve(id,guildId,operatorId,note) {
+      if (!/^\d{17,20}$/.test(id) || !guildId || !operatorId || note.trim().length < 12) {
+        throw new Error("Enter a valid purchase reference and verification note (at least 12 characters)");
+      }
+      return store.finish(id,"succeeded",{adminVerified:true},"operator_verified",
+        {by:operatorId,note:note.trim(),guildId});
+    },
     async buy(id,guildId,userId) {
       const reservation = await store.reserve(id,guildId,userId);
       if (reservation.kind !== "reserved") return reservation;

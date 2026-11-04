@@ -166,3 +166,17 @@ This requires database access and a purchase at least five minutes old. It retai
 the payment ledger and audit note, never transfers or refunds funds, and does not
 remove an existing lobby entry. Opening a new checkout afterward charges another
 2,500 CHARM. Repeating the reset cannot clear a newer purchase or entitlement.
+
+### Discord admin payment verification
+
+Open **Survival Pass** in any public lobby, then **Admin: verify paid purchase**
+(on your private panel). Existing configured bot admins and members with Manage
+Server/Administrator can use it. Enter the pending purchase reference and evidence
+that the buyer transferred 2,500 CHARM to the payout account in DRIP. Submitting
+approves the payment and activates seven days; no DRIP write is made.
+
+Permissions are checked again on submission. Only this server's submitted/unknown
+purchases at least five minutes old can be approved. Approval retains receipt
+information and stores the admin Discord ID and evidence note. Repeated approval
+cannot extend a pass. Open-lobby enrollment respects Leave. This action handles
+existing pending references, including ones created before this feature deployed.

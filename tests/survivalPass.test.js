@@ -277,3 +277,47 @@ test("paid test reset unlocks only the selected purchase and preserves its audit
   assert.equal((await store.status("guild","user")).pending_purchase_id,"new");
   await assert.rejects(store.resetForTest("missing",review),/not found/);
 });
+
+test("admin verification is guild scoped, audited, idempotent and does not transfer", async t => {
+  const {pool,store} = await database(t);
+  const id = "1567352386391904477";
+  const service = createSurvivalPassService(store,{prepare:()=>assert.fail(),transfer:()=>assert.fail()});
+  await store.reserve(id,"guild","buyer");
+  await store.submitted(id,{amount:2500});
+  await store.finish(id,"unknown",{httpStatus:200},"receipt_mismatch");
+  await assert.rejects(service.approve(id,"other","admin","DRIP transfer verified"),/this server/);
+  await assert.rejects(service.approve(id,"guild","admin","DRIP transfer verified"),/five minutes/);
+  await pool.query(`UPDATE gauntlet_survival_pass_purchases SET created_at=now()-interval '10 minutes' WHERE id=$1`,[id]);
+  const result = await service.approve(id,"guild","admin","DRIP transfer verified");
+  assert.equal(result.status,"succeeded");
+  assert.equal(result.reviewed_by,"admin");
+  assert.equal(result.receipt.httpStatus,200);
+  assert.equal((await store.status("guild","buyer")).active,true);
+  const duplicate = await service.approve(id,"guild","admin2","DRIP transfer verified again");
+  assert.equal(+new Date(duplicate.expires_at),+new Date(result.expires_at));
+  assert.equal(duplicate.reviewed_by,"admin");
+});
+
+test("Discord verification rechecks admin permissions on both button and modal", async () => {
+  const {handlePassVerification} = require("../src/survivalPassAdmin");
+  for (const button of [true,false]) {
+    let reply;
+    await handlePassVerification({inGuild:()=>true,isButton:()=>button,isModalSubmit:()=>!button,
+      reply:async value=>{reply=value;}},{isAdmin:()=>false,service:{approve:()=>assert.fail()}});
+    assert.match(reply.content,/Only server admins/);
+    assert.equal(reply.flags,64);
+  }
+  let modal;
+  await handlePassVerification({inGuild:()=>true,isButton:()=>true,customId:"survive:pass:admin",
+    showModal:async value=>{modal=value.toJSON();}},{isAdmin:()=>true});
+  assert.equal(modal.custom_id,"survive:pass:admin:approve");
+  let response, enrolled=false;
+  await handlePassVerification({inGuild:()=>true,isButton:()=>false,isModalSubmit:()=>true,
+    customId:modal.custom_id,guildId:"guild",user:{id:"admin"},
+    fields:{getTextInputValue:key=>key==="reference"?"1567352386391904477":"Verified transfer"},
+    deferReply:async opts=>assert.equal(opts.flags,64),editReply:async value=>{response=value;}},
+    {isAdmin:()=>true,service:{approve:async (...args)=>{assert.deepEqual(args,["1567352386391904477","guild","admin","Verified transfer"]);
+      return {user_id:"buyer",expires_at:new Date()};}},enroll:async()=>{enrolled=true;}});
+  assert.equal(enrolled,true);
+  assert.match(response.content,/No transfer was sent/);
+});
