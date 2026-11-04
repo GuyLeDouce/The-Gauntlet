@@ -153,8 +153,9 @@ should verify the ephemeral panel and role picker after deployment.
 ### Resetting a confirmed paid test
 
 HTTP 200 transfers activate even if DRIP omits optional receipt fields or wraps
-its receipt in `data`. Explicit conflicting IDs, error responses, timeouts and
-HTTP 202 remain unresolved; transfers are never automatically retried.
+its receipt in `data`. Receipt ID differences are retained as diagnostic metadata; they do not reject a
+completed HTTP 200 transfer. Explicit error responses, timeouts and HTTP 202 remain
+unresolved; transfers are never automatically retried.
 
 To expire only a confirmed paid test and release its pending lock, use:
 
@@ -180,3 +181,12 @@ purchases at least five minutes old can be approved. Approval retains receipt
 information and stores the admin Discord ID and evidence note. Repeated approval
 cannot extend a pass. Open-lobby enrollment respects Leave. This action handles
 existing pending references, including ones created before this feature deployed.
+
+
+Successful transfer confirmation follows the payout flow: HTTP 200 without an
+explicit error activates the pass. The validated request fixes the buyer,
+recipient, currency and amount before sending. Receipt echoes are retained, not
+used as an undocumented second success requirement. A failed database settlement
+is retried up to three times without another DRIP request. Persistent DB outages
+and lost/uncertain DRIP responses still need admin verification. Structured outcome
+logs retain status, failure code and differing field names, without credentials.

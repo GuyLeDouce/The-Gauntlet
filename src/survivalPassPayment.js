@@ -46,7 +46,8 @@ function createPassPaymentClient({ http, getConfig, getOverride }) {
   }
   async function transfer(payment) {
     const config = getConfig();
-    if (payment.amount !== PASS_PRICE || !objectId(payment.senderId) ||
+    if (payment.baseUrl !== config.baseUrl + "/" + config.realmId ||
+        payment.amount !== PASS_PRICE || !objectId(payment.senderId) ||
         !objectId(payment.recipientId) || !objectId(payment.currencyId)) {
       throw paymentError("invalid_payment");
     }
@@ -69,12 +70,11 @@ function createPassPaymentClient({ http, getConfig, getOverride }) {
           body?.success === false || receipt?.success === false) {
         return { status: "unknown", code: "unconfirmed_response", receipt: evidence };
       }
-      // Keep explicit contradictions blocked, but do not require optional echoes.
-      for (const key of ["senderId", "recipientId", "currencyId"]) {
-        if (receipt?.[key] != null && receipt[key] !== payment[key]) {
-          return { status: "unknown", code: "receipt_mismatch", receipt: evidence };
-        }
-      }
+      // The authenticated response confirms the exact request above, as in the
+      // payout flow. Echoed IDs are diagnostic metadata, not a second payment
+      // protocol: DRIP's schema does not promise their identity namespace.
+      evidence.echoDifferences = ["senderId", "recipientId", "currencyId"].filter(
+        key => receipt?.[key] != null && receipt[key] !== payment[key]);
       return { status: "succeeded", receipt: evidence };
     } catch (error) {
       const status = error.response?.status;
@@ -84,7 +84,9 @@ function createPassPaymentClient({ http, getConfig, getOverride }) {
         return { status: "failed", code: code === "InsufficientBalance" ?
           "insufficient_balance" : "transfer_rejected", receipt: { httpStatus: status } };
       }
-      return { status: "unknown", code: "transfer_unconfirmed" };
+      return { status: "unknown", code: "transfer_unconfirmed", receipt: {
+        httpStatus: status || null, transportCode: typeof error.code === "string" ? error.code : null,
+      } };
     }
   }
   return { prepare, transfer };
