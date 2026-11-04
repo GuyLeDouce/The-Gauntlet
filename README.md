@@ -149,3 +149,20 @@ checks for authorization, persistence, snapshot isolation, duplicate lobby creat
 manual start, timed scheduling, and database failures. A live Discord smoke check
 should verify the ephemeral panel and role picker after deployment.
 
+
+### Resetting a confirmed paid test
+
+HTTP 200 transfers activate even if DRIP omits optional receipt fields or wraps
+its receipt in `data`. Explicit conflicting IDs, error responses, timeouts and
+HTTP 202 remain unresolved; transfers are never automatically retried.
+
+To expire only a confirmed paid test and release its pending lock, use:
+
+```bash
+node scripts/survival-pass-review.js reset-test --id PURCHASE_ID --by ADMIN_DISCORD_ID --note "Buyer confirmed payment; requested reset for another test" --confirm-transferred
+```
+
+This requires database access and a purchase at least five minutes old. It retains
+the payment ledger and audit note, never transfers or refunds funds, and does not
+remove an existing lobby entry. Opening a new checkout afterward charges another
+2,500 CHARM. Repeating the reset cannot clear a newer purchase or entitlement.

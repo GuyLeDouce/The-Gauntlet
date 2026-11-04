@@ -12,10 +12,10 @@ async function main() {
     "confirm-not-transferred": { type: "boolean" },
   } });
   const action = positionals[0];
-  if (!["list","resolve"].includes(action)) {
+  if (!["list","resolve","reset-test"].includes(action)) {
     throw new Error("Usage: node scripts/survival-pass-review.js list | resolve --id ID --by OPERATOR --note EVIDENCE --confirm-transferred|--confirm-not-transferred");
   }
-  if (action === "resolve" && (!values.id || !values.by || (values.note || "").length < 12 ||
+  if (["resolve","reset-test"].includes(action) && (!values.id || !values.by || (values.note || "").length < 12 ||
       Boolean(values["confirm-transferred"]) === Boolean(values["confirm-not-transferred"]))) {
     throw new Error("Resolution requires an ID, operator, evidence note and exactly one confirmed outcome.");
   }
@@ -29,6 +29,13 @@ async function main() {
         payment,receipt,error_code,created_at FROM gauntlet_survival_pass_purchases
         WHERE status IN ('reserved','submitted','unknown') ORDER BY created_at`);
       console.log(JSON.stringify(rows.rows,null,2));
+      return;
+    }
+    if (action === "reset-test") {
+      if (!values["confirm-transferred"]) throw new Error("Test reset requires confirmed payment");
+      const result = await new SurvivalPassStore(() => Store.pool).resetForTest(values.id,
+        {by:values.by,note:values.note});
+      console.log(JSON.stringify({id:result.id,status:result.status,testReset:true}));
       return;
     }
     const row = (await Store.pool.query(`SELECT *,created_at < now()-interval '5 minutes' AS old_enough
