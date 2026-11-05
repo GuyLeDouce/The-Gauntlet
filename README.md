@@ -170,8 +170,22 @@ remove an existing lobby entry. Opening a new checkout afterward charges another
 
 ### Discord admin payment verification
 
+Purchases returning pending/unknown review status notify admin `826581856400179210`
+in the private UglyBot Admin Log channel `1477463175665287410`. The alert includes
+the buyer, 2,500 $CHARM amount, and original purchase reference in a copyable code
+block. Only the reviewer is pinged. Notification failures are logged with the
+reference and do not change the purchase result or retry the transfer.
+
 Open **Survival Pass** in any public lobby, then **Admin: verify paid purchase**
-(on your private panel). Existing configured bot admins and members with Manage
+(on your private panel). Choose **Verify by purchase reference**, or use the member
+picker to grant a missed pass without knowing its reference. The member picker
+requires a payment verification/manual grant note and grants seven days without a
+transfer. It resolves an existing submitted/unknown purchase at least five minutes
+old, or creates an audited manual grant if no pending purchase exists. Active
+passes cannot be extended; repeated submissions cannot extend a grant. Selected
+users must still be human members of this server when the grant is submitted.
+
+Existing configured bot admins and members with Manage
 Server/Administrator can use it. Enter the pending purchase reference and evidence
 that the buyer transferred 2,500 CHARM to the payout account in DRIP. Submitting
 approves the payment and activates seven days; no DRIP write is made.

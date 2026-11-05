@@ -74,6 +74,8 @@ const {
   normalizeBonusPrizeValue,
 } = require("./uglyFortune");
 const { rewardCharmAmount, logCharmReward, DRIP_LOG_CHANNEL_ID } = require("./drip");
+const SURVIVAL_PASS_REVIEW_CHANNEL_ID = "1477463175665287410";
+const SURVIVAL_PASS_REVIEW_ADMIN_ID = "826581856400179210";
 const { imageStore } = require("./imageStore");
 const { survivalStore } = require("./survivalStore");
 const { snapshotSurvivalSquigTraits } = require("./squigTraitSnapshot");
@@ -1147,10 +1149,18 @@ async function handleSurvivalPassButton(interaction) {
     if (["pending","unknown"].includes(result.kind)) {
       console.error("[SURVIVAL PASS] Purchase needs review:", result.id);
       try {
-        const logChannel = await interaction.client.channels.fetch(DRIP_LOG_CHANNEL_ID);
-        await logChannel.send({ content: "Survival Pass purchase needs verification. Reference: " + result.id +
-          ". No automatic transfer retry will be attempted.", allowedMentions: { parse: [] } });
-      } catch {}
+        const logChannel = await interaction.client.channels.fetch(SURVIVAL_PASS_REVIEW_CHANNEL_ID);
+        await logChannel.send({
+          content: "<@" + SURVIVAL_PASS_REVIEW_ADMIN_ID + "> **Survival Pass payment needs verification**\n" +
+            "Buyer: <@" + interaction.user.id + "> (" + interaction.user.id + ")\n" +
+            "Amount: **2,500 $CHARM**\nPurchase reference:\n```\n" + result.id + "\n```\n" +
+            "Confirm receipt in DRIP, then use **Admin: verify paid purchase** in the Survival Pass panel. " +
+            "No automatic transfer retry will be attempted.",
+          allowedMentions: { parse: [], users: [SURVIVAL_PASS_REVIEW_ADMIN_ID] },
+        });
+      } catch (error) {
+        console.error("[SURVIVAL PASS] Admin review notification failed:", result.id, error.code || error.name);
+      }
     }
     return interaction.editReply({ content: purchaseText(result) + note, embeds: [], components: [] });
   } catch (error) {
@@ -3760,7 +3770,7 @@ async function handleInteractionCreate(interaction) {
       return interaction.respond([]);
     }
 
-    if ((interaction.isButton() || interaction.isModalSubmit()) &&
+    if ((interaction.isButton() || interaction.isModalSubmit() || interaction.isUserSelectMenu?.()) &&
         interaction.customId?.startsWith("survive:pass:admin")) {
       return handlePassVerification(interaction, {
         isAdmin: isAdminUserLocal, service: survivalPass,

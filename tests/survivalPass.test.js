@@ -310,7 +310,7 @@ test("Discord verification rechecks admin permissions on both button and modal",
     assert.equal(reply.flags,64);
   }
   let modal;
-  await handlePassVerification({inGuild:()=>true,isButton:()=>true,customId:"survive:pass:admin",
+  await handlePassVerification({inGuild:()=>true,isButton:()=>true,customId:"survive:pass:admin:reference",
     showModal:async value=>{modal=value.toJSON();}},{isAdmin:()=>true});
   assert.equal(modal.custom_id,"survive:pass:admin:approve");
   let response, enrolled=false;
@@ -352,4 +352,71 @@ test("transient DB settlement and lost COMMIT replies retry settlement without a
   assert.equal(result.kind,"succeeded");
   assert.equal(writes,1);
   assert.equal(calls,3);
+});
+
+
+test("manual member grants are audited, non-stackable, idempotent and resolve missed payments", async t => {
+  const {pool,store} = await database(t);
+  const service = createSurvivalPassService(store,{prepare:()=>assert.fail(),transfer:()=>assert.fail()});
+  const buyer="123456789012345678", admin="826581856400179210", id="1567352386391904480";
+  await assert.rejects(service.grant(id,"guild",buyer,admin,"short"),/verification note/);
+  const pass = await service.grant(id,"guild",buyer,admin,"Missed payment verified in DRIP");
+  assert.equal(pass.reviewed_by,admin);
+  assert.equal(pass.receipt.manualGrant,true);
+  assert.equal(pass.review_note,"Missed payment verified in DRIP");
+  assert.equal(+new Date(pass.expires_at)-new Date(pass.activated_at),7*86400000);
+  assert.equal((await store.status("guild",buyer)).active,true);
+  const duplicate = await service.grant(id,"guild",buyer,admin,"Repeated grant verification");
+  assert.equal(+new Date(duplicate.expires_at),+new Date(pass.expires_at));
+  await assert.rejects(service.grant("1567352386391904481","guild",buyer,admin,"Attempt to extend active pass"),/already has an active/);
+  await assert.rejects(service.grant(id,"other",buyer,admin,"Wrong server grant verification"),/another member/);
+  const missedBuyer="223456789012345678", pendingId="1567352386391904482", grantId="1567352386391904483";
+  await store.reserve(pendingId,"guild",missedBuyer);
+  await store.submitted(pendingId,{amount:2500});
+  await store.finish(pendingId,"unknown",{httpStatus:202},"uncertain");
+  await assert.rejects(service.grant(grantId,"guild",missedBuyer,admin,"Checked pending DRIP transfer"),/five minutes/);
+  await pool.query(`UPDATE gauntlet_survival_pass_purchases SET created_at=now()-interval '10 minutes' WHERE id=$1`,[pendingId]);
+  const recovered=await service.grant(grantId,"guild",missedBuyer,admin,"Checked pending DRIP transfer");
+  assert.equal(recovered.id,pendingId);
+  assert.equal(recovered.receipt.httpStatus,202);
+  assert.equal(recovered.receipt.grantReference,grantId);
+  assert.equal((await store.status("guild",missedBuyer)).pending_purchase_id,null);
+  await pool.query(`UPDATE gauntlet_survival_passes SET expires_at=now()-interval '1 day' WHERE user_id=$1`,[missedBuyer]);
+  const replay=await service.grant(grantId,"guild",missedBuyer,admin,"Same grant replayed after expiry");
+  assert.equal(+new Date(replay.expires_at),+new Date(recovered.expires_at));
+  assert.equal((await store.status("guild",missedBuyer)).active,false);
+});
+
+test("admin member picker and grant modal stay private and recheck membership and permissions", async () => {
+  const {handlePassVerification}=require("../src/survivalPassAdmin");
+  let panel,modal,response;
+  const buyer="123456789012345678";
+  const deps={isAdmin:()=>true};
+  await handlePassVerification({inGuild:()=>true,isButton:()=>true,customId:"survive:pass:admin",
+    reply:async p=>{panel=p;}},deps);
+  assert.equal(panel.flags,64);
+  assert.equal(panel.components[1].toJSON().components[0].type,5);
+  const guild={members:{fetch:async id=>({id,user:{bot:false}})}};
+  const selection={inGuild:()=>true,isButton:()=>false,isUserSelectMenu:()=>true,
+    customId:"survive:pass:admin:member",values:[buyer],guild,showModal:async p=>{modal=p.toJSON();}};
+  await handlePassVerification(selection,deps);
+  assert.equal(modal.custom_id,"survive:pass:admin:grant:"+buyer);
+  await handlePassVerification({...selection,reply:async p=>{response=p;}},{isAdmin:()=>false});
+  assert.equal(response.flags,64);
+  assert.match(response.content,/Only server admins/);
+  let enrolls=0;
+  const submit={inGuild:()=>true,isButton:()=>false,isModalSubmit:()=>true,customId:modal.custom_id,
+    id:"1567352386391904484",guildId:"guild",guild,user:{id:"admin"},
+    fields:{getTextInputValue:()=>"Verified missed payment"},deferReply:async p=>assert.equal(p.flags,64),
+    editReply:async p=>{response=p;},reply:async p=>{response=p;}};
+  await handlePassVerification(submit,{isAdmin:()=>true,service:{grant:async (...args)=>{
+    assert.deepEqual(args,[submit.id,"guild",buyer,"admin","Verified missed payment"]);
+    return {user_id:buyer,expires_at:new Date()};}},enroll:async()=>{enrolls++;}});
+  assert.equal(enrolls,1);
+  assert.match(response.content,/No transfer was sent/);
+  await handlePassVerification(submit,{isAdmin:()=>false,service:{grant:()=>assert.fail()}});
+  assert.match(response.content,/Only server admins/);
+  await handlePassVerification({...submit,guild:{members:{fetch:async()=>{throw Error("Unknown member");}}}},
+    {isAdmin:()=>true,service:{grant:()=>assert.fail()}});
+  assert.match(response.content,/human member/);
 });
