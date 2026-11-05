@@ -53,7 +53,7 @@ function loadController() {
         entrants: async () => { if (failPassRead) throw Error("pass DB unavailable"); return [...passIds]; }, status: async () => passStatus,
         buy: (...args) => passBuy(...args),
       } };
-      if (name === "./survivalPassPanel") return localRequire(name);
+      if (["./survivalPassPanel", "./survivalPassAdmin"].includes(name)) return localRequire(name);
       if (name === "./survivalEraSelection") {
         const helpers = localRequire(name);
         return { ...helpers, chooseLobbyEra: settings => helpers.chooseLobbyEra(settings, max => eraRolls++ % max) };
@@ -97,6 +97,7 @@ function interaction(kind, id, admin = true) {
     isModalSubmit: () => kind === "modal",
     isRoleSelectMenu: () => kind === "role",
     isStringSelectMenu: () => kind === "string",
+    isUserSelectMenu: () => kind === "user",
     async deferReply(payload) { this.deferred = true; responses.push(payload); },
     async deferUpdate() { this.deferred = true; },
     async reply(payload) { this.replied = true; responses.push(payload); },
@@ -307,6 +308,47 @@ async function main() {
   await purchaseController.test.startSurvivalFromLobby(null,next);
   assert.deepEqual(Array.from(gamePlayers),[p1]);
   purchaseController.test.clearSurvivalLobby();
+  // Manual-review alerts go only to the private admin log and ping only the reviewer.
+  const reviewController = loadController();
+  const reviewReference = String(BigInt(Date.now()-1420070400000) << 22n);
+  const publicCount = publicMessages.length;
+  const alerts = [];
+  for (const kind of ["pending", "unknown", "failed", "active", "duplicate", "succeeded"]) {
+    passBuy = async () => ({kind, id:reviewReference,
+      purchase:{expires_at:new Date(Date.now()+7*86400000)}});
+    const checkout = playerButton("survive:pass:buy:"+p3+":"+reviewReference,p3);
+    checkout.client.channels.fetch = async id => {
+      assert.equal(id,"1477463175665287410");
+      return {async send(payload) { alerts.push(payload); }};
+    };
+    const before = alerts.length;
+    await reviewController.handleInteractionCreate(checkout);
+    assert.equal(alerts.length-before,["pending","unknown"].includes(kind) ? 1 : 0,kind);
+    assert.equal(checkout.responses[0].flags,64,"buyer response stays private");
+  }
+  assert.equal(publicMessages.length,publicCount,"review never posts to the lobby");
+  for (const alert of alerts) {
+    assert.ok(alert.content.startsWith("<@826581856400179210>"));
+    assert.ok(alert.content.includes("```\n"+reviewReference+"\n```"),"copyable original reference");
+    assert.ok(alert.content.includes(p3),"reviewer can identify the buyer");
+    assert.ok(alert.content.includes("2,500 $CHARM"));
+    assert.equal(JSON.stringify(alert.allowedMentions),JSON.stringify({parse:[],users:["826581856400179210"]}));
+  }
+  // Discord failures must not replace the payment result or submit another transfer.
+  let reviewBuyCalls = 0;
+  passBuy = async () => { reviewBuyCalls++; return {kind:"unknown",id:reviewReference}; };
+  const failedAlert = playerButton("survive:pass:buy:"+p3+":"+reviewReference,p3);
+  failedAlert.client.channels.fetch = async () => { throw Error("Missing Access"); };
+  await reviewController.handleInteractionCreate(failedAlert);
+  assert.equal(reviewBuyCalls,1);
+  assert.ok(failedAlert.responses.at(-1).content.includes(reviewReference));
+  assert.ok(failedAlert.responses.at(-1).content.includes("needs verification"));
+  const memberPicker = interaction("user","survive:pass:admin:member");
+  memberPicker.values = [p3];
+  memberPicker.guild = {members:{fetch:async id => ({id,user:{bot:false}})}};
+  await reviewController.handleInteractionCreate(memberPicker);
+  assert.equal(memberPicker.responses[0].toJSON().custom_id,"survive:pass:admin:grant:"+p3,
+    "real router handles the admin user picker");
   console.log("Survival control center checks passed.");
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

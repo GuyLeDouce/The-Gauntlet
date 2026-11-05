@@ -117,6 +117,43 @@ class SurvivalPassStore {
       return result;
     });
   }
+  async grant(id, guildId, userId, operatorId, note) {
+    return this.transaction(async client => {
+      await client.query(`INSERT INTO gauntlet_survival_passes (guild_id,user_id)
+        VALUES ($1,$2) ON CONFLICT DO NOTHING`, [guildId,userId]);
+      const pass = (await client.query(`SELECT *, expires_at > now() AS active
+        FROM gauntlet_survival_passes WHERE guild_id=$1 AND user_id=$2 FOR UPDATE`,
+      [guildId,userId])).rows[0];
+      const old = (await client.query(`SELECT * FROM gauntlet_survival_pass_purchases
+        WHERE id=$1 OR receipt->>'grantReference'=$1`, [id])).rows[0];
+      if (old) {
+        if (old.guild_id !== guildId || old.user_id !== userId) throw new Error("Grant reference belongs to another member");
+        return old;
+      }
+      if (pass.active) throw new Error("This member already has an active Survival Pass; it was not extended");
+      let purchaseId = id;
+      if (pass.pending_purchase_id) {
+        purchaseId = pass.pending_purchase_id;
+        const pending = (await client.query(`SELECT *, created_at < now()-interval '5 minutes' AS old_enough
+          FROM gauntlet_survival_pass_purchases WHERE id=$1 FOR UPDATE`, [purchaseId])).rows[0];
+        if (!pending || !["submitted","unknown"].includes(pending.status) || !pending.old_enough) {
+          throw new Error("Wait five minutes and verify the pending payment before granting this member a pass");
+        }
+      } else {
+        await client.query(`INSERT INTO gauntlet_survival_pass_purchases (id,guild_id,user_id,amount,status)
+          VALUES ($1,$2,$3,$4,'reserved')`, [id,guildId,userId,PASS_PRICE]);
+      }
+      const result = (await client.query(`UPDATE gauntlet_survival_pass_purchases
+        SET status='succeeded', receipt=receipt || $2::jsonb, error_code='operator_verified',
+          activated_at=now(), expires_at=now()+interval '7 days', reviewed_by=$3, review_note=$4
+        WHERE id=$1 RETURNING *`,
+      [purchaseId,JSON.stringify({adminVerified:true,manualGrant:true,grantReference:id}),operatorId,note])).rows[0];
+      await client.query(`UPDATE gauntlet_survival_passes SET activated_at=$3,expires_at=$4,
+        purchase_id=$5,pending_purchase_id=NULL WHERE guild_id=$1 AND user_id=$2`,
+      [guildId,userId,result.activated_at,result.expires_at,purchaseId]);
+      return result;
+    });
+  }
   async finish(id, status, receipt = {}, errorCode = null, review = null) {
     if (!["succeeded","failed","unknown"].includes(status)) throw new Error("Invalid purchase outcome");
     return this.transaction(async client => {

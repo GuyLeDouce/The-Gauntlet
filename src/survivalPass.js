@@ -8,6 +8,13 @@ function createSurvivalPassService(store, payment) {
   return {
     status: (guildId,userId) => store.status(guildId,userId),
     entrants: (guildId,openedAt) => store.entrants(guildId,openedAt),
+    async grant(id,guildId,userId,operatorId,note) {
+      if (![id,userId].every(value => /^\d{17,20}$/.test(value)) || !guildId || !operatorId ||
+          typeof note !== "string" || note.trim().length < 12 || note.length > 1000) {
+        throw new Error("Enter a valid member and verification note (12–1,000 characters)");
+      }
+      return store.grant(id,guildId,userId,operatorId,note.trim());
+    },
     async approve(id,guildId,operatorId,note) {
       if (!/^\d{17,20}$/.test(id) || !guildId || !operatorId || note.trim().length < 12) {
         throw new Error("Enter a valid purchase reference and verification note (at least 12 characters)");
